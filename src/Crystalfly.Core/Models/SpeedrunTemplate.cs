@@ -12,6 +12,12 @@ public sealed record SpeedrunTemplate
 
     public required string BuildId { get; init; }
 
+    public bool IsOfficial { get; init; }
+
+    public string RulesRevision { get; init; } = "";
+
+    public string FileManifestId { get; init; } = "";
+
     public string? LoaderId { get; init; }
 
     public IReadOnlyList<string> RequiredAssetIds { get; init; } = [];

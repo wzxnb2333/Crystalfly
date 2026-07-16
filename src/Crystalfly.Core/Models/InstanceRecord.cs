@@ -16,5 +16,25 @@ public sealed record InstanceRecord
 
     public string? LoaderId { get; init; }
 
+    public InstancePurpose Purpose { get; init; }
+
+    public InstanceProvisioningMode ProvisioningMode { get; init; }
+
+    public string? SpeedrunTemplateId { get; init; }
+
     public DateTimeOffset CreatedAt { get; init; }
+}
+
+public enum InstancePurpose
+{
+    General,
+    OfficialSpeedrun,
+    CustomSpeedrun
+}
+
+public enum InstanceProvisioningMode
+{
+    Imported,
+    FullCopy,
+    Downloaded
 }
