@@ -19,4 +19,6 @@ public sealed record LoaderManifest
     public required string Sha256 { get; init; }
 
     public IReadOnlyList<string> SupportedBuildIds { get; init; } = [];
+
+    public IReadOnlyList<string> ManagedFiles { get; init; } = [];
 }
