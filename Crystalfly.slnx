@@ -1,4 +1,6 @@
 <Solution>
   <Project Path="src/Crystalfly.Core/Crystalfly.Core.csproj" />
+  <Project Path="src/Crystalfly.Steam/Crystalfly.Steam.csproj" />
   <Project Path="tests/Crystalfly.Core.Tests/Crystalfly.Core.Tests.csproj" />
+  <Project Path="tests/Crystalfly.Steam.Tests/Crystalfly.Steam.Tests.csproj" />
 </Solution>
