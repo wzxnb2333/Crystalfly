@@ -8,11 +8,21 @@ public static class FileTransaction
 {
     private const string JournalFileName = "journal.json";
 
-    public static async Task<TransactionJournal> ApplyDirectoryAsync(
+    public static Task<TransactionJournal> ApplyDirectoryAsync(
         string stagingRoot,
         string targetRoot,
         string journalRoot,
         string operation,
+        CancellationToken cancellationToken = default) =>
+        ReplaceDirectoryAsync(
+            stagingRoot, targetRoot, journalRoot, operation, [], cancellationToken);
+
+    public static async Task<TransactionJournal> ReplaceDirectoryAsync(
+        string stagingRoot,
+        string targetRoot,
+        string journalRoot,
+        string operation,
+        IEnumerable<string> removeRelativePaths,
         CancellationToken cancellationToken = default)
     {
         var staging = ExistingDirectory(stagingRoot, nameof(stagingRoot));
@@ -27,6 +37,14 @@ public static class FileTransaction
             .OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         ValidateDestinations(target, files);
+        var stagedPaths = files.Select(file => file.RelativePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var removals = removeRelativePaths
+            .Select(NormalizeRelativePath)
+            .Where(path => !stagedPaths.Contains(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        ValidateRemovals(target, removals);
 
         var id = Guid.NewGuid().ToString("N");
         var restorePoint = Path.Combine(journals, id);
@@ -51,6 +69,11 @@ public static class FileTransaction
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 journal = await ApplyFileAsync(file, target, journal, journalPath, cancellationToken);
+            }
+            foreach (var relativePath in removals)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                journal = await DeleteFileAsync(relativePath, target, journal, journalPath, cancellationToken);
             }
 
             journal = journal with { State = TransactionState.Committed };
@@ -180,6 +203,47 @@ public static class FileTransaction
         if (!StringComparer.OrdinalIgnoreCase.Equals(appliedHash, await HashFileAsync(targetPath, cancellationToken)))
         {
             throw new IOException($"Write verification failed for '{file.RelativePath}'.");
+        }
+        return journal;
+    }
+
+    private static async Task<TransactionJournal> DeleteFileAsync(
+        string relativePath,
+        string targetRoot,
+        TransactionJournal journal,
+        string journalPath,
+        CancellationToken cancellationToken)
+    {
+        var targetPath = ResolveUnderRoot(targetRoot, relativePath);
+        var originalHash = await HashFileAsync(targetPath, cancellationToken);
+        var backupRelativePath = NormalizeRelativePath(Path.Combine("backup", relativePath));
+        var backupPath = ResolveUnderRoot(journal.RestorePointPath, backupRelativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
+        File.Copy(targetPath, backupPath, overwrite: false);
+        if (!StringComparer.OrdinalIgnoreCase.Equals(originalHash, await HashFileAsync(backupPath, cancellationToken)))
+        {
+            throw new IOException($"Backup verification failed for '{relativePath}'.");
+        }
+
+        var backupPaths = new Dictionary<string, string>(journal.BackupPaths, StringComparer.OrdinalIgnoreCase)
+        {
+            [targetPath] = backupPath
+        };
+        var changes = journal.Changes.Append(new TransactionFileChange
+        {
+            RelativePath = relativePath,
+            IsDeletion = true,
+            BackupRelativePath = backupRelativePath,
+            OriginalSha256 = originalHash,
+            AppliedSha256 = originalHash
+        }).ToArray();
+        journal = journal with { BackupPaths = backupPaths, Changes = changes };
+        await AtomicJsonStore.WriteAsync(journalPath, journal, cancellationToken);
+
+        File.Delete(targetPath);
+        if (File.Exists(targetPath))
+        {
+            throw new IOException($"Delete verification failed for '{relativePath}'.");
         }
         return journal;
     }
@@ -346,6 +410,22 @@ public static class FileTransaction
                     break;
                 }
                 parent = Path.GetDirectoryName(parent);
+            }
+        }
+    }
+
+    private static void ValidateRemovals(string targetRoot, IReadOnlyList<string> relativePaths)
+    {
+        foreach (var relativePath in relativePaths)
+        {
+            var path = ResolveUnderRoot(targetRoot, relativePath);
+            if (!File.Exists(path) || Directory.Exists(path))
+            {
+                throw new IOException($"Declared removal is not an existing file: '{relativePath}'.");
+            }
+            if (IsReparsePoint(path))
+            {
+                throw new IOException($"Declared removal is a symbolic link: '{relativePath}'.");
             }
         }
     }

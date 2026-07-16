@@ -58,6 +58,64 @@ public sealed class FileTransactionTests
     }
 
     [Fact]
+    public async Task ReplaceDirectory_applies_new_files_and_removes_only_declared_files()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var target = test.CreateDirectory("target");
+        var journals = test.CreateDirectory("journals");
+        await File.WriteAllTextAsync(Path.Combine(staging, "new.txt"), "new");
+        await File.WriteAllTextAsync(Path.Combine(target, "old.txt"), "old");
+        await File.WriteAllTextAsync(Path.Combine(target, "keep.txt"), "keep");
+
+        var result = await FileTransaction.ReplaceDirectoryAsync(
+            staging, target, journals, "switch-loader", ["old.txt"]);
+
+        Assert.Equal(TransactionState.Committed, result.State);
+        Assert.True(File.Exists(Path.Combine(target, "new.txt")));
+        Assert.False(File.Exists(Path.Combine(target, "old.txt")));
+        Assert.Equal("keep", await File.ReadAllTextAsync(Path.Combine(target, "keep.txt")));
+        Assert.Contains(result.Changes, change => change.RelativePath == "old.txt" && change.IsDeletion);
+    }
+
+    [Fact]
+    public async Task ReplaceDirectory_rolls_back_writes_when_a_declared_delete_fails()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var target = test.CreateDirectory("target");
+        var journals = test.CreateDirectory("journals");
+        await File.WriteAllTextAsync(Path.Combine(staging, "a.txt"), "new");
+        await File.WriteAllTextAsync(Path.Combine(target, "a.txt"), "old");
+        await File.WriteAllTextAsync(Path.Combine(target, "z.txt"), "remove");
+
+        await using (var locked = new FileStream(
+            Path.Combine(target, "z.txt"), FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            await Assert.ThrowsAnyAsync<IOException>(() => FileTransaction.ReplaceDirectoryAsync(
+                staging, target, journals, "switch-loader", ["z.txt"]));
+        }
+
+        Assert.Equal("old", await File.ReadAllTextAsync(Path.Combine(target, "a.txt")));
+        Assert.Equal("remove", await File.ReadAllTextAsync(Path.Combine(target, "z.txt")));
+    }
+
+    [Fact]
+    public async Task ReplaceDirectory_rejects_delete_paths_outside_target()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var target = test.CreateDirectory("target");
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => FileTransaction.ReplaceDirectoryAsync(
+            staging,
+            target,
+            test.CreateDirectory("journals"),
+            "uninstall-loader",
+            ["../outside.txt"]));
+    }
+
+    [Fact]
     public async Task RecoverPending_rolls_back_applying_journal()
     {
         using var test = new TestDirectory();

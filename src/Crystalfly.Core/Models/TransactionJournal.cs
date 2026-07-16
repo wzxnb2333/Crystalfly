@@ -44,6 +44,8 @@ public sealed record TransactionFileChange
 {
     public required string RelativePath { get; init; }
 
+    public bool IsDeletion { get; init; }
+
     public string? BackupRelativePath { get; init; }
 
     public string? OriginalSha256 { get; init; }

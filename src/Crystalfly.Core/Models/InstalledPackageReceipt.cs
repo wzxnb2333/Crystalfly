@@ -19,6 +19,8 @@ public sealed record InstalledPackageReceipt
 
     public LoaderState LoaderState { get; init; }
 
+    public string BackupRoot { get; init; } = string.Empty;
+
     public IReadOnlyList<InstalledFileReceipt> Files { get; init; } = [];
 }
 
@@ -27,4 +29,8 @@ public sealed record InstalledFileReceipt
     public required string RelativePath { get; init; }
 
     public required string Sha256 { get; init; }
+
+    public string? OriginalSha256 { get; init; }
+
+    public string? BackupRelativePath { get; init; }
 }
