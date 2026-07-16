@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "builds": [
+    {
+      "schemaVersion": 1,
+      "id": "1.2.2.1",
+      "displayVersion": "1.2.2.1",
+      "depotId": 367521,
+      "manifestId": "648876203478229944",
+      "executableSha256": "1434454FCB5A1F4FFF329EA56182A7C7DA1581DC0F4B6DCEF8585E739F416217",
+      "globalGameManagersSha256": "58BC88B74D6F05B9E00D7E1F2BC9B3BA6E9FC51F75C6915DF10BF10B90CDD749"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "1.4.3.2",
+      "displayVersion": "1.4.3.2",
+      "depotId": 367521,
+      "manifestId": "7100970131266256005",
+      "executableSha256": "209552122B8A437EB4D0ACA0578DA85408B91C1C35D9137E5F5EEE313F8331BF",
+      "unityPlayerSha256": "3AE7AD0A4658406A056D4D0C75E6787A553ABE3D0ADBCA510BFE8BBEC3111C67",
+      "globalGameManagersSha256": "2F22CE414944A9C6B8F6CD867F0E14BEE2F4622BED8FBA2CCBC2F389B992181B"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "1.5.78.11833",
+      "displayVersion": "1.5.78.11833",
+      "depotId": 367521,
+      "manifestId": "4539921744901848404",
+      "executableSha256": "4D3D0F55AFBB249170241D0DC6FAF9A5DCF3E1ED427A282AE990BB6E4E3A6913",
+      "unityPlayerSha256": "D97E92A7640B10580B4E60139EACF01828F74BAAEF53F75E08B9FDD6193FBE5E",
+      "globalGameManagersSha256": "57EBBD860F452878D82000ED7CAA9D40F22436FFCC1E56088EEC28683C486EFA"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "1.5.12620.0",
+      "displayVersion": "1.5.12620.0",
+      "depotId": 367521,
+      "manifestId": "257781644874438846",
+      "executableSha256": "7961BBA7243CE322163AD6B0DDFD6EF701413020B92AD0D98502526A396171B0",
+      "unityPlayerSha256": "8F2D601F8D3C7F4D29D80BA786C0BE873102BB7E6041EB03964A90B99724D90B",
+      "globalGameManagersSha256": "0E9A971C59C072A2DDD5BEDE0B64964F512BDE9596C3583D23E4881BDE35D7F8"
+    }
+  ],
+  "channels": [
+    { "schemaVersion": 1, "name": "latest", "buildId": "1.5.12620.0" },
+    { "schemaVersion": 1, "name": "public", "buildId": "1.5.12620.0" }
+  ],
+  "loaders": [
+    {
+      "schemaVersion": 1,
+      "id": "modding-api-37",
+      "name": "Modding API",
+      "version": "37",
+      "downloadUrl": "https://github.com/wzxnb2333/api/releases/download/1.2.2.1-37-windows/ModdingAPI-1.2.2.1-37-win-x64.zip",
+      "sizeBytes": 932719,
+      "sha256": "ECFF6C73C40194E9D8118C14B9ADE6862DB91E3949D8150027A86FD83BF290F7",
+      "supportedBuildIds": ["1.2.2.1"]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "bepinex-5.4.23.4",
+      "name": "BepInEx",
+      "version": "5.4.23.4",
+      "downloadUrl": "https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.4/BepInEx_win_x64_5.4.23.4.zip",
+      "sizeBytes": 638940,
+      "sha256": "F881201B79DA03E513BF97CDF39607FFA7F9E0D31A519B1AEECA8EB60F8309E7",
+      "supportedBuildIds": ["1.5.12620.0"]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "modding-api-60",
+      "name": "Modding API",
+      "version": "60",
+      "downloadUrl": "https://github.com/hk-modding/api/releases/download/1.4.3.2-60/Windows.zip",
+      "sha256": "A84571DE7DD8E0EA2F2528E132359F6F37A3CD161472C104E19D0C9FEA874E51",
+      "supportedBuildIds": ["1.4.3.2"]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "modding-api-77",
+      "name": "Modding API",
+      "version": "77",
+      "downloadUrl": "https://github.com/hk-modding/api/releases/download/1.5.78.11833-77/moddingapi.v77.windows.zip",
+      "sha256": "BC9F0DB3D0916B05CD5A2420BB602FB1B239CE3FF6C289FD84BFFB682FB8F1D6",
+      "supportedBuildIds": ["1.5.78.11833"]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "modding-api-78",
+      "name": "Modding API",
+      "version": "78",
+      "downloadUrl": "https://github.com/wzxnb2333/api/releases/download/1.5.12620.0-78/ModdingAPI-1.5.12620.0-78-win-x64.zip",
+      "sizeBytes": 4982043,
+      "sha256": "5B5EBDDA651171E3C5EA6F13FB68FFE2D1B5F8B97A9D6FDE0EED3EA529418748",
+      "supportedBuildIds": ["1.5.12620.0"]
+    }
+  ],
+  "mods": [],
+  "speedrunTemplates": [
+    {
+      "schemaVersion": 1,
+      "id": "race-1221",
+      "name": "Race 1.2.2.1",
+      "buildId": "1.2.2.1",
+      "requiredAssetIds": ["screen-shake-modifier-1221"],
+      "loadNormaliserAvailable": false,
+      "requiresLoadNormaliserSelection": false,
+      "allowedLoadNormaliserSeconds": []
+    },
+    {
+      "schemaVersion": 1,
+      "id": "single-run-1221",
+      "name": "Single Run 1.2.2.1",
+      "buildId": "1.2.2.1",
+      "requiredAssetIds": ["screen-shake-modifier-1221"],
+      "loadNormaliserAvailable": false,
+      "requiresLoadNormaliserSelection": false,
+      "allowedLoadNormaliserSeconds": []
+    },
+    {
+      "schemaVersion": 1,
+      "id": "single-run-1578",
+      "name": "Single Run 1.5.78.11833",
+      "buildId": "1.5.78.11833",
+      "requiredAssetIds": [],
+      "loadNormaliserAvailable": true,
+      "requiresLoadNormaliserSelection": false,
+      "allowedLoadNormaliserSeconds": []
+    },
+    {
+      "schemaVersion": 1,
+      "id": "race-1578",
+      "name": "Race 1.5.78.11833",
+      "buildId": "1.5.78.11833",
+      "requiredAssetIds": ["load-normaliser-1.1"],
+      "loadNormaliserAvailable": true,
+      "requiresLoadNormaliserSelection": true,
+      "allowedLoadNormaliserSeconds": [1, 2, 3, 5]
+    }
+  ],
+  "speedrunAssets": [
+    {
+      "schemaVersion": 1,
+      "id": "screen-shake-modifier-1221",
+      "name": "ScreenShakeModifier",
+      "version": "1.2.2.1",
+      "downloadUrl": "https://raw.githubusercontent.com/hk-speedrunning/HK-Resources/main/ScreenShakeModifier/1221/Assembly-CSharp.dll",
+      "sizeBytes": 2832384,
+      "sha256": "EF25E8E55765230B9D12554355BB069189DD0AA0AEDAB684084DAD297D5391FA",
+      "supportedBuildIds": ["1.2.2.1"]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "load-normaliser-1.1",
+      "name": "LoadNormaliser",
+      "version": "1.1",
+      "downloadUrl": "https://github.com/Schyvun/HKCP_LoadNormaliser/releases/download/1.1/1432.1578.1.2.3.5.LoadNormaliser.UI.zip",
+      "sizeBytes": 8315789,
+      "sha256": "FAEFF81E5BC845E1BBF8E23CF50B14EB3684F34C85FDE43F6827270F6814B9A7",
+      "supportedBuildIds": ["1.4.3.2", "1.5.78.11833"]
+    }
+  ]
+}

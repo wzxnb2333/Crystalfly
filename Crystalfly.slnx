@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/Crystalfly.Core/Crystalfly.Core.csproj" />
+  <Project Path="tests/Crystalfly.Core.Tests/Crystalfly.Core.Tests.csproj" />
+</Solution>

@@ -15,7 +15,6 @@ logs/
 *.log
 .env
 .env.*
-Data/
+/Data/
 portable.flag
 .superpowers/
-
