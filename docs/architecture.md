@@ -17,7 +17,13 @@ speedrun environments on Windows 10/11 x64.
     downloads/
     instances/<instance-id>/
       local-low/
-      snapshots/
+      snapshots/<snapshot-id>/
+        snapshot.json
+        data/
+    local-low/
+      takeover.json
+      shared-backup/
+      transactions/<session-id>/journal.json
     packages/
     transactions/
 ```
@@ -40,7 +46,7 @@ automatic loader installation stays locked until the catalog verifies them.
 
 ## Transaction boundary
 
-Every loader, mod, instance save-data, and snapshot operation follows the same
+Every loader, mod, and LocalLow switch/write-back operation follows the same
 journal states:
 
 ```text
@@ -53,6 +59,11 @@ Target files are staged and hashed before replacement. Existing files are
 copied to transaction-private backups. A successful transaction removes its
 temporary recovery point. An incomplete rollback leaves the journal and blocks
 launch until the user resolves it.
+
+Named snapshot creation is append-only. Restore uses a verified directory swap:
+the previous instance directory remains beside the target until the restored
+directory hash is verified. Snapshots are never used as temporary transaction
+backups and are never removed automatically.
 
 ## Loader and package trust
 
@@ -71,10 +82,47 @@ User sources cannot replace official IDs or grant verified speedrun status.
 
 ## LocalLow isolation
 
-Before first takeover, Crystalfly backs up the shared Hollow Knight LocalLow
-directory. Launch copies the selected instance's non-log data into LocalLow.
-Process exit copies it back, then restores the original shared data. Process
-checks, a named mutex, and the transaction journal prevent concurrent mutation.
+Before first takeover, Crystalfly copies the complete shared Hollow Knight
+LocalLow directory, including logs, to `local-low/shared-backup`. The backup is
+hashed and retained permanently. The selected instance's first baseline is
+copied from that backup without Unity, Modding API, or `Logs` directory files.
+
+`InstanceRuntimeSession` acquires the global named mutex
+`Global\Crystalfly.HollowKnight.Runtime` and checks every process named
+`hollow_knight` before changing LocalLow. The mutex handle remains alive for the
+whole runtime session. Completion refuses to write back while such a process is
+still running.
+
+Switch-in stages the instance data beside the shared LocalLow directory, moves
+the current shared directory to a session-specific preserved path, then moves
+the staged instance into place. After process exit, non-log data is copied to a
+staging directory beside the instance, the previous instance directory is
+preserved, and the verified capture replaces it. Only then is active LocalLow
+removed and the preserved shared directory restored.
+
+The LocalLow journal records aggregate directory hashes and these phases:
+
+```text
+Prepared -> ActivationStaged -> SharedPreserved -> InstanceActive
+         -> CaptureStaged -> InstanceCaptured -> SharedRestored -> Completed
+         \-> RolledBack
+         \-> NeedsAttention
+```
+
+Recovery accepts only path layouts and directory hashes that prove which move
+completed. It either rolls back a switch that never became active or finishes
+write-back for an active session. Missing, changed, or ambiguous data becomes
+`NeedsAttention`; recovery retains every relevant path and blocks another
+launch instead of guessing.
+
+## Named snapshots
+
+Named snapshots are manual, per-instance copies under
+`instances/<instance-id>/snapshots`. Each snapshot stores immutable metadata and
+a deterministic directory SHA-256. Creation and restore use the same runtime
+mutex and process check as launch. Restore verifies the stored snapshot before
+touching the instance, replaces the instance directory exactly, and retains the
+named snapshot permanently after successful restore.
 
 ## Speedrun trust
 
@@ -83,4 +131,3 @@ checks the game build, approved tools, rule revision, and all managed file
 hashes before every launch. Modding API, BepInEx, DebugMod, and any unlisted
 file invalidate official status. Custom templates never receive the official
 verification mark.
-

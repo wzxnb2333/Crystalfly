@@ -1,0 +1,109 @@
+using Crystalfly.Core.Runtime;
+using Crystalfly.Core.Snapshots;
+
+namespace Crystalfly.Core.Tests.Snapshots;
+
+public sealed class NamedSnapshotServiceTests
+{
+    [Fact]
+    public async Task Create_and_restore_preserve_named_snapshot_permanently_and_restore_exact_directory()
+    {
+        using var test = new TestDirectory();
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        var instance = test.CreateDirectory(
+            "version", ".crystalfly", "instances", "practice", "local-low");
+        await test.WriteAsync(instance, "user1.dat", "before-boss");
+        await test.WriteAsync(instance, "settings.json", "settings-before");
+        var service = CreateService(storage);
+
+        var snapshot = await service.CreateAsync("practice", "Before Watcher Knights");
+        await File.WriteAllTextAsync(Path.Combine(instance, "user1.dat"), "after-boss");
+        await test.WriteAsync(instance, "later-file.json", "remove-on-restore");
+
+        await service.RestoreAsync("practice", snapshot.Id);
+
+        Assert.Equal("before-boss", await File.ReadAllTextAsync(Path.Combine(instance, "user1.dat")));
+        Assert.Equal("settings-before", await File.ReadAllTextAsync(Path.Combine(instance, "settings.json")));
+        Assert.False(File.Exists(Path.Combine(instance, "later-file.json")));
+        Assert.True(Directory.Exists(snapshot.SnapshotPath));
+        Assert.Equal(snapshot, Assert.Single(await service.ListAsync("practice")));
+    }
+
+    [Fact]
+    public async Task Restore_rejects_tampered_snapshot_and_keeps_instance_unchanged()
+    {
+        using var test = new TestDirectory();
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        var instance = test.CreateDirectory(
+            "version", ".crystalfly", "instances", "practice", "local-low");
+        await test.WriteAsync(instance, "user1.dat", "snapshot-content");
+        var service = CreateService(storage);
+        var snapshot = await service.CreateAsync("practice", "Clean save");
+        await File.WriteAllTextAsync(Path.Combine(snapshot.SnapshotPath, "user1.dat"), "tampered");
+        await File.WriteAllTextAsync(Path.Combine(instance, "user1.dat"), "current-instance");
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            service.RestoreAsync("practice", snapshot.Id));
+
+        Assert.Equal("current-instance", await File.ReadAllTextAsync(Path.Combine(instance, "user1.dat")));
+        Assert.True(Directory.Exists(snapshot.SnapshotPath));
+    }
+
+    [Fact]
+    public async Task Create_is_blocked_when_hollow_knight_process_is_running()
+    {
+        using var test = new TestDirectory();
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        var instance = test.CreateDirectory(
+            "version", ".crystalfly", "instances", "practice", "local-low");
+        await test.WriteAsync(instance, "user1.dat", "save");
+        var service = new NamedSnapshotService(
+            storage,
+            UniqueMutexName(),
+            new StubProcessProbe(isRunning: true));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.CreateAsync("practice", "Blocked"));
+    }
+
+    private static NamedSnapshotService CreateService(string storage) => new(
+        storage,
+        UniqueMutexName(),
+        new StubProcessProbe(isRunning: false));
+
+    private static string UniqueMutexName() => $"Crystalfly.Tests.{Guid.NewGuid():N}";
+
+    private sealed class StubProcessProbe(bool isRunning) : IHollowKnightProcessProbe
+    {
+        public bool IsRunning() => isRunning;
+    }
+
+    private sealed class TestDirectory : IDisposable
+    {
+        private readonly string root = Path.Combine(
+            Path.GetTempPath(), "Crystalfly.Tests", Guid.NewGuid().ToString("N"));
+
+        public string CreateDirectory(params string[] parts)
+        {
+            var path = parts.Aggregate(root, Path.Combine);
+            Directory.CreateDirectory(path);
+            return path;
+        }
+
+        public async Task WriteAsync(string directory, params string[] pathAndContent)
+        {
+            var content = pathAndContent[^1];
+            var path = pathAndContent[..^1].Aggregate(directory, Path.Combine);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllTextAsync(path, content);
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+}
