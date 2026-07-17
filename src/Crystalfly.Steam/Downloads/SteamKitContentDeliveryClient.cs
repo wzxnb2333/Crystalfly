@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using SteamKit2;
 using SteamKit2.CDN;
 
@@ -15,6 +16,7 @@ public sealed class SteamKitContentDeliveryClient : ISteamContentDeliveryClient,
     private Server? _proxy;
     private byte[]? _depotKey;
     private string? _cdnAuthToken;
+    private uint _appId;
     private uint _depotId;
 
     public SteamKitContentDeliveryClient(SteamClient steamClient)
@@ -57,22 +59,26 @@ public sealed class SteamKitContentDeliveryClient : ISteamContentDeliveryClient,
         if (string.IsNullOrWhiteSpace(server.Host))
             throw new InvalidOperationException("Steam returned a content server without a host name.");
 
-        SteamContent.CDNAuthToken authToken = await _content.GetCDNAuthToken(appId, depotId, server.Host);
-        if (authToken.Result != EResult.OK)
-            throw new InvalidOperationException($"Steam denied the CDN token request: {authToken.Result}.");
         ulong requestCode = await _content.GetManifestRequestCode(
             depotId,
             appId,
             resolvedManifestId,
             branch);
-        DepotManifest manifest = await _cdn.DownloadManifestAsync(
-            depotId,
-            resolvedManifestId,
-            requestCode,
-            server,
-            depotKey.DepotKey,
-            proxy,
-            authToken.Token);
+        (DepotManifest manifest, string? authToken) = await DownloadWithCdnAuthAsync(
+            null,
+            token => _cdn.DownloadManifestAsync(
+                depotId,
+                resolvedManifestId,
+                requestCode,
+                server,
+                depotKey.DepotKey,
+                proxy,
+                token),
+            async () =>
+            {
+                SteamContent.CDNAuthToken token = await _content.GetCDNAuthToken(appId, depotId, server.Host);
+                return (token.Result, token.Token);
+            });
 
         _chunks.Clear();
         List<DepotManifest.FileData> sourceFiles = manifest.Files
@@ -110,7 +116,8 @@ public sealed class SteamKitContentDeliveryClient : ISteamContentDeliveryClient,
         _server = server;
         _proxy = proxy;
         _depotKey = depotKey.DepotKey;
-        _cdnAuthToken = authToken.Token;
+        _cdnAuthToken = authToken;
+        _appId = appId;
         _depotId = depotId;
         return new SteamDepotManifest(manifest.ManifestGID, files);
     }
@@ -120,24 +127,56 @@ public sealed class SteamKitContentDeliveryClient : ISteamContentDeliveryClient,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (_server is null || _depotKey is null || !_chunks.TryGetValue(chunk.Id, out DepotManifest.ChunkData? source))
+        if (_server is null || string.IsNullOrWhiteSpace(_server.Host) || _depotKey is null
+            || !_chunks.TryGetValue(chunk.Id, out DepotManifest.ChunkData? source))
             throw new InvalidOperationException("The requested chunk does not belong to the active depot manifest.");
 
+        Server server = _server;
+        string host = server.Host;
         byte[] destination = new byte[checked((int)source.UncompressedLength)];
-        int written = await _cdn.DownloadDepotChunkAsync(
-            _depotId,
-            source,
-            _server,
-            destination,
-            _depotKey,
-            _proxy,
-            _cdnAuthToken);
+        (int written, string? authToken) = await DownloadWithCdnAuthAsync(
+            _cdnAuthToken,
+            token => _cdn.DownloadDepotChunkAsync(
+                _depotId,
+                source,
+                server,
+                destination,
+                _depotKey,
+                _proxy,
+                token),
+            async () =>
+            {
+                SteamContent.CDNAuthToken token = await _content.GetCDNAuthToken(_appId, _depotId, host);
+                return (token.Result, token.Token);
+            });
+        _cdnAuthToken = authToken;
         if (written != destination.Length)
             throw new InvalidDataException($"Steam returned {written} bytes for a {destination.Length}-byte chunk.");
         return destination;
     }
 
     public void Dispose() => _cdn.Dispose();
+
+    internal static async Task<(T Value, string? AuthToken)> DownloadWithCdnAuthAsync<T>(
+        string? initialAuthToken,
+        Func<string?, Task<T>> download,
+        Func<Task<(EResult Result, string? Token)>> requestToken)
+    {
+        try
+        {
+            return (await download(initialAuthToken), initialAuthToken);
+        }
+        catch (SteamKitWebRequestException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
+        {
+            (EResult result, string? token) = await requestToken();
+            if (result != EResult.OK)
+                throw new InvalidOperationException($"Steam denied the CDN token request: {result}.", exception);
+            if (string.IsNullOrWhiteSpace(token))
+                throw new InvalidOperationException("Steam returned an empty CDN auth token.", exception);
+
+            return (await download(token), token);
+        }
+    }
 
     private async Task<ulong> ResolvePublicManifestIdAsync(uint appId, uint depotId)
     {
