@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -777,8 +778,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             var service = new SteamDepotDownloadService(content, progress =>
                 Dispatcher.UIThread.Post(() =>
                 {
+                    if (!IsDownloading)
+                        return;
                     DownloadProgress = progress.Fraction;
-                    DownloadStatus = progress.CurrentFile;
+                    DownloadStatus = FormatDownloadStatus(progress);
                 }));
             var result = await service.DownloadAsync(
                 new SteamDownloadRequest(staging, SelectedDownloadBuild.ManifestId),
@@ -828,6 +831,55 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 }
             }
         }
+    }
+
+    internal static string FormatDownloadStatus(SteamDownloadProgress progress)
+    {
+        ArgumentNullException.ThrowIfNull(progress);
+        return string.Format(
+            CultureInfo.InvariantCulture,
+            "{0} · {1} / {2} · {3:0}%\n{4}",
+            FormatByteAmount(progress.BytesPerSecond, perSecond: true),
+            FormatByteAmount(progress.CompletedBytes, perSecond: false),
+            FormatByteAmount(progress.TotalBytes, perSecond: false),
+            progress.Fraction * 100,
+            progress.CurrentFile);
+    }
+
+    private static string FormatByteAmount(double bytes, bool perSecond)
+    {
+        const double Kilobyte = 1024;
+        const double Megabyte = Kilobyte * 1024;
+        const double Gigabyte = Megabyte * 1024;
+        double value;
+        string unit;
+        if (bytes >= Gigabyte)
+        {
+            value = bytes / Gigabyte;
+            unit = "GB";
+        }
+        else if (bytes >= Megabyte)
+        {
+            value = bytes / Megabyte;
+            unit = "MB";
+        }
+        else if (bytes >= Kilobyte)
+        {
+            value = bytes / Kilobyte;
+            unit = "KB";
+        }
+        else
+        {
+            value = bytes;
+            unit = "B";
+        }
+
+        return string.Format(
+            CultureInfo.InvariantCulture,
+            "{0:0.#} {1}{2}",
+            value,
+            unit,
+            perSecond ? "/s" : string.Empty);
     }
 
     [RelayCommand]

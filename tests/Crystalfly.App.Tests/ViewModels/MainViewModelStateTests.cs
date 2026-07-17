@@ -1,6 +1,7 @@
 using Crystalfly.App.ViewModels;
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Models;
+using Crystalfly.Steam.Downloads;
 using Crystalfly.Steam.Security;
 using System.Collections.Concurrent;
 using System.Reflection;
@@ -209,6 +210,23 @@ public sealed class MainViewModelStateTests : IDisposable
 
         Assert.Equal("Steam: CDN unavailable", viewModel.ErrorMessage);
         Assert.Equal("Failed", viewModel.DownloadStatus);
+    }
+
+    [Fact]
+    public void Download_status_shows_speed_size_progress_and_current_file()
+    {
+        var progress = new SteamDownloadProgress(
+            CompletedBytes: 486L * 1024 * 1024,
+            TotalBytes: (long)(2.1 * 1024 * 1024 * 1024),
+            Fraction: 0.23,
+            CurrentFile: "current-file.dat")
+        {
+            BytesPerSecond = 12.4 * 1024 * 1024
+        };
+
+        var status = MainViewModel.FormatDownloadStatus(progress);
+
+        Assert.Equal("12.4 MB/s · 486 MB / 2.1 GB · 23%\ncurrent-file.dat", status);
     }
 
     [Fact]
