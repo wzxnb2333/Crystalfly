@@ -1,6 +1,8 @@
 using Crystalfly.App.ViewModels;
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Models;
+using Crystalfly.Steam.Downloads;
+using Crystalfly.Steam.Security;
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -117,6 +119,114 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Equal(
             ["launch-complete", "download-complete", "steam-disposed"],
             events.ToArray());
+    }
+
+    [Fact]
+    public async Task Steam_sign_in_failure_is_reported_without_faulting_the_command()
+    {
+        var viewModel = new MainViewModel(
+            applicationData.CreateDirectory("app-data"),
+            launchOverride: null,
+            downloadOverride: null,
+            disposeSteamOverride: null,
+            qrSignInOverride: _ => Task.FromException<RefreshTokenCredential>(new Exception("poll failed")));
+
+        await viewModel.SignInWithQrCommand.ExecuteAsync(null);
+
+        Assert.Equal("Steam: poll failed", viewModel.ErrorMessage);
+        Assert.Equal("Not signed in", viewModel.SteamStatus);
+        Assert.False(viewModel.IsSteamLoggedIn);
+    }
+
+    [Fact]
+    public async Task Dispose_cancels_and_waits_for_running_Steam_sign_in()
+    {
+        var signInStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var signInCancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseSignInCleanup = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var viewModel = new MainViewModel(
+            applicationData.CreateDirectory("app-data"),
+            launchOverride: null,
+            downloadOverride: null,
+            disposeSteamOverride: null,
+            qrSignInOverride: async cancellationToken =>
+            {
+                signInStarted.SetResult();
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                    return new RefreshTokenCredential("unused", "unused");
+                }
+                finally
+                {
+                    signInCancelled.SetResult();
+                    await releaseSignInCleanup.Task;
+                }
+            });
+
+        var signIn = viewModel.SignInWithQrCommand.ExecuteAsync(null);
+        await signInStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var dispose = viewModel.DisposeAsync().AsTask();
+
+        await signInCancelled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(dispose.IsCompleted);
+        releaseSignInCleanup.SetResult();
+        await Task.WhenAll(signIn, dispose).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("Not signed in", viewModel.SteamStatus);
+    }
+
+    [Fact]
+    public async Task Steam_sign_in_does_not_start_after_disposal()
+    {
+        var signInCalled = false;
+        var viewModel = new MainViewModel(
+            applicationData.CreateDirectory("app-data"),
+            launchOverride: null,
+            downloadOverride: null,
+            disposeSteamOverride: null,
+            qrSignInOverride: _ =>
+            {
+                signInCalled = true;
+                return Task.FromResult(new RefreshTokenCredential("unused", "unused"));
+            });
+
+        await viewModel.DisposeAsync();
+        await viewModel.SignInWithQrCommand.ExecuteAsync(null);
+
+        Assert.False(signInCalled);
+    }
+
+    [Fact]
+    public async Task Steam_download_failure_is_reported_without_faulting_the_command()
+    {
+        var viewModel = new MainViewModel(
+            applicationData.CreateDirectory("app-data"),
+            launchOverride: null,
+            downloadOverride: _ => Task.FromException(new HttpRequestException("CDN unavailable")),
+            disposeSteamOverride: null);
+
+        await viewModel.DownloadBuildCommand.ExecuteAsync(null);
+
+        Assert.Equal("Steam: CDN unavailable", viewModel.ErrorMessage);
+        Assert.Equal("Failed", viewModel.DownloadStatus);
+    }
+
+    [Fact]
+    public void Download_status_shows_speed_size_progress_and_current_file()
+    {
+        var progress = new SteamDownloadProgress(
+            CompletedBytes: 486L * 1024 * 1024,
+            TotalBytes: (long)(2.1 * 1024 * 1024 * 1024),
+            Fraction: 0.23,
+            CurrentFile: "current-file.dat")
+        {
+            BytesPerSecond = 12.4 * 1024 * 1024
+        };
+
+        var status = MainViewModel.FormatDownloadStatus(progress);
+
+        Assert.Equal("12.4 MB/s · 486 MB / 2.1 GB · 23%\ncurrent-file.dat", status);
     }
 
     [Fact]

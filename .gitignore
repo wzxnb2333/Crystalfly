@@ -6,7 +6,7 @@ dist/
 build/
 .cache/
 .temp/
-logs/
+/logs/
 .idea/
 .vs/
 .vscode/

@@ -4,4 +4,7 @@ public sealed record SteamDownloadProgress(
     long CompletedBytes,
     long TotalBytes,
     double Fraction,
-    string CurrentFile);
+    string CurrentFile)
+{
+    public double BytesPerSecond { get; init; }
+}

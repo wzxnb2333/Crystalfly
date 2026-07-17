@@ -200,7 +200,8 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
                     pending.Push(entry);
                     continue;
                 }
-                if (string.Equals(relativePath, ".crystalfly-instance.json", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(relativePath, ".crystalfly-instance.json", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(relativePath, "steam_appid.txt", StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 seenFiles.Add(relativePath);

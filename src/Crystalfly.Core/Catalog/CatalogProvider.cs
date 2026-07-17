@@ -45,7 +45,11 @@ public static class CatalogProvider
             await AtomicJsonStore.WriteAsync(cachePath, candidate, cancellationToken);
             remote = candidate;
         }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or JsonException or InvalidDataException)
+        catch (Exception exception) when (exception is HttpRequestException
+            or IOException
+            or JsonException
+            or InvalidDataException
+            || exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
         {
         }
 

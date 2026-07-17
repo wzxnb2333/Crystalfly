@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Platform.Storage;
@@ -23,7 +24,14 @@ public partial class MainWindow : Window
         Opened -= OnOpened;
         if (DataContext is MainViewModel viewModel)
         {
-            await viewModel.InitializeAsync();
+            try
+            {
+                await viewModel.InitializeAsync();
+            }
+            catch (Exception exception)
+            {
+                viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            }
         }
     }
 
@@ -135,7 +143,8 @@ public partial class MainWindow : Window
             viewModel.Loc["ConfirmLoaderUninstallTitle"],
             viewModel.Loc["ConfirmLoaderUninstallMessage"],
             viewModel.SelectedInstance.Name,
-            viewModel);
+            viewModel,
+            isDangerous: true);
         if (confirmed)
         {
             await viewModel.UninstallLoaderCommand.ExecuteAsync(null);
@@ -160,7 +169,8 @@ public partial class MainWindow : Window
             message,
             viewModel.SelectedInstalledMod.Name,
             viewModel,
-            canConfirm: dependents.Count == 0);
+            canConfirm: dependents.Count == 0,
+            isDangerous: true);
         if (confirmed)
         {
             await viewModel.UninstallSelectedModCommand.ExecuteAsync(null);
@@ -185,7 +195,8 @@ public partial class MainWindow : Window
             message,
             viewModel.GetSelectedModNames(bulk: true),
             viewModel,
-            canConfirm: dependents.Count == 0);
+            canConfirm: dependents.Count == 0,
+            isDangerous: true);
         if (confirmed)
         {
             await viewModel.UninstallSelectedModsCommand.ExecuteAsync(null);
@@ -214,7 +225,8 @@ public partial class MainWindow : Window
         string message,
         string target,
         MainViewModel viewModel,
-        bool canConfirm = true)
+        bool canConfirm = true,
+        bool isDangerous = false)
     {
         var dialog = new Window
         {
@@ -241,10 +253,19 @@ public partial class MainWindow : Window
             MinWidth = 96,
             IsEnabled = canConfirm
         };
-        confirmButton.Classes.Add("cfp-primary");
+        ApplyConfirmationStyle(confirmButton, isDangerous);
 
         cancelButton.Click += (_, _) => dialog.Close(false);
         confirmButton.Click += (_, _) => dialog.Close(true);
+        dialog.Opened += (_, _) => cancelButton.Focus(NavigationMethod.Tab, KeyModifiers.None);
+        dialog.KeyDown += (_, eventArgs) =>
+        {
+            if (eventArgs.Key == Key.Escape)
+            {
+                eventArgs.Handled = true;
+                dialog.Close(false);
+            }
+        };
 
         dialog.Content = new StackPanel
         {
@@ -256,7 +277,8 @@ public partial class MainWindow : Window
                 {
                     Text = title,
                     FontSize = 20,
-                    FontWeight = Avalonia.Media.FontWeight.SemiBold
+                    FontWeight = Avalonia.Media.FontWeight.SemiBold,
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap
                 },
                 new TextBlock
                 {
@@ -281,4 +303,7 @@ public partial class MainWindow : Window
 
         return await dialog.ShowDialog<bool>(this);
     }
+
+    internal static void ApplyConfirmationStyle(Button button, bool isDangerous)
+        => button.Classes.Add(isDangerous ? "cfp-danger" : "cfp-primary");
 }

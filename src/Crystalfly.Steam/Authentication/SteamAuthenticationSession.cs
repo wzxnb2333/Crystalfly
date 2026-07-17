@@ -114,29 +114,52 @@ public sealed class SteamAuthenticationSession : IAsyncDisposable
 
     public void SignOut()
     {
-        _tokenStore.Delete();
-        if (_client.IsConnected)
-            _user.LogOff();
-        _client.Disconnect();
+        Exception? tokenDeleteException = null;
+        try
+        {
+            _tokenStore.Delete();
+        }
+        catch (Exception exception)
+        {
+            tokenDeleteException = exception;
+        }
+
+        try
+        {
+            if (_client.IsConnected)
+                _user.LogOff();
+        }
+        finally
+        {
+            _client.Disconnect();
+        }
+
+        if (tokenDeleteException is not null)
+            throw new IOException("The Steam refresh token could not be deleted.", tokenDeleteException);
     }
 
     public async ValueTask DisposeAsync()
     {
         _lifetime.Cancel();
         _client.Disconnect();
-        if (_callbackPump is not null)
+        try
         {
-            try
+            if (_callbackPump is not null)
             {
-                await _callbackPump;
-            }
-            catch (OperationCanceledException)
-            {
+                try
+                {
+                    await _callbackPump;
+                }
+                catch (OperationCanceledException)
+                {
+                }
             }
         }
-
-        _loginGate.Dispose();
-        _lifetime.Dispose();
+        finally
+        {
+            _loginGate.Dispose();
+            _lifetime.Dispose();
+        }
     }
 
     private async Task ConnectAsync(CancellationToken cancellationToken)
