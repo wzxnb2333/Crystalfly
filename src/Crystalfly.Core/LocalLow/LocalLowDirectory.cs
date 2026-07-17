@@ -71,9 +71,28 @@ internal static class LocalLowDirectory
         }
     }
 
-    public static async Task<string> HashAsync(
+    public static Task<string> HashAsync(
         string root,
         bool includeLogs,
+        CancellationToken cancellationToken) =>
+        HashCoreAsync(root, includeLogs, includeDirectories: true, cancellationToken);
+
+    public static Task<string> HashFilesAsync(
+        string root,
+        bool includeLogs,
+        CancellationToken cancellationToken) =>
+        HashCoreAsync(root, includeLogs, includeDirectories: false, cancellationToken);
+
+    public static IReadOnlyList<string> EnumerateRelativeFiles(string root) =>
+        EnumerateTree(ExistingDirectory(root))
+            .Where(entry => !entry.IsDirectory)
+            .Select(entry => entry.RelativePath)
+            .ToArray();
+
+    private static async Task<string> HashCoreAsync(
+        string root,
+        bool includeLogs,
+        bool includeDirectories,
         CancellationToken cancellationToken)
     {
         root = ExistingDirectory(root);
@@ -81,16 +100,17 @@ internal static class LocalLowDirectory
         using var directoryHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var entries = EnumerateTree(root);
 
-        var directories = entries
-            .Where(entry => entry.IsDirectory)
-            .OrderBy(entry => entry.RelativePath, StringComparer.Ordinal)
-            .ToArray();
-        foreach (var directory in directories)
+        if (includeDirectories)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (includeLogs || !IsLogPath(directory.RelativePath, isDirectory: true))
+            foreach (var directory in entries
+                .Where(entry => entry.IsDirectory)
+                .OrderBy(entry => entry.RelativePath, StringComparer.Ordinal))
             {
-                Append(directoryHash, $"D\0{directory.RelativePath}\n");
+                cancellationToken.ThrowIfCancellationRequested();
+                if (includeLogs || !IsLogPath(directory.RelativePath, isDirectory: true))
+                {
+                    Append(directoryHash, $"D\0{directory.RelativePath}\n");
+                }
             }
         }
 

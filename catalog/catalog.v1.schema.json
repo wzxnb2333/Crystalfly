@@ -1,0 +1,290 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/wzxnb2333/Crystalfly/main/catalog/catalog.v1.schema.json",
+  "title": "Crystalfly Catalog v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "builds",
+    "channels",
+    "loaders",
+    "mods",
+    "speedrunTemplates",
+    "speedrunAssets",
+    "speedrunFileManifests"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "builds": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/gameBuild" }
+    },
+    "channels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/gameChannel" }
+    },
+    "loaders": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/loaderManifest" }
+    },
+    "mods": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/modManifest" }
+    },
+    "speedrunTemplates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/speedrunTemplate" }
+    },
+    "speedrunAssets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/speedrunAsset" }
+    },
+    "speedrunFileManifests": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/speedrunFileManifest" }
+    }
+  },
+  "$defs": {
+    "schemaVersion": { "const": 1 },
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "modIdentifier": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._-]*|hkmod:[^:\\r\\n]+|custom:[A-Za-z0-9][A-Za-z0-9._-]*:[A-Za-z0-9][A-Za-z0-9._-]*)$"
+    },
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[A-Fa-f0-9]{64}$"
+    },
+    "identifierArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/identifier" }
+    },
+    "modIdentifierArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/modIdentifier" }
+    },
+    "gameBuild": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "id",
+        "displayVersion",
+        "depotId",
+        "manifestId",
+        "executableSha256",
+        "globalGameManagersSha256"
+      ],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "id": { "$ref": "#/$defs/identifier" },
+        "displayVersion": { "type": "string", "minLength": 1 },
+        "depotId": { "type": "integer", "minimum": 1 },
+        "manifestId": { "type": "string", "pattern": "^[0-9]+$" },
+        "executableSha256": { "$ref": "#/$defs/sha256" },
+        "unityPlayerSha256": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256" },
+            { "type": "null" }
+          ]
+        },
+        "globalGameManagersSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "gameChannel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "name", "buildId"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "name": { "$ref": "#/$defs/identifier" },
+        "buildId": { "$ref": "#/$defs/identifier" }
+      }
+    },
+    "loaderManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "id",
+        "name",
+        "version",
+        "downloadUrl",
+        "sha256",
+        "supportedBuildIds"
+      ],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "id": { "$ref": "#/$defs/identifier" },
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "downloadUrl": { "$ref": "#/$defs/httpsUrl" },
+        "sizeBytes": {
+          "oneOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "null" }
+          ]
+        },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "supportedBuildIds": { "$ref": "#/$defs/identifierArray" },
+        "managedFiles": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "modManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "id",
+        "name",
+        "version",
+        "downloadUrl",
+        "sha256",
+        "loaderId",
+        "supportedBuildIds",
+        "dependencies"
+      ],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "id": { "$ref": "#/$defs/modIdentifier" },
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "downloadUrl": { "$ref": "#/$defs/httpsUrl" },
+        "sizeBytes": {
+          "oneOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "null" }
+          ]
+        },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "loaderId": { "$ref": "#/$defs/identifier" },
+        "supportedBuildIds": { "$ref": "#/$defs/identifierArray" },
+        "dependencies": { "$ref": "#/$defs/modIdentifierArray" },
+        "flatFiles": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "speedrunTemplate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "id",
+        "name",
+        "buildId",
+        "requiredAssetIds",
+        "loadNormaliserAvailable",
+        "requiresLoadNormaliserSelection",
+        "allowedLoadNormaliserSeconds"
+      ],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "id": { "$ref": "#/$defs/identifier" },
+        "name": { "type": "string", "minLength": 1 },
+        "buildId": { "$ref": "#/$defs/identifier" },
+        "isOfficial": { "type": "boolean" },
+        "rulesRevision": { "type": "string" },
+        "fileManifestId": { "type": "string" },
+        "loaderId": {
+          "oneOf": [
+            { "$ref": "#/$defs/identifier" },
+            { "type": "null" }
+          ]
+        },
+        "requiredAssetIds": { "$ref": "#/$defs/identifierArray" },
+        "loadNormaliserAvailable": { "type": "boolean" },
+        "requiresLoadNormaliserSelection": { "type": "boolean" },
+        "allowedLoadNormaliserSeconds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "speedrunAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "id",
+        "name",
+        "version",
+        "downloadUrl",
+        "sha256",
+        "supportedBuildIds"
+      ],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "id": { "$ref": "#/$defs/identifier" },
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "downloadUrl": { "$ref": "#/$defs/httpsUrl" },
+        "sizeBytes": {
+          "oneOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "null" }
+          ]
+        },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "supportedBuildIds": { "$ref": "#/$defs/identifierArray" }
+      }
+    },
+    "speedrunFileManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "id", "buildId", "rulesRevision", "files"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "id": { "$ref": "#/$defs/identifier" },
+        "buildId": { "$ref": "#/$defs/identifier" },
+        "rulesRevision": { "type": "string", "minLength": 1 },
+        "files": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/speedrunFileRule" }
+        }
+      }
+    },
+    "speedrunFileRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relativePath", "sha256", "kind"],
+      "properties": {
+        "relativePath": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "kind": { "type": "string", "enum": ["unknown", "game", "tool"] },
+        "assetId": {
+          "oneOf": [
+            { "$ref": "#/$defs/identifier" },
+            { "type": "null" }
+          ]
+        },
+        "assetVersion": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ]
+        }
+      }
+    }
+  }
+}

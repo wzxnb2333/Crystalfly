@@ -57,10 +57,19 @@ public sealed class SpeedrunEnvironmentVerifierTests : IDisposable
     }
 
     [Fact]
-    public async Task Changed_rules_revision_invalidates_official_verification()
+    public async Task Changed_remote_rules_revision_marks_catalog_environment_stale()
     {
         VerificationFixture fixture = await CreateFixtureAsync();
-        SpeedrunVerificationRequest request = fixture.Request with { CurrentRulesRevision = "rules-new" };
+        SpeedrunVerificationRequest request = fixture.Request with
+        {
+            Template = fixture.Request.Template with
+            {
+                IsOfficial = false,
+                RulesRevision = "rules-new"
+            },
+            CurrentRulesRevision = "rules-new",
+            FileManifest = fixture.Request.FileManifest with { RulesRevision = "rules-new" }
+        };
 
         SpeedrunVerificationReport report = (await fixture.Verifier.VerifyAndWriteReportAsync(request)).Report;
 
@@ -291,6 +300,7 @@ public sealed class SpeedrunEnvironmentVerifierTests : IDisposable
             Purpose = InstancePurpose.OfficialSpeedrun,
             ProvisioningMode = InstanceProvisioningMode.FullCopy,
             SpeedrunTemplateId = template.Id,
+            SpeedrunRulesRevision = template.RulesRevision,
             CreatedAt = DateTimeOffset.UtcNow
         };
         var request = new SpeedrunVerificationRequest

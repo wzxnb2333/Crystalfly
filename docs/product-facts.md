@@ -8,6 +8,8 @@ Verified on 2026-07-16.
 - .NET SDK 10.0.302.
 - Avalonia 12.1.0. Avalonia 12 supports .NET 10 and uses the classic desktop
   application lifetime for this project.
+- Lucide.Avalonia 0.2.13. The older LucideAvalonia 1.6.2 package targets
+  Avalonia 11.1 and fails at runtime on Avalonia 12.
 - SteamKit2 3.4.0. Crystalfly uses SteamKit directly for authentication,
   manifest access, and CDN chunk downloads.
 
@@ -48,4 +50,3 @@ fingerprints and loader manifests.
 - SteamKit: <https://github.com/SteamRE/SteamKit>
 - Hollow Knight resources: <https://github.com/hk-speedrunning/HK-Resources>
 - Hollow Knight rules: <https://github.com/hk-speedrunning/HK-Rules>
-

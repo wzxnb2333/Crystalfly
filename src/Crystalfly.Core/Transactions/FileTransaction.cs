@@ -32,11 +32,10 @@ public static class FileTransaction
         Directory.CreateDirectory(target);
         Directory.CreateDirectory(journals);
 
-        var files = Directory.EnumerateFiles(staging, "*", SearchOption.AllDirectories)
+        var files = EnumerateFilesSafely(staging)
             .Select(path => new StagedFile(path, NormalizeRelativePath(Path.GetRelativePath(staging, path))))
             .OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        ValidateDestinations(target, files);
         var stagedPaths = files.Select(file => file.RelativePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var removals = removeRelativePaths
             .Select(NormalizeRelativePath)
@@ -44,6 +43,8 @@ public static class FileTransaction
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+        var removalSet = removals.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        ValidateDestinations(target, files, removalSet);
         ValidateRemovals(target, removals);
 
         var id = Guid.NewGuid().ToString("N");
@@ -65,26 +66,39 @@ public static class FileTransaction
         {
             journal = journal with { State = TransactionState.Applying };
             await AtomicJsonStore.WriteAsync(journalPath, journal, cancellationToken);
-            foreach (var file in files)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                journal = await ApplyFileAsync(file, target, journal, journalPath, cancellationToken);
-            }
             foreach (var relativePath in removals)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 journal = await DeleteFileAsync(relativePath, target, journal, journalPath, cancellationToken);
             }
+            journal = await RemoveBlockingDirectoriesAsync(
+                files,
+                target,
+                journal,
+                journalPath,
+                cancellationToken);
+            foreach (var file in files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                journal = await ApplyFileAsync(file, target, journal, journalPath, cancellationToken);
+            }
 
             journal = journal with { State = TransactionState.Committed };
             await AtomicJsonStore.WriteAsync(journalPath, journal, cancellationToken);
         }
-        catch
+        catch (Exception failure)
         {
-            journal = await RollBackAsync(journal, journalPath, CancellationToken.None);
-            if (journal.State == TransactionState.RolledBack)
+            try
             {
-                TryDeleteRestorePoint(restorePoint);
+                journal = await RollBackLatestAsync(journalPath, CancellationToken.None);
+                if (journal.State == TransactionState.RolledBack)
+                {
+                    TryDeleteRestorePoint(restorePoint);
+                }
+            }
+            catch (Exception rollbackFailure)
+            {
+                failure.Data["FileTransactionRollbackFailure"] = rollbackFailure;
             }
             throw;
         }
@@ -132,6 +146,16 @@ public static class FileTransaction
             results.Add(journal);
         }
         return results;
+    }
+
+    internal static async Task<TransactionJournal> RollBackLatestAsync(
+        string journalPath,
+        CancellationToken cancellationToken = default)
+    {
+        var persistedJournal = await AtomicJsonStore.ReadAsync<TransactionJournal>(
+            journalPath,
+            cancellationToken);
+        return await RollBackAsync(persistedJournal, journalPath, cancellationToken);
     }
 
     private static async Task<TransactionJournal> ApplyFileAsync(
@@ -248,6 +272,53 @@ public static class FileTransaction
         return journal;
     }
 
+    private static async Task<TransactionJournal> RemoveBlockingDirectoriesAsync(
+        IReadOnlyList<StagedFile> files,
+        string targetRoot,
+        TransactionJournal journal,
+        string journalPath,
+        CancellationToken cancellationToken)
+    {
+        var directories = files
+            .Select(file => ResolveUnderRoot(targetRoot, file.RelativePath))
+            .Where(Directory.Exists)
+            .SelectMany(EnumerateDirectoriesSafely)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(path => path.Length)
+            .ToArray();
+        if (directories.Length == 0)
+        {
+            return journal;
+        }
+        if (directories.Any(directory => Directory.EnumerateFiles(directory).Any()))
+        {
+            throw new IOException("A directory blocking a file target is not empty after declared removals.");
+        }
+
+        journal = journal with
+        {
+            RemovedDirectories = journal.RemovedDirectories
+                .Concat(directories)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+        };
+        await AtomicJsonStore.WriteAsync(journalPath, journal, cancellationToken);
+        foreach (var directory in directories)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!Directory.Exists(directory))
+            {
+                continue;
+            }
+            if (Directory.EnumerateFileSystemEntries(directory).Any())
+            {
+                throw new IOException($"Directory changed while removing blocker '{directory}'.");
+            }
+            Directory.Delete(directory);
+        }
+        return journal;
+    }
+
     private static async Task<TransactionJournal> RollBackAsync(
         TransactionJournal journal,
         string journalPath,
@@ -280,6 +351,15 @@ public static class FileTransaction
                                 await HashFileAsync(backupPath, cancellationToken)))
                         {
                             throw new InvalidDataException($"Backup is missing or invalid for '{change.RelativePath}'.");
+                        }
+                        if (Directory.Exists(targetPath))
+                        {
+                            if (Directory.EnumerateFileSystemEntries(targetPath).Any())
+                            {
+                                throw new InvalidDataException(
+                                    $"A non-empty directory blocks restore for '{change.RelativePath}'.");
+                            }
+                            Directory.Delete(targetPath);
                         }
                         Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
                         File.Copy(backupPath, targetPath, overwrite: true);
@@ -321,6 +401,12 @@ public static class FileTransaction
                 Directory.Delete(directory);
             }
 
+            foreach (var directory in journal.RemovedDirectories
+                .OrderBy(path => path.Length))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
             journal = journal with { State = TransactionState.RolledBack };
         }
         catch (Exception exception)
@@ -352,6 +438,10 @@ public static class FileTransaction
         {
             EnsureUnderRoot(journal.RootPath, directory, "created directory");
         }
+        foreach (var directory in journal.RemovedDirectories)
+        {
+            EnsureUnderRoot(journal.RootPath, directory, "removed directory");
+        }
         foreach (var backup in journal.BackupPaths)
         {
             EnsureUnderRoot(journal.RootPath, backup.Key, "backup target");
@@ -381,14 +471,26 @@ public static class FileTransaction
         }
     }
 
-    private static void ValidateDestinations(string targetRoot, IReadOnlyList<StagedFile> files)
+    private static void ValidateDestinations(
+        string targetRoot,
+        IReadOnlyList<StagedFile> files,
+        IReadOnlySet<string> removals)
     {
         foreach (var file in files)
         {
             var targetPath = ResolveUnderRoot(targetRoot, file.RelativePath);
             if (Directory.Exists(targetPath))
             {
-                throw new IOException($"A directory already exists at file target '{file.RelativePath}'.");
+                _ = EnumerateDirectoriesSafely(targetPath);
+                var undeclaredFile = Directory
+                    .EnumerateFiles(targetPath, "*", SearchOption.AllDirectories)
+                    .Select(path => NormalizeRelativePath(Path.GetRelativePath(targetRoot, path)))
+                    .FirstOrDefault(path => !removals.Contains(path));
+                if (undeclaredFile is not null)
+                {
+                    throw new IOException(
+                        $"Directory target '{file.RelativePath}' contains undeclared file '{undeclaredFile}'.");
+                }
             }
             if (File.Exists(targetPath) && IsReparsePoint(targetPath))
             {
@@ -399,7 +501,11 @@ public static class FileTransaction
             {
                 if (File.Exists(parent))
                 {
-                    throw new IOException($"A file blocks target directory '{parent}'.");
+                    var relativeParent = NormalizeRelativePath(Path.GetRelativePath(targetRoot, parent));
+                    if (!removals.Contains(relativeParent))
+                    {
+                        throw new IOException($"A file blocks target directory '{parent}'.");
+                    }
                 }
                 if (Directory.Exists(parent) && IsReparsePoint(parent))
                 {
@@ -427,6 +533,15 @@ public static class FileTransaction
             {
                 throw new IOException($"Declared removal is a symbolic link: '{relativePath}'.");
             }
+            for (var parent = Path.GetDirectoryName(path);
+                 parent is not null && !PathEquals(parent, targetRoot);
+                 parent = Path.GetDirectoryName(parent))
+            {
+                if (Directory.Exists(parent) && IsReparsePoint(parent))
+                {
+                    throw new IOException($"A symbolic link blocks removal path '{relativePath}'.");
+                }
+            }
         }
     }
 
@@ -442,12 +557,70 @@ public static class FileTransaction
         return missing;
     }
 
+    private static IReadOnlyList<string> EnumerateDirectoriesSafely(string root)
+    {
+        var directories = new List<string> { root };
+        var pending = new Stack<string>();
+        pending.Push(root);
+        while (pending.Count > 0)
+        {
+            var directory = pending.Pop();
+            foreach (var path in Directory.EnumerateFileSystemEntries(directory))
+            {
+                if (IsReparsePoint(path))
+                {
+                    throw new IOException($"A symbolic link blocks file target '{path}'.");
+                }
+                if (Directory.Exists(path))
+                {
+                    directories.Add(path);
+                    pending.Push(path);
+                }
+            }
+        }
+        return directories;
+    }
+
+    private static IReadOnlyList<string> EnumerateFilesSafely(string root)
+    {
+        var files = new List<string>();
+        var pending = new Stack<string>();
+        pending.Push(root);
+        while (pending.Count > 0)
+        {
+            var directory = pending.Pop();
+            foreach (var path in Directory.EnumerateFileSystemEntries(directory))
+            {
+                var attributes = File.GetAttributes(path);
+                if ((attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    throw new IOException($"Staging data cannot contain reparse point '{path}'.");
+                }
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    pending.Push(path);
+                }
+                else
+                {
+                    files.Add(path);
+                }
+            }
+        }
+        return files;
+    }
+
     private static string ExistingDirectory(string path, string parameterName)
     {
         var fullPath = Path.GetFullPath(path);
-        return Directory.Exists(fullPath)
-            ? fullPath
-            : throw new DirectoryNotFoundException($"{parameterName} does not exist: '{fullPath}'.");
+        if (!Directory.Exists(fullPath))
+        {
+            throw new DirectoryNotFoundException($"{parameterName} does not exist: '{fullPath}'.");
+        }
+        if (IsReparsePoint(fullPath))
+        {
+            throw new IOException($"{parameterName} cannot be a reparse point: '{fullPath}'.");
+        }
+        return fullPath;
     }
 
     private static void EnsureSeparateRoots(string left, string right)

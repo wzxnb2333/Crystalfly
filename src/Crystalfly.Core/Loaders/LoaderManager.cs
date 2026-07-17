@@ -12,13 +12,22 @@ public sealed class LoaderManager
     private readonly string _transactionRoot;
     private readonly string _receiptPath;
     private readonly string _backupRoot;
+    private readonly string? _packageCacheRoot;
+    private readonly HttpClient? _httpClient;
 
-    public LoaderManager(string instanceRoot, string transactionRoot, string receiptPath)
+    public LoaderManager(
+        string instanceRoot,
+        string transactionRoot,
+        string receiptPath,
+        string? packageCacheRoot = null,
+        HttpClient? httpClient = null)
     {
         _instanceRoot = Path.GetFullPath(instanceRoot);
         _transactionRoot = Path.GetFullPath(transactionRoot);
         _receiptPath = Path.GetFullPath(receiptPath);
         _backupRoot = Path.Combine(Path.GetDirectoryName(_receiptPath)!, "loader-backups");
+        _packageCacheRoot = packageCacheRoot is null ? null : Path.GetFullPath(packageCacheRoot);
+        _httpClient = httpClient;
     }
 
     public async Task<LoaderState> GetStateAsync(CancellationToken cancellationToken = default) =>
@@ -52,6 +61,30 @@ public sealed class LoaderManager
         }
         return await ApplyPackageAsync(
             manifest, null, new Uri(manifest.DownloadUrl), null, "install-loader", cancellationToken);
+    }
+
+    public async Task<InstalledPackageReceipt> InstallLocalFromFileAsync(
+        LocalLoaderPackage package,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        if (package.IsVerified)
+        {
+            throw new InvalidDataException("Local loader packages must remain unverified.");
+        }
+        if (await GetStateAsync(cancellationToken) != LoaderState.Vanilla)
+        {
+            throw new InvalidOperationException("Local loader installation requires a vanilla instance.");
+        }
+        return await ApplyPackageAsync(
+            package.Manifest,
+            package.PackagePath,
+            null,
+            null,
+            "install-local-loader",
+            cancellationToken,
+            package.LoaderState,
+            isVerified: false);
     }
 
     public async Task<InstalledPackageReceipt> SwitchFromFileAsync(
@@ -94,14 +127,27 @@ public sealed class LoaderManager
     {
         var receipt = await RequireVerifiedReceiptAsync(cancellationToken);
         EnsureBackupRoot(receipt.BackupRoot);
-        using var workspace = new TemporaryDirectory(_transactionRoot, ".loader-uninstall-");
+        var targetRoot = GetCommonDirectory(_instanceRoot, Path.GetDirectoryName(_receiptPath)!);
+        using var workspace = CreateStateWorkspace(targetRoot, ".crystalfly-loader-uninstall-");
         var staging = workspace.CreateDirectory("staging");
-        var removals = RestoreOriginals(receipt, staging);
+        var stagedInstanceRoot = ResolveAtOrUnderRoot(
+            staging,
+            Normalize(Path.GetRelativePath(targetRoot, _instanceRoot)));
+        var removals = RestoreOriginals(receipt, stagedInstanceRoot)
+            .Select(path => Normalize(Path.GetRelativePath(
+                targetRoot,
+                ResolveUnderRoot(_instanceRoot, path))))
+            .ToList();
+        AddStateRemovals(receipt, targetRoot, removals);
         await FileTransaction.ReplaceDirectoryAsync(
-            staging, _instanceRoot, _transactionRoot, "uninstall-loader", removals, cancellationToken);
-        File.Delete(_receiptPath);
+            staging, targetRoot, _transactionRoot, "uninstall-loader", removals, cancellationToken);
         DeleteDirectory(receipt.BackupRoot);
         RemoveEmptyLoaderDirectories();
+        if (await GetStateAsync(cancellationToken) != LoaderState.Vanilla)
+        {
+            throw new InvalidOperationException(
+                "Loader uninstall requires manual cleanup because unmanaged loader files remain.");
+        }
     }
 
     private async Task<InstalledPackageReceipt> ApplyPackageAsync(
@@ -110,15 +156,20 @@ public sealed class LoaderManager
         Uri? packageUri,
         InstalledPackageReceipt? previousReceipt,
         string operation,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        LoaderState? loaderStateOverride = null,
+        bool isVerified = true)
     {
-        var size = manifest.SizeBytes
-            ?? throw new InvalidDataException($"Loader '{manifest.Id}' does not declare its package size.");
+        var size = manifest.SizeBytes;
         if (previousReceipt is not null)
         {
             EnsureBackupRoot(previousReceipt.BackupRoot);
         }
-        var loaderState = GetLoaderState(manifest.Id);
+        var loaderState = loaderStateOverride ?? GetLoaderState(manifest.Id);
+        if (loaderState is not (LoaderState.ModdingApi or LoaderState.BepInEx))
+        {
+            throw new InvalidDataException("Loader state must be ModdingApi or BepInEx.");
+        }
         using var workspace = new TemporaryDirectory(_transactionRoot, ".loader-install-");
         var extracted = workspace.CreateDirectory("extracted");
         var packageTransactions = workspace.CreateDirectory("package-transactions");
@@ -130,21 +181,23 @@ public sealed class LoaderManager
         else if (packageUri is not null)
         {
             await PackageInstaller.InstallFromUriAsync(
-                packageUri, extracted, packageTransactions, size, manifest.Sha256, cancellationToken);
+                packageUri, extracted, packageTransactions, size, manifest.Sha256,
+                _packageCacheRoot, _httpClient,
+                cancellationToken: cancellationToken);
         }
         else
         {
             throw new ArgumentException("A loader package path or URI is required.");
         }
 
-        var staging = workspace.CreateDirectory("staging");
+        var packageStaging = workspace.CreateDirectory("staging");
         var prefix = loaderState == LoaderState.ModdingApi
             ? "hollow_knight_Data/Managed"
             : string.Empty;
-        CopyTree(extracted, ResolveUnderRoot(staging, prefix));
-        var stagedFiles = Directory.EnumerateFiles(staging, "*", SearchOption.AllDirectories)
+        CopyTree(extracted, ResolveAtOrUnderRoot(packageStaging, prefix));
+        var stagedFiles = Directory.EnumerateFiles(packageStaging, "*", SearchOption.AllDirectories)
             .ToDictionary(
-                path => Normalize(Path.GetRelativePath(staging, path)),
+                path => Normalize(Path.GetRelativePath(packageStaging, path)),
                 StringComparer.OrdinalIgnoreCase);
         if (stagedFiles.Count == 0)
         {
@@ -152,48 +205,58 @@ public sealed class LoaderManager
         }
 
         var newBackupRoot = Path.Combine(_backupRoot, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(newBackupRoot);
-        var filesApplied = false;
-        try
+        EnsureBackupRoot(newBackupRoot);
+        var targetRoot = GetCommonDirectory(_instanceRoot, Path.GetDirectoryName(_receiptPath)!);
+        using var stateWorkspace = CreateStateWorkspace(targetRoot, ".crystalfly-loader-state-");
+        var stateStaging = stateWorkspace.CreateDirectory("staging");
+        var stagedInstanceRoot = ResolveAtOrUnderRoot(
+            stateStaging,
+            Normalize(Path.GetRelativePath(targetRoot, _instanceRoot)));
+        CopyTree(packageStaging, stagedInstanceRoot);
+        var stagedBackupRoot = ResolveAtOrUnderRoot(
+            stateStaging,
+            Normalize(Path.GetRelativePath(targetRoot, newBackupRoot)));
+        var newFiles = await BuildReceiptFilesAsync(
+            stagedFiles, previousReceipt, stagedBackupRoot, cancellationToken);
+        List<string> removals = previousReceipt is null
+            ? []
+            : RestoreObsoleteOriginals(previousReceipt, stagedFiles.Keys, stagedInstanceRoot)
+                .Select(path => Normalize(Path.GetRelativePath(
+                    targetRoot,
+                    ResolveUnderRoot(_instanceRoot, path))))
+                .ToList();
+        if (previousReceipt is not null)
         {
-            var newFiles = await BuildReceiptFilesAsync(
-                stagedFiles, previousReceipt, newBackupRoot, cancellationToken);
-            var removals = previousReceipt is null
-                ? []
-                : RestoreObsoleteOriginals(previousReceipt, stagedFiles.Keys, staging);
-            await FileTransaction.ReplaceDirectoryAsync(
-                staging, _instanceRoot, _transactionRoot, operation, removals, cancellationToken);
-            filesApplied = true;
+            AddBackupRemovals(previousReceipt, targetRoot, removals);
+        }
 
-            var receipt = new InstalledPackageReceipt
-            {
-                PackageId = manifest.Id,
-                LoaderState = loaderState,
-                BackupRoot = newBackupRoot,
-                Files = newFiles
-            };
-            await AtomicJsonStore.WriteAsync(_receiptPath, receipt, cancellationToken);
-            if (previousReceipt is not null
-                && !PathEquals(previousReceipt.BackupRoot, newBackupRoot))
-            {
-                DeleteDirectory(previousReceipt.BackupRoot);
-            }
-            return receipt;
-        }
-        catch
+        var receipt = new InstalledPackageReceipt
         {
-            if (!filesApplied)
-            {
-                DeleteDirectory(newBackupRoot);
-            }
-            throw;
+            PackageId = manifest.Id,
+            LoaderState = loaderState,
+            IsVerified = isVerified,
+            BackupRoot = newBackupRoot,
+            Files = newFiles
+        };
+        var stagedReceipt = ResolveAtOrUnderRoot(
+            stateStaging,
+            Normalize(Path.GetRelativePath(targetRoot, _receiptPath)));
+        await AtomicJsonStore.WriteAsync(stagedReceipt, receipt, cancellationToken);
+        File.Copy(stagedReceipt, stagedReceipt + ".bak", overwrite: false);
+        await FileTransaction.ReplaceDirectoryAsync(
+            stateStaging, targetRoot, _transactionRoot, operation, removals, cancellationToken);
+        if (previousReceipt is not null
+            && !PathEquals(previousReceipt.BackupRoot, newBackupRoot))
+        {
+            DeleteDirectory(previousReceipt.BackupRoot);
         }
+        return receipt;
     }
 
     private async Task<IReadOnlyList<InstalledFileReceipt>> BuildReceiptFilesAsync(
         IReadOnlyDictionary<string, string> stagedFiles,
         InstalledPackageReceipt? previousReceipt,
-        string newBackupRoot,
+        string stagedBackupRoot,
         CancellationToken cancellationToken)
     {
         var previous = previousReceipt?.Files.ToDictionary(
@@ -211,7 +274,9 @@ public sealed class LoaderManager
                 backupRelativePath = old.BackupRelativePath;
                 if (backupRelativePath is not null)
                 {
-                    CopyBackup(previousReceipt!.BackupRoot, newBackupRoot, backupRelativePath);
+                    CopyFile(
+                        ResolveBackup(previousReceipt!, backupRelativePath),
+                        ResolveUnderRoot(stagedBackupRoot, backupRelativePath));
                 }
             }
             else
@@ -221,7 +286,7 @@ public sealed class LoaderManager
                 {
                     originalHash = await HashFileAsync(targetPath, cancellationToken);
                     backupRelativePath = staged.Key;
-                    CopyFile(targetPath, ResolveUnderRoot(newBackupRoot, backupRelativePath));
+                    CopyFile(targetPath, ResolveUnderRoot(stagedBackupRoot, backupRelativePath));
                 }
                 else
                 {
@@ -322,10 +387,44 @@ public sealed class LoaderManager
         return path;
     }
 
-    private void CopyBackup(string sourceRoot, string targetRoot, string relativePath)
+    private void AddStateRemovals(
+        InstalledPackageReceipt receipt,
+        string targetRoot,
+        ICollection<string> removals)
     {
-        EnsureBackupRoot(sourceRoot);
-        CopyFile(ResolveUnderRoot(sourceRoot, relativePath), ResolveUnderRoot(targetRoot, relativePath));
+        removals.Add(Normalize(Path.GetRelativePath(targetRoot, _receiptPath)));
+        if (File.Exists(_receiptPath + ".bak"))
+        {
+            removals.Add(Normalize(Path.GetRelativePath(targetRoot, _receiptPath + ".bak")));
+        }
+        AddBackupRemovals(receipt, targetRoot, removals);
+    }
+
+    private void AddBackupRemovals(
+        InstalledPackageReceipt receipt,
+        string targetRoot,
+        ICollection<string> removals)
+    {
+        EnsureBackupRoot(receipt.BackupRoot);
+        if (!Directory.Exists(receipt.BackupRoot))
+        {
+            return;
+        }
+        foreach (var path in Directory.EnumerateFiles(receipt.BackupRoot, "*", SearchOption.AllDirectories))
+        {
+            removals.Add(Normalize(Path.GetRelativePath(targetRoot, path)));
+        }
+    }
+
+    private TemporaryDirectory CreateStateWorkspace(string targetRoot, string prefix)
+    {
+        var temporaryRoot = Path.GetFullPath(Path.GetTempPath());
+        if (IsAtOrUnder(temporaryRoot, targetRoot))
+        {
+            throw new InvalidOperationException(
+                "The system temporary directory must be outside the loader state transaction root.");
+        }
+        return new TemporaryDirectory(temporaryRoot, prefix);
     }
 
     private void EnsureBackupRoot(string path)
@@ -399,6 +498,49 @@ public sealed class LoaderManager
             throw new InvalidDataException($"Path escapes its root: '{relativePath}'.");
         }
         return path;
+    }
+
+    private static string ResolveAtOrUnderRoot(string root, string relativePath)
+    {
+        var fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var path = Path.GetFullPath(Path.Combine(fullRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        if (!PathEquals(path, fullRoot)
+            && !path.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException($"Path escapes its root: '{relativePath}'.");
+        }
+        return path;
+    }
+
+    private static string GetCommonDirectory(string left, string right)
+    {
+        var leftPath = Path.GetFullPath(left);
+        var rightPath = Path.GetFullPath(right);
+        if (!string.Equals(Path.GetPathRoot(leftPath), Path.GetPathRoot(rightPath), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Instance files and loader receipts must be stored on the same volume.");
+        }
+
+        var candidate = new DirectoryInfo(leftPath);
+        while (candidate.Parent is not null && !IsAtOrUnder(rightPath, candidate.FullName))
+        {
+            candidate = candidate.Parent;
+        }
+        if (!IsAtOrUnder(rightPath, candidate.FullName)
+            || PathEquals(candidate.FullName, Path.GetPathRoot(candidate.FullName)!))
+        {
+            throw new InvalidOperationException(
+                "Instance files and loader receipts must share a directory below the volume root.");
+        }
+        return candidate.FullName;
+    }
+
+    private static bool IsAtOrUnder(string path, string root)
+    {
+        var fullPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return PathEquals(fullPath, fullRoot)
+            || fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string Normalize(string path) => path.Replace('\\', '/');

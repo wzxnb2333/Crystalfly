@@ -1,3 +1,4 @@
+using Crystalfly.Core.LocalLow;
 using Crystalfly.Core.Runtime;
 using Crystalfly.Core.Snapshots;
 
@@ -47,6 +48,46 @@ public sealed class NamedSnapshotServiceTests
 
         Assert.Equal("current-instance", await File.ReadAllTextAsync(Path.Combine(instance, "user1.dat")));
         Assert.True(Directory.Exists(snapshot.SnapshotPath));
+    }
+
+    [Fact]
+    public async Task Restore_replaces_current_file_with_snapshot_directory()
+    {
+        using var test = new TestDirectory();
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        var instance = test.CreateDirectory(
+            "version", ".crystalfly", "instances", "practice", "local-low");
+        await test.WriteAsync(instance, "slot", "user1.dat", "snapshot-save");
+        var service = CreateService(storage);
+        var snapshot = await service.CreateAsync("practice", "Directory save");
+        Directory.Delete(Path.Combine(instance, "slot"), recursive: true);
+        await File.WriteAllTextAsync(Path.Combine(instance, "slot"), "current-file");
+
+        await service.RestoreAsync("practice", snapshot.Id);
+
+        Assert.True(Directory.Exists(Path.Combine(instance, "slot")));
+        Assert.Equal(
+            "snapshot-save",
+            await File.ReadAllTextAsync(Path.Combine(instance, "slot", "user1.dat")));
+    }
+
+    [Fact]
+    public async Task Restore_replaces_current_directory_with_snapshot_file()
+    {
+        using var test = new TestDirectory();
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        var instance = test.CreateDirectory(
+            "version", ".crystalfly", "instances", "practice", "local-low");
+        await File.WriteAllTextAsync(Path.Combine(instance, "slot"), "snapshot-save");
+        var service = CreateService(storage);
+        var snapshot = await service.CreateAsync("practice", "File save");
+        File.Delete(Path.Combine(instance, "slot"));
+        await test.WriteAsync(instance, "slot", "user1.dat", "current-save");
+
+        await service.RestoreAsync("practice", snapshot.Id);
+
+        Assert.True(File.Exists(Path.Combine(instance, "slot")));
+        Assert.Equal("snapshot-save", await File.ReadAllTextAsync(Path.Combine(instance, "slot")));
     }
 
     [Fact]

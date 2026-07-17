@@ -2,6 +2,7 @@ using Crystalfly.Core.LocalLow;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Runtime;
 using Crystalfly.Core.Serialization;
+using Crystalfly.Core.Transactions;
 
 namespace Crystalfly.Core.Snapshots;
 
@@ -51,7 +52,7 @@ public sealed class NamedSnapshotService
                 stagingDataPath,
                 includeLogs: false,
                 cancellationToken);
-            var hash = await LocalLowDirectory.HashAsync(
+            var hash = await LocalLowDirectory.HashFilesAsync(
                 stagingDataPath,
                 includeLogs: false,
                 cancellationToken);
@@ -127,7 +128,6 @@ public sealed class NamedSnapshotService
         }
         var operationId = Guid.NewGuid().ToString("N");
         var stagingPath = instancePath + $".snapshot-{operationId}-staging";
-        var previousPath = instancePath + $".snapshot-{operationId}-previous";
         try
         {
             await LocalLowDirectory.CopyAsync(
@@ -136,19 +136,29 @@ public sealed class NamedSnapshotService
                 includeLogs: false,
                 cancellationToken);
             await RequireHashAsync(stagingPath, snapshot.Sha256, cancellationToken);
-            Directory.Move(instancePath, previousPath);
-            Directory.Move(stagingPath, instancePath);
-            await RequireHashAsync(instancePath, snapshot.Sha256, cancellationToken);
-            LocalLowDirectory.DeleteIfExists(previousPath);
-        }
-        catch
-        {
-            if (!Directory.Exists(instancePath) && Directory.Exists(previousPath))
+            var stagedFiles = LocalLowDirectory.EnumerateRelativeFiles(stagingPath)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var removals = LocalLowDirectory.EnumerateRelativeFiles(instancePath)
+                .Where(path => !stagedFiles.Contains(path));
+            var recoveries = await FileTransaction.RecoverPendingAsync(
+                Path.Combine(storagePath, "transactions"),
+                cancellationToken);
+            if (recoveries.Any(recovery => recovery.State == TransactionState.NeedsAttention))
             {
-                Directory.Move(previousPath, instancePath);
+                throw new InvalidOperationException("A pending file transaction needs attention.");
             }
+            await FileTransaction.ReplaceDirectoryAsync(
+                stagingPath,
+                instancePath,
+                Path.Combine(storagePath, "transactions"),
+                "restore-named-snapshot",
+                removals,
+                cancellationToken);
+            await RequireHashAsync(instancePath, snapshot.Sha256, cancellationToken);
+        }
+        finally
+        {
             LocalLowDirectory.DeleteIfExists(stagingPath);
-            throw;
         }
     }
 
@@ -176,7 +186,7 @@ public sealed class NamedSnapshotService
         string expectedHash,
         CancellationToken cancellationToken)
     {
-        var actualHash = await LocalLowDirectory.HashAsync(
+        var actualHash = await LocalLowDirectory.HashFilesAsync(
             path,
             includeLogs: false,
             cancellationToken);

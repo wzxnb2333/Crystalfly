@@ -32,6 +32,8 @@ public sealed record TransactionJournal
 
     public IReadOnlyList<string> CreatedDirectories { get; init; } = [];
 
+    public IReadOnlyList<string> RemovedDirectories { get; init; } = [];
+
     public IReadOnlyDictionary<string, string> BackupPaths { get; init; } =
         new Dictionary<string, string>();
 

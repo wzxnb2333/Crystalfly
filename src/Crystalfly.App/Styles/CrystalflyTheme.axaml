@@ -1,0 +1,269 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Styles.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="CfWindowBrush" Color="#FBFBFC" />
+                    <SolidColorBrush x:Key="CfChromeBrush" Color="#F3F4F6" />
+                    <SolidColorBrush x:Key="CfRailBrush" Color="#F7F7F8" />
+                    <SolidColorBrush x:Key="CfSurfaceBrush" Color="#F1F1F3" />
+                    <SolidColorBrush x:Key="CfSurfaceHoverBrush" Color="#E7E8EB" />
+                    <SolidColorBrush x:Key="CfSurfaceSelectedBrush" Color="#DDEEFF" />
+                    <SolidColorBrush x:Key="CfBorderBrush" Color="#DADCE0" />
+                    <SolidColorBrush x:Key="CfTextBrush" Color="#14171B" />
+                    <SolidColorBrush x:Key="CfMutedTextBrush" Color="#727982" />
+                    <SolidColorBrush x:Key="CfAccentBrush" Color="#339AF0" />
+                    <SolidColorBrush x:Key="CfAccentHoverBrush" Color="#2189DD" />
+                    <SolidColorBrush x:Key="CfAccentSoftBrush" Color="#E2F1FF" />
+                    <SolidColorBrush x:Key="CfAccentTextBrush" Color="#1678C9" />
+                    <SolidColorBrush x:Key="CfOnAccentBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="CfPrimaryActionBrush" Color="#191C20" />
+                    <SolidColorBrush x:Key="CfPrimaryActionHoverBrush" Color="#2B3036" />
+                    <SolidColorBrush x:Key="CfOnPrimaryActionBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="CfErrorBrush" Color="#B42318" />
+                    <SolidColorBrush x:Key="CfErrorSurfaceBrush" Color="#FEF3F2" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="CfWindowBrush" Color="#151617" />
+                    <SolidColorBrush x:Key="CfChromeBrush" Color="#202123" />
+                    <SolidColorBrush x:Key="CfRailBrush" Color="#1B1C1E" />
+                    <SolidColorBrush x:Key="CfSurfaceBrush" Color="#242628" />
+                    <SolidColorBrush x:Key="CfSurfaceHoverBrush" Color="#303337" />
+                    <SolidColorBrush x:Key="CfSurfaceSelectedBrush" Color="#173D5E" />
+                    <SolidColorBrush x:Key="CfBorderBrush" Color="#36393D" />
+                    <SolidColorBrush x:Key="CfTextBrush" Color="#F5F6F7" />
+                    <SolidColorBrush x:Key="CfMutedTextBrush" Color="#A1A7AF" />
+                    <SolidColorBrush x:Key="CfAccentBrush" Color="#5AAEFA" />
+                    <SolidColorBrush x:Key="CfAccentHoverBrush" Color="#78BCFA" />
+                    <SolidColorBrush x:Key="CfAccentSoftBrush" Color="#183D5D" />
+                    <SolidColorBrush x:Key="CfAccentTextBrush" Color="#83C3FB" />
+                    <SolidColorBrush x:Key="CfOnAccentBrush" Color="#10202C" />
+                    <SolidColorBrush x:Key="CfPrimaryActionBrush" Color="#F5F6F7" />
+                    <SolidColorBrush x:Key="CfPrimaryActionHoverBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="CfOnPrimaryActionBrush" Color="#17191C" />
+                    <SolidColorBrush x:Key="CfErrorBrush" Color="#FDA29B" />
+                    <SolidColorBrush x:Key="CfErrorSurfaceBrush" Color="#4A1D1A" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <Style Selector="Window.cfp-window">
+        <Setter Property="Background" Value="{DynamicResource CfWindowBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <Style Selector="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.cfp-brand">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="TextBlock.cfp-page-title">
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LineHeight" Value="28" />
+    </Style>
+
+    <Style Selector="TextBlock.cfp-section-title">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LineHeight" Value="24" />
+    </Style>
+
+    <Style Selector="TextBlock.cfp-row-title">
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LineHeight" Value="20" />
+    </Style>
+
+    <Style Selector="TextBlock.cfp-meta">
+        <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="LineHeight" Value="20" />
+    </Style>
+
+    <Style Selector="TextBlock.cfp-caption">
+        <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="LineHeight" Value="16" />
+    </Style>
+
+    <Style Selector="Border.cfp-topbar">
+        <Setter Property="Background" Value="{DynamicResource CfChromeBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="16,8" />
+    </Style>
+
+    <Style Selector="Border.cfp-page-header">
+        <Setter Property="Background" Value="{DynamicResource CfWindowBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="16,12" />
+    </Style>
+
+    <Style Selector="Border.cfp-rail">
+        <Setter Property="Background" Value="{DynamicResource CfRailBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,1,0" />
+    </Style>
+
+    <Style Selector="Border.cfp-card">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16" />
+    </Style>
+
+    <Style Selector="Border.cfp-list-frame">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+
+    <Style Selector="Border.cfp-divider-row">
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="12,10" />
+    </Style>
+
+    <Style Selector="Border.cfp-badge">
+        <Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="8,3" />
+    </Style>
+
+    <Style Selector="Border.cfp-error">
+        <Setter Property="Background" Value="{DynamicResource CfErrorSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfErrorBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="16,10" />
+    </Style>
+
+    <Style Selector="Button.cfp-nav">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Button.cfp-nav:pointerover">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+    </Style>
+
+    <Style Selector="Button.cfp-nav.active">
+        <Setter Property="Background" Value="{DynamicResource CfAccentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfOnAccentBrush}" />
+    </Style>
+
+    <Style Selector="Button.cfp-icon">
+        <Setter Property="Width" Value="36" />
+        <Setter Property="Height" Value="36" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="FontSize" Value="16" />
+    </Style>
+
+    <Style Selector="Button.cfp-primary">
+        <Setter Property="Background" Value="{DynamicResource CfPrimaryActionBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfOnPrimaryActionBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="16,11" />
+        <Setter Property="MinHeight" Value="44" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="Button.cfp-primary:pointerover">
+        <Setter Property="Background" Value="{DynamicResource CfPrimaryActionHoverBrush}" />
+    </Style>
+
+    <Style Selector="Button.cfp-accent">
+        <Setter Property="Background" Value="{DynamicResource CfAccentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfOnAccentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="14,8" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="Button.cfp-accent:pointerover">
+        <Setter Property="Background" Value="{DynamicResource CfAccentHoverBrush}" />
+    </Style>
+
+    <Style Selector="Button.cfp-secondary">
+        <Setter Property="Background" Value="{DynamicResource CfWindowBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="12,7" />
+        <Setter Property="MinHeight" Value="36" />
+    </Style>
+
+    <Style Selector="Button.cfp-secondary:pointerover">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+    </Style>
+
+    <Style Selector="Button.cfp-local-nav">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="MinHeight" Value="40" />
+    </Style>
+
+    <Style Selector="Button.cfp-local-nav:pointerover">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+    </Style>
+
+    <Style Selector="Button.cfp-local-nav.active">
+        <Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="ListBox.cfp-list">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="ListBox.cfp-list > ListBoxItem">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="12" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="MinHeight" Value="56" />
+    </Style>
+
+    <Style Selector="ListBox.cfp-list > ListBoxItem:last-child">
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="ListBox.cfp-list > ListBoxItem:selected">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedBrush}" />
+    </Style>
+
+    <Style Selector="TextBox.cfp-input, ComboBox.cfp-input">
+        <Setter Property="MinHeight" Value="36" />
+    </Style>
+
+    <Style Selector="ProgressBar.cfp-progress">
+        <Setter Property="Height" Value="3" />
+        <Setter Property="Foreground" Value="{DynamicResource CfAccentBrush}" />
+    </Style>
+</Styles>

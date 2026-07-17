@@ -22,6 +22,10 @@ public sealed record InstanceRecord
 
     public string? SpeedrunTemplateId { get; init; }
 
+    public string? SpeedrunRulesRevision { get; init; }
+
+    public int? LoadNormaliserSeconds { get; init; }
+
     public DateTimeOffset CreatedAt { get; init; }
 }
 

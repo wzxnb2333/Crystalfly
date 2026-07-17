@@ -8,6 +8,91 @@ namespace Crystalfly.Core.Tests.Transactions;
 public sealed class FileTransactionTests
 {
     [Fact]
+    public async Task RollBackLatest_uses_persisted_changes_and_removed_directories()
+    {
+        using var test = new TestDirectory();
+        var target = test.CreateDirectory("target");
+        var restorePoint = test.CreateDirectory("journals", "tx-latest");
+        var backup = test.CreateDirectory("journals", "tx-latest", "backup");
+        var existing = Path.Combine(target, "existing.txt");
+        var slot = Path.Combine(target, "slot");
+        var restoredEmptyDirectory = Path.Combine(slot, "empty");
+        await File.WriteAllTextAsync(existing, "new");
+        await File.WriteAllTextAsync(slot, "new-file");
+        await File.WriteAllTextAsync(Path.Combine(backup, "existing.txt"), "original");
+        var journalPath = Path.Combine(restorePoint, "journal.json");
+        await AtomicJsonStore.WriteAsync(journalPath, new TransactionJournal
+        {
+            Id = "tx-latest",
+            Operation = "restore-snapshot",
+            State = TransactionState.Applying,
+            CreatedAt = DateTimeOffset.UtcNow,
+            RootPath = target,
+            RestorePointPath = restorePoint,
+            RemovedDirectories = [slot, restoredEmptyDirectory],
+            Changes =
+            [
+                new TransactionFileChange
+                {
+                    RelativePath = "existing.txt",
+                    BackupRelativePath = "backup/existing.txt",
+                    OriginalSha256 = Sha256("original"),
+                    AppliedSha256 = Sha256("new")
+                },
+                new TransactionFileChange
+                {
+                    RelativePath = "slot",
+                    AppliedSha256 = Sha256("new-file")
+                }
+            ]
+        });
+
+        var result = await FileTransaction.RollBackLatestAsync(journalPath);
+
+        Assert.Equal(TransactionState.RolledBack, result.State);
+        Assert.Equal("original", await File.ReadAllTextAsync(existing));
+        Assert.True(Directory.Exists(restoredEmptyDirectory));
+    }
+
+    [Fact]
+    public async Task ApplyDirectory_rejects_reparse_point_staging_root()
+    {
+        using var test = new TestDirectory();
+        var target = test.CreateDirectory("target");
+        await File.WriteAllTextAsync(Path.Combine(target, "shared.txt"), "original");
+        var staging = test.CreateDirectoryLink(target, "staging-link");
+
+        var exception = await Assert.ThrowsAsync<IOException>(() => FileTransaction.ApplyDirectoryAsync(
+            staging,
+            target,
+            test.CreateDirectory("journals"),
+            "reject-reparse"));
+
+        Assert.Contains("reparse point", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("original", await File.ReadAllTextAsync(Path.Combine(target, "shared.txt")));
+    }
+
+    [Fact]
+    public async Task ApplyDirectory_rejects_reparse_points_inside_staging_tree()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var linkedSource = test.CreateDirectory("linked-source");
+        await File.WriteAllTextAsync(Path.Combine(linkedSource, "outside.txt"), "outside");
+        Directory.CreateSymbolicLink(Path.Combine(staging, "linked"), linkedSource);
+        var target = test.CreateDirectory("target");
+
+        var exception = await Assert.ThrowsAsync<IOException>(() => FileTransaction.ApplyDirectoryAsync(
+            staging,
+            target,
+            test.CreateDirectory("journals"),
+            "reject-reparse"));
+
+        Assert.Contains("reparse point", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(target));
+    }
+
+    [Fact]
     public async Task ApplyDirectory_replaces_files_and_removes_restore_point_after_commit()
     {
         using var test = new TestDirectory();
@@ -101,6 +186,61 @@ public sealed class FileTransactionTests
     }
 
     [Fact]
+    public async Task ReplaceDirectory_restores_file_when_created_directory_write_later_fails()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var target = test.CreateDirectory("target");
+        var journals = test.CreateDirectory("journals");
+        await File.WriteAllTextAsync(Path.Combine(staging, "slot", "new.txt").CreateParent(), "new");
+        await File.WriteAllTextAsync(Path.Combine(staging, "z.txt"), "new-z");
+        await File.WriteAllTextAsync(Path.Combine(target, "slot"), "original-file");
+        await File.WriteAllTextAsync(Path.Combine(target, "z.txt"), "old-z");
+
+        await using (var locked = new FileStream(
+            Path.Combine(target, "z.txt"), FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            await Assert.ThrowsAnyAsync<IOException>(() => FileTransaction.ReplaceDirectoryAsync(
+                staging, target, journals, "restore-snapshot", ["slot"]));
+        }
+
+        Assert.True(File.Exists(Path.Combine(target, "slot")));
+        Assert.Equal("original-file", await File.ReadAllTextAsync(Path.Combine(target, "slot")));
+        Assert.False(Directory.Exists(Path.Combine(target, "slot")));
+        Assert.Equal("old-z", await File.ReadAllTextAsync(Path.Combine(target, "z.txt")));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
+    }
+
+    [Fact]
+    public async Task ReplaceDirectory_restores_directory_tree_when_file_write_later_fails()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var target = test.CreateDirectory("target");
+        var journals = test.CreateDirectory("journals");
+        await File.WriteAllTextAsync(Path.Combine(staging, "slot"), "new-file");
+        await File.WriteAllTextAsync(Path.Combine(staging, "z.txt"), "new-z");
+        await File.WriteAllTextAsync(Path.Combine(target, "slot", "nested", "old.txt").CreateParent(), "original");
+        _ = test.CreateDirectory("target", "slot", "empty");
+        await File.WriteAllTextAsync(Path.Combine(target, "z.txt"), "old-z");
+
+        await using (var locked = new FileStream(
+            Path.Combine(target, "z.txt"), FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            await Assert.ThrowsAnyAsync<IOException>(() => FileTransaction.ReplaceDirectoryAsync(
+                staging, target, journals, "restore-snapshot", ["slot/nested/old.txt"]));
+        }
+
+        Assert.True(Directory.Exists(Path.Combine(target, "slot")));
+        Assert.Equal(
+            "original",
+            await File.ReadAllTextAsync(Path.Combine(target, "slot", "nested", "old.txt")));
+        Assert.True(Directory.Exists(Path.Combine(target, "slot", "empty")));
+        Assert.Equal("old-z", await File.ReadAllTextAsync(Path.Combine(target, "z.txt")));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
+    }
+
+    [Fact]
     public async Task ReplaceDirectory_rejects_delete_paths_outside_target()
     {
         using var test = new TestDirectory();
@@ -158,6 +298,54 @@ public sealed class FileTransactionTests
         Assert.Equal(TransactionState.RolledBack, results[0].State);
         Assert.Equal("old", await File.ReadAllTextAsync(Path.Combine(target, "existing.txt")));
         Assert.False(File.Exists(Path.Combine(target, "added.txt")));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
+    }
+
+    [Fact]
+    public async Task RecoverPending_restores_directory_tree_removed_for_file_target()
+    {
+        using var test = new TestDirectory();
+        var target = test.CreateDirectory("target");
+        var journals = test.CreateDirectory("journals");
+        var restorePoint = test.CreateDirectory("journals", "tx-type-change");
+        var backup = test.CreateDirectory("journals", "tx-type-change", "backup", "slot", "nested");
+        await File.WriteAllTextAsync(Path.Combine(target, "slot"), "new-file");
+        await File.WriteAllTextAsync(Path.Combine(backup, "old.txt"), "original");
+        var slot = Path.Combine(target, "slot");
+        var nested = Path.Combine(slot, "nested");
+        var empty = Path.Combine(slot, "empty");
+        await AtomicJsonStore.WriteAsync(Path.Combine(restorePoint, "journal.json"), new TransactionJournal
+        {
+            Id = "tx-type-change",
+            Operation = "restore-snapshot",
+            State = TransactionState.Applying,
+            CreatedAt = DateTimeOffset.UtcNow,
+            RootPath = target,
+            RestorePointPath = restorePoint,
+            RemovedDirectories = [nested, empty, slot],
+            Changes =
+            [
+                new TransactionFileChange
+                {
+                    RelativePath = "slot/nested/old.txt",
+                    IsDeletion = true,
+                    BackupRelativePath = "backup/slot/nested/old.txt",
+                    OriginalSha256 = Sha256("original"),
+                    AppliedSha256 = Sha256("original")
+                },
+                new TransactionFileChange
+                {
+                    RelativePath = "slot",
+                    AppliedSha256 = Sha256("new-file")
+                }
+            ]
+        });
+
+        var result = Assert.Single(await FileTransaction.RecoverPendingAsync(journals));
+
+        Assert.Equal(TransactionState.RolledBack, result.State);
+        Assert.Equal("original", await File.ReadAllTextAsync(Path.Combine(nested, "old.txt")));
+        Assert.True(Directory.Exists(empty));
         Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
     }
 
@@ -237,6 +425,13 @@ public sealed class FileTransactionTests
         {
             var path = parts.Aggregate(_root, Path.Combine);
             Directory.CreateDirectory(path);
+            return path;
+        }
+
+        public string CreateDirectoryLink(string target, params string[] parts)
+        {
+            var path = parts.Aggregate(_root, Path.Combine);
+            Directory.CreateSymbolicLink(path, target);
             return path;
         }
 

@@ -7,6 +7,28 @@ namespace Crystalfly.Core.Tests.LocalLow;
 public sealed class LocalLowIsolationServiceTests
 {
     [Fact]
+    public async Task Initial_takeover_creates_the_same_non_log_baseline_for_every_discovered_instance()
+    {
+        using var test = new TestDirectory();
+        var shared = test.CreateDirectory("local-low", "Hollow Knight");
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        await test.WriteAsync(shared, "user1.dat", "shared-save");
+        await test.WriteAsync(shared, "output_log.txt", "unity-log");
+        var service = new LocalLowIsolationService(shared, storage);
+
+        await service.InitializeBaselinesAsync(["practice-1221", "race-1578"]);
+
+        Assert.Equal("unity-log", await File.ReadAllTextAsync(
+            Path.Combine(service.SharedBackupPath, "output_log.txt")));
+        foreach (var instanceId in new[] { "practice-1221", "race-1578" })
+        {
+            var instance = service.GetInstanceLocalLowPath(instanceId);
+            Assert.Equal("shared-save", await File.ReadAllTextAsync(Path.Combine(instance, "user1.dat")));
+            Assert.False(File.Exists(Path.Combine(instance, "output_log.txt")));
+        }
+    }
+
+    [Fact]
     public async Task First_switch_backs_up_all_shared_data_and_excludes_logs_from_instance_baseline()
     {
         using var test = new TestDirectory();
@@ -62,6 +84,33 @@ public sealed class LocalLowIsolationServiceTests
         Assert.False(File.Exists(Path.Combine(instance, "output_log.txt")));
         Assert.Equal("shared-before", await File.ReadAllTextAsync(Path.Combine(shared, "user1.dat")));
         Assert.Equal("shared-log", await File.ReadAllTextAsync(Path.Combine(shared, "Player.log")));
+    }
+
+    [Fact]
+    public async Task Baseline_refresh_preserves_an_active_session_until_game_exit_is_confirmed()
+    {
+        using var test = new TestDirectory();
+        var shared = test.CreateDirectory("local-low", "Hollow Knight");
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        await test.WriteAsync(shared, "user1.dat", "shared-save");
+        var service = new LocalLowIsolationService(shared, storage);
+        _ = await service.SwitchInAsync("practice");
+        await File.WriteAllTextAsync(Path.Combine(shared, "user1.dat"), "active-save");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.InitializeBaselinesAsync(["practice"]));
+
+        Assert.Equal("active-save", await File.ReadAllTextAsync(Path.Combine(shared, "user1.dat")));
+        Assert.Equal("shared-save", await File.ReadAllTextAsync(Path.Combine(
+            service.GetInstanceLocalLowPath("practice"),
+            "user1.dat")));
+
+        await service.InitializeBaselinesAsync(["practice"], allowActiveSessionCompletion: true);
+
+        Assert.Equal("shared-save", await File.ReadAllTextAsync(Path.Combine(shared, "user1.dat")));
+        Assert.Equal("active-save", await File.ReadAllTextAsync(Path.Combine(
+            service.GetInstanceLocalLowPath("practice"),
+            "user1.dat")));
     }
 
     [Fact]
@@ -126,12 +175,48 @@ public sealed class LocalLowIsolationServiceTests
 
         await Assert.ThrowsAsync<InjectedFailureException>(() => failing.SwitchOutAsync(session.Id));
 
-        var recovered = Assert.Single(await new LocalLowIsolationService(shared, storage).RecoverPendingAsync());
+        var recovered = Assert.Single(await new LocalLowIsolationService(shared, storage)
+            .RecoverPendingAsync(allowActiveSessionCompletion: true));
 
         Assert.Equal(TransactionState.Committed, recovered.State);
         Assert.Equal("captured-save", await File.ReadAllTextAsync(Path.Combine(
             failing.GetInstanceLocalLowPath("practice"), "user1.dat")));
         Assert.Equal("shared-save", await File.ReadAllTextAsync(Path.Combine(shared, "user1.dat")));
+    }
+
+    [Fact]
+    public async Task Recovery_commits_verified_final_state_when_previous_was_cleaned_before_completed_write()
+    {
+        using var test = new TestDirectory();
+        var shared = test.CreateDirectory("local-low", "Hollow Knight");
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        await test.WriteAsync(shared, "user1.dat", "shared-save");
+        var observer = new ConditionalObserver();
+        var failing = new LocalLowIsolationService(shared, storage, observer.Reached);
+        var session = await failing.SwitchInAsync("practice");
+        await File.WriteAllTextAsync(Path.Combine(shared, "user1.dat"), "captured-save");
+        observer.FailurePoint = LocalLowCheckpoint.SharedRestored;
+
+        await Assert.ThrowsAsync<InjectedFailureException>(() => failing.SwitchOutAsync(session.Id));
+
+        var journalPath = Assert.Single(Directory.EnumerateFiles(
+            Path.Combine(storage, "local-low", "transactions"),
+            "journal.json",
+            SearchOption.AllDirectories));
+        var journal = await AtomicJsonStore.ReadAsync<LocalLowSessionJournal>(journalPath);
+        await AtomicJsonStore.WriteAsync(
+            journalPath,
+            journal with { Phase = LocalLowSessionPhase.SharedRestored });
+        Directory.Delete(journal.InstancePreviousPath, recursive: true);
+
+        var recovered = Assert.Single(await new LocalLowIsolationService(shared, storage)
+            .RecoverPendingAsync(allowActiveSessionCompletion: true));
+
+        Assert.Equal(TransactionState.Committed, recovered.State);
+        Assert.Equal("captured-save", await File.ReadAllTextAsync(Path.Combine(
+            failing.GetInstanceLocalLowPath("practice"), "user1.dat")));
+        Assert.Equal("shared-save", await File.ReadAllTextAsync(Path.Combine(shared, "user1.dat")));
+        Assert.False(File.Exists(journalPath));
     }
 
     [Fact]

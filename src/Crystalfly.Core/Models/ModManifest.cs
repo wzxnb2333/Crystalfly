@@ -23,4 +23,6 @@ public sealed record ModManifest
     public IReadOnlyList<string> SupportedBuildIds { get; init; } = [];
 
     public IReadOnlyList<string> Dependencies { get; init; } = [];
+
+    public IReadOnlyList<string> FlatFiles { get; init; } = [];
 }

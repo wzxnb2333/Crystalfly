@@ -5,6 +5,20 @@ namespace Crystalfly.Core.Instances;
 
 public static class BuildFingerprintService
 {
+    public static GameBuild? FindBuild(
+        IEnumerable<GameBuild> builds,
+        BuildFingerprint fingerprint) =>
+        builds.FirstOrDefault(build =>
+            string.Equals(build.ExecutableSha256, fingerprint.ExecutableSha256, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(
+                build.GlobalGameManagersSha256,
+                fingerprint.GlobalGameManagersSha256,
+                StringComparison.OrdinalIgnoreCase)
+            && (build.UnityPlayerSha256 is null || string.Equals(
+                build.UnityPlayerSha256,
+                fingerprint.UnityPlayerSha256,
+                StringComparison.OrdinalIgnoreCase)));
+
     public static async Task<BuildFingerprint> CalculateAsync(
         string instanceRoot,
         CancellationToken cancellationToken = default) =>

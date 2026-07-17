@@ -33,13 +33,47 @@ public sealed class LocalLowIsolationService
         return Path.Combine(storagePath, "instances", instanceId, "local-low");
     }
 
+    public async Task InitializeBaselinesAsync(
+        IEnumerable<string> instanceIds,
+        bool allowActiveSessionCompletion = false,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(instanceIds);
+        string[] ids = instanceIds.Distinct(StringComparer.Ordinal).ToArray();
+        foreach (string instanceId in ids)
+        {
+            ValidateSegment(instanceId, nameof(instanceIds));
+        }
+        if (ids.Length == 0)
+        {
+            return;
+        }
+
+        var recovery = await RecoverPendingAsync(
+            cancellationToken,
+            allowActiveSessionCompletion);
+        if (recovery.Any(result => result.State == TransactionState.NeedsAttention
+            || IsActiveSession(result)))
+        {
+            throw new InvalidOperationException(
+                "An active LocalLow session must finish before instance baselines can be initialized.");
+        }
+
+        var takeover = await EnsureTakeoverAsync(cancellationToken);
+        foreach (string instanceId in ids)
+        {
+            await EnsureInstanceBaselineAsync(instanceId, takeover, cancellationToken);
+        }
+    }
+
     public async Task<LocalLowSessionJournal> SwitchInAsync(
         string instanceId,
         CancellationToken cancellationToken = default)
     {
         ValidateSegment(instanceId, nameof(instanceId));
         var recovery = await RecoverPendingAsync(cancellationToken);
-        if (recovery.Any(result => result.State == TransactionState.NeedsAttention))
+        if (recovery.Any(result => result.State == TransactionState.NeedsAttention
+            || IsActiveSession(result)))
         {
             throw new InvalidOperationException(
                 "LocalLow recovery needs attention before another instance can start.");
@@ -138,7 +172,8 @@ public sealed class LocalLowIsolationService
     }
 
     public async Task<IReadOnlyList<LocalLowSessionJournal>> RecoverPendingAsync(
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool allowActiveSessionCompletion = false)
     {
         Directory.CreateDirectory(localLowStatePath);
         Directory.CreateDirectory(transactionRoot);
@@ -176,8 +211,13 @@ public sealed class LocalLowIsolationService
                     LocalLowSessionPhase.InstanceActive
                         or LocalLowSessionPhase.CaptureStaged
                         or LocalLowSessionPhase.InstanceCaptured
-                        or LocalLowSessionPhase.SharedRestored =>
+                        or LocalLowSessionPhase.SharedRestored
+                        when allowActiveSessionCompletion =>
                         await CompleteSessionAsync(journal, journalPath, cancellationToken),
+                    LocalLowSessionPhase.InstanceActive
+                        or LocalLowSessionPhase.CaptureStaged
+                        or LocalLowSessionPhase.InstanceCaptured
+                        or LocalLowSessionPhase.SharedRestored => journal,
                     LocalLowSessionPhase.Completed or LocalLowSessionPhase.RolledBack =>
                         await CleanFinishedAsync(journal, journalPath),
                     _ => throw new InvalidDataException($"Unknown LocalLow phase: {journal.Phase}.")
@@ -191,6 +231,13 @@ public sealed class LocalLowIsolationService
         }
         return results;
     }
+
+    private static bool IsActiveSession(LocalLowSessionJournal journal) =>
+        journal.State is TransactionState.Prepared or TransactionState.Applying
+        && journal.Phase is LocalLowSessionPhase.InstanceActive
+            or LocalLowSessionPhase.CaptureStaged
+            or LocalLowSessionPhase.InstanceCaptured
+            or LocalLowSessionPhase.SharedRestored;
 
     private async Task<LocalLowTakeoverRecord> EnsureTakeoverAsync(
         CancellationToken cancellationToken)
@@ -543,6 +590,19 @@ public sealed class LocalLowIsolationService
         var instanceExists = Directory.Exists(journal.InstancePath);
         var previousExists = Directory.Exists(journal.InstancePreviousPath);
         var stagingExists = Directory.Exists(journal.InstanceStagingPath);
+
+        if (journal.Phase == LocalLowSessionPhase.SharedRestored
+            && instanceExists
+            && !previousExists
+            && !stagingExists)
+        {
+            await RequireHashAsync(
+                journal.InstancePath,
+                capturedHash,
+                includeLogs: false,
+                cancellationToken);
+            return journal;
+        }
 
         if (instanceExists && !previousExists && stagingExists)
         {

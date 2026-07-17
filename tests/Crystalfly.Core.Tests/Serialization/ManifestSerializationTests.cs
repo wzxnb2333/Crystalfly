@@ -54,6 +54,7 @@ public sealed class ManifestSerializationTests
             RootPath = @"D:\Games\Hollow Knight 1.2.2.1",
             BuildId = "1.2.2.1",
             LoaderId = "bepinex-5.4.23.4",
+            SpeedrunRulesRevision = "rules-2026-07-17",
             CreatedAt = DateTimeOffset.Parse("2026-07-16T12:00:00Z")
         };
 
@@ -135,6 +136,38 @@ public sealed class ManifestSerializationTests
     }
 
     [Fact]
+    public void GameCatalog_round_trips_speedrun_file_manifests()
+    {
+        var catalog = new GameCatalog
+        {
+            SpeedrunFileManifests =
+            [
+                new SpeedrunFileManifest
+                {
+                    Id = "single-run-1221-files",
+                    BuildId = "1.2.2.1",
+                    RulesRevision = "rules-commit",
+                    Files =
+                    [
+                        new SpeedrunFileRule
+                        {
+                            RelativePath = "hollow_knight.exe",
+                            Sha256 = new string('A', 64),
+                            Kind = SpeedrunFileKind.Game
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var restored = CrystalflyJson.Deserialize<GameCatalog>(CrystalflyJson.Serialize(catalog));
+
+        Assert.Single(restored.SpeedrunFileManifests);
+        Assert.Equal("single-run-1221-files", restored.SpeedrunFileManifests[0].Id);
+        Assert.Equal("hollow_knight.exe", restored.SpeedrunFileManifests[0].Files[0].RelativePath);
+    }
+
+    [Fact]
     public void TransactionJournal_round_trips_with_schema_version()
     {
         var journal = new TransactionJournal
@@ -144,6 +177,7 @@ public sealed class ManifestSerializationTests
             State = TransactionState.Prepared,
             CreatedAt = DateTimeOffset.Parse("2026-07-16T12:00:00Z"),
             CreatedPaths = [@"D:\Games\Hollow Knight 1.2.2.1"],
+            RemovedDirectories = [@"D:\Games\Hollow Knight 1.2.2.1\slot"],
             BackupPaths = new Dictionary<string, string>
             {
                 [@"D:\Games\Hollow Knight 1.2.2.1\hollow_knight.exe"] = @"D:\Backups\hollow_knight.exe"
@@ -157,6 +191,27 @@ public sealed class ManifestSerializationTests
         Assert.Equal(TransactionJournal.CurrentSchemaVersion, document.RootElement.GetProperty("schemaVersion").GetInt32());
         Assert.Equal("prepared", document.RootElement.GetProperty("state").GetString());
         Assert.Equal(journal.BackupPaths, restored.BackupPaths);
+        Assert.Equal(journal.RemovedDirectories, restored.RemovedDirectories);
+    }
+
+    [Fact]
+    public void TransactionJournal_without_removed_directories_uses_empty_collection()
+    {
+        const string json = """
+            {
+              "schemaVersion": 1,
+              "id": "legacy-transaction",
+              "operation": "install-package",
+              "state": "applying",
+              "createdAt": "2026-07-16T12:00:00Z",
+              "rootPath": "D:\\Games\\Hollow Knight",
+              "restorePointPath": "D:\\Backups\\legacy-transaction"
+            }
+            """;
+
+        var restored = CrystalflyJson.Deserialize<TransactionJournal>(json);
+
+        Assert.Empty(restored.RemovedDirectories);
     }
 
     [Fact]

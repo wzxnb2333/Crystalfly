@@ -39,6 +39,24 @@ public sealed class LoaderManagerTests : IDisposable
     }
 
     [Fact]
+    public async Task Local_loader_install_persists_unverified_status_and_declared_loader_state()
+    {
+        var manager = CreateManager();
+        var packagePath = CreateZip(("BepInEx/core/BepInEx.dll", "local"));
+        var package = new LocalLoaderPackage(
+            Manifest("community-loader", packagePath),
+            packagePath,
+            LoaderState.BepInEx);
+
+        var receipt = await manager.InstallLocalFromFileAsync(package);
+
+        Assert.False(receipt.IsVerified);
+        Assert.Equal(LoaderState.BepInEx, receipt.LoaderState);
+        Assert.False((await manager.GetReceiptAsync())!.IsVerified);
+        Assert.Equal(LoaderState.BepInEx, await manager.GetStateAsync());
+    }
+
+    [Fact]
     public async Task Switch_replaces_verified_loader_in_one_operation()
     {
         var manager = CreateManager();
@@ -124,13 +142,14 @@ public sealed class LoaderManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task Receipt_write_failure_keeps_original_file_backup_for_manual_recovery()
+    public async Task Receipt_write_failure_rolls_back_files_and_backup_metadata()
     {
         var manager = CreateManager();
         var assemblyPath = Path.Combine(InstanceRoot, "hollow_knight_Data", "Managed", "Assembly-CSharp.dll");
         Directory.CreateDirectory(Path.GetDirectoryName(assemblyPath)!);
         await File.WriteAllTextAsync(assemblyPath, "vanilla");
         Directory.CreateDirectory(ReceiptPath);
+        await File.WriteAllTextAsync(Path.Combine(ReceiptPath, "blocker.txt"), "block");
         var package = CreateZip(
             ("Assembly-CSharp.dll", "patched"),
             ("MMHOOK_Assembly-CSharp.dll", "api"));
@@ -138,22 +157,154 @@ public sealed class LoaderManagerTests : IDisposable
         await Assert.ThrowsAnyAsync<IOException>(() =>
             manager.InstallFromFileAsync(Manifest("modding-api-77", package), package));
 
-        var backups = Directory.GetFiles(
-            Path.Combine(_root, "state", "loader-backups"),
-            "Assembly-CSharp.dll",
-            SearchOption.AllDirectories);
-        Assert.Single(backups);
-        Assert.Equal("vanilla", await File.ReadAllTextAsync(backups[0]));
+        Assert.Equal("vanilla", await File.ReadAllTextAsync(assemblyPath));
+        Assert.False(File.Exists(Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "MMHOOK_Assembly-CSharp.dll")));
+        Assert.Empty(Directory.Exists(Path.Combine(_root, "state", "loader-backups"))
+            ? Directory.EnumerateFiles(Path.Combine(_root, "state", "loader-backups"), "*", SearchOption.AllDirectories)
+            : []);
+    }
+
+    [Fact]
+    public async Task Install_from_file_accepts_manifest_without_declared_size()
+    {
+        var manager = CreateManager();
+        var package = CreateZip(("MMHOOK_Assembly-CSharp.dll", "api"));
+        var manifest = Manifest("modding-api-77", package) with { SizeBytes = null };
+
+        await manager.InstallFromFileAsync(manifest, package);
+
+        Assert.Equal(LoaderState.ModdingApi, await manager.GetStateAsync());
+    }
+
+    [Fact]
+    public async Task Remote_install_uses_content_length_and_reuses_package_cache()
+    {
+        var package = CreateZip(("MMHOOK_Assembly-CSharp.dll", "api"));
+        var handler = new CountingHandler(await File.ReadAllBytesAsync(package));
+        using var client = new HttpClient(handler);
+        var manager = CreateManager(Path.Combine(_root, "packages"), client);
+        var manifest = Manifest("modding-api-77", package) with { SizeBytes = null };
+
+        await manager.InstallFromUriAsync(manifest);
+        await manager.UninstallAsync();
+        await manager.InstallFromUriAsync(manifest);
+
+        Assert.Equal(1, handler.RequestCount);
+        Assert.Single(Directory.EnumerateFiles(Path.Combine(_root, "packages"), "*.zip"));
+        Assert.Equal(LoaderState.ModdingApi, await manager.GetStateAsync());
+    }
+
+    [Fact]
+    public async Task Switch_receipt_failure_restores_previous_verified_loader()
+    {
+        var manager = CreateManager();
+        var assemblyPath = Path.Combine(InstanceRoot, "hollow_knight_Data", "Managed", "Assembly-CSharp.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(assemblyPath)!);
+        await File.WriteAllTextAsync(assemblyPath, "vanilla");
+        var apiPackage = CreateZip(
+            ("Assembly-CSharp.dll", "patched"),
+            ("MMHOOK_Assembly-CSharp.dll", "api"));
+        await manager.InstallFromFileAsync(Manifest("modding-api-77", apiPackage), apiPackage);
+        var originalReceipt = await manager.GetReceiptAsync();
+        var bepinexPackage = CreateZip(("BepInEx/core/BepInEx.dll", "bep"));
+
+        File.SetAttributes(ReceiptPath, FileAttributes.ReadOnly);
+        try
+        {
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => manager.SwitchFromFileAsync(
+                Manifest("bepinex-5.4.23.4", bepinexPackage), bepinexPackage));
+        }
+        finally
+        {
+            ClearReadOnlyAttributes();
+        }
+
+        Assert.Equal(LoaderState.ModdingApi, await manager.GetStateAsync());
+        Assert.True(File.Exists(Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "MMHOOK_Assembly-CSharp.dll")));
+        Assert.False(File.Exists(Path.Combine(InstanceRoot, "BepInEx", "core", "BepInEx.dll")));
+        Assert.Equal("vanilla", await File.ReadAllTextAsync(Path.Combine(
+            originalReceipt!.BackupRoot, "hollow_knight_Data", "Managed", "Assembly-CSharp.dll")));
+    }
+
+    [Fact]
+    public async Task Uninstall_receipt_failure_restores_installed_loader()
+    {
+        var manager = CreateManager();
+        var package = CreateZip(("MMHOOK_Assembly-CSharp.dll", "api"));
+        await manager.InstallFromFileAsync(Manifest("modding-api-77", package), package);
+
+        File.SetAttributes(ReceiptPath, FileAttributes.ReadOnly);
+        try
+        {
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => manager.UninstallAsync());
+        }
+        finally
+        {
+            ClearReadOnlyAttributes();
+        }
+
+        Assert.Equal(LoaderState.ModdingApi, await manager.GetStateAsync());
+        Assert.True(File.Exists(Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "MMHOOK_Assembly-CSharp.dll")));
+    }
+
+    [Fact]
+    public async Task Uninstall_reports_failure_when_unmanaged_loader_files_prevent_clean_state()
+    {
+        var manager = CreateManager();
+        var package = CreateZip(("BepInEx/core/BepInEx.dll", "loader"));
+        await manager.InstallFromFileAsync(Manifest("bepinex-5.4.23.4", package), package);
+        var unmanaged = Path.Combine(InstanceRoot, "BepInEx", "plugins", "manual.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(unmanaged)!);
+        await File.WriteAllTextAsync(unmanaged, "manual");
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => manager.UninstallAsync());
+
+        Assert.Contains("manual", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(LoaderState.Drifted, await manager.GetStateAsync());
+        Assert.True(File.Exists(unmanaged));
+    }
+
+    [Fact]
+    public async Task Repair_receipt_failure_restores_pre_repair_drift()
+    {
+        var manager = CreateManager();
+        var package = CreateZip(("MMHOOK_Assembly-CSharp.dll", "api"));
+        var manifest = Manifest("modding-api-77", package);
+        await manager.InstallFromFileAsync(manifest, package);
+        var installed = Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "MMHOOK_Assembly-CSharp.dll");
+        await File.WriteAllTextAsync(installed, "changed");
+
+        File.SetAttributes(ReceiptPath, FileAttributes.ReadOnly);
+        try
+        {
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => manager.RepairFromFileAsync(manifest, package));
+        }
+        finally
+        {
+            ClearReadOnlyAttributes();
+        }
+
+        Assert.Equal("changed", await File.ReadAllTextAsync(installed));
+        Assert.Equal(LoaderState.Drifted, await manager.GetStateAsync());
     }
 
     private string InstanceRoot => Path.Combine(_root, "instance");
 
     private string ReceiptPath => Path.Combine(_root, "state", "loader.json");
 
-    private LoaderManager CreateManager()
+    private LoaderManager CreateManager(string? packageCacheRoot = null, HttpClient? httpClient = null)
     {
         Directory.CreateDirectory(InstanceRoot);
-        return new LoaderManager(InstanceRoot, Path.Combine(_root, "transactions"), ReceiptPath);
+        return new LoaderManager(
+            InstanceRoot,
+            Path.Combine(_root, "transactions"),
+            ReceiptPath,
+            packageCacheRoot,
+            httpClient);
     }
 
     private string CreateZip(params (string Name, string Content)[] entries)
@@ -187,11 +338,35 @@ public sealed class LoaderManagerTests : IDisposable
         return Convert.ToHexString(SHA256.HashData(stream));
     }
 
+    private void ClearReadOnlyAttributes()
+    {
+        foreach (var path in Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories))
+        {
+            File.SetAttributes(path, File.GetAttributes(path) & ~FileAttributes.ReadOnly);
+        }
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_root))
         {
             Directory.Delete(_root, recursive: true);
+        }
+    }
+
+    private sealed class CountingHandler(byte[] content) : HttpMessageHandler
+    {
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(content)
+            });
         }
     }
 }

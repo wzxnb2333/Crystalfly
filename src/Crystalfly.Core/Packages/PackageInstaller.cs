@@ -7,14 +7,43 @@ namespace Crystalfly.Core.Packages;
 
 public static class PackageInstaller
 {
-    private static readonly HttpClient HttpClient = new();
+    private const long MaxPackageBytes = 256L * 1024 * 1024;
+    private const long MaxExtractedFileBytes = 512L * 1024 * 1024;
+    private const long MaxExtractedPackageBytes = 1024L * 1024 * 1024;
+    private static readonly HttpClient SharedHttpClient = new();
 
-    public static async Task<TransactionJournal> InstallFromUriAsync(
-        Uri packageUri,
-        string targetRoot,
+    public static async Task<string> AcquireVerifiedFileFromFileAsync(
+        string packagePath,
         string transactionRoot,
-        long expectedSize,
+        long? expectedSize,
         string expectedSha256,
+        string cacheRoot,
+        CancellationToken cancellationToken = default)
+    {
+        var package = new FileInfo(Path.GetFullPath(packagePath));
+        if (!package.Exists)
+        {
+            throw new FileNotFoundException("Package was not found.", packagePath);
+        }
+        var verifiedSize = expectedSize ?? package.Length;
+        ValidateExpectedSize(verifiedSize, remote: false);
+        var normalizedHash = ValidateSha256(expectedSha256);
+        await VerifyPackageAsync(package.FullName, verifiedSize, normalizedHash, cancellationToken);
+        var cachePath = GetCachePath(cacheRoot, normalizedHash);
+        if (!await IsValidPackageAsync(cachePath, verifiedSize, normalizedHash, cancellationToken))
+        {
+            await WriteCacheAsync(package.FullName, cachePath, verifiedSize, cancellationToken);
+        }
+        return cachePath;
+    }
+
+    public static async Task<string> AcquireVerifiedFileFromUriAsync(
+        Uri packageUri,
+        string transactionRoot,
+        long? expectedSize,
+        string expectedSha256,
+        string cacheRoot,
+        HttpClient? httpClient = null,
         CancellationToken cancellationToken = default)
     {
         if (!packageUri.IsAbsoluteUri || packageUri.Scheme != Uri.UriSchemeHttps)
@@ -22,26 +51,100 @@ public static class PackageInstaller
             throw new ArgumentException("Package URL must use HTTPS.", nameof(packageUri));
         }
 
+        ValidateExpectedSize(expectedSize, remote: true);
+        var normalizedHash = ValidateSha256(expectedSha256);
+        var cachePath = GetCachePath(cacheRoot, normalizedHash);
+        if (await IsValidPackageAsync(cachePath, expectedSize, normalizedHash, cancellationToken))
+        {
+            return cachePath;
+        }
+
+        var workspace = CreateWorkspace(transactionRoot);
+        var downloadPath = Path.Combine(workspace, "package.download");
+        try
+        {
+            using var response = await (httpClient ?? SharedHttpClient).GetAsync(
+                packageUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            var downloadSize = ResolveRemoteSize(response.Content.Headers.ContentLength, expectedSize);
+            await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
+            await using (var destination = new FileStream(
+                downloadPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920,
+                FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                await CopyWithSizeLimitAsync(source, destination, downloadSize, cancellationToken);
+            }
+            await VerifyPackageAsync(downloadPath, downloadSize, normalizedHash, cancellationToken);
+            await WriteCacheAsync(downloadPath, cachePath, downloadSize, cancellationToken);
+            return cachePath;
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    public static async Task<TransactionJournal> InstallFromUriAsync(
+        Uri packageUri,
+        string targetRoot,
+        string transactionRoot,
+        long? expectedSize,
+        string expectedSha256,
+        string? cacheRoot = null,
+        HttpClient? httpClient = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!packageUri.IsAbsoluteUri || packageUri.Scheme != Uri.UriSchemeHttps)
+        {
+            throw new ArgumentException("Package URL must use HTTPS.", nameof(packageUri));
+        }
+
+        ValidateExpectedSize(expectedSize, remote: true);
+        var normalizedHash = ValidateSha256(expectedSha256);
+        var cachePath = cacheRoot is null
+            ? null
+            : GetCachePath(cacheRoot, normalizedHash);
+        if (cachePath is not null
+            && await IsValidPackageAsync(cachePath, expectedSize, normalizedHash, cancellationToken))
+        {
+            var cachedSize = new FileInfo(cachePath).Length;
+            var cachedWorkspace = CreateWorkspace(transactionRoot);
+            try
+            {
+                return await InstallVerifiedAsync(
+                    cachePath, targetRoot, transactionRoot, cachedWorkspace,
+                    cachedSize, normalizedHash, cancellationToken);
+            }
+            finally
+            {
+                DeleteWorkspace(cachedWorkspace);
+            }
+        }
+
         var workspace = CreateWorkspace(transactionRoot);
         var packagePath = Path.Combine(workspace, "package.zip");
         try
         {
-            using var response = await HttpClient.GetAsync(
+            using var response = await (httpClient ?? SharedHttpClient).GetAsync(
                 packageUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             response.EnsureSuccessStatusCode();
-            if (response.Content.Headers.ContentLength is long contentLength && contentLength != expectedSize)
-            {
-                throw new InvalidDataException($"Package size mismatch. Expected {expectedSize}, received {contentLength}.");
-            }
+            var downloadSize = ResolveRemoteSize(response.Content.Headers.ContentLength, expectedSize);
             await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
             await using (var destination = new FileStream(
                 packagePath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920,
                 FileOptions.Asynchronous | FileOptions.WriteThrough))
             {
-                await CopyWithSizeLimitAsync(source, destination, expectedSize, cancellationToken);
+                await CopyWithSizeLimitAsync(source, destination, downloadSize, cancellationToken);
+            }
+
+            await VerifyPackageAsync(packagePath, downloadSize, normalizedHash, cancellationToken);
+            if (cachePath is not null)
+            {
+                await WriteCacheAsync(packagePath, cachePath, downloadSize, cancellationToken);
+                packagePath = cachePath;
             }
             return await InstallVerifiedAsync(
-                packagePath, targetRoot, transactionRoot, workspace, expectedSize, expectedSha256, cancellationToken);
+                packagePath, targetRoot, transactionRoot, workspace, downloadSize, normalizedHash, cancellationToken);
         }
         finally
         {
@@ -53,16 +156,23 @@ public static class PackageInstaller
         string packagePath,
         string targetRoot,
         string transactionRoot,
-        long expectedSize,
+        long? expectedSize,
         string expectedSha256,
         CancellationToken cancellationToken = default)
     {
         var workspace = CreateWorkspace(transactionRoot);
         try
         {
+            var package = new FileInfo(Path.GetFullPath(packagePath));
+            if (!package.Exists)
+            {
+                throw new FileNotFoundException("Package was not found.", packagePath);
+            }
+            var verifiedSize = expectedSize ?? package.Length;
+            ValidateExpectedSize(verifiedSize, remote: false);
             return await InstallVerifiedAsync(
-                Path.GetFullPath(packagePath), targetRoot, transactionRoot, workspace,
-                expectedSize, expectedSha256, cancellationToken);
+                package.FullName, targetRoot, transactionRoot, workspace,
+                verifiedSize, expectedSha256, cancellationToken);
         }
         finally
         {
@@ -79,24 +189,8 @@ public static class PackageInstaller
         string expectedSha256,
         CancellationToken cancellationToken)
     {
-        if (expectedSize < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(expectedSize));
-        }
         var normalizedHash = ValidateSha256(expectedSha256);
-        var package = new FileInfo(packagePath);
-        if (!package.Exists)
-        {
-            throw new FileNotFoundException("Package was not found.", packagePath);
-        }
-        if (package.Length != expectedSize)
-        {
-            throw new InvalidDataException($"Package size mismatch. Expected {expectedSize}, received {package.Length}.");
-        }
-        if (!StringComparer.OrdinalIgnoreCase.Equals(normalizedHash, await HashFileAsync(packagePath, cancellationToken)))
-        {
-            throw new InvalidDataException("Package SHA-256 mismatch.");
-        }
+        await VerifyPackageAsync(packagePath, expectedSize, normalizedHash, cancellationToken);
 
         var staging = Path.Combine(workspace, "staging");
         Directory.CreateDirectory(staging);
@@ -113,13 +207,42 @@ public static class PackageInstaller
         {
             Directory.CreateDirectory(ResolveUnderRoot(stagingRoot, plan.RelativePath));
         }
+        var buffer = new byte[81920];
+        long extractedTotal = 0;
         foreach (var plan in plans.Where(plan => !plan.IsDirectory))
         {
             var targetPath = ResolveUnderRoot(stagingRoot, plan.RelativePath);
             Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
             using var source = plan.Entry.Open();
             using var destination = new FileStream(targetPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-            source.CopyTo(destination);
+            long extractedFile = 0;
+            int read;
+            while ((read = source.Read(buffer)) != 0)
+            {
+                if (read > plan.Entry.Length - extractedFile)
+                {
+                    throw new InvalidDataException(
+                        $"ZIP entry '{plan.Entry.FullName}' exceeds its declared uncompressed size.");
+                }
+                if (read > MaxExtractedFileBytes - extractedFile)
+                {
+                    throw new InvalidDataException(
+                        $"ZIP entry '{plan.Entry.FullName}' exceeds the {MaxExtractedFileBytes}-byte single-file extraction limit.");
+                }
+                if (read > MaxExtractedPackageBytes - extractedTotal)
+                {
+                    throw new InvalidDataException(
+                        $"ZIP contents exceed the {MaxExtractedPackageBytes}-byte total extraction limit.");
+                }
+                destination.Write(buffer.AsSpan(0, read));
+                extractedFile += read;
+                extractedTotal += read;
+            }
+            if (extractedFile != plan.Entry.Length)
+            {
+                throw new InvalidDataException(
+                    $"ZIP entry '{plan.Entry.FullName}' does not match its declared uncompressed size.");
+            }
         }
     }
 
@@ -129,6 +252,7 @@ public static class PackageInstaller
         var explicitTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var directories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        long declaredTotal = 0;
 
         foreach (var entry in archive.Entries)
         {
@@ -141,6 +265,20 @@ public static class PackageInstaller
             }
 
             var isDirectory = path.EndsWith("/", StringComparison.Ordinal);
+            if (!isDirectory && entry.Length > MaxExtractedFileBytes)
+            {
+                throw new InvalidDataException(
+                    $"ZIP entry '{entry.FullName}' exceeds the {MaxExtractedFileBytes}-byte single-file extraction limit.");
+            }
+            if (!isDirectory && entry.Length > MaxExtractedPackageBytes - declaredTotal)
+            {
+                throw new InvalidDataException(
+                    $"ZIP contents exceed the {MaxExtractedPackageBytes}-byte total extraction limit.");
+            }
+            if (!isDirectory)
+            {
+                declaredTotal += entry.Length;
+            }
             var segments = path.Split('/');
             var segmentCount = isDirectory ? segments.Length - 1 : segments.Length;
             if (segmentCount == 0
@@ -219,6 +357,118 @@ public static class PackageInstaller
         if (total != expectedSize)
         {
             throw new InvalidDataException($"Package size mismatch. Expected {expectedSize}, received {total}.");
+        }
+    }
+
+    private static long ResolveRemoteSize(long? contentLength, long? expectedSize)
+    {
+        if (contentLength is null)
+        {
+            return expectedSize
+                ?? throw new InvalidDataException("Package response does not declare Content-Length.");
+        }
+        if (contentLength <= 0 || contentLength > MaxPackageBytes)
+        {
+            throw new InvalidDataException($"Package Content-Length must be between 1 and {MaxPackageBytes} bytes.");
+        }
+        if (expectedSize is long expected && contentLength != expected)
+        {
+            throw new InvalidDataException($"Package size mismatch. Expected {expected}, received {contentLength}.");
+        }
+        return contentLength.Value;
+    }
+
+    private static void ValidateExpectedSize(long? expectedSize, bool remote)
+    {
+        if (expectedSize is null)
+        {
+            return;
+        }
+        if (expectedSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(expectedSize));
+        }
+        if (expectedSize > MaxPackageBytes)
+        {
+            throw new InvalidDataException(
+                $"{(remote ? "Remote" : "Local")} package exceeds the {MaxPackageBytes}-byte limit.");
+        }
+    }
+
+    private static async Task<bool> IsValidPackageAsync(
+        string path,
+        long? expectedSize,
+        string expectedSha256,
+        CancellationToken cancellationToken)
+    {
+        var package = new FileInfo(path);
+        if (!package.Exists
+            || package.Length <= 0
+            || package.Length > MaxPackageBytes
+            || expectedSize is long size && package.Length != size)
+        {
+            return false;
+        }
+        return StringComparer.OrdinalIgnoreCase.Equals(
+            expectedSha256, await HashFileAsync(path, cancellationToken));
+    }
+
+    private static async Task VerifyPackageAsync(
+        string path,
+        long expectedSize,
+        string expectedSha256,
+        CancellationToken cancellationToken)
+    {
+        var package = new FileInfo(path);
+        if (!package.Exists)
+        {
+            throw new FileNotFoundException("Package was not found.", path);
+        }
+        if (package.Length != expectedSize)
+        {
+            throw new InvalidDataException($"Package size mismatch. Expected {expectedSize}, received {package.Length}.");
+        }
+        if (!StringComparer.OrdinalIgnoreCase.Equals(
+                expectedSha256, await HashFileAsync(path, cancellationToken)))
+        {
+            throw new InvalidDataException("Package SHA-256 mismatch.");
+        }
+    }
+
+    private static string GetCachePath(string cacheRoot, string normalizedHash)
+    {
+        var root = Path.GetFullPath(cacheRoot);
+        Directory.CreateDirectory(root);
+        return Path.Combine(root, $"{normalizedHash}.zip");
+    }
+
+    private static async Task WriteCacheAsync(
+        string sourcePath,
+        string cachePath,
+        long expectedSize,
+        CancellationToken cancellationToken)
+    {
+        var temporaryPath = Path.Combine(
+            Path.GetDirectoryName(cachePath)!, $".{Path.GetFileName(cachePath)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            await using (var source = new FileStream(
+                sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920,
+                FileOptions.Asynchronous | FileOptions.SequentialScan))
+            await using (var destination = new FileStream(
+                temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920,
+                FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                await CopyWithSizeLimitAsync(source, destination, expectedSize, cancellationToken);
+            }
+            File.Move(temporaryPath, cachePath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
         }
     }
 

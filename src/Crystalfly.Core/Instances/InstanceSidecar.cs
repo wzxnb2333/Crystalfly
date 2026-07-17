@@ -30,9 +30,14 @@ public static class InstanceSidecar
         var marker = await AtomicJsonStore.ReadAsync<InstanceMarker>(
             GetMarkerPath(instanceRoot),
             cancellationToken);
-        return await AtomicJsonStore.ReadAsync<InstanceRecord>(
+        var record = await AtomicJsonStore.ReadAsync<InstanceRecord>(
             GetMetadataPath(instanceRoot, marker.InstanceId),
             cancellationToken);
+        if (!string.Equals(record.Id, marker.InstanceId, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("Instance marker and metadata IDs do not match.");
+        }
+        return record with { RootPath = Path.GetFullPath(instanceRoot) };
     }
 
     public static string GetMarkerPath(string instanceRoot) =>
@@ -42,6 +47,7 @@ public static class InstanceSidecar
     {
         var versionRoot = Directory.GetParent(Path.GetFullPath(instanceRoot))?.FullName
             ?? throw new ArgumentException("Instance root must have a parent directory.", nameof(instanceRoot));
-        return Path.Combine(versionRoot, ".crystalfly", "instances", instanceId, "instance.json");
+        var instancesRoot = Path.Combine(versionRoot, ".crystalfly", "instances");
+        return Path.Combine(InstanceDirectory.ResolveUnderRoot(instancesRoot, instanceId), "instance.json");
     }
 }

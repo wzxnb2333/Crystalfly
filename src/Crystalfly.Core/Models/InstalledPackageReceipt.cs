@@ -19,6 +19,8 @@ public sealed record InstalledPackageReceipt
 
     public LoaderState LoaderState { get; init; }
 
+    public bool IsVerified { get; init; } = true;
+
     public string BackupRoot { get; init; } = string.Empty;
 
     public IReadOnlyList<InstalledFileReceipt> Files { get; init; } = [];

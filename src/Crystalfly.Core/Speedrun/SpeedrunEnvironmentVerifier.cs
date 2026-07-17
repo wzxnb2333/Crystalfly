@@ -55,7 +55,7 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
             InstanceId = request.Instance.Id,
             TemplateId = request.Template.Id,
             TemplateSource = request.TemplateSource,
-            TemplateRulesRevision = request.Template.RulesRevision,
+            TemplateRulesRevision = request.Instance.SpeedrunRulesRevision ?? string.Empty,
             CurrentRulesRevision = request.CurrentRulesRevision,
             FileManifestId = request.FileManifest.Id,
             ExpectedBuildId = request.ExpectedBuild.Id,
@@ -132,8 +132,8 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
         if (!string.Equals(request.Instance.BuildId, request.ExpectedBuild.Id, StringComparison.Ordinal) ||
             !string.Equals(request.Template.BuildId, request.ExpectedBuild.Id, StringComparison.Ordinal))
             AddIssue(issues, SpeedrunIssueCode.BuildMismatch, "Instance, template, and expected build do not match.");
-        if (official && !string.Equals(
-            request.Template.RulesRevision,
+        if (!string.Equals(
+            request.Instance.SpeedrunRulesRevision,
             request.CurrentRulesRevision,
             StringComparison.Ordinal))
             AddIssue(issues, SpeedrunIssueCode.RulesRevisionMismatch, "Speedrun rules revision has changed.");

@@ -10,13 +10,13 @@ public static class InstanceCloneService
         string instanceId,
         CancellationToken cancellationToken = default)
     {
-        ValidateName(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
 
         sourceRoot = Path.GetFullPath(sourceRoot);
+        _ = InstanceSidecar.GetMetadataPath(sourceRoot, instanceId);
         var versionRoot = Directory.GetParent(sourceRoot)?.FullName
             ?? throw new ArgumentException("Source root must have a parent directory.", nameof(sourceRoot));
-        var destinationRoot = Path.Combine(versionRoot, name);
+        var destinationRoot = InstanceDirectory.ResolveUnderRoot(versionRoot, name);
         if (Directory.Exists(destinationRoot) || File.Exists(destinationRoot))
         {
             throw new IOException($"Destination '{destinationRoot}' already exists.");
@@ -24,10 +24,12 @@ public static class InstanceCloneService
 
         var sourceRecord = await InstanceSidecar.LoadAsync(sourceRoot, cancellationToken);
         var stagingRoot = Path.Combine(versionRoot, ".crystalfly", "staging", $"clone-{Guid.NewGuid():N}");
+        var destinationOwned = false;
         try
         {
             await CopyDirectoryAsync(sourceRoot, stagingRoot, cancellationToken);
             Directory.Move(stagingRoot, destinationRoot);
+            destinationOwned = true;
 
             var clone = sourceRecord with
             {
@@ -46,24 +48,12 @@ public static class InstanceCloneService
                 Directory.Delete(stagingRoot, recursive: true);
             }
 
-            if (Directory.Exists(destinationRoot))
+            if (destinationOwned && Directory.Exists(destinationRoot))
             {
                 Directory.Delete(destinationRoot, recursive: true);
             }
 
             throw;
-        }
-    }
-
-    private static void ValidateName(string name)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        if (name is "." or ".." ||
-            !string.Equals(Path.GetFileName(name), name, StringComparison.Ordinal) ||
-            name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
-            string.Equals(name, ".crystalfly", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException("Instance name must be a single valid directory name.", nameof(name));
         }
     }
 

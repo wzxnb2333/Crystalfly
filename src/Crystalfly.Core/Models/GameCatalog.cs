@@ -17,4 +17,6 @@ public sealed record GameCatalog
     public IReadOnlyList<SpeedrunTemplate> SpeedrunTemplates { get; init; } = [];
 
     public IReadOnlyList<SpeedrunAsset> SpeedrunAssets { get; init; } = [];
+
+    public IReadOnlyList<SpeedrunFileManifest> SpeedrunFileManifests { get; init; } = [];
 }

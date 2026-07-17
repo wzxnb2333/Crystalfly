@@ -20,6 +20,7 @@ speedrun environments on Windows 10/11 x64.
       snapshots/<snapshot-id>/
         snapshot.json
         data/
+      speedrun-reports/
     local-low/
       takeover.json
       shared-backup/
@@ -60,17 +61,27 @@ copied to transaction-private backups. A successful transaction removes its
 temporary recovery point. An incomplete rollback leaves the journal and blocks
 launch until the user resolves it.
 
-Named snapshot creation is append-only. Restore uses a verified directory swap:
-the previous instance directory remains beside the target until the restored
-directory hash is verified. Snapshots are never used as temporary transaction
-backups and are never removed automatically.
+Named snapshot creation is append-only. Restore first stages and verifies the
+snapshot, then uses a recoverable per-file transaction. The transaction backs
+up every overwritten or removed file, records type-conflicting directories,
+removes declared blockers before writing, and verifies each applied file before
+commit. A pre-commit failure or crash rolls the original file and directory tree
+back from the journal. Commit removes the temporary restore point after all
+per-file checks pass; the snapshot service then repeats the aggregate directory
+hash check. Named snapshots are never transaction backups and are never removed
+automatically.
 
 ## Loader and package trust
 
 An instance may have exactly one effective loader state: `Vanilla`,
-`ModdingApi`, `BepInEx`, `Conflict`, or `Drifted`. Installation is driven by a
-catalog file manifest, never by archive layout guesses. Downloads are accepted
-only after URL policy, size, SHA-256, and ZIP path validation pass.
+`ModdingApi`, `BepInEx`, `Conflict`, or `Drifted`. Downloads are accepted only
+after URL policy, declared size or trusted HTTP content length, SHA-256, and ZIP
+path validation pass. Packages are cached by SHA-256; a corrupt cache entry is
+never installed.
+
+Advanced local loader imports require a Crystalfly JSON manifest beside the
+ZIP. The manifest declares loader family, supported builds, size, SHA-256, and
+managed files. Local loaders remain unverified in their persisted receipt.
 
 Catalog precedence is:
 
@@ -80,12 +91,26 @@ Catalog precedence is:
 
 User sources cannot replace official IDs or grant verified speedrun status.
 
+The embedded catalog is always the trust floor. A valid remote catalog replaces
+the previous remote snapshot, so entries removed upstream do not reappear from
+stale cache data. When the remote fetch or validation fails, the unsigned local
+cache may only add channel aliases that point to builds already trusted by the
+embedded catalog. It cannot contribute build fingerprints, executable packages,
+or speedrun verification data. Unknown schema versions, invalid hashes, non-HTTPS
+package URLs, and broken references are rejected before the cache is replaced.
+
+Official `ModLinks.xml` and `ApiLinks.xml` entries are merged below Crystalfly's
+official IDs. Custom sources are forced into their own namespace and are never
+allowed to contribute builds, loaders, channels, or verified speedrun data.
+
 ## LocalLow isolation
 
 Before first takeover, Crystalfly copies the complete shared Hollow Knight
 LocalLow directory, including logs, to `local-low/shared-backup`. The backup is
 hashed and retained permanently. The selected instance's first baseline is
 copied from that backup without Unity, Modding API, or `Logs` directory files.
+At discovery time this baseline is created for every known instance, not only
+for the first instance launched.
 
 `InstanceRuntimeSession` acquires the global named mutex
 `Global\Crystalfly.HollowKnight.Runtime` and checks every process named
@@ -121,13 +146,21 @@ Named snapshots are manual, per-instance copies under
 `instances/<instance-id>/snapshots`. Each snapshot stores immutable metadata and
 a deterministic directory SHA-256. Creation and restore use the same runtime
 mutex and process check as launch. Restore verifies the stored snapshot before
-touching the instance, replaces the instance directory exactly, and retains the
-named snapshot permanently after successful restore.
+touching the instance, replaces its files through the shared recoverable file
+transaction, supports file/directory type changes, and retains the named snapshot
+permanently after successful restore.
 
 ## Speedrun trust
 
-Verified templates always use dedicated full-copy instances. Verification
-checks the game build, approved tools, rule revision, and all managed file
-hashes before every launch. Modding API, BepInEx, DebugMod, and any unlisted
-file invalidate official status. Custom templates never receive the official
-verification mark.
+Verified templates always use dedicated full-copy instances. The pre-launch
+integrity check covers the game build, approved tools, rule revision, and all
+managed file hashes. Its report is a point-in-time snapshot, not an attestation
+that files remain unchanged after the report is written. Modding API, BepInEx,
+DebugMod, and any unlisted file invalidate official status. Custom templates
+never receive the official verification mark.
+
+Provisioning resolves `RequiredAssetIds` through the catalog. ScreenShakeModifier
+is installed as a verified raw assembly; LoadNormaliser is selected from its
+verified archive by build and the chosen 1/2/3/5-second variant. All tool targets
+are replaced in one file transaction. Every speedrun launch writes a JSON report
+under the instance state directory; a failed trusted-template report blocks launch.

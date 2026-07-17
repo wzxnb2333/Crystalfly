@@ -1,9 +1,17 @@
 using Crystalfly.Core.Catalog;
+using Crystalfly.Core.Models;
+using Crystalfly.Core.Serialization;
+using Json.Schema;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Crystalfly.Core.Tests.Catalog;
 
 public sealed class EmbeddedCatalogTests
 {
+    private static readonly Lazy<JsonSchema> CatalogSchema = new(() =>
+        JsonSchema.FromFile(Path.Combine(FindRepositoryRoot(), "catalog", "catalog.v1.schema.json")));
+
     [Fact]
     public void Load_returns_verified_official_fallback_data()
     {
@@ -64,6 +72,124 @@ public sealed class EmbeddedCatalogTests
         Assert.Equal(["load-normaliser-1.1"], race1578.RequiredAssetIds);
         Assert.True(race1578.RequiresLoadNormaliserSelection);
         Assert.Equal([1, 2, 3, 5], race1578.AllowedLoadNormaliserSeconds);
+        Assert.All(catalog.SpeedrunTemplates, template =>
+        {
+            Assert.False(template.IsOfficial);
+            Assert.Equal("unverified-2026-07-17", template.RulesRevision);
+            Assert.StartsWith("unverified-", template.FileManifestId, StringComparison.Ordinal);
+        });
         Assert.Equal(4, catalog.SpeedrunTemplates.Count);
+    }
+
+    [Fact]
+    public void Public_catalog_matches_the_embedded_fallback_and_schema_is_present()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string publicCatalogPath = Path.Combine(repositoryRoot, "catalog", "catalog.v1.json");
+        string schemaPath = Path.Combine(repositoryRoot, "catalog", "catalog.v1.schema.json");
+        string embeddedCatalogPath = Path.Combine(
+            repositoryRoot,
+            "src",
+            "Crystalfly.Core",
+            "Data",
+            "official-catalog.json");
+
+        Assert.True(File.Exists(publicCatalogPath));
+        Assert.True(File.Exists(schemaPath));
+        Assert.True(JsonNode.DeepEquals(
+            JsonNode.Parse(File.ReadAllText(publicCatalogPath)),
+            JsonNode.Parse(File.ReadAllText(embeddedCatalogPath))));
+
+        using JsonDocument publicCatalog = JsonDocument.Parse(File.ReadAllText(publicCatalogPath));
+        EvaluationResults validation = CatalogSchema.Value.Evaluate(publicCatalog.RootElement);
+        Assert.True(validation.IsValid, validation.ToString());
+
+        JsonNode schema = JsonNode.Parse(File.ReadAllText(schemaPath))!;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", schema["$schema"]!.GetValue<string>());
+        Assert.Equal("https://raw.githubusercontent.com/wzxnb2333/Crystalfly/main/catalog/catalog.v1.schema.json", schema["$id"]!.GetValue<string>());
+        Assert.NotNull(schema["properties"]?["speedrunFileManifests"]);
+    }
+
+    [Fact]
+    public void Catalog_contains_all_supported_loader_and_debugmod_release_assets()
+    {
+        var catalog = EmbeddedCatalog.Load();
+
+        Assert.Equal(
+            ["modding-api-37", "modding-api-60", "modding-api-77", "modding-api-78"],
+            catalog.Loaders
+                .Where(loader => loader.Id.StartsWith("modding-api-", StringComparison.Ordinal))
+                .Select(loader => loader.Id)
+                .Order(StringComparer.Ordinal));
+        Assert.All(catalog.Loaders, loader => Assert.True(loader.SizeBytes > 0));
+
+        Assert.Equal(
+            [
+                "debugmod-legacy-1.2.2.1",
+                "debugmod-legacy-1.4.3.2",
+                "debugmod-legacy-1.5.78",
+                "debugmod-unity6-latest"
+            ],
+            catalog.Mods
+                .Where(mod => mod.Id.StartsWith("debugmod-", StringComparison.Ordinal))
+                .Select(mod => mod.Id)
+                .Order(StringComparer.Ordinal));
+        Assert.All(
+            catalog.Mods.Where(mod => mod.Id.StartsWith("debugmod-", StringComparison.Ordinal)),
+            mod => Assert.True(mod.SizeBytes > 0));
+    }
+
+    [Fact]
+    public void Schema_accepts_namespaced_mod_ids_without_relaxing_other_identifiers()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        JsonSchema schema = CatalogSchema.Value;
+        var catalog = new GameCatalog
+        {
+            Mods =
+            [
+                new ModManifest
+                {
+                    Id = "custom:community:feature",
+                    Name = "Feature",
+                    Version = "1",
+                    DownloadUrl = "https://example.invalid/feature.zip",
+                    SizeBytes = 1,
+                    Sha256 = new string('A', 64),
+                    LoaderId = "modding-api-77",
+                    SupportedBuildIds = ["1.5.78.11833"],
+                    Dependencies = ["custom:community:base", "hkmod:Satchel"]
+                }
+            ]
+        };
+
+        EvaluationResults namespaced = schema.Evaluate(
+            JsonSerializer.SerializeToElement(catalog, CrystalflyJson.Options));
+        EvaluationResults invalidBuild = schema.Evaluate(JsonSerializer.SerializeToElement(catalog with
+        {
+            Builds =
+            [
+                new GameBuild
+                {
+                    Id = "custom:community:build",
+                    DisplayVersion = "Build",
+                    DepotId = 367521,
+                    ManifestId = "1",
+                    ExecutableSha256 = new string('B', 64),
+                    GlobalGameManagersSha256 = new string('C', 64)
+                }
+            ]
+        }, CrystalflyJson.Options));
+
+        Assert.True(namespaced.IsValid, namespaced.ToString());
+        Assert.False(invalidBuild.IsValid);
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Crystalfly.slnx")))
+            directory = directory.Parent;
+        return directory?.FullName ?? throw new DirectoryNotFoundException("Crystalfly repository root was not found.");
     }
 }
