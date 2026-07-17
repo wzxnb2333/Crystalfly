@@ -176,6 +176,62 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task NestedFileDownloadCreatesParentBeforeCleaningPartial()
+    {
+        const string relativePath = "hollow_knight_Data/Plugins/x86_64/D3D12Core.dll";
+        byte[] content = "d3d12"u8.ToArray();
+        var manifest = new SteamDepotManifest(
+            123,
+            [new SteamDepotFile(
+                relativePath,
+                content.Length,
+                Convert.ToHexString(SHA1.HashData(content)),
+                [new SteamDepotChunk("chunk-0", 0, content.Length)])]);
+        var downloader = new SteamDepotDownloadService(new MemoryContentClient(manifest, content));
+
+        SteamDownloadResult result = await downloader.DownloadAsync(new SteamDownloadRequest(_staging, 123));
+
+        string target = Path.Combine(_staging, "hollow_knight_Data", "Plugins", "x86_64", "D3D12Core.dll");
+        Assert.Equal(content, await File.ReadAllBytesAsync(target));
+        Assert.Equal([relativePath], result.Files);
+        Assert.False(File.Exists(target + ".crystalfly-part"));
+    }
+
+    [Fact]
+    public async Task DownloadCreatesSteamAppIdFileForDirectLaunch()
+    {
+        byte[] content = "game"u8.ToArray();
+        var downloader = new SteamDepotDownloadService(
+            new MemoryContentClient(CreateManifest(content), content));
+
+        await downloader.DownloadAsync(new SteamDownloadRequest(_staging, 123));
+
+        string appIdPath = Path.Combine(_staging, "steam_appid.txt");
+        Assert.Equal("367520", await File.ReadAllTextAsync(appIdPath));
+        Assert.Equal(6, new FileInfo(appIdPath).Length);
+        Assert.False(File.Exists(appIdPath + ".crystalfly-part"));
+    }
+
+    [Fact]
+    public async Task ManifestSteamAppIdIsVerifiedAndNotOverwritten()
+    {
+        byte[] content = "manifest-value"u8.ToArray();
+        var manifest = new SteamDepotManifest(
+            123,
+            [new SteamDepotFile(
+                "steam_appid.txt",
+                content.Length,
+                Convert.ToHexString(SHA1.HashData(content)),
+                [new SteamDepotChunk("chunk-0", 0, content.Length)])]);
+        var downloader = new SteamDepotDownloadService(new MemoryContentClient(manifest, content));
+
+        SteamDownloadResult result = await downloader.DownloadAsync(new SteamDownloadRequest(_staging, 123));
+
+        Assert.Equal(content, await File.ReadAllBytesAsync(Path.Combine(_staging, "steam_appid.txt")));
+        Assert.Equal(["steam_appid.txt"], result.Files);
+    }
+
+    [Fact]
     public async Task HashMismatchDoesNotPublishFile()
     {
         byte[] content = "abc"u8.ToArray();

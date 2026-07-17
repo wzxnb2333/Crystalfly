@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace Crystalfly.Steam.Downloads;
 
@@ -28,9 +30,19 @@ public sealed class SteamDepotDownloadService(
         string[] targets = manifest.Files
             .Select(file => DownloadPath.ResolveUnderRoot(staging, file.RelativePath))
             .ToArray();
+        string appIdTarget = DownloadPath.ResolveUnderRoot(staging, "steam_appid.txt");
+        bool manifestProvidesAppId = targets.Contains(appIdTarget, StringComparer.OrdinalIgnoreCase);
         Directory.CreateDirectory(staging);
         foreach (string target in targets)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             File.Delete(target + ".crystalfly-part");
+        }
+        if (!manifestProvidesAppId)
+        {
+            File.Delete(appIdTarget);
+            File.Delete(appIdTarget + ".crystalfly-part");
+        }
 
         SteamDepotChunk[][] chunksByFile = manifest.Files
             .Select(ValidateAndOrderChunks)
@@ -55,7 +67,6 @@ public sealed class SteamDepotDownloadService(
             string target = targets[index];
             string partial = target + ".crystalfly-part";
             SteamDepotChunk[] chunks = chunksByFile[index];
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             Exception? operationFailure = null;
             try
             {
@@ -140,6 +151,9 @@ public sealed class SteamDepotDownloadService(
             }
         }
 
+        if (!manifestProvidesAppId)
+            await WriteSteamAppIdAsync(appIdTarget, cancellationToken);
+
         return new SteamDownloadResult(
             SteamProduct.HollowKnightAppId,
             SteamProduct.HollowKnightWindowsDepotId,
@@ -188,5 +202,47 @@ public sealed class SteamDepotDownloadService(
 
         if (!CryptographicOperations.FixedTimeEquals(actual, expected))
             throw new InvalidDataException($"SHA-1 verification failed for {path}.");
+    }
+
+    private static async Task WriteSteamAppIdAsync(string target, CancellationToken cancellationToken)
+    {
+        string partial = target + ".crystalfly-part";
+        Exception? operationFailure = null;
+        try
+        {
+            byte[] content = Encoding.ASCII.GetBytes(
+                SteamProduct.HollowKnightAppId.ToString(CultureInfo.InvariantCulture));
+            await using (var output = new FileStream(
+                partial,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                4096,
+                FileOptions.Asynchronous))
+            {
+                await output.WriteAsync(content, cancellationToken);
+                await output.FlushAsync(cancellationToken);
+                output.Flush(flushToDisk: true);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            File.Move(partial, target, overwrite: true);
+        }
+        catch (Exception exception)
+        {
+            operationFailure = exception;
+            throw;
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(partial);
+            }
+            catch (Exception cleanupException) when (operationFailure is not null)
+            {
+                operationFailure.Data["Crystalfly.AppIdCleanupError"] = cleanupException;
+            }
+        }
     }
 }

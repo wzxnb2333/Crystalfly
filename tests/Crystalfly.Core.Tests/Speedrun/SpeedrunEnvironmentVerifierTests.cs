@@ -138,6 +138,20 @@ public sealed class SpeedrunEnvironmentVerifierTests : IDisposable
     }
 
     [Fact]
+    public async Task SteamAppIdMetadataDoesNotBreakOfficialVerification()
+    {
+        VerificationFixture fixture = await CreateFixtureAsync();
+        await File.WriteAllTextAsync(Path.Combine(fixture.InstanceRoot, "steam_appid.txt"), "367520");
+
+        SpeedrunVerificationReport report =
+            (await fixture.Verifier.VerifyAndWriteReportAsync(fixture.Request)).Report;
+
+        Assert.True(report.IsReadyToLaunch);
+        Assert.DoesNotContain(report.Files, file =>
+            string.Equals(file.RelativePath, "steam_appid.txt", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task Official_template_requires_a_dedicated_full_copy_for_the_selected_template()
     {
         VerificationFixture fixture = await CreateFixtureAsync();
