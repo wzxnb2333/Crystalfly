@@ -23,7 +23,14 @@ public partial class MainWindow : Window
         Opened -= OnOpened;
         if (DataContext is MainViewModel viewModel)
         {
-            await viewModel.InitializeAsync();
+            try
+            {
+                await viewModel.InitializeAsync();
+            }
+            catch (Exception exception)
+            {
+                viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            }
         }
     }
 

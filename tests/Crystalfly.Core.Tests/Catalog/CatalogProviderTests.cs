@@ -58,6 +58,43 @@ public sealed class CatalogProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task Load_uses_embedded_fallback_when_remote_times_out()
+    {
+        using var client = new HttpClient(new StubHandler(_ => throw new TaskCanceledException("timeout")));
+
+        var result = await CatalogProvider.LoadAsync(
+            new Uri("https://example.invalid/catalog.json"),
+            Path.Combine(directory, "catalog.json"),
+            client);
+
+        Assert.Contains(result.Builds, build => build.Id == "1.2.2.1");
+    }
+
+    [Fact]
+    public async Task Load_propagates_caller_cancellation()
+    {
+        var requestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var client = new HttpClient(new AsyncStubHandler(async (_, cancellationToken) =>
+        {
+            requestStarted.SetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }));
+        using var cancellation = new CancellationTokenSource();
+        var load = CatalogProvider.LoadAsync(
+            new Uri("https://example.invalid/catalog.json"),
+            Path.Combine(directory, "catalog.json"),
+            client,
+            cancellationToken: cancellation.Token);
+
+        await requestStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            load.WaitAsync(TimeSpan.FromSeconds(5)));
+    }
+
+    [Fact]
     public async Task Load_does_not_merge_stale_cache_entries_when_remote_succeeds()
     {
         var cachePath = Path.Combine(directory, "catalog.json");
@@ -227,5 +264,14 @@ public sealed class CatalogProviderTests : IDisposable
             HttpRequestMessage request,
             CancellationToken cancellationToken) =>
             Task.FromResult(responseFactory(request));
+    }
+
+    private sealed class AsyncStubHandler(
+        Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> responseFactory) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken) =>
+            responseFactory(request, cancellationToken);
     }
 }

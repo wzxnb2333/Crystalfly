@@ -34,15 +34,20 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private GameCatalog catalog;
     private readonly DpapiRefreshTokenStore tokenStore;
     private readonly SemaphoreSlim settingsSaveLock = new(1, 1);
+    private readonly SemaphoreSlim steamConnectionGate = new(1, 1);
+    private readonly CancellationTokenSource lifetimeCancellation = new();
     private readonly object settingsSaveQueueLock = new();
     private readonly object disposeLock = new();
     private readonly Func<Task>? launchOverride;
     private readonly Func<CancellationToken, Task>? downloadOverride;
     private readonly Func<Task>? disposeSteamOverride;
+    private readonly Func<CancellationToken, Task<RefreshTokenCredential>>? qrSignInOverride;
     private CrystalflySettings settings = new();
     private Task settingsSaveQueue = Task.CompletedTask;
+    private Task? initializationTask;
     private Task? disposeTask;
     private SteamAuthenticationSession? steamSession;
+    private CancellationTokenSource? steamSignInCancellation;
     private CancellationTokenSource? downloadCancellation;
     private InstanceRuntimeSession? runtimeSession;
     private Bitmap? qrCodeImage;
@@ -57,11 +62,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         string? applicationDataRoot,
         Func<Task>? launchOverride,
         Func<CancellationToken, Task>? downloadOverride,
-        Func<Task>? disposeSteamOverride)
+        Func<Task>? disposeSteamOverride,
+        Func<CancellationToken, Task<RefreshTokenCredential>>? qrSignInOverride = null)
     {
         this.launchOverride = launchOverride;
         this.downloadOverride = downloadOverride;
         this.disposeSteamOverride = disposeSteamOverride;
+        this.qrSignInOverride = qrSignInOverride;
         paths = applicationDataRoot is null
             ? CrystalflyPaths.Resolve(
                 AppContext.BaseDirectory,
@@ -294,10 +301,20 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     public partial SettingOption<UiTheme>? SelectedTheme { get; set; }
 
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
+    {
+        lock (disposeLock)
+        {
+            return disposeTask is not null
+                ? Task.CompletedTask
+                : initializationTask ??= InitializeCoreAsync();
+        }
+    }
+
+    private async Task InitializeCoreAsync()
     {
         settings = await CrystalflySettingsStore.LoadAsync(settingsPath);
-        catalog = await LoadCatalogAsync();
+        catalog = await LoadCatalogAsync(lifetimeCancellation.Token);
         VersionRoot = settings.VersionRoot ?? string.Empty;
         CustomSourcesText = string.Join(
             Environment.NewLine,
@@ -577,26 +594,73 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     private async Task SignInWithQrAsync()
     {
-        ErrorMessage = null;
-        SteamStatus = "Connecting to Steam...";
-        if (steamSession is not null)
+        if (lifetimeCancellation.IsCancellationRequested)
         {
-            await steamSession.DisposeAsync();
+            return;
         }
 
-        steamSession = new SteamAuthenticationSession(tokenStore);
-        steamSession.QrChallengeChanged += OnQrChallengeChanged;
+        var signInCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+            lifetimeCancellation.Token);
+        if (Interlocked.CompareExchange(ref steamSignInCancellation, signInCancellation, null) is not null)
+        {
+            signInCancellation.Dispose();
+            return;
+        }
+
+        ErrorMessage = null;
+        SteamStatus = "Connecting to Steam...";
+        IsSteamLoggedIn = false;
+        var gateTaken = false;
         try
         {
-            var credential = await steamSession.ConnectWithQrAsync();
+            await steamConnectionGate.WaitAsync(signInCancellation.Token);
+            gateTaken = true;
+            await DisposeCurrentSteamSessionAsync();
+            RefreshTokenCredential credential;
+            if (qrSignInOverride is not null)
+            {
+                credential = await qrSignInOverride(signInCancellation.Token);
+            }
+            else
+            {
+                steamSession = new SteamAuthenticationSession(tokenStore);
+                steamSession.QrChallengeChanged += OnQrChallengeChanged;
+                credential = await steamSession.ConnectWithQrAsync(signInCancellation.Token);
+            }
             IsSteamLoggedIn = true;
             SteamStatus = credential.AccountName;
             QrCodeImage = null;
         }
-        catch (Exception exception) when (exception is IOException or InvalidOperationException)
+        catch (Exception exception)
         {
             ErrorMessage = $"Steam: {exception.Message}";
+            IsSteamLoggedIn = false;
             SteamStatus = "Not signed in";
+            QrCodeImage = null;
+            if (gateTaken)
+            {
+                try
+                {
+                    await DisposeCurrentSteamSessionAsync();
+                }
+                catch (Exception cleanupException)
+                {
+                    ErrorMessage += $" Cleanup: {cleanupException.Message}";
+                }
+            }
+        }
+        finally
+        {
+            if (gateTaken)
+            {
+                steamConnectionGate.Release();
+            }
+            if (ReferenceEquals(
+                Interlocked.CompareExchange(ref steamSignInCancellation, null, signInCancellation),
+                signInCancellation))
+            {
+                signInCancellation.Dispose();
+            }
         }
     }
 
@@ -606,31 +670,58 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             return;
         }
-        steamSession = new SteamAuthenticationSession(tokenStore);
+        var gateTaken = false;
         try
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            await steamConnectionGate.WaitAsync(lifetimeCancellation.Token);
+            gateTaken = true;
+            steamSession = new SteamAuthenticationSession(tokenStore);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation.Token);
+            timeout.CancelAfter(TimeSpan.FromSeconds(20));
             var credential = await steamSession.ConnectWithStoredTokenAsync(timeout.Token);
             IsSteamLoggedIn = true;
             SteamStatus = credential.AccountName;
         }
-        catch (Exception exception) when (exception is IOException
-            or InvalidOperationException
-            or OperationCanceledException)
+        catch (Exception)
         {
-            await steamSession.DisposeAsync();
-            steamSession = null;
+            if (gateTaken)
+            {
+                try
+                {
+                    await DisposeCurrentSteamSessionAsync();
+                }
+                catch (Exception)
+                {
+                }
+            }
             SteamStatus = "Not signed in";
+        }
+        finally
+        {
+            if (gateTaken)
+            {
+                steamConnectionGate.Release();
+            }
         }
     }
 
     [RelayCommand]
     private void SignOutSteam()
     {
-        steamSession?.SignOut();
-        IsSteamLoggedIn = false;
-        SteamStatus = "Not signed in";
-        QrCodeImage = null;
+        try
+        {
+            steamSession?.SignOut();
+        }
+        catch (Exception exception)
+        {
+            ErrorMessage = $"Steam: {exception.Message}";
+        }
+        finally
+        {
+            IsSteamLoggedIn = false;
+            SteamStatus = "Not signed in";
+            QrCodeImage = null;
+        }
     }
 
     [RelayCommand]
@@ -646,6 +737,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             catch (OperationCanceledException)
             {
                 DownloadStatus = "Cancelled";
+            }
+            catch (Exception exception)
+            {
+                ErrorMessage = $"Steam: {exception.Message}";
+                DownloadStatus = "Failed";
             }
             finally
             {
@@ -708,12 +804,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             DownloadStatus = "Cancelled";
         }
-        catch (Exception exception) when (exception is IOException
-            or InvalidDataException
-            or InvalidOperationException
-            or ArgumentException)
+        catch (Exception exception)
         {
             ErrorMessage = $"Steam: {exception.Message}";
+            DownloadStatus = "Failed";
         }
         finally
         {
@@ -722,7 +816,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             downloadCancellation = null;
             if (Directory.Exists(staging))
             {
-                Directory.Delete(staging, recursive: true);
+                try
+                {
+                    Directory.Delete(staging, recursive: true);
+                }
+                catch (Exception cleanupException)
+                {
+                    ErrorMessage = string.IsNullOrWhiteSpace(ErrorMessage)
+                        ? $"Steam cleanup: {cleanupException.Message}"
+                        : $"{ErrorMessage} Cleanup: {cleanupException.Message}";
+                }
             }
         }
     }
@@ -1673,33 +1776,80 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private void OnQrChallengeChanged(object? sender, QrChallengeEventArgs eventArgs)
     {
-        var bytes = PngByteQRCodeHelper.GetQRCode(
-            eventArgs.ChallengeUrl,
-            QRCodeGenerator.ECCLevel.Q,
-            6);
+        if (!ReferenceEquals(sender, steamSession)
+            || Volatile.Read(ref steamSignInCancellation) is null
+            || IsSteamLoggedIn)
+        {
+            return;
+        }
+
+        byte[] bytes;
+        try
+        {
+            bytes = PngByteQRCodeHelper.GetQRCode(
+                eventArgs.ChallengeUrl,
+                QRCodeGenerator.ECCLevel.Q,
+                6);
+        }
+        catch (Exception exception)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (ReferenceEquals(sender, steamSession)
+                    && Volatile.Read(ref steamSignInCancellation) is not null
+                    && !IsSteamLoggedIn)
+                {
+                    ErrorMessage = $"Steam QR: {exception.Message}";
+                }
+            });
+            return;
+        }
+
         Dispatcher.UIThread.Post(() =>
         {
-            using var stream = new MemoryStream(bytes, writable: false);
-            QrCodeImage = new Bitmap(stream);
-            SteamStatus = "Scan with the Steam mobile app";
+            if (!ReferenceEquals(sender, steamSession)
+                || Volatile.Read(ref steamSignInCancellation) is null
+                || IsSteamLoggedIn)
+            {
+                return;
+            }
+
+            Bitmap? image = null;
+            try
+            {
+                using var stream = new MemoryStream(bytes, writable: false);
+                image = new Bitmap(stream);
+                QrCodeImage = image;
+                image = null;
+                SteamStatus = "Scan with the Steam mobile app";
+            }
+            catch (Exception exception)
+            {
+                image?.Dispose();
+                ErrorMessage = $"Steam QR: {exception.Message}";
+            }
         });
     }
 
-    private async Task<GameCatalog> LoadCatalogAsync()
+    private async Task<GameCatalog> LoadCatalogAsync(CancellationToken cancellationToken = default)
     {
         var result = await CatalogProvider.LoadAsync(
             new Uri("https://raw.githubusercontent.com/wzxnb2333/Crystalfly/main/catalog/catalog.v1.json"),
             Path.Combine(paths.ApplicationDataRoot, "catalog", "catalog.v1.json"),
-            MetadataHttpClient);
+            MetadataHttpClient,
+            cancellationToken: cancellationToken);
         try
         {
             result = CatalogMerger.Merge(
                 result,
                 null,
                 null,
-                [await OfficialCatalogSource.LoadAsync(MetadataHttpClient)]);
+                [await OfficialCatalogSource.LoadAsync(MetadataHttpClient, cancellationToken)]);
         }
-        catch (Exception exception) when (exception is HttpRequestException or InvalidDataException or System.Xml.XmlException)
+        catch (Exception exception) when (exception is HttpRequestException
+            or InvalidDataException
+            or System.Xml.XmlException
+            || exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
         {
         }
 
@@ -1711,13 +1861,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 customCatalogs.Add(await CustomCatalogSource.LoadAsync(
                     definition.Namespace,
                     new Uri(definition.Url),
-                    MetadataHttpClient));
+                    MetadataHttpClient,
+                    cancellationToken));
             }
             catch (Exception exception) when (exception is HttpRequestException
                 or InvalidDataException
                 or System.Text.Json.JsonException
                 or UriFormatException
-                or ArgumentException)
+                or ArgumentException
+                || exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
             {
             }
         }
@@ -1739,6 +1891,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             var suffixText = $" ({suffix})";
             name = $"{baseName[..Math.Min(baseName.Length, 255 - suffixText.Length)]}{suffixText}";
         }
+    }
+
+    private async Task DisposeCurrentSteamSessionAsync()
+    {
+        var session = Interlocked.Exchange(ref steamSession, null);
+        if (session is null)
+        {
+            return;
+        }
+
+        session.QrChallengeChanged -= OnQrChallengeChanged;
+        await session.DisposeAsync();
     }
 
     private LoaderManager CreateLoaderManager(InstanceRecord record)
@@ -1782,14 +1946,22 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private async Task DisposeCoreAsync()
     {
+        lifetimeCancellation.Cancel();
+        var signInCancellation = Interlocked.Exchange(ref steamSignInCancellation, null);
+        signInCancellation?.Cancel();
         downloadCancellation?.Cancel();
         try
         {
             try
             {
                 await Task.WhenAll(
+                    initializationTask ?? Task.CompletedTask,
                     LaunchGameCommand.ExecutionTask ?? Task.CompletedTask,
+                    SignInWithQrCommand.ExecutionTask ?? Task.CompletedTask,
                     DownloadBuildCommand.ExecutionTask ?? Task.CompletedTask);
+            }
+            catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
+            {
             }
             finally
             {
@@ -1798,6 +1970,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         finally
         {
+            signInCancellation?.Dispose();
             try
             {
                 if (disposeSteamOverride is not null)
@@ -1806,12 +1979,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 }
                 else if (steamSession is not null)
                 {
-                    await steamSession.DisposeAsync();
+                    await DisposeCurrentSteamSessionAsync();
                 }
             }
             finally
             {
                 QrCodeImage = null;
+                steamConnectionGate.Dispose();
+                lifetimeCancellation.Dispose();
             }
         }
     }
