@@ -9,7 +9,7 @@ public sealed class SteamDepotDownloadService(
     ISteamContentDeliveryClient content,
     Action<SteamDownloadProgress>? progress = null)
 {
-    private const int MaxConcurrentChunks = 4;
+    private const int MaxConcurrentChunks = 16;
 
     public async Task<SteamDownloadResult> DownloadAsync(
         SteamDownloadRequest request,

@@ -9,32 +9,25 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
     private readonly string _staging = Path.Combine(Path.GetTempPath(), $"crystalfly-depot-{Guid.NewGuid():N}");
 
     [Fact]
-    public async Task ChunkDownloadsNeverExceedFourConcurrentRequests()
+    public async Task ChunkDownloadsNeverExceedSixteenConcurrentRequests()
     {
-        byte[][] chunks =
-        [
-            "a"u8.ToArray(),
-            "b"u8.ToArray(),
-            "c"u8.ToArray(),
-            "d"u8.ToArray(),
-            "e"u8.ToArray()
-        ];
+        byte[][] chunks = CreateChunks(17);
         var source = new ControlledContentClient(CreateManifest(chunks), chunks);
         var downloader = new SteamDepotDownloadService(source);
         Task<SteamDownloadResult> download = downloader.DownloadAsync(new SteamDownloadRequest(_staging, 123));
 
         try
         {
-            await source.WaitForStartedAsync(4).WaitAsync(TimeSpan.FromSeconds(5));
+            await source.WaitForStartedAsync(16).WaitAsync(TimeSpan.FromSeconds(5));
 
-            Assert.Equal(4, source.StartedCount);
-            Assert.Equal(4, source.ActiveCount);
-            Assert.Equal(4, source.MaxActiveCount);
+            Assert.Equal(16, source.StartedCount);
+            Assert.Equal(16, source.ActiveCount);
+            Assert.Equal(16, source.MaxActiveCount);
 
             source.ReleaseChunk(source.StartedChunkIds[0]);
-            await source.WaitForStartedAsync(5).WaitAsync(TimeSpan.FromSeconds(5));
+            await source.WaitForStartedAsync(17).WaitAsync(TimeSpan.FromSeconds(5));
 
-            Assert.Equal(4, source.MaxActiveCount);
+            Assert.Equal(16, source.MaxActiveCount);
             source.ReleaseAll();
             await download;
         }
@@ -79,16 +72,9 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CancellationDoesNotStartFifthChunkAndCleansPartialFile()
+    public async Task CancellationDoesNotStartSeventeenthChunkAndCleansPartialFile()
     {
-        byte[][] chunks =
-        [
-            "a"u8.ToArray(),
-            "b"u8.ToArray(),
-            "c"u8.ToArray(),
-            "d"u8.ToArray(),
-            "e"u8.ToArray()
-        ];
+        byte[][] chunks = CreateChunks(17);
         var source = new ControlledContentClient(CreateManifest(chunks), chunks);
         using var cancellation = new CancellationTokenSource();
         var downloader = new SteamDepotDownloadService(source);
@@ -98,14 +84,14 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
 
         try
         {
-            await source.WaitForStartedAsync(4).WaitAsync(TimeSpan.FromSeconds(5));
+            await source.WaitForStartedAsync(16).WaitAsync(TimeSpan.FromSeconds(5));
             cancellation.Cancel();
             source.ReleaseAll();
 
             await Assert.ThrowsAnyAsync<OperationCanceledException>(
                 () => download.WaitAsync(TimeSpan.FromSeconds(5)));
 
-            Assert.Equal(4, source.StartedCount);
+            Assert.Equal(16, source.StartedCount);
             Assert.Equal(0, source.ActiveCount);
             Assert.False(File.Exists(Path.Combine(_staging, "game.dat")));
             Assert.False(File.Exists(Path.Combine(_staging, "game.dat.crystalfly-part")));
@@ -120,21 +106,14 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
     [Fact]
     public async Task ChunkFailureWaitsForInflightChunksAndCleansPartialFile()
     {
-        byte[][] chunks =
-        [
-            "a"u8.ToArray(),
-            "b"u8.ToArray(),
-            "c"u8.ToArray(),
-            "d"u8.ToArray(),
-            "e"u8.ToArray()
-        ];
+        byte[][] chunks = CreateChunks(17);
         var source = new ControlledContentClient(CreateManifest(chunks), chunks);
         var downloader = new SteamDepotDownloadService(source);
         Task<SteamDownloadResult> download = downloader.DownloadAsync(new SteamDownloadRequest(_staging, 123));
 
         try
         {
-            await source.WaitForStartedAsync(4).WaitAsync(TimeSpan.FromSeconds(5));
+            await source.WaitForStartedAsync(16).WaitAsync(TimeSpan.FromSeconds(5));
             string failedChunk = source.StartedChunkIds[0];
             var failure = new IOException("chunk failed");
             source.FailChunk(failedChunk, failure);
@@ -145,7 +124,7 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
             IOException actual = await Assert.ThrowsAsync<IOException>(() => download);
 
             Assert.Same(failure, actual);
-            Assert.Equal(4, source.StartedCount);
+            Assert.Equal(16, source.StartedCount);
             Assert.Equal(0, source.ActiveCount);
             Assert.False(File.Exists(Path.Combine(_staging, "game.dat")));
             Assert.False(File.Exists(Path.Combine(_staging, "game.dat.crystalfly-part")));
@@ -351,6 +330,10 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
             123,
             [new SteamDepotFile("game.dat", content.Length, Convert.ToHexString(SHA1.HashData(content)), descriptors)]);
     }
+
+    private static byte[][] CreateChunks(int count) => Enumerable.Range(0, count)
+        .Select(static index => new[] { (byte)index })
+        .ToArray();
 
     private static async Task IgnoreFailureAsync(Task task)
     {
