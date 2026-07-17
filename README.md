@@ -18,7 +18,7 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》版本、Loader、Mo
 - 搜索并按状态筛选 Mod，支持单项和批量启用、停用、更新、卸载，以及依赖解析、本地 ZIP/DLL 和离线包缓存。
 - 启动前真实检查游戏文件、Loader、Mod 依赖、事务和实例 LocalLow；任一检查失败都会阻止启动。
 - 在实例日志页查看 BepInEx、Modding API 和 `Player.log` 的最新内容及来源路径。
-- 通过 SteamKit2 扫码登录并下载 public 分支历史 manifest；refresh token 仅以当前 Windows 用户的 DPAPI 加密保存。
+- 通过 SteamKit2 扫码登录并下载 public 分支历史 manifest；同一文件最多四路并发下载 Chunk，refresh token 仅以当前 Windows 用户的 DPAPI 加密保存。
 - 启动前切换实例 LocalLow，退出后写回，并恢复原共享数据。
 - 创建永久命名快照；事务临时恢复点成功后自动清理。
 - 创建独立速通副本，按模板部署速通工具，并在每次启动前写出验证报告。
@@ -137,7 +137,7 @@ This is the first source release. Crystalfly binary releases are not published y
 - Runs real launch checks for game files, loader state, mod dependencies, pending transactions, and per-instance LocalLow state; launch stays blocked until every check passes.
 - Displays detected BepInEx, Modding API, and `Player.log` files with their source paths and refreshable tail content.
 - Imports local loaders only through a validated Crystalfly manifest and keeps them marked unverified.
-- Uses SteamKit2 for QR authentication and public manifest downloads. Refresh tokens are protected with Windows DPAPI for the current user.
+- Uses SteamKit2 for QR authentication and public manifest downloads, with up to four concurrent chunk requests per file. Refresh tokens are protected with Windows DPAPI for the current user.
 - Swaps per-instance LocalLow data before launch, captures it after exit, then restores the original shared data.
 - Creates persistent named snapshots and dedicated speedrun copies, provisions template-specific tools, and writes a report before every speedrun launch.
 

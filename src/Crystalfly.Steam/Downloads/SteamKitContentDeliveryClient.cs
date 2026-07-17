@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Runtime.ExceptionServices;
 using SteamKit2;
 using SteamKit2.CDN;
 
@@ -12,10 +13,11 @@ public sealed class SteamKitContentDeliveryClient : ISteamContentDeliveryClient,
     private readonly SteamContent _content;
     private readonly Client _cdn;
     private readonly Dictionary<string, DepotManifest.ChunkData> _chunks = new(StringComparer.Ordinal);
+    private readonly SemaphoreSlim _cdnAuthTokenGate = new(1, 1);
     private Server? _server;
     private Server? _proxy;
     private byte[]? _depotKey;
-    private string? _cdnAuthToken;
+    private CdnAuthTokenState _cdnAuthTokenState = new(null, 0);
     private uint _appId;
     private uint _depotId;
 
@@ -116,7 +118,7 @@ public sealed class SteamKitContentDeliveryClient : ISteamContentDeliveryClient,
         _server = server;
         _proxy = proxy;
         _depotKey = depotKey.DepotKey;
-        _cdnAuthToken = authToken;
+        Volatile.Write(ref _cdnAuthTokenState, new CdnAuthTokenState(authToken, 0));
         _appId = appId;
         _depotId = depotId;
         return new SteamDepotManifest(manifest.ManifestGID, files);
@@ -134,8 +136,10 @@ public sealed class SteamKitContentDeliveryClient : ISteamContentDeliveryClient,
         Server server = _server;
         string host = server.Host;
         byte[] destination = new byte[checked((int)source.UncompressedLength)];
-        (int written, string? authToken) = await DownloadWithCdnAuthAsync(
-            _cdnAuthToken,
+        int written = await DownloadWithSharedCdnAuthAsync(
+            () => Volatile.Read(ref _cdnAuthTokenState),
+            state => Volatile.Write(ref _cdnAuthTokenState, state),
+            _cdnAuthTokenGate,
             token => _cdn.DownloadDepotChunkAsync(
                 _depotId,
                 source,
@@ -149,13 +153,87 @@ public sealed class SteamKitContentDeliveryClient : ISteamContentDeliveryClient,
                 SteamContent.CDNAuthToken token = await _content.GetCDNAuthToken(_appId, _depotId, host);
                 return (token.Result, token.Token);
             });
-        _cdnAuthToken = authToken;
         if (written != destination.Length)
             throw new InvalidDataException($"Steam returned {written} bytes for a {destination.Length}-byte chunk.");
         return destination;
     }
 
-    public void Dispose() => _cdn.Dispose();
+    public void Dispose()
+    {
+        _cdn.Dispose();
+        _cdnAuthTokenGate.Dispose();
+    }
+
+    internal static async Task<T> DownloadWithSharedCdnAuthAsync<T>(
+        Func<CdnAuthTokenState> readTokenState,
+        Action<CdnAuthTokenState> writeTokenState,
+        SemaphoreSlim refreshGate,
+        Func<string?, Task<T>> download,
+        Func<Task<(EResult Result, string? Token)>> requestToken)
+    {
+        ArgumentNullException.ThrowIfNull(readTokenState);
+        ArgumentNullException.ThrowIfNull(writeTokenState);
+        ArgumentNullException.ThrowIfNull(refreshGate);
+        ArgumentNullException.ThrowIfNull(download);
+        ArgumentNullException.ThrowIfNull(requestToken);
+
+        CdnAuthTokenState rejectedState = readTokenState();
+        SteamKitWebRequestException forbidden;
+        try
+        {
+            return await download(rejectedState.Token);
+        }
+        catch (SteamKitWebRequestException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
+        {
+            forbidden = exception;
+        }
+
+        string retryToken;
+        await refreshGate.WaitAsync();
+        try
+        {
+            CdnAuthTokenState currentState = readTokenState();
+            if (currentState.Generation == rejectedState.Generation)
+            {
+                try
+                {
+                    (EResult result, string? token) = await requestToken();
+                    if (result != EResult.OK)
+                        throw new InvalidOperationException($"Steam denied the CDN token request: {result}.", forbidden);
+                    if (string.IsNullOrWhiteSpace(token))
+                        throw new InvalidOperationException("Steam returned an empty CDN auth token.", forbidden);
+
+                    currentState = new CdnAuthTokenState(token, checked(currentState.Generation + 1));
+                    writeTokenState(currentState);
+                }
+                catch (Exception refreshFailure)
+                {
+                    writeTokenState(new CdnAuthTokenState(
+                        currentState.Token,
+                        checked(currentState.Generation + 1),
+                        refreshFailure));
+                    throw;
+                }
+            }
+            else if (currentState.RefreshFailure is not null)
+            {
+                ExceptionDispatchInfo.Capture(currentState.RefreshFailure).Throw();
+            }
+            retryToken = currentState.Token
+                ?? throw new InvalidOperationException("Steam returned an empty CDN auth token.", forbidden);
+        }
+        finally
+        {
+            refreshGate.Release();
+        }
+
+        return await download(retryToken);
+    }
+
+    internal sealed record CdnAuthTokenState(
+        string? Token,
+        long Generation,
+        Exception? RefreshFailure = null);
 
     internal static async Task<(T Value, string? AuthToken)> DownloadWithCdnAuthAsync<T>(
         string? initialAuthToken,

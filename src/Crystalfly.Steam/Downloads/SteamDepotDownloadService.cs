@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 
 namespace Crystalfly.Steam.Downloads;
@@ -6,6 +7,8 @@ public sealed class SteamDepotDownloadService(
     ISteamContentDeliveryClient content,
     Action<SteamDownloadProgress>? progress = null)
 {
+    private const int MaxConcurrentChunks = 4;
+
     public async Task<SteamDownloadResult> DownloadAsync(
         SteamDownloadRequest request,
         CancellationToken cancellationToken = default)
@@ -21,13 +24,28 @@ public sealed class SteamDepotDownloadService(
             request.Branch,
             request.ManifestId,
             cancellationToken);
-        long totalBytes = manifest.Files.Sum(static file => file.Size);
-        var aggregator = new DownloadProgressAggregator(totalBytes, progress);
         string staging = Path.GetFullPath(request.StagingDirectory);
         string[] targets = manifest.Files
             .Select(file => DownloadPath.ResolveUnderRoot(staging, file.RelativePath))
             .ToArray();
         Directory.CreateDirectory(staging);
+        foreach (string target in targets)
+            File.Delete(target + ".crystalfly-part");
+
+        SteamDepotChunk[][] chunksByFile = manifest.Files
+            .Select(ValidateAndOrderChunks)
+            .ToArray();
+        long totalBytes = 0;
+        try
+        {
+            foreach (SteamDepotFile file in manifest.Files)
+                totalBytes = checked(totalBytes + file.Size);
+        }
+        catch (OverflowException exception)
+        {
+            throw new InvalidDataException("Manifest total size exceeds the supported range.", exception);
+        }
+        var aggregator = new DownloadProgressAggregator(totalBytes, progress);
 
         var completedFiles = new List<string>(manifest.Files.Count);
         for (int index = 0; index < manifest.Files.Count; index++)
@@ -36,8 +54,9 @@ public sealed class SteamDepotDownloadService(
             SteamDepotFile file = manifest.Files[index];
             string target = targets[index];
             string partial = target + ".crystalfly-part";
+            SteamDepotChunk[] chunks = chunksByFile[index];
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            File.Delete(partial);
+            Exception? operationFailure = null;
             try
             {
                 await using (var output = new FileStream(
@@ -49,16 +68,50 @@ public sealed class SteamDepotDownloadService(
                     FileOptions.Asynchronous | FileOptions.RandomAccess))
                 {
                     output.SetLength(file.Size);
-                    foreach (SteamDepotChunk chunk in file.Chunks.OrderBy(static chunk => chunk.Offset))
+                    using var failureCancellation = new CancellationTokenSource();
+                    using var parallelCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                        cancellationToken,
+                        failureCancellation.Token);
+                    Exception? chunkFailure = null;
+                    try
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        ReadOnlyMemory<byte> bytes = await content.DownloadChunkAsync(chunk, CancellationToken.None);
-                        if (bytes.Length != chunk.UncompressedLength || chunk.Offset < 0 || chunk.Offset + bytes.Length > file.Size)
-                            throw new InvalidDataException($"Invalid chunk data for {file.RelativePath}.");
+                        await Parallel.ForEachAsync(
+                            chunks,
+                            new ParallelOptions
+                            {
+                                MaxDegreeOfParallelism = MaxConcurrentChunks,
+                                CancellationToken = parallelCancellation.Token
+                            },
+                            async (chunk, _) =>
+                            {
+                                parallelCancellation.Token.ThrowIfCancellationRequested();
+                                try
+                                {
+                                    ReadOnlyMemory<byte> bytes = await content.DownloadChunkAsync(
+                                        chunk,
+                                        CancellationToken.None);
+                                    if (bytes.Length != chunk.UncompressedLength)
+                                        throw new InvalidDataException($"Invalid chunk data for {file.RelativePath}.");
 
-                        output.Position = chunk.Offset;
-                        await output.WriteAsync(bytes, CancellationToken.None);
-                        aggregator.CompleteChunk(bytes.Length, file.RelativePath);
+                                    await RandomAccess.WriteAsync(
+                                        output.SafeFileHandle,
+                                        bytes,
+                                        chunk.Offset,
+                                        CancellationToken.None);
+                                    aggregator.CompleteChunk(bytes.Length, file.RelativePath);
+                                }
+                                catch (Exception exception)
+                                {
+                                    if (Interlocked.CompareExchange(ref chunkFailure, exception, null) is null)
+                                        failureCancellation.Cancel();
+                                    throw;
+                                }
+                            });
+                    }
+                    catch when (Volatile.Read(ref chunkFailure) is not null)
+                    {
+                        ExceptionDispatchInfo.Capture(chunkFailure!).Throw();
+                        throw;
                     }
 
                     await output.FlushAsync(CancellationToken.None);
@@ -69,9 +122,21 @@ public sealed class SteamDepotDownloadService(
                 File.Move(partial, target, overwrite: true);
                 completedFiles.Add(file.RelativePath);
             }
+            catch (Exception exception)
+            {
+                operationFailure = exception;
+                throw;
+            }
             finally
             {
-                File.Delete(partial);
+                try
+                {
+                    File.Delete(partial);
+                }
+                catch (Exception cleanupException) when (operationFailure is not null)
+                {
+                    operationFailure.Data["Crystalfly.PartialCleanupError"] = cleanupException;
+                }
             }
         }
 
@@ -82,6 +147,29 @@ public sealed class SteamDepotDownloadService(
             staging,
             completedFiles,
             totalBytes);
+    }
+
+    private static SteamDepotChunk[] ValidateAndOrderChunks(SteamDepotFile file)
+    {
+        if (file.Size < 0)
+            throw new InvalidDataException($"Invalid file size for {file.RelativePath}.");
+
+        SteamDepotChunk[] chunks = file.Chunks
+            .OrderBy(static chunk => chunk.Offset)
+            .ToArray();
+        long previousEnd = 0;
+        foreach (SteamDepotChunk chunk in chunks)
+        {
+            if (chunk.Offset < 0
+                || chunk.UncompressedLength < 0
+                || chunk.Offset > file.Size - chunk.UncompressedLength
+                || chunk.Offset < previousEnd)
+            {
+                throw new InvalidDataException($"Invalid chunk layout for {file.RelativePath}.");
+            }
+            previousEnd = chunk.Offset + chunk.UncompressedLength;
+        }
+        return chunks;
     }
 
     private static async Task VerifyFileAsync(string path, string expectedSha1, CancellationToken cancellationToken)

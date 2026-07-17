@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using Crystalfly.Steam.Downloads;
 using SteamKit2;
@@ -60,6 +61,143 @@ public sealed class SteamKitContentDeliveryClientTests
         Assert.Equal("granted", authToken);
         Assert.Equal([null, "granted"], receivedTokens);
         Assert.Equal(1, tokenRequests);
+    }
+
+    [Fact]
+    public async Task ConcurrentForbiddenDownloadsRefreshTokenOnceAndRetryWithNewToken()
+    {
+        const int downloadCount = 4;
+        var allOldTokenAttemptsStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseOldTokenAttempts = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var receivedTokens = new ConcurrentBag<string?>();
+        var oldTokenAttempts = 0;
+        var tokenRequests = 0;
+        var tokenState = new SteamKitContentDeliveryClient.CdnAuthTokenState("old", 0);
+        using var refreshGate = new SemaphoreSlim(1, 1);
+
+        async Task<int> Download(string? token)
+        {
+            receivedTokens.Add(token);
+            if (token == "old")
+            {
+                if (Interlocked.Increment(ref oldTokenAttempts) == downloadCount)
+                    allOldTokenAttemptsStarted.SetResult();
+                await releaseOldTokenAttempts.Task;
+                throw CreateWebRequestException(HttpStatusCode.Forbidden);
+            }
+
+            return 7;
+        }
+
+        Task<int>[] downloads = Enumerable.Range(0, downloadCount)
+            .Select(_ => SteamKitContentDeliveryClient.DownloadWithSharedCdnAuthAsync<int>(
+                () => Volatile.Read(ref tokenState),
+                state => Volatile.Write(ref tokenState, state),
+                refreshGate,
+                Download,
+                () =>
+                {
+                    Interlocked.Increment(ref tokenRequests);
+                    return Task.FromResult((EResult.OK, (string?)"new"));
+                }))
+            .ToArray();
+
+        await allOldTokenAttemptsStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        releaseOldTokenAttempts.SetResult();
+        int[] results = await Task.WhenAll(downloads);
+
+        Assert.Equal(1, tokenRequests);
+        SteamKitContentDeliveryClient.CdnAuthTokenState finalState = Volatile.Read(ref tokenState);
+        Assert.Equal("new", finalState.Token);
+        Assert.Equal(1, finalState.Generation);
+        Assert.All(results, result => Assert.Equal(7, result));
+        Assert.Equal(downloadCount, receivedTokens.Count(token => token == "old"));
+        Assert.Equal(downloadCount, receivedTokens.Count(token => token == "new"));
+    }
+
+    [Fact]
+    public async Task ConcurrentForbiddenDownloadsRefreshOnceWhenSteamReturnsSameToken()
+    {
+        const int downloadCount = 4;
+        var allInitialAttemptsStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseInitialAttempts = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var attempts = new int[downloadCount];
+        var initialAttempts = 0;
+        var tokenRequests = 0;
+        var tokenState = new SteamKitContentDeliveryClient.CdnAuthTokenState("same", 0);
+        using var refreshGate = new SemaphoreSlim(1, 1);
+
+        Task<int>[] downloads = Enumerable.Range(0, downloadCount)
+            .Select(worker => SteamKitContentDeliveryClient.DownloadWithSharedCdnAuthAsync(
+                () => Volatile.Read(ref tokenState),
+                state => Volatile.Write(ref tokenState, state),
+                refreshGate,
+                async _ =>
+                {
+                    if (Interlocked.Increment(ref attempts[worker]) == 1)
+                    {
+                        if (Interlocked.Increment(ref initialAttempts) == downloadCount)
+                            allInitialAttemptsStarted.SetResult();
+                        await releaseInitialAttempts.Task;
+                        throw CreateWebRequestException(HttpStatusCode.Forbidden);
+                    }
+
+                    return 7;
+                },
+                () =>
+                {
+                    Interlocked.Increment(ref tokenRequests);
+                    return Task.FromResult((EResult.OK, (string?)"same"));
+                }))
+            .ToArray();
+
+        await allInitialAttemptsStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        releaseInitialAttempts.SetResult();
+        int[] results = await Task.WhenAll(downloads);
+
+        Assert.Equal(1, tokenRequests);
+        Assert.All(results, result => Assert.Equal(7, result));
+    }
+
+    [Fact]
+    public async Task ConcurrentForbiddenDownloadsShareDeniedTokenRefreshFailure()
+    {
+        const int downloadCount = 4;
+        var allInitialAttemptsStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseInitialAttempts = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var initialAttempts = 0;
+        var tokenRequests = 0;
+        var tokenState = new SteamKitContentDeliveryClient.CdnAuthTokenState("old", 0);
+        using var refreshGate = new SemaphoreSlim(1, 1);
+
+        Task<int>[] downloads = Enumerable.Range(0, downloadCount)
+            .Select(_ => SteamKitContentDeliveryClient.DownloadWithSharedCdnAuthAsync<int>(
+                () => Volatile.Read(ref tokenState),
+                state => Volatile.Write(ref tokenState, state),
+                refreshGate,
+                async _ =>
+                {
+                    if (Interlocked.Increment(ref initialAttempts) == downloadCount)
+                        allInitialAttemptsStarted.SetResult();
+                    await releaseInitialAttempts.Task;
+                    throw CreateWebRequestException(HttpStatusCode.Forbidden);
+                },
+                () =>
+                {
+                    Interlocked.Increment(ref tokenRequests);
+                    return Task.FromResult((EResult.AccessDenied, (string?)null));
+                }))
+            .ToArray();
+
+        await allInitialAttemptsStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        releaseInitialAttempts.SetResult();
+        Exception[] failures = await Task.WhenAll(downloads.Select(async download =>
+        {
+            return await Assert.ThrowsAsync<InvalidOperationException>(() => download);
+        }));
+
+        Assert.Equal(1, tokenRequests);
+        Assert.All(failures, failure => Assert.Contains("AccessDenied", failure.Message));
     }
 
     [Fact]

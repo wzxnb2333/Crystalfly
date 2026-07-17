@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Crystalfly.Steam.Downloads;
 
 namespace Crystalfly.Steam.Tests.Downloads;
@@ -53,6 +54,50 @@ public sealed class DownloadProgressAggregatorTests
         Assert.Equal(0d, progress.BytesPerSecond);
         Assert.False(double.IsNaN(progress.BytesPerSecond));
         Assert.False(double.IsInfinity(progress.BytesPerSecond));
+    }
+
+    [Fact]
+    public async Task ConcurrentCompletedChunksProduceOrderedCompleteReports()
+    {
+        const int workerCount = 8;
+        const int rounds = 100;
+        const int totalBytes = workerCount * rounds;
+        var reports = new ConcurrentQueue<SteamDownloadProgress>();
+        var aggregator = new DownloadProgressAggregator(
+            totalBytes,
+            reports.Enqueue,
+            new ManualTimeProvider());
+        using var roundBarrier = new Barrier(workerCount);
+
+        Task[] workers = Enumerable.Range(0, workerCount)
+            .Select(worker => Task.Factory.StartNew(
+                () =>
+                {
+                    for (int round = 0; round < rounds; round++)
+                    {
+                        if (!roundBarrier.SignalAndWait(TimeSpan.FromSeconds(5)))
+                            throw new TimeoutException("Concurrent progress workers did not reach the barrier.");
+                        aggregator.CompleteChunk(1, $"worker-{worker}.dat");
+                    }
+                },
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default))
+            .ToArray();
+
+        await Task.WhenAll(workers);
+
+        SteamDownloadProgress[] captured = reports.ToArray();
+        Assert.Equal(totalBytes, captured.Length);
+        long previous = 0;
+        foreach (SteamDownloadProgress report in captured)
+        {
+            Assert.True(report.CompletedBytes > previous);
+            Assert.True(double.IsFinite(report.BytesPerSecond));
+            Assert.True(report.BytesPerSecond >= 0);
+            previous = report.CompletedBytes;
+        }
+        Assert.Equal(totalBytes, captured[^1].CompletedBytes);
     }
 
     private sealed class ManualTimeProvider : TimeProvider
