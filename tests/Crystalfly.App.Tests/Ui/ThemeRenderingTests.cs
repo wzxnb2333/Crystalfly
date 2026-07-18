@@ -1,18 +1,28 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Presenters;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 using Crystalfly.App.Views;
 
 namespace Crystalfly.App.Tests.Ui;
 
 public sealed class ThemeRenderingTests
 {
+    [AvaloniaFact]
+    public void Application_registers_Semi_and_Ursa_themes_without_Fluent()
+    {
+        var styleTypes = Application.Current!.Styles
+            .Select(style => style.GetType().Name)
+            .ToArray();
+
+        Assert.Contains("SemiTheme", styleTypes);
+        Assert.Contains("UrsaSemiTheme", styleTypes);
+        Assert.DoesNotContain("FluentTheme", styleTypes);
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
@@ -55,14 +65,11 @@ public sealed class ThemeRenderingTests
         try
         {
             var item = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
-            var presenter = item.GetVisualDescendants()
-                .OfType<ContentPresenter>()
-                .Single(control => control.Name == "PART_ContentPresenter");
             Assert.True(Application.Current.TryGetResource(
                 "CfSurfaceSelectedBrush",
                 darkTheme ? ThemeVariant.Dark : ThemeVariant.Light,
                 out var selectedBrush));
-            Assert.Equal(ColorOf((IBrush)selectedBrush!), ColorOf(presenter.Background));
+            Assert.Equal(ColorOf((IBrush)selectedBrush!), ColorOf(item.Background));
         }
         finally
         {
@@ -102,15 +109,12 @@ public sealed class ThemeRenderingTests
         {
             button.Focus(NavigationMethod.Tab, KeyModifiers.None);
             Dispatcher.UIThread.RunJobs();
-            var presenter = button.GetVisualDescendants()
-                .OfType<ContentPresenter>()
-                .Single(control => control.Name == "PART_ContentPresenter");
-            Assert.NotNull(presenter.BorderBrush);
-            Assert.True(presenter.BorderThickness.Left >= 2);
+            Assert.NotNull(button.BorderBrush);
+            Assert.True(button.BorderThickness.Left >= 2);
 
             button.IsEnabled = false;
             Dispatcher.UIThread.RunJobs();
-            var ratio = ContrastRatio(ColorOf(label.Foreground), ColorOf(presenter.Background));
+            var ratio = ContrastRatio(ColorOf(label.Foreground), ColorOf(button.Background));
             Assert.True(ratio >= 4.5, $"{buttonClass} disabled contrast was {ratio:F2}:1.");
         }
         finally
