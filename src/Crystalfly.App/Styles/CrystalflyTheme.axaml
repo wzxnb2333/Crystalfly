@@ -70,12 +70,15 @@
     <Style Selector="Button StackPanel > LucideIcon">
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="RenderTransform">
-            <TranslateTransform Y="-1" />
+            <TranslateTransform Y="1" />
         </Setter>
     </Style>
 
     <Style Selector="Button StackPanel > TextBlock">
         <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="RenderTransform">
+            <TranslateTransform Y="1" />
+        </Setter>
     </Style>
 
     <Style Selector="TextBlock.cfp-brand">

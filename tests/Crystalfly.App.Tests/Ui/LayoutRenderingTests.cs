@@ -245,8 +245,8 @@ public sealed class LayoutRenderingTests
                 var textOrigin = Assert.IsType<Point>(text.TranslatePoint(default, item.Button));
                 var iconCenter = iconOrigin.Y + icon.Bounds.Height / 2;
                 var textCenter = textOrigin.Y + text.Bounds.Height / 2;
-                Assert.InRange(Math.Abs(iconCenter + 1 - textCenter), 0, 0.5);
-                Assert.InRange(Math.Abs(textCenter - item.Button.Bounds.Height / 2), 0, 0.5);
+                Assert.InRange(Math.Abs(iconCenter - textCenter), 0, 0.5);
+                Assert.InRange(Math.Abs(textCenter - (item.Button.Bounds.Height / 2 + 1)), 0, 0.5);
 
                 var contentLeft = Math.Min(iconOrigin.X, textOrigin.X);
                 var contentRight = Math.Max(iconOrigin.X + icon.Bounds.Width, textOrigin.X + text.Bounds.Width);
