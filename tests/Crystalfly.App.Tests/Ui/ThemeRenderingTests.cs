@@ -1,11 +1,18 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.LogicalTree;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
+using Crystalfly.App.ViewModels;
+using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views;
+using Crystalfly.App.Views.Dialogs;
+using Ursa.Controls;
 
 namespace Crystalfly.App.Tests.Ui;
 
@@ -77,16 +84,88 @@ public sealed class ThemeRenderingTests
         }
     }
 
-    [AvaloniaTheory]
-    [InlineData(false, "cfp-primary")]
-    [InlineData(true, "cfp-danger")]
-    public void Confirmation_button_style_matches_operation_risk(bool isDangerous, string expectedClass)
+    [AvaloniaFact]
+    public async Task Dangerous_confirmation_overlay_disables_confirm_and_cancel_returns_false()
     {
-        var button = new Button();
+        var window = new MainWindow { Width = 900, Height = 600 };
+        window.Show();
+        var viewModel = new ConfirmationDialogViewModel(
+            "Remove mod",
+            "This cannot be undone.",
+            "Sample Mod",
+            "Confirm",
+            "Cancel",
+            canConfirm: false,
+            isDangerous: true);
+        var result = OverlayDialog.ShowCustomAsync<ConfirmationDialogView, ConfirmationDialogViewModel, bool>(
+            viewModel,
+            MainWindow.OverlayHostId,
+            new OverlayDialogOptions
+            {
+                CanLightDismiss = false,
+                CanDragMove = false,
+                IsCloseButtonVisible = true
+            });
+        Dispatcher.UIThread.RunJobs();
 
-        MainWindow.ApplyConfirmationStyle(button, isDangerous);
+        try
+        {
+            var dialog = Assert.Single(window.GetVisualDescendants().OfType<CustomDialogControl>());
+            var confirm = dialog.GetVisualDescendants().OfType<Button>()
+                .Single(button => AutomationProperties.GetName(button) == "Confirm");
+            var cancel = dialog.GetVisualDescendants().OfType<Button>()
+                .Single(button => AutomationProperties.GetName(button) == "Cancel");
 
-        Assert.Contains(expectedClass, button.Classes);
+            Assert.Contains("cfp-danger", confirm.Classes);
+            Assert.False(confirm.IsEnabled);
+            Assert.NotNull(cancel.Command);
+            cancel.Command.Execute(cancel.CommandParameter);
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(result.IsCompleted);
+            Assert.False(await result);
+            Assert.Empty(window.GetVisualDescendants().OfType<CustomDialogControl>());
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void Main_window_uses_three_Ursa_path_pickers_with_loader_and_mod_filters()
+    {
+        var viewModel = new MainViewModel(Path.Combine(
+            Path.GetTempPath(),
+            "crystalfly-ui",
+            Guid.NewGuid().ToString("N")))
+        {
+            CurrentPage = "Settings"
+        };
+        var window = new MainWindow { Width = 900, Height = 600 };
+        window.Show();
+        window.DataContext = viewModel;
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            var pickers = window.GetLogicalDescendants().OfType<PathPicker>().ToArray();
+            Assert.Equal(3, pickers.Length);
+            var folder = Assert.Single(pickers, picker => picker.UsePickerType == UsePickerTypes.OpenFolder);
+            var files = pickers.Where(picker => picker.UsePickerType == UsePickerTypes.OpenFile).ToArray();
+            Assert.Equal(2, files.Length);
+            Assert.Same(viewModel.ApplyVersionRootCommand, folder.Command);
+            Assert.Contains(files, picker => picker.FileFilter.Contains("*.json", StringComparison.Ordinal));
+            Assert.Contains(files, picker => picker.FileFilter.Contains("*.zip", StringComparison.Ordinal)
+                && picker.FileFilter.Contains("*.dll", StringComparison.Ordinal));
+            Assert.All(pickers, picker => Assert.True(picker.IsOmitCommandOnCancel));
+            Assert.All(pickers, picker =>
+                Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(picker))));
+        }
+        finally
+        {
+            window.DataContext = null;
+            window.Close();
+        }
     }
 
     [AvaloniaTheory]

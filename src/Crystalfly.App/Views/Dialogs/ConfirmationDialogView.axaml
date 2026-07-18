@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Crystalfly.App.ViewModels.Dialogs"
+             xmlns:converters="using:Avalonia.Data.Converters"
+             xmlns:u="https://irihi.tech/ursa"
+             x:Class="Crystalfly.App.Views.Dialogs.ConfirmationDialogView"
+             x:DataType="vm:ConfirmationDialogViewModel"
+             MinWidth="400"
+             MaxWidth="520">
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+    </UserControl.KeyBindings>
+
+    <StackPanel Margin="24" Spacing="16">
+        <TextBlock Classes="cfp-section-title"
+                   Text="{Binding Title}"
+                   TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Message}"
+                   TextWrapping="Wrap" />
+        <TextBlock Classes="cfp-meta"
+                   Text="{Binding Target}"
+                   TextWrapping="Wrap" />
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Classes="cfp-secondary"
+                    Command="{Binding CancelCommand}"
+                    Content="{Binding CancelText}"
+                    MinWidth="96"
+                    u:FocusHelper.DialogFocusHint="True"
+                    AutomationProperties.Name="{Binding CancelText}" />
+            <Button Classes.cfp-danger="{Binding IsDangerous}"
+                    Classes.cfp-primary="{Binding IsDangerous, Converter={x:Static converters:BoolConverters.Not}}"
+                    Command="{Binding ConfirmCommand}"
+                    Content="{Binding ConfirmText}"
+                    IsEnabled="{Binding CanConfirm}"
+                    MinWidth="96"
+                    AutomationProperties.Name="{Binding ConfirmText}" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

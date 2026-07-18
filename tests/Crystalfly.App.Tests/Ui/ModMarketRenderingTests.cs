@@ -11,6 +11,7 @@ using Crystalfly.App.ViewModels;
 using Crystalfly.App.Views;
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Models;
+using Ursa.Controls;
 
 namespace Crystalfly.App.Tests.Ui;
 
@@ -259,20 +260,22 @@ public sealed class ModMarketRenderingTests
                 .Single(button => button.IsEffectivelyVisible
                     && AutomationProperties.GetName(button) == viewModel.Loc["InstallModTitle"]);
             install.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            for (var attempt = 0; attempt < 50 && window.OwnedWindows.Count == 0; attempt++)
+            CustomDialogControl[] dialogs = [];
+            for (var attempt = 0; attempt < 50 && dialogs.Length == 0; attempt++)
             {
                 Dispatcher.UIThread.RunJobs();
                 await Task.Delay(10);
+                dialogs = window.GetVisualDescendants().OfType<CustomDialogControl>().ToArray();
             }
 
-            var dialog = Assert.Single(window.OwnedWindows);
+            var dialog = Assert.Single(dialogs);
             var targetButtons = dialog.GetVisualDescendants().OfType<RadioButton>().ToArray();
             Assert.Equal(2, targetButtons.Length);
             Assert.Single(targetButtons, target => target.IsEnabled);
             Assert.Single(targetButtons, target => !target.IsEnabled);
             Assert.Contains(dialog.GetVisualDescendants().OfType<TextBlock>(), text =>
                 text.Text?.Contains("Modding API v77", StringComparison.OrdinalIgnoreCase) == true);
-            dialog.Close(false);
+            dialog.Close();
         }
         finally
         {
@@ -365,13 +368,13 @@ public sealed class ModMarketRenderingTests
             Dispatcher.UIThread.RunJobs();
 
             Assert.False(viewModel.PrepareMarketInstallTargetsCommand.IsRunning);
-            Assert.Empty(window.OwnedWindows);
+            Assert.Empty(GetDialogs(window));
         }
         finally
         {
-            foreach (var ownedWindow in window.OwnedWindows.ToArray())
+            foreach (var dialog in GetDialogs(window))
             {
-                ownedWindow.Close();
+                dialog.Close();
             }
             CloseImmediately(window);
             await viewModel.DisposeAsync();
@@ -402,8 +405,8 @@ public sealed class ModMarketRenderingTests
             Dispatcher.UIThread.RunJobs();
 
             Assert.False(context.ViewModel.PrepareMarketInstallTargetsCommand.IsRunning);
-            var dialog = Assert.Single(context.Window.OwnedWindows);
-            dialog.Close(false);
+            var dialog = Assert.Single(GetDialogs(context.Window));
+            dialog.Close();
         }
         finally
         {
@@ -432,7 +435,7 @@ public sealed class ModMarketRenderingTests
 
             Assert.False(context.ViewModel.PrepareMarketInstallTargetsCommand.IsRunning);
             Assert.False(context.Window.IsVisible);
-            Assert.Empty(context.Window.OwnedWindows);
+            Assert.Empty(GetDialogs(context.Window));
         }
         finally
         {
@@ -473,41 +476,44 @@ public sealed class ModMarketRenderingTests
                 .Single(button => button.IsEffectivelyVisible
                     && AutomationProperties.GetName(button) == viewModel.Loc["InstallModTitle"]);
             install.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            for (var attempt = 0; attempt < 50 && window.OwnedWindows.Count == 0; attempt++)
+            CustomDialogControl[] dialogs = [];
+            for (var attempt = 0; attempt < 50 && dialogs.Length == 0; attempt++)
             {
                 Dispatcher.UIThread.RunJobs();
                 await Task.Delay(10);
+                dialogs = GetDialogs(window);
             }
 
-            var dialog = Assert.Single(window.OwnedWindows);
+            var dialog = Assert.Single(dialogs);
             var cancel = dialog.GetVisualDescendants()
                 .OfType<Button>()
-                .Single(button => Equals(button.Content, viewModel.Loc["Cancel"]));
+                .Single(button => AutomationProperties.GetName(button) == viewModel.Loc["Cancel"]);
             viewModel.IsBusy = true;
 
-            dialog.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             Dispatcher.UIThread.RunJobs();
-            Assert.Contains(dialog, window.OwnedWindows);
+            Assert.Contains(dialog, GetDialogs(window));
 
-            cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.NotNull(cancel.Command);
+            cancel.Command.Execute(cancel.CommandParameter);
             Dispatcher.UIThread.RunJobs();
-            Assert.Contains(dialog, window.OwnedWindows);
+            Assert.Contains(dialog, GetDialogs(window));
 
-            dialog.Close(false);
+            dialog.Close();
             Dispatcher.UIThread.RunJobs();
-            Assert.Contains(dialog, window.OwnedWindows);
+            Assert.Contains(dialog, GetDialogs(window));
 
             viewModel.IsBusy = false;
-            dialog.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             Dispatcher.UIThread.RunJobs();
-            Assert.DoesNotContain(dialog, window.OwnedWindows);
+            Assert.DoesNotContain(dialog, GetDialogs(window));
         }
         finally
         {
             viewModel.IsBusy = false;
-            foreach (var ownedWindow in window.OwnedWindows.ToArray())
+            foreach (var dialog in GetDialogs(window))
             {
-                ownedWindow.Close();
+                dialog.Close();
             }
             CloseImmediately(window);
             if (Directory.Exists(root))
@@ -622,9 +628,10 @@ public sealed class ModMarketRenderingTests
 
     private static async Task CloseSlowMarketInstallAsync(SlowMarketInstallContext context)
     {
-        foreach (var ownedWindow in context.Window.OwnedWindows.ToArray())
+        context.ViewModel.IsBusy = false;
+        foreach (var dialog in GetDialogs(context.Window))
         {
-            ownedWindow.Close();
+            dialog.Close();
         }
         if (context.Window.IsVisible)
         {
@@ -650,6 +657,9 @@ public sealed class ModMarketRenderingTests
         MainWindow Window,
         MainViewModel ViewModel,
         Button InstallButton);
+
+    private static CustomDialogControl[] GetDialogs(MainWindow window) =>
+        window.GetVisualDescendants().OfType<CustomDialogControl>().ToArray();
 
     private static (MainWindow Window, MainViewModel ViewModel) Show(
         string page,

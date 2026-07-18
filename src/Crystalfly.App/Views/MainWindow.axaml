@@ -3,6 +3,7 @@
         xmlns:vm="using:Crystalfly.App.ViewModels"
         xmlns:models="using:Crystalfly.Core.Models"
         xmlns:converters="using:Avalonia.Data.Converters"
+        xmlns:u="https://irihi.tech/ursa"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -569,19 +570,26 @@
                                 <Expander Header="{Binding Loc[AdvancedLocalLoader]}">
                                     <Border Classes="cfp-card" Margin="0,8,0,0">
                                         <StackPanel Spacing="10">
-                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                                <TextBox Grid.Column="0"
-                                                         Classes="cfp-input"
-                                                         Text="{Binding LocalLoaderManifestPath, Mode=TwoWay}"
-                                                         PlaceholderText="{Binding Loc[LocalLoaderManifestPath]}"
-                                                         AutomationProperties.Name="{Binding Loc[LocalLoaderManifestPath]}" />
-                                                <Button Grid.Column="1"
-                                                        Classes="cfp-secondary cfp-icon"
-                                                        Click="BrowseLocalLoaderManifest"
-                                                        Content="{LucideIconContent FolderOpen, 16}"
-                                                        ToolTip.Tip="{Binding Loc[Browse]}"
-                                                        AutomationProperties.Name="{Binding Loc[Browse]}" />
-                                            </Grid>
+                                            <u:PathPicker UsePickerType="OpenFile"
+                                                          FileFilter="[JSON,*.json]"
+                                                          Title="{Binding Loc[SelectLoaderManifestTitle]}"
+                                                          SelectedPathsText="{Binding LocalLoaderManifestPath, Mode=TwoWay}"
+                                                          IsOmitCommandOnCancel="True"
+                                                          MinHeight="44"
+                                                          AutomationProperties.Name="{Binding Loc[LocalLoaderManifestPath]}">
+                                                <u:PathPicker.Styles>
+                                                    <Style Selector="TextBox">
+                                                        <Setter Property="AutomationProperties.Name"
+                                                                Value="{Binding Loc[LocalLoaderManifestPath]}" />
+                                                    </Style>
+                                                </u:PathPicker.Styles>
+                                                <u:PathPicker.ButtonContent>
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <LucideIcon Kind="FolderOpen" Size="16" />
+                                                        <TextBlock Text="{Binding Loc[Browse]}" />
+                                                    </StackPanel>
+                                                </u:PathPicker.ButtonContent>
+                                            </u:PathPicker>
                                             <Button Classes="cfp-secondary"
                                                     Command="{Binding ImportLocalLoaderCommand}"
                                                     HorizontalAlignment="Left">
@@ -624,6 +632,48 @@
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
                                 </Grid>
+                                <Border Classes="cfp-card">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <u:PathPicker Grid.Column="0"
+                                                      UsePickerType="OpenFile"
+                                                      FileFilter="[Mod,*.zip,*.dll]"
+                                                      Title="{Binding Loc[SelectModPackageTitle]}"
+                                                      SelectedPathsText="{Binding LocalModPath, Mode=TwoWay}"
+                                                      IsOmitCommandOnCancel="True"
+                                                      MinHeight="44"
+                                                      AutomationProperties.Name="{Binding Loc[LocalModPath]}">
+                                            <u:PathPicker.Styles>
+                                                <Style Selector="TextBox">
+                                                    <Setter Property="AutomationProperties.Name"
+                                                            Value="{Binding Loc[LocalModPath]}" />
+                                                </Style>
+                                            </u:PathPicker.Styles>
+                                            <u:PathPicker.ButtonContent>
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <LucideIcon Kind="FolderOpen" Size="16" />
+                                                    <TextBlock Text="{Binding Loc[Browse]}" />
+                                                </StackPanel>
+                                            </u:PathPicker.ButtonContent>
+                                        </u:PathPicker>
+                                        <Button Grid.Column="1"
+                                                Classes="cfp-secondary"
+                                                Command="{Binding ImportLocalModCommand}"
+                                                AutomationProperties.Name="{Binding Loc[ImportLocalMod]}">
+                                            <Button.IsEnabled>
+                                                <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
+                                                    <Binding Path="HasInstance" />
+                                                    <Binding Path="LocalModPath" Converter="{x:Static converters:StringConverters.IsNotNullOrEmpty}" />
+                                                    <Binding Path="IsBusy" Converter="{x:Static converters:BoolConverters.Not}" />
+                                                    <Binding Path="IsGameRunning" Converter="{x:Static converters:BoolConverters.Not}" />
+                                                </MultiBinding>
+                                            </Button.IsEnabled>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <LucideIcon Kind="PackagePlus" Size="16" />
+                                                <TextBlock Text="{Binding Loc[ImportLocalMod]}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                </Border>
                                 <Border Classes="cfp-card" IsVisible="{Binding HasSelectedMods}">
                                     <StackPanel Spacing="8">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
@@ -1334,20 +1384,27 @@
                         <Border Classes="cfp-card">
                             <StackPanel Spacing="12">
                                 <TextBlock Classes="cfp-section-title" Text="{Binding Loc[VersionRoot]}" />
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                    <TextBox Grid.Column="0"
-                                             Classes="cfp-input"
-                                             Text="{Binding VersionRoot, Mode=TwoWay}"
-                                             AutomationProperties.Name="{Binding Loc[VersionRoot]}" />
-                                    <Button Grid.Column="1"
-                                            Classes="cfp-secondary"
-                                            Click="BrowseVersionRoot">
+                                <u:PathPicker UsePickerType="OpenFolder"
+                                              Title="{Binding Loc[SelectVersionRootTitle]}"
+                                              SelectedPathsText="{Binding VersionRoot, Mode=TwoWay}"
+                                              SuggestedStartPath="{Binding VersionRoot}"
+                                              Command="{Binding ApplyVersionRootCommand}"
+                                              IsOmitCommandOnCancel="True"
+                                              MinHeight="44"
+                                              AutomationProperties.Name="{Binding Loc[VersionRoot]}">
+                                    <u:PathPicker.Styles>
+                                        <Style Selector="TextBox">
+                                            <Setter Property="AutomationProperties.Name"
+                                                    Value="{Binding Loc[VersionRoot]}" />
+                                        </Style>
+                                    </u:PathPicker.Styles>
+                                    <u:PathPicker.ButtonContent>
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <LucideIcon Kind="FolderOpen" Size="16" />
                                             <TextBlock Text="{Binding Loc[Browse]}" />
                                         </StackPanel>
-                                    </Button>
-                                </Grid>
+                                    </u:PathPicker.ButtonContent>
+                                </u:PathPicker>
                             </StackPanel>
                         </Border>
 
@@ -1433,5 +1490,8 @@
                 </ScrollViewer>
             </Grid>
         </Grid>
+        <u:OverlayDialogHost x:Name="MainOverlayDialogHost"
+                             Grid.RowSpan="4"
+                             HostId="Crystalfly.Main" />
     </Grid>
 </Window>
