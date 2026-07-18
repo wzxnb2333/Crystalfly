@@ -36,6 +36,7 @@ public static class CustomCatalogSource
             throw new ArgumentException("Custom catalog namespace contains unsupported characters.", nameof(sourceNamespace));
         }
 
+        CatalogProvider.ValidateSource(source);
         var prefix = $"custom:{sourceNamespace}:";
         var localIds = source.Mods.Select(mod => mod.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         return new GameCatalog
@@ -43,6 +44,7 @@ public static class CustomCatalogSource
             Mods = source.Mods.Select(mod => mod with
             {
                 Id = prefix + mod.Id,
+                SourceName = sourceNamespace,
                 Dependencies = mod.Dependencies
                     .Select(dependency => localIds.Contains(dependency) ? prefix + dependency : dependency)
                     .ToArray()

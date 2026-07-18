@@ -6,6 +6,37 @@ namespace Crystalfly.Core.Catalog;
 
 public static class CatalogProvider
 {
+    public static GameCatalog ValidateResolved(GameCatalog catalog)
+    {
+        ValidateSource(catalog);
+        ValidateCatalog(catalog, catalog);
+        return catalog;
+    }
+
+    public static CustomCatalogMergeResult MergeCustomCatalogs(
+        GameCatalog catalog,
+        IEnumerable<GameCatalog> customCatalogs)
+    {
+        var resolved = ValidateResolved(catalog);
+        var rejectedReasons = new List<string>();
+        var sourceIndex = 0;
+        foreach (var customCatalog in customCatalogs)
+        {
+            sourceIndex++;
+            try
+            {
+                ValidateSource(customCatalog);
+                var candidate = CatalogMerger.Merge(resolved, null, null, [customCatalog]);
+                resolved = ValidateResolved(candidate);
+            }
+            catch (InvalidDataException exception)
+            {
+                rejectedReasons.Add($"Custom catalog {sourceIndex}: {exception.Message}");
+            }
+        }
+        return new(resolved, rejectedReasons);
+    }
+
     public static async Task<GameCatalog> LoadAsync(
         Uri remoteCatalogUrl,
         string cachePath,
@@ -108,7 +139,7 @@ public static class CatalogProvider
             Package(mod.DownloadUrl, mod.SizeBytes, mod.Sha256, $"Mod '{mod.Id}'");
             Reference(mod.LoaderId, loaderIds, $"Mod '{mod.Id}' loader");
             References(mod.SupportedBuildIds, buildIds, $"Mod '{mod.Id}' build");
-            UniqueText(mod.Dependencies, $"Mod '{mod.Id}' dependency");
+            ValidateModMetadata(mod);
             foreach (var dependency in mod.Dependencies)
             {
                 if (!modIds.Contains(dependency)
@@ -119,8 +150,9 @@ public static class CatalogProvider
                         $"Mod '{mod.Id}' dependency references missing ID '{dependency}'.");
                 }
             }
-            UniqueText(mod.FlatFiles, $"Mod '{mod.Id}' flat file");
         }
+
+        ValidateModCompatibility(mods, loaders);
 
         var assets = Index(resolved.SpeedrunAssets, asset => asset.Id, nameof(SpeedrunAsset));
         foreach (var asset in assets.Values)
@@ -198,16 +230,59 @@ public static class CatalogProvider
         }
     }
 
-    private static void ValidateSource(GameCatalog source)
+    internal static void ValidateSource(GameCatalog source)
     {
         Version(source.SchemaVersion, nameof(GameCatalog), "catalog");
         _ = Index(source.Builds, build => build.Id, nameof(GameBuild));
         _ = Index(source.Channels, channel => channel.Name, nameof(GameChannel));
         _ = Index(source.Loaders, loader => loader.Id, nameof(LoaderManifest));
-        _ = Index(source.Mods, mod => mod.Id, nameof(ModManifest));
+        var mods = Index(source.Mods, mod => mod.Id, nameof(ModManifest));
+        foreach (var mod in mods.Values)
+        {
+            ValidateModMetadata(mod);
+        }
         _ = Index(source.SpeedrunTemplates, template => template.Id, nameof(SpeedrunTemplate));
         _ = Index(source.SpeedrunAssets, asset => asset.Id, nameof(SpeedrunAsset));
         _ = Index(source.SpeedrunFileManifests, manifest => manifest.Id, nameof(SpeedrunFileManifest));
+    }
+
+    private static void ValidateModCompatibility(
+        IReadOnlyDictionary<string, ModManifest> mods,
+        IReadOnlyDictionary<string, LoaderManifest> loaders)
+    {
+        foreach (var mod in mods.Values)
+        {
+            var loader = loaders[mod.LoaderId];
+            var unsupportedBuild = mod.SupportedBuildIds.Except(
+                loader.SupportedBuildIds,
+                StringComparer.OrdinalIgnoreCase).FirstOrDefault();
+            if (unsupportedBuild is not null)
+            {
+                throw new InvalidDataException(
+                    $"Mod '{mod.Id}' build '{unsupportedBuild}' is not supported by loader '{loader.Id}'.");
+            }
+
+            foreach (var dependencyId in mod.Dependencies)
+            {
+                if (!mods.TryGetValue(dependencyId, out var dependency))
+                {
+                    continue;
+                }
+                if (!string.Equals(mod.LoaderId, dependency.LoaderId, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidDataException(
+                        $"Mod '{mod.Id}' dependency '{dependency.Id}' requires loader '{dependency.LoaderId}', not '{mod.LoaderId}'.");
+                }
+                var incompatibleBuild = mod.SupportedBuildIds.Except(
+                    dependency.SupportedBuildIds,
+                    StringComparer.OrdinalIgnoreCase).FirstOrDefault();
+                if (incompatibleBuild is not null)
+                {
+                    throw new InvalidDataException(
+                        $"Mod '{mod.Id}' dependency '{dependency.Id}' does not support build '{incompatibleBuild}'.");
+                }
+            }
+        }
     }
 
     private static Dictionary<string, T> Index<T>(
@@ -246,6 +321,26 @@ public static class CatalogProvider
             throw new InvalidDataException($"{description} package size must be positive.");
         }
         Sha256(sha256, description);
+    }
+
+    private static void ValidateModMetadata(ModManifest mod)
+    {
+        UniqueText(mod.Dependencies, $"Mod '{mod.Id}' dependency");
+        UniqueText(mod.FlatFiles, $"Mod '{mod.Id}' flat file");
+        UniqueText(mod.Authors, $"Mod '{mod.Id}' author");
+        UniqueText(mod.Tags, $"Mod '{mod.Id}' tag");
+        UniqueText(mod.Integrations, $"Mod '{mod.Id}' integration");
+        HttpsUrl(mod.RepositoryUrl, $"Mod '{mod.Id}' repository");
+        HttpsUrl(mod.IssuesUrl, $"Mod '{mod.Id}' issues");
+    }
+
+    private static void HttpsUrl(string? value, string description)
+    {
+        if (value is not null
+            && (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new InvalidDataException($"{description} URL must use HTTPS.");
+        }
     }
 
     private static void Sha256(string? value, string description)
@@ -323,3 +418,7 @@ public static class CatalogProvider
         }
     }
 }
+
+public sealed record CustomCatalogMergeResult(
+    GameCatalog Catalog,
+    IReadOnlyList<string> RejectedReasons);

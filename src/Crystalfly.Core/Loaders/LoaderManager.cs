@@ -31,7 +31,10 @@ public sealed class LoaderManager
     }
 
     public async Task<LoaderState> GetStateAsync(CancellationToken cancellationToken = default) =>
-        await LoaderStateDetector.DetectAsync(
+        (await InspectAsync(cancellationToken)).State;
+
+    public async Task<LoaderInspection> InspectAsync(CancellationToken cancellationToken = default) =>
+        await LoaderStateDetector.InspectAsync(
             _instanceRoot, await GetReceiptAsync(cancellationToken), cancellationToken);
 
     public async Task<InstalledPackageReceipt?> GetReceiptAsync(CancellationToken cancellationToken = default) =>

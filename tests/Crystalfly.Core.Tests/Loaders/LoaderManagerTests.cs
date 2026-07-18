@@ -268,6 +268,24 @@ public sealed class LoaderManagerTests : IDisposable
     }
 
     [Fact]
+    public async Task External_BepInEx_cannot_be_repaired_uninstalled_or_overwritten()
+    {
+        var core = Path.Combine(InstanceRoot, "BepInEx", "core", "BepInEx.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(core)!);
+        File.Copy(typeof(LoaderManager).Assembly.Location, core);
+        var manager = CreateManager();
+        var package = CreateZip(("BepInEx/core/BepInEx.dll", "replacement"));
+        var manifest = Manifest("bepinex-1.0.0.0", package);
+
+        Assert.Equal(LoaderState.BepInEx, await manager.GetStateAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => manager.UninstallAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => manager.RepairFromFileAsync(manifest, package));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => manager.InstallFromFileAsync(manifest, package));
+
+        Assert.Equal(File.ReadAllBytes(typeof(LoaderManager).Assembly.Location), File.ReadAllBytes(core));
+    }
+
+    [Fact]
     public async Task Repair_receipt_failure_restores_pre_repair_drift()
     {
         var manager = CreateManager();

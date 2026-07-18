@@ -19,6 +19,17 @@ public sealed record InstanceItemViewModel(
 
 public sealed record SettingOption<T>(T Value, string Name);
 
+public sealed record MarketInstallTargetViewModel(
+    InstanceItemViewModel Instance,
+    string BuildDisplayName,
+    string LoaderDisplayName,
+    string StatusText,
+    bool IsAvailable,
+    bool RequiresLoader)
+{
+    public string DisplayName => Instance.Name;
+}
+
 public sealed record DownloadBuildOption(
     string BuildId,
     string DisplayName,

@@ -10,6 +10,22 @@ public sealed record ModManifest
 
     public required string Name { get; init; }
 
+    public string? DisplayName { get; init; }
+
+    public string? SourceName { get; init; }
+
+    public string? Description { get; init; }
+
+    public IReadOnlyList<string> Authors { get; init; } = [];
+
+    public IReadOnlyList<string> Tags { get; init; } = [];
+
+    public IReadOnlyList<string> Integrations { get; init; } = [];
+
+    public string? RepositoryUrl { get; init; }
+
+    public string? IssuesUrl { get; init; }
+
     public required string Version { get; init; }
 
     public required string DownloadUrl { get; init; }

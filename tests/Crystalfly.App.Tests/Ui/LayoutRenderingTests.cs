@@ -311,7 +311,8 @@ public sealed class LayoutRenderingTests
                     Assert.True(origin.Value.X >= -0.5 && origin.Value.Y >= -0.5,
                         $"{page}/{manageTab}: {content.GetType().Name} starts outside its button at {renderScaling:P0} scaling.");
                     Assert.True(origin.Value.X + content.Bounds.Width <= button.Bounds.Width + 0.5,
-                        $"{page}/{manageTab}: {content.GetType().Name} is clipped horizontally at {renderScaling:P0} scaling.");
+                        $"{page}/{manageTab}: {content.GetType().Name} '{(content as TextBlock)?.Text}' in button '{button.Content}' is clipped horizontally at {renderScaling:P0} scaling. "
+                        + $"Origin={origin.Value.X:F1}, content={content.Bounds.Width:F1}, button={button.Bounds.Width:F1}.");
                     Assert.True(origin.Value.Y + content.Bounds.Height <= button.Bounds.Height + 0.5,
                         $"{page}/{manageTab}: {content.GetType().Name} is clipped vertically at {renderScaling:P0} scaling.");
                 }
