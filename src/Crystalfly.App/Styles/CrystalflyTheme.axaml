@@ -63,6 +63,21 @@
         <Setter Property="FontSize" Value="16" />
     </Style>
 
+    <Style Selector="Button">
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Button StackPanel > LucideIcon">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="RenderTransform">
+            <TranslateTransform Y="-1" />
+        </Setter>
+    </Style>
+
+    <Style Selector="Button StackPanel > TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
     <Style Selector="TextBlock.cfp-brand">
         <Setter Property="FontSize" Value="18" />
         <Setter Property="FontWeight" Value="SemiBold" />
