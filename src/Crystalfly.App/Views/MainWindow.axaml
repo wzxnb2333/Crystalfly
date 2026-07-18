@@ -30,20 +30,7 @@
     <Grid RowDefinitions="Auto,Auto,Auto,*">
         <Border Grid.Row="0" Classes="cfp-topbar">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="24" IsEnabled="{Binding CanNavigate}">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Border Width="28"
-                            Height="28"
-                            CornerRadius="6"
-                            Background="{DynamicResource CfAccentBrush}">
-                        <LucideIcon Kind="Gem"
-                                    Size="16"
-                                    StrokeWidth="2"
-                                    Foreground="{DynamicResource CfOnAccentBrush}"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center" />
-                    </Border>
-                    <TextBlock Classes="cfp-brand" Text="Crystalfly" />
-                </StackPanel>
+                <TextBlock Grid.Column="0" Classes="cfp-brand" Text="Crystalfly" />
 
                 <StackPanel Grid.Column="1"
                             Orientation="Horizontal"

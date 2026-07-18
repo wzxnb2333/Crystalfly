@@ -67,14 +67,16 @@
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
-    <Style Selector="Button StackPanel > LucideIcon">
+    <Style Selector="Button StackPanel > LucideIcon,
+                     Button Grid > LucideIcon">
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="RenderTransform">
             <TranslateTransform Y="1" />
         </Setter>
     </Style>
 
-    <Style Selector="Button StackPanel > TextBlock">
+    <Style Selector="Button StackPanel > TextBlock,
+                     Button Grid > TextBlock">
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="RenderTransform">
             <TranslateTransform Y="1" />
