@@ -39,6 +39,26 @@ public sealed class LoaderManagerTests : IDisposable
     }
 
     [Fact]
+    public async Task Install_prefixed_modding_api_package_uses_game_layout_and_preserves_empty_mods_directory()
+    {
+        var manager = CreateManager();
+        var package = CreateZip(
+            ("hollow_knight_Data/Managed/Assembly-CSharp.dll", "patched"),
+            ("hollow_knight_Data/Managed/Mods/", string.Empty));
+        var manifest = Manifest("modding-api-60", package);
+
+        await manager.InstallFromFileAsync(manifest, package);
+
+        Assert.Equal(LoaderState.ModdingApi, await manager.GetStateAsync());
+        Assert.Equal("patched", await File.ReadAllTextAsync(Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "Assembly-CSharp.dll")));
+        Assert.True(Directory.Exists(Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "Mods")));
+        Assert.False(Directory.Exists(Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "hollow_knight_Data")));
+    }
+
+    [Fact]
     public async Task Local_loader_install_persists_unverified_status_and_declared_loader_state()
     {
         var manager = CreateManager();
@@ -71,6 +91,79 @@ public sealed class LoaderManagerTests : IDisposable
             InstanceRoot, "hollow_knight_Data", "Managed", "MMHOOK_Assembly-CSharp.dll")));
         Assert.True(File.Exists(Path.Combine(InstanceRoot, "BepInEx", "core", "BepInEx.dll")));
         Assert.Equal(LoaderState.BepInEx, await manager.GetStateAsync());
+    }
+
+    [Fact]
+    public async Task Switch_from_bepinex_removes_obsolete_directory_tree()
+    {
+        var manager = CreateManager();
+        var bepinexPackage = CreateZip(("BepInEx/core/BepInEx.dll", "bep"));
+        await manager.InstallFromFileAsync(
+            Manifest("bepinex-5.4.23.4", bepinexPackage), bepinexPackage);
+        var apiPackage = CreateZip(("MMHOOK_Assembly-CSharp.dll", "api"));
+
+        await manager.SwitchFromFileAsync(Manifest("modding-api-77", apiPackage), apiPackage);
+
+        Assert.False(Directory.Exists(Path.Combine(InstanceRoot, "BepInEx")));
+        Assert.Equal(LoaderState.ModdingApi, await manager.GetStateAsync());
+    }
+
+    [Fact]
+    public async Task Switch_from_bepinex_preserves_unmanaged_plugin()
+    {
+        var manager = CreateManager();
+        var bepinexPackage = CreateZip(("BepInEx/core/BepInEx.dll", "bep"));
+        await manager.InstallFromFileAsync(
+            Manifest("bepinex-5.4.23.4", bepinexPackage), bepinexPackage);
+        var plugin = Path.Combine(InstanceRoot, "BepInEx", "plugins", "manual.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(plugin)!);
+        await File.WriteAllTextAsync(plugin, "manual");
+        var apiPackage = CreateZip(("MMHOOK_Assembly-CSharp.dll", "api"));
+
+        await manager.SwitchFromFileAsync(Manifest("modding-api-77", apiPackage), apiPackage);
+
+        Assert.Equal("manual", await File.ReadAllTextAsync(plugin));
+        Assert.True(Directory.Exists(Path.Combine(InstanceRoot, "BepInEx")));
+    }
+
+    [Theory]
+    [InlineData("modding-api-37")]
+    [InlineData("modding-api-60")]
+    public async Task Switch_from_prefixed_modding_api_removes_obsolete_empty_mods_directory(
+        string packageId)
+    {
+        var manager = CreateManager();
+        var apiPackage = CreateZip(
+            ("hollow_knight_Data/Managed/Assembly-CSharp.dll", "patched"),
+            ("hollow_knight_Data/Managed/Mods/", string.Empty));
+        await manager.InstallFromFileAsync(Manifest(packageId, apiPackage), apiPackage);
+        var bepinexPackage = CreateZip(("BepInEx/core/BepInEx.dll", "bep"));
+
+        await manager.SwitchFromFileAsync(
+            Manifest("bepinex-5.4.23.4", bepinexPackage), bepinexPackage);
+
+        Assert.Equal(LoaderState.BepInEx, await manager.GetStateAsync());
+        Assert.False(Directory.Exists(Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "Mods")));
+    }
+
+    [Fact]
+    public async Task Switch_from_modding_api_preserves_mods_directory_containing_mod_file()
+    {
+        var manager = CreateManager();
+        var apiPackage = CreateZip(
+            ("hollow_knight_Data/Managed/Assembly-CSharp.dll", "patched"),
+            ("hollow_knight_Data/Managed/Mods/", string.Empty));
+        await manager.InstallFromFileAsync(Manifest("modding-api-60", apiPackage), apiPackage);
+        var mod = Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "InstalledMod.dll");
+        await File.WriteAllTextAsync(mod, "mod");
+        var bepinexPackage = CreateZip(("BepInEx/core/BepInEx.dll", "bep"));
+
+        await manager.SwitchFromFileAsync(
+            Manifest("bepinex-5.4.23.4", bepinexPackage), bepinexPackage);
+
+        Assert.Equal("mod", await File.ReadAllTextAsync(mod));
     }
 
     [Fact]
@@ -195,8 +288,10 @@ public sealed class LoaderManagerTests : IDisposable
         Assert.Equal(LoaderState.ModdingApi, await manager.GetStateAsync());
     }
 
-    [Fact]
-    public async Task Switch_receipt_failure_restores_previous_verified_loader()
+    [Theory]
+    [InlineData("modding-api-37")]
+    [InlineData("modding-api-60")]
+    public async Task Switch_receipt_failure_restores_previous_verified_loader(string packageId)
     {
         var manager = CreateManager();
         var assemblyPath = Path.Combine(InstanceRoot, "hollow_knight_Data", "Managed", "Assembly-CSharp.dll");
@@ -204,8 +299,9 @@ public sealed class LoaderManagerTests : IDisposable
         await File.WriteAllTextAsync(assemblyPath, "vanilla");
         var apiPackage = CreateZip(
             ("Assembly-CSharp.dll", "patched"),
-            ("MMHOOK_Assembly-CSharp.dll", "api"));
-        await manager.InstallFromFileAsync(Manifest("modding-api-77", apiPackage), apiPackage);
+            ("MMHOOK_Assembly-CSharp.dll", "api"),
+            ("Mods/", string.Empty));
+        await manager.InstallFromFileAsync(Manifest(packageId, apiPackage), apiPackage);
         var originalReceipt = await manager.GetReceiptAsync();
         var bepinexPackage = CreateZip(("BepInEx/core/BepInEx.dll", "bep"));
 
@@ -224,8 +320,36 @@ public sealed class LoaderManagerTests : IDisposable
         Assert.True(File.Exists(Path.Combine(
             InstanceRoot, "hollow_knight_Data", "Managed", "MMHOOK_Assembly-CSharp.dll")));
         Assert.False(File.Exists(Path.Combine(InstanceRoot, "BepInEx", "core", "BepInEx.dll")));
+        Assert.True(Directory.Exists(Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "Mods")));
         Assert.Equal("vanilla", await File.ReadAllTextAsync(Path.Combine(
             originalReceipt!.BackupRoot, "hollow_knight_Data", "Managed", "Assembly-CSharp.dll")));
+    }
+
+    [Fact]
+    public async Task Switch_from_bepinex_receipt_failure_restores_obsolete_directory_tree()
+    {
+        var manager = CreateManager();
+        var bepinexPackage = CreateZip(("BepInEx/core/BepInEx.dll", "bep"));
+        await manager.InstallFromFileAsync(
+            Manifest("bepinex-5.4.23.4", bepinexPackage), bepinexPackage);
+        var apiPackage = CreateZip(("MMHOOK_Assembly-CSharp.dll", "api"));
+
+        File.SetAttributes(ReceiptPath, FileAttributes.ReadOnly);
+        try
+        {
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => manager.SwitchFromFileAsync(
+                Manifest("modding-api-77", apiPackage), apiPackage));
+        }
+        finally
+        {
+            ClearReadOnlyAttributes();
+        }
+
+        var core = Path.Combine(InstanceRoot, "BepInEx", "core");
+        Assert.True(Directory.Exists(core));
+        Assert.Equal("bep", await File.ReadAllTextAsync(Path.Combine(core, "BepInEx.dll")));
+        Assert.Equal(LoaderState.BepInEx, await manager.GetStateAsync());
     }
 
     [Fact]
@@ -265,6 +389,24 @@ public sealed class LoaderManagerTests : IDisposable
         Assert.Contains("manual", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(LoaderState.Drifted, await manager.GetStateAsync());
         Assert.True(File.Exists(unmanaged));
+    }
+
+    [Fact]
+    public async Task External_BepInEx_cannot_be_repaired_uninstalled_or_overwritten()
+    {
+        var core = Path.Combine(InstanceRoot, "BepInEx", "core", "BepInEx.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(core)!);
+        File.Copy(typeof(LoaderManager).Assembly.Location, core);
+        var manager = CreateManager();
+        var package = CreateZip(("BepInEx/core/BepInEx.dll", "replacement"));
+        var manifest = Manifest("bepinex-1.0.0.0", package);
+
+        Assert.Equal(LoaderState.BepInEx, await manager.GetStateAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => manager.UninstallAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => manager.RepairFromFileAsync(manifest, package));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => manager.InstallFromFileAsync(manifest, package));
+
+        Assert.Equal(File.ReadAllBytes(typeof(LoaderManager).Assembly.Location), File.ReadAllBytes(core));
     }
 
     [Fact]

@@ -267,6 +267,10 @@ public sealed class ModManager
         {
             throw new InvalidOperationException($"Local mod '{manifest.Id}' cannot be updated automatically.");
         }
+        if (!string.Equals(current.LoaderId, manifest.LoaderId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Mod '{manifest.Id}' cannot change loaders during an update.");
+        }
         EnsureDependenciesInstalled(manifest.Dependencies, installed);
         await VerifyFilesAsync(current, cancellationToken);
 

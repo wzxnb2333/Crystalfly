@@ -165,6 +165,51 @@
         "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
         "id": { "$ref": "#/$defs/modIdentifier" },
         "name": { "type": "string", "minLength": 1 },
+        "displayName": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ]
+        },
+        "sourceName": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ]
+        },
+        "description": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ]
+        },
+        "authors": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "tags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "integrations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "repositoryUrl": {
+          "oneOf": [
+            { "$ref": "#/$defs/httpsUrl" },
+            { "type": "null" }
+          ]
+        },
+        "issuesUrl": {
+          "oneOf": [
+            { "$ref": "#/$defs/httpsUrl" },
+            { "type": "null" }
+          ]
+        },
         "version": { "type": "string", "minLength": 1 },
         "downloadUrl": { "$ref": "#/$defs/httpsUrl" },
         "sizeBytes": {

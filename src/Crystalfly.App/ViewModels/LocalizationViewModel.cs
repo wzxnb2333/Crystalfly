@@ -8,7 +8,7 @@ public sealed class LocalizationViewModel : ViewModelBase
     private static readonly IReadOnlyDictionary<string, string> English = new Dictionary<string, string>
     {
         ["NavLaunch"] = "Launch",
-        ["NavVersions"] = "Versions",
+        ["NavVersions"] = "Instances",
         ["NavManage"] = "Manage",
         ["NavSpeedrun"] = "Speedrun",
         ["NavDownloads"] = "Downloads",
@@ -32,7 +32,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["Overview"] = "Overview",
         ["Loader"] = "Loader",
         ["Mods"] = "Mods",
-        ["Snapshots"] = "Snapshots",
+        ["Snapshots"] = "Save Snapshots",
         ["Logs"] = "Logs",
         ["SpeedrunTitle"] = "Official speedrun environments",
         ["SpeedrunHint"] = "Create a dedicated verified copy. Daily instances are never modified.",
@@ -73,6 +73,8 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["SnapshotNameRequired"] = "Enter a snapshot name."
         ,["LoaderConflict"] = "Conflicting loader files require manual repair."
         ,["RepairBeforeSwitch"] = "Repair the current loader before switching."
+        ,["LoaderSwitchBlockedByMods"] = "Uninstall every managed mod, including disabled and local mods, before switching loaders. The current loader and mod files were left unchanged."
+        ,["ExternalLoaderBlocked"] = "An unmanaged loader is present. To protect the original game files, Crystalfly will not overwrite or repair it. Download or create a clean instance before installing a loader."
         ,["LoaderRequired"] = "Install the required loader first."
         ,["WrongLoader"] = "This mod requires another loader"
         ,["UpdateRequired"] = "Update is required before reinstalling"
@@ -86,7 +88,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["EnableDisable"] = "Enable / disable"
         ,["Install"] = "Install"
         ,["AvailableMods"] = "Available mods"
-        ,["InstalledMods"] = "Installed mods"
+        ,["InstalledMods"] = "Installed Mods"
         ,["SnapshotName"] = "Snapshot name"
         ,["Template"] = "Template"
         ,["EnvironmentName"] = "Environment name"
@@ -110,7 +112,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["NoInstancesAction"] = "No instances found. Choose a version root in Settings or refresh."
         ,["NoLoadersAction"] = "No compatible loaders. Refresh after checking the selected build."
         ,["NoAvailableModsAction"] = "No compatible mods. Check catalog sources in Settings."
-        ,["NoInstalledModsAction"] = "No managed mods. Install a compatible mod or import a local package."
+        ,["NoInstalledModsAction"] = "No managed mods are installed in this instance."
         ,["NoSnapshotsAction"] = "No snapshots. Enter a name above to create the first one."
         ,["NoSpeedrunTemplatesAction"] = "No templates available. Check catalog sources in Settings."
         ,["NoDownloadBuildsAction"] = "No builds available. Check catalog sources in Settings."
@@ -162,12 +164,47 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["ConfirmBulkUninstallTitle"] = "Uninstall selected mods?"
         ,["ConfirmBulkUninstallMessage"] = "The selected managed mods will be removed from this instance."
         ,["CannotUninstallDependents"] = "These installed mods depend on the selection:"
+        ,["GameVersions"] = "Game versions"
+        ,["ModMarket"] = "Mod Market"
+        ,["MarketTitle"] = "Discover mods"
+        ,["MarketHint"] = "Browse the official HK ModLinks catalog and install a compatible release into an instance."
+        ,["MarketSearch"] = "Search mods"
+        ,["MarketBuild"] = "Game build"
+        ,["MarketLoader"] = "Loader"
+        ,["MarketSource"] = "Source"
+        ,["MarketTag"] = "Tag"
+        ,["MarketEmpty"] = "No mods match the current filters."
+        ,["ViewDetails"] = "View details"
+        ,["BackToMarket"] = "Back to Mod Market"
+        ,["Authors"] = "Authors"
+        ,["Tags"] = "Tags"
+        ,["Integrations"] = "Integrations"
+        ,["SupportedBuilds"] = "Supported builds"
+        ,["Dependencies"] = "Dependencies"
+        ,["Source"] = "Source"
+        ,["Repository"] = "Repository"
+        ,["Issues"] = "Issues"
+        ,["InstallModTitle"] = "Install mod"
+        ,["InstallToInstance"] = "Choose target instance"
+        ,["NoInstallTargets"] = "No instances are available for this mod."
+        ,["InstallSelectedMod"] = "Install selected mod"
+        ,["MarketWillInstallLoader"] = "Will install {0} first"
+        ,["MarketWrongLoaderBlocked"] = "Another Loader is installed"
+        ,["MarketDriftedBlocked"] = "Loader files have drifted and must be repaired first"
+        ,["MarketIncompatibleBlocked"] = "This game build is not compatible with the Mod and its dependencies"
+        ,["OfficialSpeedrunModBlocked"] = "Official speedrun instances cannot install Mods"
+        ,["ExternalLoader"] = "External"
+        ,["HKModLinks"] = "HK ModLinks"
+        ,["HKModLinksHint"] = "Official mod catalog · read-only"
+        ,["CatalogRemote"] = "Remote"
+        ,["CatalogCached"] = "Cached"
+        ,["CatalogFailed"] = "Failed"
     };
 
     private static readonly IReadOnlyDictionary<string, string> Chinese = new Dictionary<string, string>
     {
         ["NavLaunch"] = "启动",
-        ["NavVersions"] = "版本",
+        ["NavVersions"] = "实例",
         ["NavManage"] = "管理",
         ["NavSpeedrun"] = "速通",
         ["NavDownloads"] = "下载",
@@ -191,7 +228,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["Overview"] = "概览",
         ["Loader"] = "Loader",
         ["Mods"] = "Mods",
-        ["Snapshots"] = "快照",
+        ["Snapshots"] = "存档快照",
         ["Logs"] = "日志",
         ["SpeedrunTitle"] = "正式速通环境",
         ["SpeedrunHint"] = "创建专用验证副本，不修改日常实例。",
@@ -232,6 +269,8 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["SnapshotNameRequired"] = "请输入快照名称。"
         ,["LoaderConflict"] = "存在冲突的 Loader 文件，需要手动修复。"
         ,["RepairBeforeSwitch"] = "切换前请先修复当前 Loader。"
+        ,["LoaderSwitchBlockedByMods"] = "切换 Loader 前请先卸载全部受管 Mod（包括已停用和本地 Mod）；当前 Loader 与 Mod 文件均未更改。"
+        ,["ExternalLoaderBlocked"] = "检测到未由 Crystalfly 管理的 Loader。为了保护原始游戏文件，无法直接覆盖或修复；请先下载或创建干净实例，再安装 Loader。"
         ,["LoaderRequired"] = "请先安装所需 Loader。"
         ,["WrongLoader"] = "此 Mod 需要其他 Loader"
         ,["UpdateRequired"] = "重新安装前需要先更新"
@@ -245,7 +284,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["EnableDisable"] = "启用 / 停用"
         ,["Install"] = "安装"
         ,["AvailableMods"] = "可用 Mods"
-        ,["InstalledMods"] = "已安装 Mods"
+        ,["InstalledMods"] = "已安装 Mod"
         ,["SnapshotName"] = "快照名称"
         ,["Template"] = "模板"
         ,["EnvironmentName"] = "环境名称"
@@ -269,7 +308,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["NoInstancesAction"] = "未找到实例。请在设置中选择版本根目录，或刷新后重试。"
         ,["NoLoadersAction"] = "没有兼容的 Loader。请检查所选版本后刷新。"
         ,["NoAvailableModsAction"] = "没有兼容的 Mod。请在设置中检查目录源。"
-        ,["NoInstalledModsAction"] = "没有受管理的 Mod。请安装兼容 Mod 或导入本地包。"
+        ,["NoInstalledModsAction"] = "此实例尚未安装受管理的 Mod。"
         ,["NoSnapshotsAction"] = "尚无快照。请在上方输入名称并创建第一个快照。"
         ,["NoSpeedrunTemplatesAction"] = "没有可用模板。请在设置中检查目录源。"
         ,["NoDownloadBuildsAction"] = "没有可用版本。请在设置中检查目录源。"
@@ -321,6 +360,41 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["ConfirmBulkUninstallTitle"] = "卸载所选 Mods？"
         ,["ConfirmBulkUninstallMessage"] = "将从此实例移除所选的受管理 Mods。"
         ,["CannotUninstallDependents"] = "以下已安装 Mods 依赖当前选择："
+        ,["GameVersions"] = "游戏版本"
+        ,["ModMarket"] = "Mod 市场"
+        ,["MarketTitle"] = "发现 Mod"
+        ,["MarketHint"] = "浏览官方 HK ModLinks 目录，并将兼容版本安装到实例。"
+        ,["MarketSearch"] = "搜索 Mod"
+        ,["MarketBuild"] = "游戏版本"
+        ,["MarketLoader"] = "Loader"
+        ,["MarketSource"] = "来源"
+        ,["MarketTag"] = "标签"
+        ,["MarketEmpty"] = "没有符合当前筛选条件的 Mod。"
+        ,["ViewDetails"] = "查看详情"
+        ,["BackToMarket"] = "返回 Mod 市场"
+        ,["Authors"] = "作者"
+        ,["Tags"] = "标签"
+        ,["Integrations"] = "集成"
+        ,["SupportedBuilds"] = "支持版本"
+        ,["Dependencies"] = "依赖"
+        ,["Source"] = "来源"
+        ,["Repository"] = "仓库"
+        ,["Issues"] = "问题反馈"
+        ,["InstallModTitle"] = "安装 Mod"
+        ,["InstallToInstance"] = "选择目标实例"
+        ,["NoInstallTargets"] = "没有可用于安装此 Mod 的实例。"
+        ,["InstallSelectedMod"] = "安装所选 Mod"
+        ,["MarketWillInstallLoader"] = "将先安装 {0}"
+        ,["MarketWrongLoaderBlocked"] = "已安装其他 Loader"
+        ,["MarketDriftedBlocked"] = "Loader 文件已漂移，请先修复"
+        ,["MarketIncompatibleBlocked"] = "此游戏版本与 Mod 或其依赖不兼容"
+        ,["OfficialSpeedrunModBlocked"] = "正式速通实例禁止安装 Mod"
+        ,["ExternalLoader"] = "外部安装"
+        ,["HKModLinks"] = "HK ModLinks"
+        ,["HKModLinksHint"] = "官方 Mod 目录 · 只读"
+        ,["CatalogRemote"] = "远程目录"
+        ,["CatalogCached"] = "已缓存"
+        ,["CatalogFailed"] = "加载失败"
     };
 
     private IReadOnlyDictionary<string, string> values = Chinese;

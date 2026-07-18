@@ -147,6 +147,28 @@ public sealed class ModManagerTests : IDisposable
     }
 
     [Fact]
+    public async Task Update_rejects_a_loader_change_before_writing_files()
+    {
+        var manager = CreateManager();
+        var oldPackage = CreateZip(("mod.dll", "old"));
+        await manager.InstallFromFileAsync(
+            Manifest("test", "TestMod", "modding-api-77", oldPackage), oldPackage);
+        var newPackage = CreateZip(("mod.dll", "new"));
+        var changedLoader = Manifest("test", "TestMod", "bepinex-5.4.23.4", newPackage) with
+        {
+            Version = "2.0"
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            manager.UpdateFromFileAsync(changedLoader, newPackage));
+
+        Assert.Equal("old", await File.ReadAllTextAsync(Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "TestMod", "mod.dll")));
+        Assert.False(Directory.Exists(Path.Combine(InstanceRoot, "BepInEx", "plugins", "TestMod")));
+        Assert.Equal("modding-api-77", Assert.Single(await manager.GetInstalledAsync()).LoaderId);
+    }
+
+    [Fact]
     public async Task Update_package_failure_leaves_old_files_and_receipt_unchanged()
     {
         var manager = CreateManager();

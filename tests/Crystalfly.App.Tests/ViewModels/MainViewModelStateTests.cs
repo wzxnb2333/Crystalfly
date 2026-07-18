@@ -1,11 +1,17 @@
 using Crystalfly.App.ViewModels;
 using Crystalfly.Core.Configuration;
+using Crystalfly.Core.Instances;
+using Crystalfly.Core.Loaders;
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Mods;
+using Crystalfly.Core.Serialization;
 using Crystalfly.Steam.Downloads;
 using Crystalfly.Steam.Security;
 using System.Collections.Concurrent;
+using System.IO.Compression;
 using System.Reflection;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace Crystalfly.App.Tests.ViewModels;
 
@@ -59,6 +65,211 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Equal(UiLanguage.English, saved.Language);
         Assert.Equal(UiTheme.Dark, saved.Theme);
         Assert.Equal("practice", saved.CurrentInstanceId);
+    }
+
+    [Fact]
+    public async Task Selecting_instance_defaults_to_its_only_compatible_loader()
+    {
+        var viewModel = CreateViewModel();
+        var loader = new LoaderManifest
+        {
+            Id = "modding-api-77",
+            Name = "Modding API",
+            Version = "77",
+            DownloadUrl = "https://example.invalid/loader.zip",
+            Sha256 = new string('A', 64),
+            SupportedBuildIds = ["1.5.78.11833"]
+        };
+        SetCatalog(viewModel, new GameCatalog { Loaders = [loader] });
+
+        viewModel.SelectedInstance = new InstanceItemViewModel(
+            Instance("practice", applicationData.CreateDirectory("instance")) with
+            {
+                BuildId = "1.5.78.11833"
+            },
+            "1.5.78.11833",
+            "Vanilla",
+            0);
+
+        Assert.Same(loader, viewModel.SelectedLoader);
+        await viewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task External_modding_api_install_error_remains_visible_after_failed_refresh()
+    {
+        using var test = new TestDirectory();
+        var applicationDataRoot = test.CreateDirectory("app-data");
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        Directory.CreateDirectory(Path.Combine(instanceRoot, "hollow_knight_Data", "Managed", "Mods"));
+        var loader = new LoaderManifest
+        {
+            Id = "modding-api-77",
+            Name = "Modding API",
+            Version = "77",
+            DownloadUrl = "https://example.invalid/loader.zip",
+            Sha256 = new string('A', 64),
+            SupportedBuildIds = ["1.5.78.11833"]
+        };
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(applicationDataRoot) { VersionRoot = versionRoot };
+        SetCatalog(viewModel, new GameCatalog { Loaders = [loader] });
+        viewModel.SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Drifted", 0);
+        viewModel.SelectedLoader = loader;
+
+        await viewModel.InstallOrSwitchLoaderCommand.ExecuteAsync(null);
+
+        Assert.Contains("未由 Crystalfly 管理", viewModel.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task External_bepinex_without_receipt_shows_loader_block_reason()
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        InstallExternalBepInEx(instanceRoot);
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = test.CreateDirectory("versions"),
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "BepInEx", 0)
+        };
+
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+
+        Assert.Equal(LoaderState.BepInEx, viewModel.CurrentLoaderState);
+        Assert.Equal(viewModel.Loc["ExternalLoaderBlocked"], viewModel.LoaderVerificationStatus);
+    }
+
+    [Fact]
+    public async Task External_loader_conflict_without_receipt_shows_conflict_reason()
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        InstallExternalBepInEx(instanceRoot);
+        Directory.CreateDirectory(Path.Combine(instanceRoot, "hollow_knight_Data", "Managed", "Mods"));
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = test.CreateDirectory("versions"),
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Conflict", 0)
+        };
+
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+
+        Assert.Equal(LoaderState.Conflict, viewModel.CurrentLoaderState);
+        Assert.Equal(viewModel.Loc["LoaderConflict"], viewModel.LoaderVerificationStatus);
+    }
+
+    [Fact]
+    public async Task External_bepinex_loader_switch_keeps_loader_block_reason()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        InstallExternalBepInEx(instanceRoot);
+        var loader = new LoaderManifest
+        {
+            Id = "modding-api-77",
+            Name = "Modding API",
+            Version = "77",
+            DownloadUrl = "https://example.invalid/loader.zip",
+            Sha256 = new string('A', 64),
+            SupportedBuildIds = ["1.5.78.11833"]
+        };
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot
+        };
+        SetCatalog(viewModel, new GameCatalog { Loaders = [loader] });
+        viewModel.SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "BepInEx", 0);
+        viewModel.SelectedLoader = loader;
+
+        await viewModel.InstallOrSwitchLoaderCommand.ExecuteAsync(null);
+
+        Assert.Contains(viewModel.Loc["ExternalLoaderBlocked"], viewModel.ErrorMessage);
+        Assert.DoesNotContain("There is no installed loader receipt", viewModel.ErrorMessage);
+    }
+
+    [Theory]
+    [InlineData("modding-api-77", "bepinex-5.4.23.4", true, false)]
+    [InlineData("bepinex-5.4.23.4", "modding-api-77", true, false)]
+    [InlineData("modding-api-77", "bepinex-5.4.23.4", false, false)]
+    [InlineData("bepinex-5.4.23.4", "modding-api-77", false, true)]
+    public async Task Loader_switch_with_managed_mod_receipt_is_blocked_without_changing_files(
+        string currentLoaderId,
+        string targetLoaderId,
+        bool modEnabled,
+        bool isLocal)
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "practice");
+        var stateRoot = test.CreateDirectory("versions", ".crystalfly", "instances", "practice");
+        var transactionRoot = test.CreateDirectory("versions", ".crystalfly", "transactions");
+        var packageCacheRoot = test.CreateDirectory("versions", ".crystalfly", "packages");
+        var packageRoot = test.CreateDirectory("packages");
+        var currentPackage = Path.Combine(packageRoot, "current.zip");
+        var targetPackage = Path.Combine(packageRoot, "target.zip");
+        CreateZip(currentPackage, (LoaderPackageEntry(currentLoaderId), "current-loader"));
+        CreateZip(targetPackage, (LoaderPackageEntry(targetLoaderId), "target-loader"));
+        var currentLoader = LoaderManifestFor(currentLoaderId, currentPackage);
+        var targetLoader = LoaderManifestFor(targetLoaderId, targetPackage);
+        var loaderReceiptPath = Path.Combine(stateRoot, "loader.json");
+        var loaderManager = new LoaderManager(
+            instanceRoot,
+            transactionRoot,
+            loaderReceiptPath,
+            packageCacheRoot);
+        await loaderManager.InstallFromFileAsync(currentLoader, currentPackage);
+        File.Copy(targetPackage, Path.Combine(packageCacheRoot, $"{targetLoader.Sha256}.zip"));
+
+        var modRelativePath = currentLoaderId.StartsWith("bepinex-", StringComparison.OrdinalIgnoreCase)
+            ? "BepInEx/plugins/Sample/mod.dll"
+            : "hollow_knight_Data/Managed/Mods/Sample/mod.dll";
+        var modPath = Path.Combine(instanceRoot, modRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(modPath)!);
+        await File.WriteAllTextAsync(modPath, "managed-mod");
+        var modReceiptPath = Path.Combine(test.CreateDirectory(
+            "versions", ".crystalfly", "instances", "practice", "mods"), "sample.json");
+        await AtomicJsonStore.WriteAsync(modReceiptPath, Receipt("sample", "1.0.0", modEnabled, isLocal) with
+        {
+            LoaderId = currentLoaderId,
+            InstallRoot = Path.GetDirectoryName(modRelativePath)!.Replace('\\', '/'),
+            Files =
+            [
+                new InstalledFileReceipt
+                {
+                    RelativePath = modRelativePath,
+                    Sha256 = FileSha256(modPath)
+                }
+            ]
+        });
+        var originalLoaderReceipt = await File.ReadAllBytesAsync(loaderReceiptPath);
+        var originalModReceipt = await File.ReadAllBytesAsync(modReceiptPath);
+        var originalLoaderFile = await File.ReadAllBytesAsync(
+            Path.Combine(instanceRoot, LoaderInstalledPath(currentLoaderId)));
+        var originalModFile = await File.ReadAllBytesAsync(modPath);
+
+        var record = Instance("practice", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot
+        };
+        SetCatalog(viewModel, new GameCatalog { Loaders = [currentLoader, targetLoader] });
+        viewModel.SelectedInstance = new InstanceItemViewModel(record, record.BuildId, currentLoaderId, 1);
+        viewModel.SelectedLoader = targetLoader;
+
+        await viewModel.InstallOrSwitchLoaderCommand.ExecuteAsync(null);
+
+        Assert.Contains(viewModel.Loc["LoaderSwitchBlockedByMods"], viewModel.ErrorMessage);
+        Assert.Equal(originalLoaderReceipt, await File.ReadAllBytesAsync(loaderReceiptPath));
+        Assert.Equal(originalModReceipt, await File.ReadAllBytesAsync(modReceiptPath));
+        Assert.Equal(originalLoaderFile, await File.ReadAllBytesAsync(
+            Path.Combine(instanceRoot, LoaderInstalledPath(currentLoaderId))));
+        Assert.Equal(originalModFile, await File.ReadAllBytesAsync(modPath));
     }
 
     [Fact]
@@ -333,6 +544,426 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Bulk_mod_update_rechecks_instance_build_before_writing()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "practice");
+        var stateRoot = test.CreateDirectory("versions", ".crystalfly", "instances", "practice");
+        var packageCacheRoot = test.CreateDirectory("versions", ".crystalfly", "packages");
+        var loaderPath = Path.Combine(
+            test.CreateDirectory("versions", "practice", "hollow_knight_Data", "Managed"),
+            "MMHOOK_Assembly-CSharp.dll");
+        await File.WriteAllTextAsync(loaderPath, "loader");
+        await AtomicJsonStore.WriteAsync(Path.Combine(stateRoot, "loader.json"), new InstalledPackageReceipt
+        {
+            PackageId = "modding-api-77",
+            LoaderState = LoaderState.ModdingApi,
+            Files =
+            [
+                new InstalledFileReceipt
+                {
+                    RelativePath = "hollow_knight_Data/Managed/MMHOOK_Assembly-CSharp.dll",
+                    Sha256 = FileSha256(loaderPath)
+                }
+            ]
+        });
+
+        var installedPackage = Path.Combine(test.CreateDirectory("packages"), "installed.zip");
+        var updatePackage = Path.Combine(test.CreateDirectory("updates"), "update.zip");
+        CreateZip(installedPackage, ("mod.dll", "installed"));
+        CreateZip(updatePackage, ("mod.dll", "update"));
+        var installedManifest = Manifest("debugmod", "1.0.0") with
+        {
+            LoaderId = "modding-api-77",
+            SizeBytes = new FileInfo(installedPackage).Length,
+            Sha256 = FileSha256(installedPackage),
+            SupportedBuildIds = ["build-1"]
+        };
+        var updateManifest = Manifest("debugmod", "2.0.0") with
+        {
+            LoaderId = "modding-api-77",
+            SizeBytes = new FileInfo(updatePackage).Length,
+            Sha256 = FileSha256(updatePackage),
+            SupportedBuildIds = ["other-build"]
+        };
+        File.Copy(updatePackage, Path.Combine(packageCacheRoot, $"{updateManifest.Sha256}.zip"));
+        var record = Instance("practice", instanceRoot);
+        var manager = new ModManager(
+            instanceRoot,
+            Path.Combine(versionRoot, ".crystalfly", "transactions"),
+            Path.Combine(stateRoot, "mods"),
+            packageCacheRoot);
+        var receipt = await manager.InstallFromFileAsync(installedManifest, installedPackage);
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot
+        };
+        SetCatalog(viewModel, new GameCatalog { Mods = [updateManifest] });
+        viewModel.SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "modding-api-77", 1);
+        var item = new InstalledModItemViewModel(receipt, updateManifest, static () => { })
+        {
+            IsSelected = true
+        };
+        viewModel.InstalledMods.Add(item);
+
+        await viewModel.UpdateSelectedModsCommand.ExecuteAsync(null);
+
+        Assert.Equal("1.0.0", Assert.Single(await manager.GetInstalledAsync()).Version);
+    }
+
+    [Fact]
+    public async Task Bulk_mod_update_reports_corrupt_loader_receipt_without_changing_mod()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "practice");
+        var dataRoot = test.CreateDirectory("versions", "practice", "hollow_knight_Data");
+        var stateRoot = test.CreateDirectory("versions", ".crystalfly", "instances", "practice");
+        await File.WriteAllTextAsync(Path.Combine(instanceRoot, "hollow_knight.exe"), string.Empty);
+        await File.WriteAllTextAsync(Path.Combine(dataRoot, "globalgamemanagers"), string.Empty);
+        var record = Instance("practice", instanceRoot);
+        await InstanceSidecar.SaveAsync(record);
+        var receipt = Receipt("debugmod", "1.0.0", enabled: true) with { LoaderId = "modding-api-77" };
+        var receiptPath = Path.Combine(test.CreateDirectory(
+            "versions", ".crystalfly", "instances", "practice", "mods"), "debugmod.json");
+        await AtomicJsonStore.WriteAsync(receiptPath, receipt);
+        var updateManifest = Manifest("debugmod", "2.0.0") with
+        {
+            LoaderId = "modding-api-77",
+            SupportedBuildIds = [record.BuildId]
+        };
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot
+        };
+        SetCatalog(viewModel, new GameCatalog { Mods = [updateManifest] });
+        viewModel.SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Vanilla", 1);
+        for (var attempt = 0; attempt < 100 && viewModel.InstalledMods.Count == 0; attempt++)
+        {
+            await Task.Delay(10);
+        }
+        Assert.Single(viewModel.InstalledMods).IsSelected = true;
+        var originalReceipt = await File.ReadAllTextAsync(receiptPath);
+        await File.WriteAllTextAsync(Path.Combine(stateRoot, "loader.json"), "not-json");
+
+        await viewModel.UpdateSelectedModsCommand.ExecuteAsync(null);
+
+        Assert.False(string.IsNullOrWhiteSpace(viewModel.ErrorMessage));
+        Assert.Equal(originalReceipt, await File.ReadAllTextAsync(receiptPath));
+    }
+
+    [Fact]
+    public void Mod_market_navigation_and_search_are_independent_from_installed_mods()
+    {
+        var viewModel = CreateViewModel();
+        var debugMod = Manifest("debugmod", "2.0.0");
+        var benchwarp = Manifest("benchwarp", "1.0.0");
+        viewModel.MarketMods.Add(debugMod);
+        viewModel.MarketMods.Add(benchwarp);
+        viewModel.InstalledMods.Add(new InstalledModItemViewModel(
+            Receipt("debugmod", "1.0.0", enabled: true),
+            debugMod,
+            static () => { }));
+
+        viewModel.ModSearchText = "debug";
+        viewModel.SelectDownloadSectionCommand.Execute("ModMarket");
+        viewModel.MarketSearchText = "bench";
+
+        Assert.True(viewModel.IsModMarketDownloadSection);
+        Assert.False(viewModel.IsGameVersionsDownloadSection);
+        Assert.Single(viewModel.VisibleMarketMods);
+        Assert.Equal("benchwarp", viewModel.VisibleMarketMods[0].Id);
+        Assert.Single(viewModel.VisibleInstalledMods);
+
+        viewModel.OpenMarketModCommand.Execute(benchwarp);
+        Assert.True(viewModel.IsMarketDetail);
+        Assert.Same(benchwarp, viewModel.SelectedMarketMod);
+
+        viewModel.BackToMarketCommand.Execute(null);
+        Assert.True(viewModel.IsMarketList);
+        Assert.Null(viewModel.SelectedMarketMod);
+    }
+
+    [Fact]
+    public void Mod_market_filters_by_exact_build_loader_source_and_tag()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.MarketMods.Add(Manifest("debugmod", "2.0.0") with
+        {
+            LoaderId = "modding-api-77",
+            SupportedBuildIds = ["1.5.78.11833"],
+            SourceName = "HK ModLinks",
+            Tags = ["Utility"]
+        });
+        viewModel.MarketMods.Add(Manifest("overlay", "1.0.0") with
+        {
+            LoaderId = "bepinex-5.4.23.4",
+            SupportedBuildIds = ["latest-stable"],
+            SourceName = "custom:test",
+            Tags = ["Visual"]
+        });
+
+        viewModel.SelectedMarketBuildOption = new("1.5.78.11833", "1.5.78.11833");
+        viewModel.SelectedMarketLoaderOption = new("modding-api-77", "Modding API v77");
+        viewModel.SelectedMarketSourceOption = new("HK ModLinks", "HK ModLinks");
+        viewModel.SelectedMarketTagOption = new("Utility", "Utility");
+
+        Assert.Single(viewModel.VisibleMarketMods);
+        Assert.Equal("debugmod", viewModel.VisibleMarketMods[0].Id);
+    }
+
+    [Fact]
+    public async Task Market_install_target_preparation_discards_results_when_selection_changes()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var slowRoot = test.CreateDirectory("versions", "slow");
+        var vanillaRoot = test.CreateDirectory("versions", "vanilla");
+        var hookPath = Path.Combine(
+            test.CreateDirectory("versions", "slow", "hollow_knight_Data", "Managed"),
+            "MMHOOK_Assembly-CSharp.dll");
+        await using (var hook = new FileStream(hookPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        {
+            hook.SetLength(64L * 1024 * 1024);
+        }
+        await AtomicJsonStore.WriteAsync(
+            Path.Combine(test.CreateDirectory(
+                "versions", ".crystalfly", "instances", "slow"), "loader.json"),
+            new InstalledPackageReceipt
+            {
+                PackageId = "modding-api-77",
+                LoaderState = LoaderState.ModdingApi,
+                Files =
+                [
+                    new InstalledFileReceipt
+                    {
+                        RelativePath = "hollow_knight_Data/Managed/MMHOOK_Assembly-CSharp.dll",
+                        Sha256 = new string('0', 64)
+                    }
+                ]
+            });
+        var first = Manifest("first", "1.0.0") with
+        {
+            LoaderId = "modding-api-77",
+            SupportedBuildIds = ["build-1"]
+        };
+        var second = Manifest("second", "1.0.0") with
+        {
+            LoaderId = "bepinex-5.4.23.4",
+            SupportedBuildIds = ["build-1"]
+        };
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot,
+            SelectedMarketMod = first
+        };
+        SetCatalog(viewModel, new GameCatalog { Mods = [first, second] });
+        viewModel.Instances.Add(new InstanceItemViewModel(
+            Instance("slow", slowRoot), "build-1", "modding-api-77", 0));
+        viewModel.Instances.Add(new InstanceItemViewModel(
+            Instance("vanilla", vanillaRoot), "build-1", "Vanilla", 0));
+
+        var preparation = viewModel.PrepareMarketInstallTargetsCommand.ExecuteAsync(null);
+        Assert.False(preparation.IsCompleted);
+        viewModel.SelectedMarketMod = second;
+
+        await preparation;
+
+        Assert.Empty(viewModel.MarketInstallTargets);
+        Assert.Null(viewModel.SelectedMarketInstallTarget);
+    }
+
+    [Fact]
+    public async Task Market_install_targets_show_loader_bootstrap_and_block_official_speedrun_instances()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var normalRoot = test.CreateDirectory("versions", "practice");
+        var speedrunRoot = test.CreateDirectory("versions", "race");
+        var manifest = Manifest("benchwarp", "1.0.0") with
+        {
+            LoaderId = "modding-api-77",
+            SupportedBuildIds = ["1.5.78.11833"]
+        };
+        var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        SetCatalog(viewModel, new GameCatalog
+        {
+            Loaders =
+            [
+                new LoaderManifest
+                {
+                    Id = "modding-api-77",
+                    Name = "Modding API v77",
+                    Version = "77",
+                    DownloadUrl = "https://example.invalid/loader.zip",
+                    Sha256 = new string('B', 64),
+                    SupportedBuildIds = ["1.5.78.11833"]
+                }
+            ],
+            Mods = [manifest]
+        });
+        viewModel.SelectedMarketMod = manifest;
+        viewModel.Instances.Add(new InstanceItemViewModel(
+            Instance("practice", normalRoot) with { BuildId = "1.5.78.11833", Name = "Practice" },
+            "1.5.78.11833",
+            "Vanilla",
+            0));
+        viewModel.Instances.Add(new InstanceItemViewModel(
+            Instance("race", speedrunRoot) with
+            {
+                BuildId = "1.5.78.11833",
+                Name = "Race",
+                Purpose = InstancePurpose.OfficialSpeedrun
+            },
+            "1.5.78.11833",
+            "Vanilla",
+            0));
+
+        await viewModel.PrepareMarketInstallTargetsCommand.ExecuteAsync(null);
+
+        Assert.Equal(2, viewModel.MarketInstallTargets.Count);
+        var practice = Assert.Single(viewModel.MarketInstallTargets, target => target.Instance.Id == "practice");
+        Assert.True(practice.IsAvailable);
+        Assert.True(practice.RequiresLoader);
+        Assert.Contains("Modding API v77", practice.StatusText, StringComparison.OrdinalIgnoreCase);
+        var race = Assert.Single(viewModel.MarketInstallTargets, target => target.Instance.Id == "race");
+        Assert.False(race.IsAvailable);
+        Assert.Contains(viewModel.Loc["OfficialSpeedrunModBlocked"], race.StatusText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Market_install_bootstraps_required_loader_before_installing_mod()
+    {
+        using var test = new TestDirectory();
+        var applicationDataRoot = test.CreateDirectory("app-data");
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "practice");
+        var managedRoot = test.CreateDirectory("versions", "practice", "hollow_knight_Data", "Managed");
+        await File.WriteAllTextAsync(Path.Combine(instanceRoot, "hollow_knight.exe"), string.Empty);
+        await File.WriteAllTextAsync(
+            Path.Combine(instanceRoot, "hollow_knight_Data", "globalgamemanagers"),
+            string.Empty);
+        await File.WriteAllTextAsync(Path.Combine(managedRoot, "Assembly-CSharp.dll"), "vanilla");
+        var record = Instance("practice", instanceRoot) with
+        {
+            Name = "Practice",
+            BuildId = "1.5.78.11833"
+        };
+        await InstanceSidecar.SaveAsync(record);
+
+        var packages = test.CreateDirectory("packages");
+        var loaderPackage = Path.Combine(packages, "loader.zip");
+        var modPackage = Path.Combine(packages, "mod.zip");
+        CreateZip(loaderPackage, ("MMHOOK_Assembly-CSharp.dll", "loader"));
+        CreateZip(modPackage, ("mod.dll", "mod"));
+        var loaderHash = FileSha256(loaderPackage);
+        var modHash = FileSha256(modPackage);
+        var cacheRoot = test.CreateDirectory("versions", ".crystalfly", "packages");
+        File.Copy(loaderPackage, Path.Combine(cacheRoot, $"{loaderHash}.zip"));
+        File.Copy(modPackage, Path.Combine(cacheRoot, $"{modHash}.zip"));
+
+        var loader = new LoaderManifest
+        {
+            Id = "modding-api-77",
+            Name = "Modding API v77",
+            Version = "77",
+            DownloadUrl = "https://example.invalid/loader.zip",
+            SizeBytes = new FileInfo(loaderPackage).Length,
+            Sha256 = loaderHash,
+            SupportedBuildIds = ["1.5.78.11833"]
+        };
+        var mod = Manifest("sample-mod", "1.0.0") with
+        {
+            Name = "Sample Mod",
+            LoaderId = loader.Id,
+            DownloadUrl = "https://example.invalid/mod.zip",
+            SizeBytes = new FileInfo(modPackage).Length,
+            Sha256 = modHash,
+            SupportedBuildIds = ["1.5.78.11833"]
+        };
+        await using var viewModel = new MainViewModel(applicationDataRoot) { VersionRoot = versionRoot };
+        SetCatalog(viewModel, new GameCatalog { Loaders = [loader], Mods = [mod] });
+        viewModel.Instances.Add(new InstanceItemViewModel(record, "1.5.78.11833", "Vanilla", 0));
+        viewModel.SelectedMarketMod = mod;
+        await viewModel.PrepareMarketInstallTargetsCommand.ExecuteAsync(null);
+
+        await viewModel.InstallMarketModCommand.ExecuteAsync(null);
+
+        Assert.Null(viewModel.ErrorMessage);
+        Assert.True(File.Exists(Path.Combine(managedRoot, "MMHOOK_Assembly-CSharp.dll")));
+        Assert.True(File.Exists(Path.Combine(managedRoot, "Mods", "Sample Mod", "mod.dll")));
+    }
+
+    [Fact]
+    public async Task Market_install_target_inspection_failure_blocks_only_that_instance()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "broken");
+        var stateRoot = test.CreateDirectory(
+            "versions",
+            ".crystalfly",
+            "instances",
+            "broken");
+        await File.WriteAllTextAsync(Path.Combine(stateRoot, "loader.json"), "not-json");
+        var mod = Manifest("sample-mod", "1.0.0") with
+        {
+            LoaderId = "modding-api-77",
+            SupportedBuildIds = ["1.5.78.11833"]
+        };
+        var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        SetCatalog(viewModel, new GameCatalog { Mods = [mod] });
+        viewModel.SelectedMarketMod = mod;
+        viewModel.Instances.Add(new InstanceItemViewModel(
+            Instance("broken", instanceRoot) with { BuildId = "1.5.78.11833" },
+            "1.5.78.11833",
+            "Unknown",
+            0));
+
+        await viewModel.PrepareMarketInstallTargetsCommand.ExecuteAsync(null);
+
+        var target = Assert.Single(viewModel.MarketInstallTargets);
+        Assert.False(target.IsAvailable);
+        Assert.Contains(viewModel.Loc["OperationFailed"], target.StatusText, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("hkmod:MissingDependency")]
+    [InlineData("custom:test:MissingDependency")]
+    public async Task Market_install_target_with_missing_dependency_is_unavailable(string missingId)
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "practice");
+        var mod = Manifest("hkmod:Root", "1.0.0") with
+        {
+            LoaderId = "modding-api-77",
+            SupportedBuildIds = ["1.5.78.11833"],
+            Dependencies = [missingId]
+        };
+        var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        SetCatalog(viewModel, new GameCatalog { Mods = [mod] });
+        viewModel.SelectedMarketMod = mod;
+        viewModel.Instances.Add(new InstanceItemViewModel(
+            Instance("practice", instanceRoot) with { BuildId = "1.5.78.11833" },
+            "1.5.78.11833",
+            "Vanilla",
+            0));
+
+        await viewModel.PrepareMarketInstallTargetsCommand.ExecuteAsync(null);
+
+        var target = Assert.Single(viewModel.MarketInstallTargets);
+        Assert.False(target.IsAvailable);
+        Assert.Null(viewModel.SelectedMarketInstallTarget);
+        Assert.Contains(missingId, target.StatusText, StringComparison.Ordinal);
+        await viewModel.DisposeAsync();
+    }
+
+    [Fact]
     public async Task Language_change_refreshes_localized_bindings_and_selected_option()
     {
         var viewModel = CreateViewModel();
@@ -350,6 +981,80 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Same(
             viewModel.LanguageOptions.Single(option => option.Value == english.Value),
             viewModel.SelectedLanguage);
+        await viewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Applying_language_notifies_official_catalog_labels()
+    {
+        var viewModel = CreateViewModel();
+        SetOfficialCatalogResult(viewModel, new(
+            Crystalfly.Core.Catalog.OfficialCatalogLoadStatus.Cached,
+            new GameCatalog(),
+            "77",
+            650,
+            null));
+        var changedProperties = new List<string?>();
+        viewModel.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
+
+        InvokeApplyLanguage(viewModel, UiLanguage.English);
+
+        Assert.Contains(nameof(MainViewModel.OfficialModCatalogStatus), changedProperties);
+        Assert.Contains(nameof(MainViewModel.OfficialModCatalogSummary), changedProperties);
+        Assert.Contains(nameof(MainViewModel.OfficialModCatalogError), changedProperties);
+        await viewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Language_change_rebuilds_all_mod_market_filter_labels()
+    {
+        var viewModel = CreateViewModel();
+        InvokeRebuildSettingOptions(viewModel);
+        viewModel.SelectedLanguage = viewModel.LanguageOptions.Single(option =>
+            option.Value == UiLanguage.SimplifiedChinese);
+        SetCatalog(viewModel, new GameCatalog
+        {
+            Builds =
+            [
+                new GameBuild
+                {
+                    Id = "1.5.78.11833",
+                    DisplayVersion = "1.5.78.11833",
+                    ManifestId = "0",
+                    ExecutableSha256 = new string('C', 64),
+                    GlobalGameManagersSha256 = new string('D', 64)
+                }
+            ],
+            Loaders =
+            [
+                new LoaderManifest
+                {
+                    Id = "modding-api-77",
+                    Name = "Modding API",
+                    Version = "77",
+                    DownloadUrl = "https://example.invalid/api.zip",
+                    Sha256 = new string('B', 64),
+                    SupportedBuildIds = ["1.5.78.11833"]
+                }
+            ],
+            Mods =
+            [
+                Manifest("debugmod", "2.0.0") with
+                {
+                    LoaderId = "modding-api-77",
+                    SupportedBuildIds = ["1.5.78.11833"],
+                    SourceName = "HK ModLinks",
+                    Tags = ["Utility"]
+                }
+            ]
+        });
+        InvokeRebuildMarketCatalog(viewModel);
+        Assert.All(MarketFilterLabels(viewModel), label => Assert.Equal("全部状态", label));
+
+        viewModel.SelectedLanguage = viewModel.LanguageOptions.Single(option =>
+            option.Value == UiLanguage.English);
+
+        Assert.All(MarketFilterLabels(viewModel), label => Assert.Equal("All statuses", label));
         await viewModel.DisposeAsync();
     }
 
@@ -447,6 +1152,27 @@ public sealed class MainViewModelStateTests : IDisposable
         LoaderId = "modding-api"
     };
 
+    private static LoaderManifest LoaderManifestFor(string id, string packagePath) => new()
+    {
+        Id = id,
+        Name = id,
+        Version = id[(id.LastIndexOf('-') + 1)..],
+        DownloadUrl = "https://example.invalid/loader.zip",
+        SizeBytes = new FileInfo(packagePath).Length,
+        Sha256 = FileSha256(packagePath),
+        SupportedBuildIds = ["1.5.78.11833"]
+    };
+
+    private static string LoaderPackageEntry(string id) =>
+        id.StartsWith("bepinex-", StringComparison.OrdinalIgnoreCase)
+            ? "BepInEx/core/BepInEx.dll"
+            : "MMHOOK_Assembly-CSharp.dll";
+
+    private static string LoaderInstalledPath(string id) =>
+        id.StartsWith("bepinex-", StringComparison.OrdinalIgnoreCase)
+            ? Path.Combine("BepInEx", "core", "BepInEx.dll")
+            : Path.Combine("hollow_knight_Data", "Managed", "MMHOOK_Assembly-CSharp.dll");
+
     private static InstanceRecord Instance(string id, string rootPath) => new()
     {
         Id = id,
@@ -458,13 +1184,21 @@ public sealed class MainViewModelStateTests : IDisposable
 
     private static Task InvokeLoadInstanceDetailsAsync(
         MainViewModel viewModel,
-        InstanceRecord record)
+        InstanceRecord record,
+        long generation = 0)
     {
         var method = typeof(MainViewModel).GetMethod(
             "LoadInstanceDetailsAsync",
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(method);
-        return Assert.IsAssignableFrom<Task>(method.Invoke(viewModel, [record, 0L]));
+        return Assert.IsAssignableFrom<Task>(method.Invoke(viewModel, [record, generation]));
+    }
+
+    private static void InstallExternalBepInEx(string instanceRoot)
+    {
+        var coreRoot = Path.Combine(instanceRoot, "BepInEx", "core");
+        Directory.CreateDirectory(coreRoot);
+        File.Copy(typeof(MainViewModel).Assembly.Location, Path.Combine(coreRoot, "BepInEx.dll"));
     }
 
     private static void InvokeRebuildSettingOptions(MainViewModel viewModel)
@@ -474,6 +1208,69 @@ public sealed class MainViewModelStateTests : IDisposable
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(method);
         method.Invoke(viewModel, null);
+    }
+
+    private static void InvokeApplyLanguage(MainViewModel viewModel, UiLanguage language)
+    {
+        var method = typeof(MainViewModel).GetMethod(
+            "ApplyLanguage",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        method.Invoke(viewModel, [language]);
+    }
+
+    private static void SetOfficialCatalogResult(
+        MainViewModel viewModel,
+        Crystalfly.Core.Catalog.OfficialCatalogLoadResult result)
+    {
+        var field = typeof(MainViewModel).GetField(
+            "officialCatalogResult",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        field.SetValue(viewModel, result);
+    }
+
+    private static void InvokeRebuildMarketCatalog(MainViewModel viewModel)
+    {
+        var method = typeof(MainViewModel).GetMethod(
+            "RebuildMarketCatalog",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        method.Invoke(viewModel, null);
+    }
+
+    private static string[] MarketFilterLabels(MainViewModel viewModel) =>
+    [
+        viewModel.MarketBuildOptions[0].Name,
+        viewModel.MarketLoaderOptions[0].Name,
+        viewModel.MarketSourceOptions[0].Name,
+        viewModel.MarketTagOptions[0].Name
+    ];
+
+    private static void SetCatalog(MainViewModel viewModel, GameCatalog catalog)
+    {
+        var field = typeof(MainViewModel).GetField(
+            "catalog",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        field.SetValue(viewModel, catalog);
+    }
+
+    private static void CreateZip(string path, params (string Name, string Content)[] entries)
+    {
+        using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
+        foreach (var item in entries)
+        {
+            var entry = archive.CreateEntry(item.Name);
+            using var writer = new StreamWriter(entry.Open(), Encoding.UTF8, leaveOpen: false);
+            writer.Write(item.Content);
+        }
+    }
+
+    private static string FileSha256(string path)
+    {
+        using var stream = File.OpenRead(path);
+        return Convert.ToHexString(SHA256.HashData(stream));
     }
 
     private static string InvokeUniqueInstanceName(MainViewModel viewModel, string version)

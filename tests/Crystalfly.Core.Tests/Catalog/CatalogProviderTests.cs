@@ -31,6 +31,35 @@ public sealed class CatalogProviderTests : IDisposable
     }
 
     [Fact]
+    public void Validate_resolved_catalog_rejects_cross_loader_dependencies()
+    {
+        var invalid = InvalidCatalog("dependency-loader-mismatch");
+
+        Assert.Throws<InvalidDataException>(() => CatalogProvider.ValidateResolved(invalid));
+    }
+
+    [Fact]
+    public void Merge_custom_catalogs_skips_only_invalid_source_and_preserves_reason()
+    {
+        var valid = CustomCatalogSource.Namespace("valid", new GameCatalog
+        {
+            Mods = [OfficialMod("Valid")]
+        });
+        var invalid = CustomCatalogSource.Namespace("invalid", new GameCatalog
+        {
+            Mods = [OfficialMod("Broken") with { SupportedBuildIds = ["1.2.2.1"] }]
+        });
+
+        var result = CatalogProvider.MergeCustomCatalogs(
+            EmbeddedCatalog.Load(),
+            [invalid, valid]);
+
+        Assert.Contains(result.Catalog.Mods, mod => mod.Id == "custom:valid:Valid");
+        Assert.DoesNotContain(result.Catalog.Mods, mod => mod.Id == "custom:invalid:Broken");
+        Assert.Contains(result.RejectedReasons, reason => reason.Contains("not supported", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Load_uses_safe_cache_metadata_and_embedded_fallback_when_remote_is_unavailable()
     {
         var cachePath = Path.Combine(directory, "catalog.json");
@@ -125,6 +154,9 @@ public sealed class CatalogProviderTests : IDisposable
     [InlineData("nonpositive-size")]
     [InlineData("dangling-mod-loader")]
     [InlineData("dangling-mod-dependency")]
+    [InlineData("mod-build-not-supported-by-loader")]
+    [InlineData("dependency-loader-mismatch")]
+    [InlineData("dependency-build-mismatch")]
     [InlineData("duplicate-build")]
     [InlineData("null-builds")]
     public async Task Load_rejects_invalid_remote_catalog_without_overwriting_cache(string invalidKind)
@@ -238,6 +270,59 @@ public sealed class CatalogProviderTests : IDisposable
                     }
                 ]
             },
+            "mod-build-not-supported-by-loader" => catalog with
+            {
+                Builds =
+                [
+                    catalog.Builds[0],
+                    catalog.Builds[0] with { Id = "loader-build", ManifestId = "1008" }
+                ],
+                Loaders =
+                [
+                    Loader("https://example.invalid/loader.zip", new string('A', 64), 1) with
+                    {
+                        SupportedBuildIds = ["loader-build"]
+                    }
+                ],
+                Mods = [Mod("root", "loader", ["remote-build"])]
+            },
+            "dependency-loader-mismatch" => catalog with
+            {
+                Loaders =
+                [
+                    Loader("https://example.invalid/loader.zip", new string('A', 64), 1),
+                    Loader("https://example.invalid/other-loader.zip", new string('B', 64), 1) with
+                    {
+                        Id = "other-loader"
+                    }
+                ],
+                Mods =
+                [
+                    Mod("root", "loader", ["remote-build"], ["dependency"]),
+                    Mod("dependency", "other-loader", ["remote-build"])
+                ]
+            },
+            "dependency-build-mismatch" => catalog with
+            {
+                Builds =
+                [
+                    catalog.Builds[0],
+                    catalog.Builds[0] with { Id = "other-build", ManifestId = "1009" }
+                ],
+                Loaders =
+                [
+                    Loader("https://example.invalid/loader.zip", new string('A', 64), 1) with
+                    {
+                        SupportedBuildIds = ["remote-build", "other-build"]
+                    }
+                ],
+                Mods =
+                [
+                    Mod("root", "loader", ["remote-build"], ["dependency"]),
+                    Mod("dependency", "loader", ["remote-build", "other-build"], ["leaf"]),
+                    Mod("leaf", "loader", ["other-build"])
+                ]
+            },
             "duplicate-build" => catalog with
             {
                 Builds = [catalog.Builds[0], catalog.Builds[0] with { ManifestId = "1007" }]
@@ -256,6 +341,35 @@ public sealed class CatalogProviderTests : IDisposable
         SizeBytes = sizeBytes,
         Sha256 = sha256,
         SupportedBuildIds = ["remote-build"]
+    };
+
+    private static ModManifest Mod(
+        string id,
+        string loaderId,
+        IReadOnlyList<string> buildIds,
+        IReadOnlyList<string>? dependencies = null) => new()
+    {
+        Id = id,
+        Name = id,
+        Version = "1",
+        DownloadUrl = $"https://example.invalid/{id}.zip",
+        SizeBytes = 1,
+        Sha256 = new string('A', 64),
+        LoaderId = loaderId,
+        SupportedBuildIds = buildIds,
+        Dependencies = dependencies ?? []
+    };
+
+    private static ModManifest OfficialMod(string id) => new()
+    {
+        Id = id,
+        Name = id,
+        Version = "1",
+        DownloadUrl = $"https://example.invalid/{id}.zip",
+        SizeBytes = 1,
+        Sha256 = new string('A', 64),
+        LoaderId = "modding-api-77",
+        SupportedBuildIds = ["1.5.78.11833"]
     };
 
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responseFactory) : HttpMessageHandler

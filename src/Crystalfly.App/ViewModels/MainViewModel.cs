@@ -53,6 +53,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private InstanceRuntimeSession? runtimeSession;
     private Bitmap? qrCodeImage;
     private long detailsLoadGeneration;
+    private OfficialCatalogLoadResult? officialCatalogResult;
 
     public MainViewModel(string? applicationDataRoot = null)
         : this(applicationDataRoot, null, null, null)
@@ -94,6 +95,20 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public ObservableCollection<ModManifest> AvailableMods { get; } = [];
 
     public ObservableCollection<ModManifest> VisibleAvailableMods { get; } = [];
+
+    public ObservableCollection<ModManifest> MarketMods { get; } = [];
+
+    public ObservableCollection<ModManifest> VisibleMarketMods { get; } = [];
+
+    public ObservableCollection<SettingOption<string>> MarketBuildOptions { get; } = [];
+
+    public ObservableCollection<SettingOption<string>> MarketLoaderOptions { get; } = [];
+
+    public ObservableCollection<SettingOption<string>> MarketSourceOptions { get; } = [];
+
+    public ObservableCollection<SettingOption<string>> MarketTagOptions { get; } = [];
+
+    public ObservableCollection<MarketInstallTargetViewModel> MarketInstallTargets { get; } = [];
 
     public ObservableCollection<InstalledModItemViewModel> InstalledMods { get; } = [];
 
@@ -139,6 +154,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ? Loc["ChooseRoot"]
         : LaunchPreflight.IsReady ? Loc["ReadyHint"] : Loc["LaunchBlocked"];
 
+    public string OfficialModCatalogStatus => officialCatalogResult?.Status switch
+    {
+        OfficialCatalogLoadStatus.Remote => Loc["CatalogRemote"],
+        OfficialCatalogLoadStatus.Cached => Loc["CatalogCached"],
+        _ => Loc["CatalogFailed"]
+    };
+
+    public string OfficialModCatalogSummary => officialCatalogResult is null
+        ? string.Empty
+        : $"API v{officialCatalogResult.ApiVersion ?? "?"} · {officialCatalogResult.ModCount} Mods";
+
+    public string OfficialModCatalogError => officialCatalogResult?.Reason ?? string.Empty;
+
     public bool IsLaunchPage => CurrentPage == "Launch";
 
     public bool IsVersionsPage => CurrentPage == "Versions";
@@ -150,6 +178,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public bool IsDownloadsPage => CurrentPage == "Downloads";
 
     public bool IsSettingsPage => CurrentPage == "Settings";
+
+    public bool IsGameVersionsDownloadSection => CurrentDownloadSection == "GameVersions";
+
+    public bool IsModMarketDownloadSection => CurrentDownloadSection == "ModMarket";
+
+    public bool IsMarketList => SelectedMarketMod is null;
+
+    public bool IsMarketDetail => SelectedMarketMod is not null;
 
     public Bitmap? QrCodeImage
     {
@@ -177,6 +213,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public partial string CurrentManageTab { get; set; } = "Overview";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGameVersionsDownloadSection))]
+    [NotifyPropertyChangedFor(nameof(IsModMarketDownloadSection))]
+    public partial string CurrentDownloadSection { get; set; } = "GameVersions";
+
+    [ObservableProperty]
     public partial string VersionRoot { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -184,6 +225,21 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial string ModSearchText { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string MarketSearchText { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial SettingOption<string>? SelectedMarketBuildOption { get; set; }
+
+    [ObservableProperty]
+    public partial SettingOption<string>? SelectedMarketLoaderOption { get; set; }
+
+    [ObservableProperty]
+    public partial SettingOption<string>? SelectedMarketSourceOption { get; set; }
+
+    [ObservableProperty]
+    public partial SettingOption<string>? SelectedMarketTagOption { get; set; }
 
     [ObservableProperty]
     public partial ModStatusFilter SelectedModStatus { get; set; } = ModStatusFilter.All;
@@ -242,6 +298,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial ModManifest? SelectedAvailableMod { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsMarketList))]
+    [NotifyPropertyChangedFor(nameof(IsMarketDetail))]
+    public partial ModManifest? SelectedMarketMod { get; set; }
+
+    [ObservableProperty]
+    public partial MarketInstallTargetViewModel? SelectedMarketInstallTarget { get; set; }
 
     [ObservableProperty]
     public partial InstalledModItemViewModel? SelectedInstalledMod { get; set; }
@@ -324,6 +388,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ApplyTheme(settings.Theme);
         RebuildSettingOptions();
         RebuildModStatusOptions();
+        RebuildMarketCatalog();
         foreach (var template in catalog.SpeedrunTemplates)
         {
             SpeedrunTemplates.Add(template);
@@ -366,6 +431,180 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             CurrentManageTab = tab;
         }
+    }
+
+    [RelayCommand]
+    private void SelectDownloadSection(string? section)
+    {
+        if (!CanNavigate || section is not ("GameVersions" or "ModMarket"))
+        {
+            return;
+        }
+        CurrentDownloadSection = section;
+        if (section == "GameVersions")
+        {
+            SelectedMarketMod = null;
+        }
+    }
+
+    [RelayCommand]
+    private void OpenMarketMod(ModManifest? mod)
+    {
+        if (CanNavigate && mod is not null)
+        {
+            SelectedMarketMod = mod;
+        }
+    }
+
+    [RelayCommand]
+    private void BackToMarket() => SelectedMarketMod = null;
+
+    [RelayCommand]
+    private async Task PrepareMarketInstallTargetsAsync()
+    {
+        var mod = SelectedMarketMod;
+        MarketInstallTargets.Clear();
+        SelectedMarketInstallTarget = null;
+        if (mod is null)
+        {
+            return;
+        }
+
+        var targets = new List<MarketInstallTargetViewModel>();
+        foreach (var instance in Instances)
+        {
+            MarketInstallTargetViewModel target;
+            try
+            {
+                var service = CreateModInstallService(instance.Record);
+                var evaluation = await service.EvaluateAsync(
+                    mod.Id,
+                    lifetimeCancellation.Token);
+                var requiredLoader = catalog.Loaders.FirstOrDefault(loader =>
+                    string.Equals(loader.Id, evaluation.RequiredLoaderId, StringComparison.OrdinalIgnoreCase)
+                    && loader.SupportedBuildIds.Contains(instance.Record.BuildId, StringComparer.OrdinalIgnoreCase));
+                target = new MarketInstallTargetViewModel(
+                    instance,
+                    instance.DisplayVersion,
+                    FormatLoaderDisplay(evaluation.Loader),
+                    FormatMarketInstallStatus(instance.Record, evaluation, requiredLoader),
+                    evaluation.Status != ModInstallReadiness.Blocked,
+                    evaluation.Status == ModInstallReadiness.RequiresLoader);
+            }
+            catch (Exception exception) when (exception is IOException
+                or InvalidDataException
+                or KeyNotFoundException
+                or UnauthorizedAccessException
+                or System.Text.Json.JsonException)
+            {
+                target = new MarketInstallTargetViewModel(
+                    instance,
+                    instance.DisplayVersion,
+                    instance.LoaderDisplay,
+                    $"{Loc["OperationFailed"]}: {exception.Message}",
+                    IsAvailable: false,
+                    RequiresLoader: false);
+            }
+            targets.Add(target);
+        }
+
+        if (!ReferenceEquals(SelectedMarketMod, mod))
+        {
+            return;
+        }
+        foreach (var target in targets)
+        {
+            MarketInstallTargets.Add(target);
+            SelectedMarketInstallTarget ??= target.IsAvailable ? target : null;
+        }
+    }
+
+    [RelayCommand]
+    private async Task InstallMarketModAsync()
+    {
+        if (SelectedMarketMod is null
+            || SelectedMarketInstallTarget is null
+            || !SelectedMarketInstallTarget.IsAvailable)
+        {
+            ErrorMessage = Loc["NoInstallTargets"];
+            return;
+        }
+
+        var mod = SelectedMarketMod;
+        var targetId = SelectedMarketInstallTarget.Instance.Id;
+        SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == targetId);
+        if (SelectedInstance is null)
+        {
+            ErrorMessage = Loc["NoInstance"];
+            return;
+        }
+
+        await RunInstanceMutationAsync(async record =>
+        {
+            var loaderManager = CreateLoaderManager(record);
+            var service = new ModInstallService(
+                record,
+                catalog.Mods,
+                loaderManager,
+                CreateModManager(record));
+            var evaluation = await service.EvaluateAsync(mod.Id, lifetimeCancellation.Token);
+            if (evaluation.Status == ModInstallReadiness.RequiresLoader)
+            {
+                var loader = catalog.Loaders.SingleOrDefault(candidate =>
+                    string.Equals(candidate.Id, evaluation.RequiredLoaderId, StringComparison.OrdinalIgnoreCase)
+                    && candidate.SupportedBuildIds.Contains(record.BuildId, StringComparer.OrdinalIgnoreCase))
+                    ?? throw new InvalidOperationException(Loc["NoLoadersAction"]);
+                await loaderManager.InstallFromUriAsync(loader, lifetimeCancellation.Token);
+            }
+
+            await service.InstallAsync(mod.Id, lifetimeCancellation.Token);
+        });
+    }
+
+    private string FormatLoaderDisplay(LoaderInspection loader)
+    {
+        if (loader.State == LoaderState.Vanilla)
+        {
+            return Loc["Vanilla"];
+        }
+
+        var display = loader.PackageId ?? loader.State.ToString();
+        return loader.Ownership == LoaderOwnership.External
+            ? $"{display} · {Loc["ExternalLoader"]}"
+            : display;
+    }
+
+    private string FormatMarketInstallStatus(
+        InstanceRecord instance,
+        ModInstallEvaluation evaluation,
+        LoaderManifest? requiredLoader)
+    {
+        if (evaluation.Status == ModInstallReadiness.Ready)
+        {
+            return Loc["Ready"];
+        }
+        if (evaluation.Status == ModInstallReadiness.RequiresLoader)
+        {
+            return string.Format(
+                CultureInfo.CurrentCulture,
+                Loc["MarketWillInstallLoader"],
+                requiredLoader?.Name ?? evaluation.RequiredLoaderId);
+        }
+        if (instance.Purpose == InstancePurpose.OfficialSpeedrun)
+        {
+            return Loc["OfficialSpeedrunModBlocked"];
+        }
+        if (string.Equals(instance.BuildId, "unknown", StringComparison.OrdinalIgnoreCase))
+        {
+            return Loc["UnknownBuild"];
+        }
+        return evaluation.Loader.State switch
+        {
+            LoaderState.Conflict => Loc["LoaderConflict"],
+            LoaderState.Drifted => Loc["MarketDriftedBlocked"],
+            LoaderState.ModdingApi or LoaderState.BepInEx => Loc["MarketWrongLoaderBlocked"],
+            _ => Loc["MarketIncompatibleBlocked"]
+        };
     }
 
     [RelayCommand]
@@ -903,8 +1142,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             {
                 throw new InvalidOperationException(Loc["LoaderConflict"]);
             }
+            if (state == LoaderState.BepInEx && receipt is null)
+            {
+                throw new InvalidOperationException(Loc["ExternalLoaderBlocked"]);
+            }
             if (state == LoaderState.Drifted)
             {
+                if (receipt is null)
+                {
+                    throw new InvalidOperationException(Loc["ExternalLoaderBlocked"]);
+                }
                 if (!string.Equals(receipt?.PackageId, SelectedLoader.Id, StringComparison.OrdinalIgnoreCase))
                 {
                     throw new InvalidOperationException(Loc["RepairBeforeSwitch"]);
@@ -917,6 +1164,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             else if (!string.Equals(receipt?.PackageId, SelectedLoader.Id, StringComparison.OrdinalIgnoreCase))
             {
+                if ((await CreateModManager(record).GetInstalledAsync()).Count != 0)
+                {
+                    throw new InvalidOperationException(Loc["LoaderSwitchBlockedByMods"]);
+                }
                 await manager.SwitchFromUriAsync(SelectedLoader);
             }
         });
@@ -1012,7 +1263,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ErrorMessage = Loc["NoUpdateAvailable"];
             return;
         }
-        await RunInstanceMutationAsync(record => CreateModManager(record).UpdateFromUriAsync(manifest));
+        await RunInstanceMutationAsync(record => CreateModInstallService(record).UpdateAsync(manifest.Id));
     }
 
     [RelayCommand]
@@ -1100,10 +1351,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         await RunInstanceMutationAsync(async record =>
         {
-            var manager = CreateModManager(record);
             foreach (var mod in updates)
             {
-                await manager.UpdateFromUriAsync(mod.CatalogManifest!);
+                await CreateModInstallService(record).UpdateAsync(mod.CatalogManifest!.Id);
             }
         });
     }
@@ -1346,6 +1596,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             settings = settings with { CustomCatalogs = definitions };
             await QueueSettingsSave();
             catalog = await LoadCatalogAsync();
+            RebuildMarketCatalog();
             if (Directory.Exists(VersionRoot))
             {
                 await RefreshAsync();
@@ -1360,6 +1611,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     partial void OnSearchTextChanged(string value) => ApplyInstanceFilter();
 
     partial void OnModSearchTextChanged(string value) => ApplyModFilters();
+
+    partial void OnMarketSearchTextChanged(string value) => ApplyMarketFilters();
+
+    partial void OnSelectedMarketBuildOptionChanged(SettingOption<string>? value) => ApplyMarketFilters();
+
+    partial void OnSelectedMarketLoaderOptionChanged(SettingOption<string>? value) => ApplyMarketFilters();
+
+    partial void OnSelectedMarketSourceOptionChanged(SettingOption<string>? value) => ApplyMarketFilters();
+
+    partial void OnSelectedMarketTagOptionChanged(SettingOption<string>? value) => ApplyMarketFilters();
 
     partial void OnSelectedModStatusChanged(ModStatusFilter value) => ApplyModFilters();
 
@@ -1384,6 +1645,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         long generation = Interlocked.Increment(ref detailsLoadGeneration);
         AvailableLoaders.Clear();
+        SelectedLoader = null;
         AvailableMods.Clear();
         VisibleAvailableMods.Clear();
         InstalledMods.Clear();
@@ -1397,6 +1659,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             foreach (var loader in catalog.Loaders.Where(loader => loader.SupportedBuildIds.Contains(value.Record.BuildId)))
             {
                 AvailableLoaders.Add(loader);
+            }
+            if (AvailableLoaders.Count == 1)
+            {
+                SelectedLoader = AvailableLoaders[0];
             }
             foreach (var mod in catalog.Mods.Where(mod => mod.SupportedBuildIds.Contains(value.Record.BuildId)))
             {
@@ -1426,6 +1692,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ApplyLanguage(value.Value);
         RebuildSettingOptions();
         RebuildModStatusOptions();
+        RebuildMarketCatalog();
         NotifyPreflightLabels();
         _ = QueueSettingsSave();
     }
@@ -1472,6 +1739,72 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
+    private void ApplyMarketFilters()
+    {
+        VisibleMarketMods.Clear();
+        foreach (var mod in MarketMods.Where(mod =>
+            (string.IsNullOrWhiteSpace(MarketSearchText)
+                || mod.Name.Contains(MarketSearchText, StringComparison.OrdinalIgnoreCase)
+                || mod.Id.Contains(MarketSearchText, StringComparison.OrdinalIgnoreCase)
+                || mod.Version.Contains(MarketSearchText, StringComparison.OrdinalIgnoreCase)
+                || mod.Description?.Contains(MarketSearchText, StringComparison.OrdinalIgnoreCase) == true)
+            && (string.IsNullOrEmpty(SelectedMarketBuildOption?.Value)
+                || mod.SupportedBuildIds.Contains(SelectedMarketBuildOption.Value, StringComparer.OrdinalIgnoreCase))
+            && (string.IsNullOrEmpty(SelectedMarketLoaderOption?.Value)
+                || string.Equals(mod.LoaderId, SelectedMarketLoaderOption.Value, StringComparison.OrdinalIgnoreCase))
+            && (string.IsNullOrEmpty(SelectedMarketSourceOption?.Value)
+                || string.Equals(mod.SourceName, SelectedMarketSourceOption.Value, StringComparison.OrdinalIgnoreCase))
+            && (string.IsNullOrEmpty(SelectedMarketTagOption?.Value)
+                || mod.Tags.Contains(SelectedMarketTagOption.Value, StringComparer.OrdinalIgnoreCase))))
+        {
+            VisibleMarketMods.Add(mod);
+        }
+    }
+
+    private void RebuildMarketCatalog()
+    {
+        MarketMods.Clear();
+        foreach (var mod in catalog.Mods.OrderBy(mod => mod.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            MarketMods.Add(mod);
+        }
+        RebuildMarketOptions(
+            MarketBuildOptions,
+            MarketMods.SelectMany(mod => mod.SupportedBuildIds),
+            value => catalog.Builds.FirstOrDefault(build =>
+                string.Equals(build.Id, value, StringComparison.OrdinalIgnoreCase))?.DisplayVersion ?? value);
+        RebuildMarketOptions(
+            MarketLoaderOptions,
+            MarketMods.Select(mod => mod.LoaderId),
+            value => catalog.Loaders.FirstOrDefault(loader =>
+                string.Equals(loader.Id, value, StringComparison.OrdinalIgnoreCase)) is { } loader
+                    ? $"{loader.Name} {loader.Version}"
+                    : value);
+        RebuildMarketOptions(MarketSourceOptions, MarketMods.Select(mod => mod.SourceName).OfType<string>());
+        RebuildMarketOptions(MarketTagOptions, MarketMods.SelectMany(mod => mod.Tags));
+        ApplyMarketFilters();
+    }
+
+    private void RebuildMarketOptions(
+        ObservableCollection<SettingOption<string>> options,
+        IEnumerable<string> values,
+        Func<string, string>? displayName = null)
+    {
+        options.Clear();
+        options.Add(new(string.Empty, Loc["FilterAll"]));
+        foreach (var value in values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
+        {
+            options.Add(new(value, displayName?.Invoke(value) ?? value));
+        }
+        if (ReferenceEquals(options, MarketBuildOptions)) SelectedMarketBuildOption = options[0];
+        else if (ReferenceEquals(options, MarketLoaderOptions)) SelectedMarketLoaderOption = options[0];
+        else if (ReferenceEquals(options, MarketSourceOptions)) SelectedMarketSourceOption = options[0];
+        else SelectedMarketTagOption = options[0];
+    }
+
     private void RebuildSettingOptions()
     {
         SelectedLanguage = null;
@@ -1493,6 +1826,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         localization.Apply(language);
         Loc = localization;
         OnPropertyChanged(nameof(Loc));
+        NotifyOfficialCatalogLabels();
+    }
+
+    private void NotifyOfficialCatalogLabels()
+    {
+        OnPropertyChanged(nameof(OfficialModCatalogStatus));
+        OnPropertyChanged(nameof(OfficialModCatalogSummary));
+        OnPropertyChanged(nameof(OfficialModCatalogError));
     }
 
     private void RebuildModStatusOptions()
@@ -1667,7 +2008,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
             CurrentLoaderState = loaderState;
             LoaderVerificationStatus = loaderReceipt is null
-                ? string.Empty
+                ? loaderState switch
+                {
+                    LoaderState.BepInEx or LoaderState.Drifted => Loc["ExternalLoaderBlocked"],
+                    LoaderState.Conflict => Loc["LoaderConflict"],
+                    _ => string.Empty
+                }
                 : loaderReceipt.IsVerified
                     ? Loc["VerifiedCatalogLoader"]
                     : Loc["UnverifiedLocalLoader"];
@@ -1705,16 +2051,20 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             or UnauthorizedAccessException
             or InvalidOperationException;
 
-    private async Task RefreshAfterFailedMutationAsync(string instanceId)
+    private async Task RefreshAfterFailedMutationAsync(string instanceId, string operationError)
     {
         try
         {
             await RefreshAsync();
             SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == instanceId);
+            ErrorMessage = operationError;
         }
-        catch (Exception exception) when (exception is IOException or InvalidDataException or InvalidOperationException)
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or InvalidOperationException
+            or System.Text.Json.JsonException)
         {
-            ErrorMessage += $" {Loc["RefreshFailed"]}: {exception.Message}";
+            ErrorMessage = $"{operationError} {Loc["RefreshFailed"]}: {exception.Message}";
         }
     }
 
@@ -1742,10 +2092,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             or UnauthorizedAccessException
             or HttpRequestException
             or KeyNotFoundException
-            or ArgumentException)
+            or ArgumentException
+            or System.Text.Json.JsonException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
-            await RefreshAfterFailedMutationAsync(instanceId);
+            var operationError = $"{Loc["OperationFailed"]}: {exception.Message}";
+            await RefreshAfterFailedMutationAsync(instanceId, operationError);
         }
         finally
         {
@@ -1890,22 +2241,20 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             Path.Combine(paths.ApplicationDataRoot, "catalog", "catalog.v1.json"),
             MetadataHttpClient,
             cancellationToken: cancellationToken);
-        try
+        officialCatalogResult = await OfficialCatalogSource.LoadAsync(
+            MetadataHttpClient,
+            Path.Combine(paths.ApplicationDataRoot, "catalog", "hk-modlinks.v77.json"),
+            cancellationToken);
+        if (officialCatalogResult.Status != OfficialCatalogLoadStatus.Failed)
         {
-            result = CatalogMerger.Merge(
-                result,
-                null,
-                null,
-                [await OfficialCatalogSource.LoadAsync(MetadataHttpClient, cancellationToken)]);
+            result = CatalogMerger.Merge(result, null, null, [officialCatalogResult.Catalog]);
         }
-        catch (Exception exception) when (exception is HttpRequestException
-            or InvalidDataException
-            or System.Xml.XmlException
-            || exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
-        {
-        }
+        OnPropertyChanged(nameof(OfficialModCatalogStatus));
+        OnPropertyChanged(nameof(OfficialModCatalogSummary));
+        OnPropertyChanged(nameof(OfficialModCatalogError));
 
         var customCatalogs = new List<GameCatalog>();
+        var customCatalogErrors = new List<string>();
         foreach (var definition in settings.CustomCatalogs)
         {
             try
@@ -1923,9 +2272,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 or ArgumentException
                 || exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
             {
+                customCatalogErrors.Add($"{definition.Namespace}: {exception.Message}");
             }
         }
-        return CatalogMerger.Merge(result, null, null, customCatalogs);
+        var customMerge = CatalogProvider.MergeCustomCatalogs(result, customCatalogs);
+        customCatalogErrors.AddRange(customMerge.RejectedReasons);
+        if (customCatalogErrors.Count > 0)
+        {
+            ErrorMessage = string.Join(Environment.NewLine, customCatalogErrors);
+        }
+        return customMerge.Catalog;
     }
 
     private string UniqueInstanceName(string version)
@@ -1974,6 +2330,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Path.Combine(GetInstanceStateRoot(record.Id), "mods"),
         Path.Combine(paths.GetVersionDataRoot(VersionRoot), "packages"),
         PackageHttpClient);
+
+    private ModInstallService CreateModInstallService(InstanceRecord record) => new(
+        record,
+        catalog.Mods,
+        CreateLoaderManager(record),
+        CreateModManager(record));
 
     private NamedSnapshotService CreateSnapshotService() => new(
         paths.GetVersionDataRoot(VersionRoot));

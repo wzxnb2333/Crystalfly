@@ -1,6 +1,6 @@
 # Crystalfly
 
-Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》版本、Loader、Mod、存档与速通环境管理器。界面采用单实例上下文：先选择游戏实例，再管理其 Loader、Mod、快照和日志，避免把不同版本的状态混在一起。
+Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。顶部“实例”用于选择和管理可启动目录；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
 
 > 当前状态：首个源码版本。仓库暂不发布 Crystalfly 二进制 Release；可在本地生成便携包和安装包。
 
@@ -15,12 +15,13 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》版本、Loader、Mo
 - 完整复制实例；Loader、Mod 和存档互不共享。
 - 事务化安装、切换、修复和卸载 Loader，检测冲突及文件漂移。
 - 支持带 Crystalfly 清单的高级本地 Loader 导入，并永久标记为“未验证”。
-- 搜索并按状态筛选 Mod，支持单项和批量启用、停用、更新、卸载，以及依赖解析、本地 ZIP/DLL 和离线包缓存。
+- 在“下载 → Mod 市场”中搜索在线 Mod、查看详情并选择目标实例；在实例的“已安装 Mod”页启用、停用、更新、卸载或导入本地 ZIP/DLL。
+- 安装前检查游戏版本、精确 Loader ID 和完整依赖闭包，阻止 Modding API v37/v60/v77/v78、BepInEx 及不同游戏版本的 Mod 混装。
 - 启动前真实检查游戏文件、Loader、Mod 依赖、事务和实例 LocalLow；任一检查失败都会阻止启动。
 - 在实例日志页查看 BepInEx、Modding API 和 `Player.log` 的最新内容及来源路径。
 - 通过 SteamKit2 扫码登录并下载 public 分支历史 manifest；同一文件最多十六路并发下载 Chunk，完成后生成 `steam_appid.txt` 以直接启动对应实例，refresh token 仅以当前 Windows 用户的 DPAPI 加密保存。
 - 启动前切换实例 LocalLow，退出后写回，并恢复原共享数据。
-- 创建永久命名快照；事务临时恢复点成功后自动清理。
+- 创建永久命名“存档快照”；快照仅包含实例的非日志 LocalLow，事务临时恢复点成功后自动清理。
 - 创建独立速通副本，按模板部署速通工具，并在每次启动前写出验证报告。
 
 ## 兼容矩阵
@@ -51,14 +52,19 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 
 1. 在“设置”中选择版本根目录，例如 `D:\HK_ver`。
 2. Crystalfly 只扫描直接子目录，并忽略 `<版本根目录>\.crystalfly`。
-3. 在“版本”中选择实例，再进入实例详情管理 Loader、Mod 和快照。
-4. 启动游戏时不要同时运行其他《空洞骑士》进程。
+3. 在顶部“实例”中选择实例，再进入实例详情管理 Loader、“已安装 Mod”和“存档快照”。
+4. 需要下载游戏时进入“下载 → 游戏版本”；需要查找在线 Mod 时进入“下载 → Mod 市场”。
+5. 启动游戏时不要同时运行其他《空洞骑士》进程。
 
-## 启动预检与实例详情
+## 启动预检、Mod 市场与实例详情
 
 选择实例后，启动页会检查游戏可执行文件、是否已有游戏进程、Loader 冲突或漂移、已启用 Mod 的依赖、待恢复事务和实例 LocalLow。全部通过后才能启动；操作执行期间和游戏运行期间会锁定导航及实例修改。
 
-“Mods”页可按名称、ID 或版本搜索，并按全部、启用、停用、本地和可更新状态筛选。受 catalog 管理的 Mod 支持单项更新；勾选多项后可批量启用、停用、更新或卸载。本地 Mod 不提供自动更新。停用或卸载仍被其他已安装 Mod 依赖的项目时，界面会列出反向依赖并阻止操作，不会自动级联删除。
+“下载 → Mod 市场”负责发现在线 Mod：可按关键词、游戏版本、Loader、来源和标签筛选，查看描述、作者、依赖、集成、仓库及精确兼容范围，再选择一个兼容实例安装。Vanilla 实例可在确认后先安装目录指定的精确 Loader，再重新验证并安装 Mod；Loader 冲突、漂移、未知构建和正式速通实例不可作为安装目标。
+
+实例的“已安装 Mod”页只管理当前实例内的 Mod，可按名称、ID 或版本搜索，并按全部、启用、停用、本地和可更新状态筛选。受 catalog 管理的 Mod 支持单项更新；勾选多项后可批量启用、停用、更新或卸载。本地 Mod 不提供自动更新。停用或卸载仍被其他已安装 Mod 依赖的项目时，界面会列出反向依赖并阻止操作，不会自动级联删除。
+
+Loader 兼容按精确包 ID 判断，不会把所有 Modding API 或 BepInEx 版本视为等价。Crystalfly 安装的 Loader 可修复和卸载；手动安装且能确认版本的 BepInEx 标记为外部所有，仅允许安装完全匹配的插件，不会修复、卸载、覆盖或接管 BepInEx 本体。手动安装的 Modding API 因缺少原版程序集备份会保持 `Drifted`。
 
 “日志”页会发现当前实例的 BepInEx、Modding API 和共享 `Player.log`，显示日志来源路径，并支持刷新和查看文件末尾内容。共享 `Player.log` 可能来自最近运行的实例，排查当前实例时应优先使用实例目录内的 Loader 日志。
 
@@ -122,7 +128,7 @@ Crystalfly 使用 [GPL-3.0-only](LICENSE)。第三方游戏、Loader 和 Mod 不
 
 ## English
 
-Crystalfly manages Hollow Knight versions, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64.
+Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The top-level Instances page manages launchable directories; actual game downloads live under Download → Game Versions.
 
 This is the first source release. Crystalfly binary releases are not published yet; the repository builds a local self-contained portable ZIP and an Inno Setup installer.
 
@@ -133,21 +139,26 @@ This is the first source release. Crystalfly binary releases are not published y
 - Discovers direct child directories under a user-selected version root and keeps each instance isolated.
 - Recognizes `1.2.2.1`, `1.4.3.2`, `1.5.78.11833`, and a dynamic stable `latest` channel.
 - Installs, switches, repairs, and removes mutually exclusive loaders through recoverable file transactions.
-- Searches and filters mods by state, with single-item and batch enable, disable, update, and uninstall operations, dependency resolution, local ZIP/DLL imports, and an offline package cache.
+- Discovers online mods under Download → Mod Market, then installs them to a selected compatible instance; each instance keeps enable, disable, update, uninstall, and local ZIP/DLL import operations under Installed Mods.
+- Validates the game build, exact loader package ID, and full dependency closure so Modding API v37/v60/v77/v78, BepInEx, and cross-build mods cannot be mixed.
 - Runs real launch checks for game files, loader state, mod dependencies, pending transactions, and per-instance LocalLow state; launch stays blocked until every check passes.
 - Displays detected BepInEx, Modding API, and `Player.log` files with their source paths and refreshable tail content.
 - Imports local loaders only through a validated Crystalfly manifest and keeps them marked unverified.
 - Uses SteamKit2 for QR authentication and public manifest downloads, with up to sixteen concurrent chunk requests per file. Completed instances receive `steam_appid.txt` for direct launch. Refresh tokens are protected with Windows DPAPI for the current user.
 - Swaps per-instance LocalLow data before launch, captures it after exit, then restores the original shared data.
-- Creates persistent named snapshots and dedicated speedrun copies, provisions template-specific tools, and writes a report before every speedrun launch.
+- Creates persistent named save snapshots containing only non-log LocalLow data, plus dedicated speedrun copies with template-specific tools and a pre-launch report.
 
 The current built-in speedrun templates are intentionally unverified because the catalog does not yet contain a trusted rules revision and complete Steam file allowlist. Unknown new public manifests remain launchable as vanilla, but loader installation stays locked until the catalog verifies the build.
 
-### Launch checks and instance details
+### Launch checks, Mod Market, and instance details
 
 After an instance is selected, the launch page checks the game executable, running Hollow Knight processes, loader conflicts or drift, enabled mod dependencies, pending transaction recovery, and per-instance LocalLow readiness. Launch is enabled only when every check passes. Navigation and instance mutations are locked while an operation or the game is running.
 
-The Mods page searches by name, ID, or version and filters installed mods by all, enabled, disabled, local, or update available. Catalog-managed mods support single-item updates; checked items can be enabled, disabled, updated, or removed in batches. Local mods do not receive automatic updates. Disabling or removing a mod that still has installed dependents lists those reverse dependencies and blocks the operation instead of cascading removal.
+Download → Mod Market discovers online mods and filters them by keyword, game build, loader, source, and tag. Its detail view shows description, authors, dependencies, integrations, repository, source, and exact compatibility before the user chooses a target instance. A vanilla target can install the catalog's exact required loader after confirmation, then re-evaluates compatibility before installing the mod. Conflicted, drifted, unknown-build, and official speedrun instances remain unavailable.
+
+The Installed Mods page searches the current instance by name, ID, or version and filters installed mods by all, enabled, disabled, local, or update available. Catalog-managed mods support single-item updates; checked items can be enabled, disabled, updated, or removed in batches. Local mods do not receive automatic updates. Disabling or removing a mod that still has installed dependents lists those reverse dependencies and blocks the operation instead of cascading removal.
+
+Compatibility uses the exact loader package ID rather than treating every Modding API or BepInEx release as interchangeable. Crystalfly-managed loaders can be repaired or removed. A manually installed BepInEx with a verifiable version is detected as externally owned: matching plugins may be installed, but Crystalfly never repairs, removes, overwrites, or takes ownership of the BepInEx installation. Manually installed Modding API remains `Drifted` because no trusted vanilla assembly backup exists.
 
 The Logs page discovers BepInEx, Modding API, and shared `Player.log` files, shows each source path, and reads refreshable tail content. The shared `Player.log` may belong to the most recently launched instance, so instance-local loader logs are the stronger source when diagnosing one instance.
 

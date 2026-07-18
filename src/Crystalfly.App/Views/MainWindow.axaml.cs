@@ -37,6 +37,13 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
+        if (!closeAfterDispose && DataContext is MainViewModel { IsBusy: true })
+        {
+            e.Cancel = true;
+            base.OnClosing(e);
+            return;
+        }
+
         if (closeAfterDispose)
         {
             base.OnClosing(e);
@@ -218,6 +225,211 @@ public partial class MainWindow : Window
         {
             await viewModel.RestoreSnapshotCommand.ExecuteAsync(null);
         }
+    }
+
+    private async void OpenMarketInstallDialog(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel || viewModel.SelectedMarketMod is not { } mod)
+        {
+            return;
+        }
+        if (viewModel.PrepareMarketInstallTargetsCommand.IsRunning)
+        {
+            return;
+        }
+
+        try
+        {
+            await viewModel.PrepareMarketInstallTargetsCommand.ExecuteAsync(null);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        if (!ReferenceEquals(viewModel.SelectedMarketMod, mod))
+        {
+            return;
+        }
+        var dialog = new Window
+        {
+            Title = viewModel.Loc["InstallModTitle"],
+            Width = 640,
+            Height = 560,
+            MinWidth = 520,
+            MinHeight = 420,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Icon = Icon
+        };
+        dialog.Classes.Add("cfp-window");
+        dialog.Closing += (_, args) =>
+        {
+            if (viewModel.IsBusy)
+            {
+                args.Cancel = true;
+            }
+        };
+
+        var targets = new StackPanel { Spacing = 8 };
+        var targetButtons = new List<RadioButton>();
+        foreach (var target in viewModel.MarketInstallTargets)
+        {
+            var details = new StackPanel
+            {
+                Spacing = 3,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = target.DisplayName,
+                        FontWeight = Avalonia.Media.FontWeight.SemiBold,
+                        TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                    },
+                    new TextBlock
+                    {
+                        Text = $"{target.BuildDisplayName} · {target.LoaderDisplayName}",
+                        Opacity = 0.7,
+                        TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                    },
+                    new TextBlock
+                    {
+                        Text = target.StatusText,
+                        Opacity = target.IsAvailable ? 0.8 : 0.6,
+                        TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                    }
+                }
+            };
+            var option = new RadioButton
+            {
+                GroupName = "market-install-target",
+                Content = details,
+                IsEnabled = target.IsAvailable,
+                IsChecked = ReferenceEquals(target, viewModel.SelectedMarketInstallTarget),
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Padding = new Thickness(12),
+                MinHeight = 72
+            };
+            Avalonia.Automation.AutomationProperties.SetName(option, target.DisplayName);
+            option.IsCheckedChanged += (_, _) =>
+            {
+                if (option.IsChecked == true)
+                {
+                    viewModel.SelectedMarketInstallTarget = target;
+                }
+            };
+            targets.Children.Add(option);
+            targetButtons.Add(option);
+        }
+
+        if (viewModel.MarketInstallTargets.Count == 0)
+        {
+            targets.Children.Add(new TextBlock
+            {
+                Text = viewModel.Loc["NoInstallTargets"],
+                TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                Opacity = 0.7
+            });
+        }
+
+        var error = new TextBlock
+        {
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            IsVisible = false
+        };
+        var cancelButton = new Button
+        {
+            Content = viewModel.Loc["Cancel"],
+            MinWidth = 96
+        };
+        cancelButton.Classes.Add("cfp-secondary");
+        var installButton = new Button
+        {
+            Content = viewModel.Loc["InstallSelectedMod"],
+            MinWidth = 128,
+            IsEnabled = viewModel.SelectedMarketInstallTarget?.IsAvailable == true
+        };
+        installButton.Classes.Add("cfp-primary");
+
+        cancelButton.Click += (_, _) => dialog.Close(false);
+        installButton.Click += async (_, _) =>
+        {
+            installButton.IsEnabled = false;
+            cancelButton.IsEnabled = false;
+            error.IsVisible = false;
+            await viewModel.InstallMarketModCommand.ExecuteAsync(null);
+            if (viewModel.ErrorMessage is null)
+            {
+                dialog.Close(true);
+                return;
+            }
+
+            error.Text = viewModel.ErrorMessage;
+            error.IsVisible = true;
+            cancelButton.IsEnabled = true;
+            installButton.IsEnabled = viewModel.SelectedMarketInstallTarget?.IsAvailable == true;
+        };
+        foreach (var option in targetButtons)
+        {
+            option.IsCheckedChanged += (_, _) =>
+                installButton.IsEnabled = viewModel.SelectedMarketInstallTarget?.IsAvailable == true;
+        }
+        dialog.Opened += (_, _) =>
+            targetButtons.FirstOrDefault(button => button.IsChecked == true)?.Focus(
+                NavigationMethod.Tab,
+                KeyModifiers.None);
+        dialog.KeyDown += (_, args) =>
+        {
+            if (args.Key == Key.Escape)
+            {
+                args.Handled = true;
+                if (!viewModel.IsBusy)
+                {
+                    dialog.Close(false);
+                }
+            }
+        };
+
+        dialog.Content = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,Auto"),
+            Margin = new Thickness(24),
+            RowSpacing = 12,
+            Children =
+            {
+                new TextBlock
+                {
+                    Text = viewModel.Loc["InstallToInstance"],
+                    FontSize = 20,
+                    FontWeight = Avalonia.Media.FontWeight.SemiBold,
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                },
+                new TextBlock
+                {
+                    [Grid.RowProperty] = 1,
+                    Text = mod.DisplayName ?? mod.Name,
+                    Opacity = 0.7,
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                },
+                new ScrollViewer
+                {
+                    [Grid.RowProperty] = 2,
+                    Content = targets,
+                    VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
+                },
+                error,
+                new StackPanel
+                {
+                    [Grid.RowProperty] = 4,
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    Spacing = 8,
+                    Children = { cancelButton, installButton }
+                }
+            }
+        };
+        Grid.SetRow(error, 3);
+
+        await dialog.ShowDialog<bool>(this);
     }
 
     private async Task<bool> ShowConfirmationAsync(

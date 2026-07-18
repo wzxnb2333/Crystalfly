@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Reflection;
 using Crystalfly.Core.Models;
 
 namespace Crystalfly.Core.Loaders;
@@ -6,6 +7,12 @@ namespace Crystalfly.Core.Loaders;
 public static class LoaderStateDetector
 {
     public static async Task<LoaderState> DetectAsync(
+        string instanceRoot,
+        InstalledPackageReceipt? receipt,
+        CancellationToken cancellationToken = default) =>
+        (await InspectAsync(instanceRoot, receipt, cancellationToken)).State;
+
+    public static async Task<LoaderInspection> InspectAsync(
         string instanceRoot,
         InstalledPackageReceipt? receipt,
         CancellationToken cancellationToken = default)
@@ -24,17 +31,41 @@ public static class LoaderStateDetector
 
         if (hasBepInEx && hasModdingApi)
         {
-            return LoaderState.Conflict;
+            return receipt is null
+                ? External(LoaderState.Conflict)
+                : Inspection(LoaderState.Conflict, receipt);
         }
         if (receipt is null)
         {
-            return hasBepInEx || hasModdingApi ? LoaderState.Drifted : LoaderState.Vanilla;
+            if (!hasBepInEx && !hasModdingApi)
+            {
+                return new LoaderInspection
+                {
+                    State = LoaderState.Vanilla,
+                    Ownership = LoaderOwnership.None
+                };
+            }
+            if (hasModdingApi)
+            {
+                return External(LoaderState.Drifted);
+            }
+
+            var version = ReadAssemblyVersion(Path.Combine(instanceRoot, "BepInEx", "core", "BepInEx.dll"));
+            return version is null
+                ? External(LoaderState.Drifted)
+                : new LoaderInspection
+                {
+                    State = LoaderState.BepInEx,
+                    PackageId = $"bepinex-{version}",
+                    Version = version,
+                    Ownership = LoaderOwnership.External
+                };
         }
         if (receipt.LoaderState is not (LoaderState.BepInEx or LoaderState.ModdingApi)
             || receipt.LoaderState == LoaderState.BepInEx != hasBepInEx
             || receipt.LoaderState == LoaderState.ModdingApi != hasModdingApi)
         {
-            return LoaderState.Drifted;
+            return Inspection(LoaderState.Drifted, receipt);
         }
 
         foreach (var file in receipt.Files)
@@ -47,10 +78,52 @@ public static class LoaderStateDetector
                     await HashFileAsync(path, cancellationToken),
                     StringComparison.OrdinalIgnoreCase))
             {
-                return LoaderState.Drifted;
+                return Inspection(LoaderState.Drifted, receipt);
             }
         }
-        return receipt.LoaderState;
+        return Inspection(receipt.LoaderState, receipt);
+    }
+
+    private static LoaderInspection Inspection(LoaderState state, InstalledPackageReceipt receipt) => new()
+    {
+        State = state,
+        PackageId = receipt.PackageId,
+        Version = PackageVersion(receipt.PackageId),
+        IsVerified = receipt.IsVerified,
+        Ownership = LoaderOwnership.Managed
+    };
+
+    private static LoaderInspection External(LoaderState state) => new()
+    {
+        State = state,
+        Ownership = LoaderOwnership.External
+    };
+
+    private static string? PackageVersion(string packageId)
+    {
+        const string moddingApiPrefix = "modding-api-";
+        const string bepinExPrefix = "bepinex-";
+        return packageId.StartsWith(moddingApiPrefix, StringComparison.OrdinalIgnoreCase)
+            ? packageId[moddingApiPrefix.Length..]
+            : packageId.StartsWith(bepinExPrefix, StringComparison.OrdinalIgnoreCase)
+                ? packageId[bepinExPrefix.Length..]
+                : null;
+    }
+
+    private static string? ReadAssemblyVersion(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+        try
+        {
+            return AssemblyName.GetAssemblyName(path).Version?.ToString();
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or BadImageFormatException)
+        {
+            return null;
+        }
     }
 
     private static string ResolveUnderRoot(string root, string relativePath)

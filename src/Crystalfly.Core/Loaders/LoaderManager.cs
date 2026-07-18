@@ -31,7 +31,10 @@ public sealed class LoaderManager
     }
 
     public async Task<LoaderState> GetStateAsync(CancellationToken cancellationToken = default) =>
-        await LoaderStateDetector.DetectAsync(
+        (await InspectAsync(cancellationToken)).State;
+
+    public async Task<LoaderInspection> InspectAsync(CancellationToken cancellationToken = default) =>
+        await LoaderStateDetector.InspectAsync(
             _instanceRoot, await GetReceiptAsync(cancellationToken), cancellationToken);
 
     public async Task<InstalledPackageReceipt?> GetReceiptAsync(CancellationToken cancellationToken = default) =>
@@ -194,7 +197,8 @@ public sealed class LoaderManager
         var prefix = loaderState == LoaderState.ModdingApi
             ? "hollow_knight_Data/Managed"
             : string.Empty;
-        CopyTree(extracted, ResolveAtOrUnderRoot(packageStaging, prefix));
+        var packageContentRoot = GetPackageContentRoot(extracted, loaderState);
+        CopyTree(packageContentRoot, ResolveAtOrUnderRoot(packageStaging, prefix));
         var stagedFiles = Directory.EnumerateFiles(packageStaging, "*", SearchOption.AllDirectories)
             .ToDictionary(
                 path => Normalize(Path.GetRelativePath(packageStaging, path)),
@@ -229,6 +233,7 @@ public sealed class LoaderManager
         {
             AddBackupRemovals(previousReceipt, targetRoot, removals);
         }
+        AddObsoleteLoaderDirectoryRemovals(loaderState, targetRoot, removals);
 
         var receipt = new InstalledPackageReceipt
         {
@@ -443,6 +448,53 @@ public sealed class LoaderManager
         RemoveEmptyTree(Path.Combine(_instanceRoot, "hollow_knight_Data", "Managed", "Mods"));
     }
 
+    private void AddObsoleteLoaderDirectoryRemovals(
+        LoaderState installedState,
+        string targetRoot,
+        ICollection<string> removals)
+    {
+        var obsolete = installedState == LoaderState.BepInEx
+            ? Path.Combine(_instanceRoot, "hollow_knight_Data", "Managed", "Mods")
+            : Path.Combine(_instanceRoot, "BepInEx");
+        if (!Directory.Exists(obsolete)
+            || (File.GetAttributes(obsolete) & FileAttributes.ReparsePoint) != 0)
+        {
+            return;
+        }
+
+        var removalSet = removals.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var directories = new List<string>();
+        var pending = new Stack<string>();
+        pending.Push(obsolete);
+        while (pending.Count > 0)
+        {
+            var directory = pending.Pop();
+            directories.Add(Normalize(Path.GetRelativePath(targetRoot, directory)));
+            foreach (var path in Directory.EnumerateFileSystemEntries(directory))
+            {
+                var attributes = File.GetAttributes(path);
+                if ((attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    return;
+                }
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    pending.Push(path);
+                    continue;
+                }
+                if (!removalSet.Contains(Normalize(Path.GetRelativePath(targetRoot, path))))
+                {
+                    return;
+                }
+            }
+        }
+
+        foreach (var directory in directories)
+        {
+            removals.Add(directory);
+        }
+    }
+
     private static void RemoveEmptyTree(string root)
     {
         if (!Directory.Exists(root))
@@ -470,9 +522,24 @@ public sealed class LoaderManager
                 ? LoaderState.BepInEx
                 : throw new InvalidDataException($"Unknown loader family: '{id}'.");
 
+    private static string GetPackageContentRoot(string extractedRoot, LoaderState loaderState)
+    {
+        if (loaderState != LoaderState.ModdingApi)
+        {
+            return extractedRoot;
+        }
+
+        var managedRoot = Path.Combine(extractedRoot, "hollow_knight_Data", "Managed");
+        return Directory.Exists(managedRoot) ? managedRoot : extractedRoot;
+    }
+
     private static void CopyTree(string sourceRoot, string targetRoot)
     {
         Directory.CreateDirectory(targetRoot);
+        foreach (var directory in Directory.EnumerateDirectories(sourceRoot, "*", SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(Path.Combine(targetRoot, Path.GetRelativePath(sourceRoot, directory)));
+        }
         foreach (var file in Directory.EnumerateFiles(sourceRoot, "*", SearchOption.AllDirectories))
         {
             CopyFile(file, Path.Combine(targetRoot, Path.GetRelativePath(sourceRoot, file)));

@@ -260,6 +260,33 @@ public sealed class LayoutRenderingTests
     }
 
     [AvaloniaFact]
+    public void Top_navigation_uses_a_text_brand_without_a_logo()
+    {
+        var viewModel = new MainViewModel(Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N")));
+        var window = new MainWindow { Width = 1280, Height = 720 };
+        window.Show();
+        window.DataContext = viewModel;
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            var topbar = window.GetVisualDescendants()
+                .OfType<Border>()
+                .Single(border => border.Classes.Contains("cfp-topbar"));
+            var brand = topbar.GetVisualDescendants()
+                .OfType<TextBlock>()
+                .Single(text => text.Classes.Contains("cfp-brand"));
+            var brandGrid = Assert.IsType<Grid>(brand.Parent);
+            Assert.Equal(0, Grid.GetColumn(brand));
+            Assert.DoesNotContain(brandGrid.Children, child => child is Border);
+        }
+        finally
+        {
+            CloseImmediately(window);
+        }
+    }
+
+    [AvaloniaFact]
     public void Launch_rail_actions_are_vertical_equal_width_buttons()
     {
         var viewModel = new MainViewModel(Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N")))
@@ -364,7 +391,8 @@ public sealed class LayoutRenderingTests
                     Assert.True(origin.Value.X >= -0.5 && origin.Value.Y >= -0.5,
                         $"{page}/{manageTab}: {content.GetType().Name} starts outside its button at {renderScaling:P0} scaling.");
                     Assert.True(origin.Value.X + content.Bounds.Width <= button.Bounds.Width + 0.5,
-                        $"{page}/{manageTab}: {content.GetType().Name} is clipped horizontally at {renderScaling:P0} scaling.");
+                        $"{page}/{manageTab}: {content.GetType().Name} '{(content as TextBlock)?.Text}' in button '{button.Content}' is clipped horizontally at {renderScaling:P0} scaling. "
+                        + $"Origin={origin.Value.X:F1}, content={content.Bounds.Width:F1}, button={button.Bounds.Width:F1}.");
                     Assert.True(origin.Value.Y + content.Bounds.Height <= button.Bounds.Height + 0.5,
                         $"{page}/{manageTab}: {content.GetType().Name} is clipped vertically at {renderScaling:P0} scaling.");
                 }
