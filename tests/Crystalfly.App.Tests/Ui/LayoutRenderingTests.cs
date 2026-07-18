@@ -207,6 +207,59 @@ public sealed class LayoutRenderingTests
     }
 
     [AvaloniaFact]
+    public void Button_labels_and_icons_are_optically_centered_together()
+    {
+        var viewModel = new MainViewModel(Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N")))
+        {
+            CurrentPage = "Downloads"
+        };
+        var window = new MainWindow { Width = 1280, Height = 720 };
+        window.Show();
+        window.DataContext = viewModel;
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            var iconAndTextButtons = window.GetVisualDescendants()
+                .OfType<Button>()
+                .Where(button => button.IsEffectivelyVisible)
+                .Select(button => new
+                {
+                    Button = button,
+                    Icon = button.GetVisualDescendants()
+                        .OfType<Control>()
+                        .FirstOrDefault(control => control.IsEffectivelyVisible && control.GetType().Name == "LucideIcon"),
+                    Text = button.GetVisualDescendants()
+                        .OfType<TextBlock>()
+                        .FirstOrDefault(text => text.IsEffectivelyVisible)
+                })
+                .Where(item => item.Icon is not null && item.Text is not null)
+                .ToArray();
+            Assert.NotEmpty(iconAndTextButtons);
+
+            foreach (var item in iconAndTextButtons)
+            {
+                var icon = Assert.IsAssignableFrom<Control>(item.Icon);
+                var text = Assert.IsAssignableFrom<TextBlock>(item.Text);
+                var iconOrigin = Assert.IsType<Point>(icon.TranslatePoint(default, item.Button));
+                var textOrigin = Assert.IsType<Point>(text.TranslatePoint(default, item.Button));
+                var iconCenter = iconOrigin.Y + icon.Bounds.Height / 2;
+                var textCenter = textOrigin.Y + text.Bounds.Height / 2;
+                Assert.InRange(Math.Abs(iconCenter - textCenter), 0, 0.5);
+                Assert.InRange(Math.Abs(textCenter - (item.Button.Bounds.Height / 2 + 1)), 0, 0.5);
+
+                var contentLeft = Math.Min(iconOrigin.X, textOrigin.X);
+                var contentRight = Math.Max(iconOrigin.X + icon.Bounds.Width, textOrigin.X + text.Bounds.Width);
+                Assert.InRange(Math.Abs((contentLeft + contentRight) / 2 - item.Button.Bounds.Width / 2), 0, 0.5);
+            }
+        }
+        finally
+        {
+            CloseImmediately(window);
+        }
+    }
+
+    [AvaloniaFact]
     public void Launch_rail_actions_are_vertical_equal_width_buttons()
     {
         var viewModel = new MainViewModel(Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N")))
