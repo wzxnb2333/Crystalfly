@@ -28,7 +28,7 @@
         <vm:MainViewModel />
     </Design.DataContext>
 
-    <Grid RowDefinitions="Auto,Auto,Auto,*">
+    <Grid RowDefinitions="Auto,Auto,*">
         <Border Grid.Row="0" Classes="cfp-topbar">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="24" IsEnabled="{Binding CanNavigate}">
                 <TextBlock Grid.Column="0" Classes="cfp-brand" Text="Crystalfly" />
@@ -87,12 +87,7 @@
             </Grid>
         </Border>
 
-        <ProgressBar Grid.Row="1"
-                     Classes="cfp-progress"
-                     IsIndeterminate="True"
-                     IsVisible="{Binding IsBusy}" />
-
-        <Border Grid.Row="2"
+        <Border Grid.Row="1"
                 Classes="cfp-error"
                 IsVisible="{Binding ErrorMessage, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}">
             <TextBlock Text="{Binding ErrorMessage}"
@@ -100,7 +95,12 @@
                        TextWrapping="Wrap" />
         </Border>
 
-        <Grid Grid.Row="3">
+        <u:LoadingContainer Grid.Row="2"
+                            IsLoading="{Binding IsBusy}"
+                            LoadingMessage="{Binding StatusMessage}"
+                            HorizontalContentAlignment="Stretch"
+                            VerticalContentAlignment="Stretch">
+        <Grid>
             <!-- Launch -->
             <Grid IsVisible="{Binding IsLaunchPage}" ColumnDefinitions="224,*">
                 <Border Grid.Column="0" Classes="cfp-rail" Padding="16">
@@ -184,6 +184,8 @@
                             </Border>
                         </Grid>
 
+                        <u:Skeleton IsLoading="{Binding IsLoadingInstanceDetails}"
+                                    IsActive="{Binding IsLoadingInstanceDetails}">
                         <Border Classes="cfp-card" IsVisible="{Binding HasInstance}">
                             <StackPanel Spacing="16">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
@@ -254,6 +256,7 @@
                                 </StackPanel>
                             </StackPanel>
                         </Border>
+                        </u:Skeleton>
 
                         <TextBlock Classes="cfp-meta"
                                    Text="{Binding Loc[ChooseRoot]}"
@@ -1455,8 +1458,9 @@
                                            Text="{Binding OfficialModCatalogSummary}"
                                            TextWrapping="Wrap" />
                                 <TextBlock Classes="cfp-meta"
-                                           Text="{Binding OfficialModCatalogError}"
-                                           TextWrapping="Wrap"
+                                            Text="{Binding OfficialModCatalogError}"
+                                            Foreground="{DynamicResource CfErrorBrush}"
+                                            TextWrapping="Wrap"
                                            IsVisible="{Binding OfficialModCatalogError, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
                             </StackPanel>
                         </Border>
@@ -1490,8 +1494,9 @@
                 </ScrollViewer>
             </Grid>
         </Grid>
+        </u:LoadingContainer>
         <u:OverlayDialogHost x:Name="MainOverlayDialogHost"
-                             Grid.RowSpan="4"
+                             Grid.RowSpan="3"
                              HostId="Crystalfly.Main" />
     </Grid>
 </Window>

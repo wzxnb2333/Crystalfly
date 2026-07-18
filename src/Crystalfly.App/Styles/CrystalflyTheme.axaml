@@ -48,7 +48,7 @@
                     <SolidColorBrush x:Key="CfPrimaryActionHoverBrush" Color="#FFFFFF" />
                     <SolidColorBrush x:Key="CfOnPrimaryActionBrush" Color="#17191C" />
                     <SolidColorBrush x:Key="CfDangerBrush" Color="#C42B1C" />
-                    <SolidColorBrush x:Key="CfDangerHoverBrush" Color="#E4483A" />
+                    <SolidColorBrush x:Key="CfDangerHoverBrush" Color="#A4262C" />
                     <SolidColorBrush x:Key="CfOnDangerBrush" Color="#FFFFFF" />
                     <SolidColorBrush x:Key="CfErrorBrush" Color="#FDA29B" />
                     <SolidColorBrush x:Key="CfErrorSurfaceBrush" Color="#4A1D1A" />

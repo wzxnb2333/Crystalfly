@@ -1,6 +1,10 @@
+using System.ComponentModel;
 using Avalonia.Controls;
+using Avalonia.Controls.Notifications;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views.Dialogs;
@@ -14,12 +18,20 @@ public partial class MainWindow : Window
     internal const string OverlayHostId = "Crystalfly.Main";
 
     private bool closeAfterDispose;
+    private bool toastManagerClosing;
+    private bool toastManagerUninstalled;
     private Task? disposeBeforeCloseTask;
     private Task<bool>? marketInstallDialogTask;
+    private readonly WindowToastManager toastManager;
+    private Action<string>? toastRequestedHandler;
+    private MainViewModel? toastViewModel;
 
     public MainWindow()
     {
         InitializeComponent();
+        toastManager = new WindowToastManager(this) { MaxItems = 3 };
+        DataContextChanged += OnDataContextChanged;
+        OnDataContextChanged(this, EventArgs.Empty);
         Opened += OnOpened;
     }
 
@@ -88,8 +100,112 @@ public partial class MainWindow : Window
         }
         finally
         {
-            closeAfterDispose = true;
-            Close();
+            try
+            {
+                await UninstallToastManagerAsync();
+            }
+            finally
+            {
+                closeAfterDispose = true;
+                Close();
+            }
+        }
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs eventArgs)
+    {
+        if (toastViewModel is not null)
+        {
+            if (toastRequestedHandler is not null)
+            {
+                toastViewModel.ToastRequested -= toastRequestedHandler;
+            }
+            toastViewModel.PropertyChanged -= OnToastViewModelPropertyChanged;
+        }
+
+        toastRequestedHandler = null;
+        toastViewModel = DataContext as MainViewModel;
+        if (toastViewModel is not null)
+        {
+            var owner = toastViewModel;
+            toastRequestedHandler = message => ShowToast(owner, message, NotificationType.Success);
+            toastViewModel.ToastRequested += toastRequestedHandler;
+            toastViewModel.PropertyChanged += OnToastViewModelPropertyChanged;
+        }
+    }
+
+    private void OnToastViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
+    {
+        if (eventArgs.PropertyName == nameof(MainViewModel.ErrorMessage)
+            && sender is MainViewModel viewModel
+            && !string.IsNullOrWhiteSpace(viewModel.ErrorMessage))
+        {
+            ShowToast(viewModel, viewModel.ErrorMessage, NotificationType.Error);
+        }
+    }
+
+    private void ShowToast(MainViewModel owner, string message, NotificationType type) =>
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!toastManagerClosing && ReferenceEquals(owner, toastViewModel))
+            {
+                toastManager.Show(message, type);
+            }
+        });
+
+    private async Task UninstallToastManagerAsync()
+    {
+        if (toastManagerUninstalled)
+        {
+            return;
+        }
+
+        DetachToastSubscriptions();
+        toastManagerClosing = true;
+        var cards = toastManager.GetVisualDescendants().OfType<ToastCard>()
+            .Where(card => !card.IsClosed)
+            .ToArray();
+        var completions = new List<Task>(cards.Length);
+        foreach (var card in cards)
+        {
+            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            EventHandler<MessageClosedEventArgs>? handler = null;
+            handler = (_, _) =>
+            {
+                card.MessageClosed -= handler;
+                completion.TrySetResult();
+            };
+            card.MessageClosed += handler;
+            completions.Add(completion.Task);
+        }
+
+        toastManager.CloseAll();
+        var allClosed = Task.WhenAll(completions);
+        if (await Task.WhenAny(allClosed, Task.Delay(TimeSpan.FromSeconds(2))) != allClosed)
+        {
+            foreach (var card in cards.Where(card => !card.IsClosed))
+            {
+                card.IsClosed = true;
+            }
+            await allClosed;
+            await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
+        }
+        toastManager.Uninstall();
+        toastManagerUninstalled = true;
+    }
+
+    private void DetachToastSubscriptions()
+    {
+        DataContextChanged -= OnDataContextChanged;
+        if (toastViewModel is not null)
+        {
+            if (toastRequestedHandler is not null)
+            {
+                toastViewModel.ToastRequested -= toastRequestedHandler;
+            }
+            toastViewModel.PropertyChanged -= OnToastViewModelPropertyChanged;
+            toastRequestedHandler = null;
+            toastViewModel = null;
         }
     }
 

@@ -401,11 +401,14 @@ public sealed class LocalizationViewModel : ViewModelBase
 
     public string this[string key] => values.TryGetValue(key, out var value) ? value : key;
 
+    public CultureInfo Culture { get; private set; } = CultureInfo.GetCultureInfo("zh-CN");
+
     public void Apply(UiLanguage language)
     {
         var useChinese = language == UiLanguage.SimplifiedChinese
             || (language == UiLanguage.FollowSystem
                 && CultureInfo.CurrentUICulture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase));
+        Culture = CultureInfo.GetCultureInfo(useChinese ? "zh-CN" : "en-US");
         values = useChinese ? Chinese : English;
         OnPropertyChanged("Item[]");
     }

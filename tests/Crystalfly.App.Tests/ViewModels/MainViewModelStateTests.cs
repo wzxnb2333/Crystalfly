@@ -8,6 +8,7 @@ using Crystalfly.Core.Serialization;
 using Crystalfly.Steam.Downloads;
 using Crystalfly.Steam.Security;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.IO.Compression;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -18,6 +19,41 @@ namespace Crystalfly.App.Tests.ViewModels;
 public sealed class MainViewModelStateTests : IDisposable
 {
     private readonly TestDirectory applicationData = new();
+
+    [Theory]
+    [InlineData(UiLanguage.SimplifiedChinese, "zh-CN")]
+    [InlineData(UiLanguage.English, "en-US")]
+    public void Localization_uses_supported_culture_for_explicit_language(
+        UiLanguage language,
+        string expectedCulture)
+    {
+        var localization = new LocalizationViewModel();
+
+        localization.Apply(language);
+
+        Assert.Equal(expectedCulture, localization.Culture.Name);
+    }
+
+    [Fact]
+    public void Localization_normalizes_follow_system_culture()
+    {
+        var originalCulture = CultureInfo.CurrentUICulture;
+        try
+        {
+            var localization = new LocalizationViewModel();
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("zh-Hans");
+            localization.Apply(UiLanguage.FollowSystem);
+            Assert.Equal("zh-CN", localization.Culture.Name);
+
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en-AU");
+            localization.Apply(UiLanguage.FollowSystem);
+            Assert.Equal("en-US", localization.Culture.Name);
+        }
+        finally
+        {
+            CultureInfo.CurrentUICulture = originalCulture;
+        }
+    }
 
     [Fact]
     public async Task Injected_application_data_root_keeps_real_settings_unchanged()
@@ -453,6 +489,30 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.True(viewModel.CanCloneInstance);
     }
 
+    [Fact]
+    public async Task Clone_success_requests_one_completion_toast()
+    {
+        using var test = new TestDirectory();
+        var applicationDataRoot = test.CreateDirectory("app-data");
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "source");
+        var record = Instance("source", instanceRoot) with { Name = "Source" };
+        await InstanceSidecar.SaveAsync(record);
+        await using var viewModel = new MainViewModel(applicationDataRoot)
+        {
+            VersionRoot = versionRoot,
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Vanilla", 0),
+            CloneInstanceName = "Clone"
+        };
+        var notifications = new List<string>();
+        viewModel.ToastRequested += notifications.Add;
+
+        await viewModel.CloneSelectedInstanceCommand.ExecuteAsync(null);
+
+        Assert.Null(viewModel.ErrorMessage);
+        Assert.Equal(viewModel.Loc["OperationComplete"], Assert.Single(notifications));
+    }
+
     [Theory]
     [InlineData(@"..\..\outside")]
     [InlineData(@"C:\outside")]
@@ -884,6 +944,8 @@ public sealed class MainViewModelStateTests : IDisposable
             SupportedBuildIds = ["1.5.78.11833"]
         };
         await using var viewModel = new MainViewModel(applicationDataRoot) { VersionRoot = versionRoot };
+        var notifications = new List<string>();
+        viewModel.ToastRequested += notifications.Add;
         SetCatalog(viewModel, new GameCatalog { Loaders = [loader], Mods = [mod] });
         viewModel.Instances.Add(new InstanceItemViewModel(record, "1.5.78.11833", "Vanilla", 0));
         viewModel.SelectedMarketMod = mod;
@@ -892,6 +954,7 @@ public sealed class MainViewModelStateTests : IDisposable
         await viewModel.InstallMarketModCommand.ExecuteAsync(null);
 
         Assert.Null(viewModel.ErrorMessage);
+        Assert.Equal(viewModel.Loc["OperationComplete"], Assert.Single(notifications));
         Assert.True(File.Exists(Path.Combine(managedRoot, "MMHOOK_Assembly-CSharp.dll")));
         Assert.True(File.Exists(Path.Combine(managedRoot, "Mods", "Sample Mod", "mod.dll")));
     }
@@ -1081,6 +1144,51 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.StartsWith(viewModel.Loc["OperationFailed"], viewModel.ErrorMessage);
     }
 
+    [Fact]
+    public async Task Instance_detail_loading_is_cleared_only_by_current_generation()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var first = Instance("first", test.CreateDirectory("versions", "first"));
+        var second = Instance("second", test.CreateDirectory("versions", "second"));
+        var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        SetPrivateField(viewModel, "detailsLoadGeneration", 2L);
+        SetPrivateField(
+            viewModel,
+            "<SelectedInstance>k__BackingField",
+            new InstanceItemViewModel(second, second.BuildId, "Vanilla", 0));
+        viewModel.IsLoadingInstanceDetails = true;
+
+        await InvokeLoadInstanceDetailsAsync(viewModel, second, 1);
+
+        Assert.True(viewModel.IsLoadingInstanceDetails);
+
+        await InvokeLoadInstanceDetailsAsync(viewModel, first, 2);
+
+        Assert.True(viewModel.IsLoadingInstanceDetails);
+
+        await InvokeLoadInstanceDetailsAsync(viewModel, second, 2);
+
+        Assert.False(viewModel.IsLoadingInstanceDetails);
+    }
+
+    [Fact]
+    public void Clearing_selected_instance_immediately_clears_detail_loading()
+    {
+        var record = Instance("practice", applicationData.CreateDirectory("instance"));
+        var viewModel = CreateViewModel();
+        SetPrivateField(
+            viewModel,
+            "<SelectedInstance>k__BackingField",
+            new InstanceItemViewModel(record, record.BuildId, "Vanilla", 0));
+        viewModel.IsLoadingInstanceDetails = true;
+
+        viewModel.SelectedInstance = null;
+
+        Assert.False(viewModel.IsLoadingInstanceDetails);
+    }
+
     [Theory]
     [InlineData(typeof(UnauthorizedAccessException), true)]
     [InlineData(typeof(InvalidOperationException), true)]
@@ -1254,6 +1362,13 @@ public sealed class MainViewModelStateTests : IDisposable
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(field);
         field.SetValue(viewModel, catalog);
+    }
+
+    private static void SetPrivateField(MainViewModel viewModel, string name, object value)
+    {
+        var field = typeof(MainViewModel).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        field.SetValue(viewModel, value);
     }
 
     private static void CreateZip(string path, params (string Name, string Content)[] entries)

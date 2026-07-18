@@ -23,6 +23,8 @@ using Crystalfly.Steam.Authentication;
 using Crystalfly.Steam.Downloads;
 using Crystalfly.Steam.Security;
 using QRCoder;
+using Semi.Avalonia;
+using Ursa.Themes.Semi;
 
 namespace Crystalfly.App.ViewModels;
 
@@ -83,6 +85,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     public LocalizationViewModel Loc { get; private set; }
+
+    public event Action<string>? ToastRequested;
 
     public ObservableCollection<InstanceItemViewModel> Instances { get; } = [];
 
@@ -264,6 +268,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
+    public partial bool IsLoadingInstanceDetails { get; set; }
+
+    [ObservableProperty]
     public partial bool IsSteamLoggedIn { get; set; }
 
     [ObservableProperty]
@@ -379,13 +386,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private async Task InitializeCoreAsync()
     {
         settings = await CrystalflySettingsStore.LoadAsync(settingsPath);
+        ApplyLanguage(settings.Language);
+        ApplyTheme(settings.Theme);
         catalog = await LoadCatalogAsync(lifetimeCancellation.Token);
         VersionRoot = settings.VersionRoot ?? string.Empty;
         CustomSourcesText = string.Join(
             Environment.NewLine,
             settings.CustomCatalogs.Select(source => $"{source.Namespace}={source.Url}"));
-        ApplyLanguage(settings.Language);
-        ApplyTheme(settings.Theme);
         RebuildSettingOptions();
         RebuildModStatusOptions();
         RebuildMarketCatalog();
@@ -734,7 +741,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             CloneInstanceName = string.Empty;
             await RefreshAsync();
             SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == clone.Id);
-            StatusMessage = Loc["OperationComplete"];
+            NotifyOperationCompleted();
         }
         catch (Exception exception) when (exception is IOException
             or InvalidDataException
@@ -1644,6 +1651,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     partial void OnSelectedInstanceChanged(InstanceItemViewModel? value)
     {
         long generation = Interlocked.Increment(ref detailsLoadGeneration);
+        IsLoadingInstanceDetails = value is not null;
         AvailableLoaders.Clear();
         SelectedLoader = null;
         AvailableMods.Clear();
@@ -1827,6 +1835,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Loc = localization;
         OnPropertyChanged(nameof(Loc));
         NotifyOfficialCatalogLabels();
+
+        if (Application.Current is { } application)
+        {
+            SemiTheme.OverrideLocaleResources(application, localization.Culture);
+            UrsaSemiTheme.OverrideLocaleResources(application, localization.Culture);
+        }
+    }
+
+    private void NotifyOperationCompleted()
+    {
+        StatusMessage = Loc["OperationComplete"];
+        ToastRequested?.Invoke(StatusMessage);
     }
 
     private void NotifyOfficialCatalogLabels()
@@ -2043,6 +2063,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
         }
+        finally
+        {
+            if (generation == Volatile.Read(ref detailsLoadGeneration)
+                && SelectedInstance?.Id == record.Id)
+            {
+                IsLoadingInstanceDetails = false;
+            }
+        }
     }
 
     private static bool IsExpectedInstanceDetailsException(Exception exception) =>
@@ -2084,7 +2112,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             await operation(SelectedInstance.Record);
             await RefreshAsync();
             SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == instanceId);
-            StatusMessage = Loc["OperationComplete"];
+            NotifyOperationCompleted();
         }
         catch (Exception exception) when (exception is IOException
             or InvalidDataException
