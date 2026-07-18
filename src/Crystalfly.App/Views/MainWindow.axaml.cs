@@ -221,7 +221,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task<bool> ShowConfirmationAsync(
+    internal async Task<bool> ShowConfirmationAsync(
         string title,
         string message,
         string target,

@@ -9,9 +9,8 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels;
-using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views;
-using Crystalfly.App.Views.Dialogs;
+using Crystalfly.Core.Configuration;
 using Ursa.Controls;
 
 namespace Crystalfly.App.Tests.Ui;
@@ -89,32 +88,27 @@ public sealed class ThemeRenderingTests
     {
         var window = new MainWindow { Width = 900, Height = 600 };
         window.Show();
-        var viewModel = new ConfirmationDialogViewModel(
+        var applicationDataRoot = Path.Combine(
+            Path.GetTempPath(),
+            "crystalfly-ui",
+            Guid.NewGuid().ToString("N"));
+        var viewModel = new MainViewModel(applicationDataRoot);
+        var result = window.ShowConfirmationAsync(
             "Remove mod",
             "This cannot be undone.",
             "Sample Mod",
-            "Confirm",
-            "Cancel",
+            viewModel,
             canConfirm: false,
             isDangerous: true);
-        var result = OverlayDialog.ShowCustomAsync<ConfirmationDialogView, ConfirmationDialogViewModel, bool>(
-            viewModel,
-            MainWindow.OverlayHostId,
-            new OverlayDialogOptions
-            {
-                CanLightDismiss = false,
-                CanDragMove = false,
-                IsCloseButtonVisible = true
-            });
         Dispatcher.UIThread.RunJobs();
 
         try
         {
             var dialog = Assert.Single(window.GetVisualDescendants().OfType<CustomDialogControl>());
             var confirm = dialog.GetVisualDescendants().OfType<Button>()
-                .Single(button => AutomationProperties.GetName(button) == "Confirm");
+                .Single(button => AutomationProperties.GetName(button) == viewModel.Loc["Confirm"]);
             var cancel = dialog.GetVisualDescendants().OfType<Button>()
-                .Single(button => AutomationProperties.GetName(button) == "Cancel");
+                .Single(button => AutomationProperties.GetName(button) == viewModel.Loc["Cancel"]);
 
             Assert.Contains("cfp-danger", confirm.Classes);
             Assert.False(confirm.IsEnabled);
@@ -128,16 +122,59 @@ public sealed class ThemeRenderingTests
         finally
         {
             window.Close();
+            await viewModel.DisposeAsync();
+            if (Directory.Exists(applicationDataRoot))
+            {
+                Directory.Delete(applicationDataRoot, recursive: true);
+            }
         }
     }
 
     [AvaloniaFact]
-    public void Main_window_uses_three_Ursa_path_pickers_with_loader_and_mod_filters()
+    public async Task Standard_confirmation_overlay_uses_primary_confirm_button()
     {
-        var viewModel = new MainViewModel(Path.Combine(
+        var window = new MainWindow { Width = 900, Height = 600 };
+        window.Show();
+        var applicationDataRoot = Path.Combine(
             Path.GetTempPath(),
             "crystalfly-ui",
-            Guid.NewGuid().ToString("N")))
+            Guid.NewGuid().ToString("N"));
+        var viewModel = new MainViewModel(applicationDataRoot);
+        var result = window.ShowConfirmationAsync("Restore", "Restore snapshot?", "Snapshot", viewModel);
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            var dialog = Assert.Single(window.GetVisualDescendants().OfType<CustomDialogControl>());
+            var confirm = dialog.GetVisualDescendants().OfType<Button>()
+                .Single(button => AutomationProperties.GetName(button) == viewModel.Loc["Confirm"]);
+            Assert.Contains("cfp-primary", confirm.Classes);
+
+            confirm.Command!.Execute(confirm.CommandParameter);
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(await result);
+        }
+        finally
+        {
+            window.Close();
+            await viewModel.DisposeAsync();
+            if (Directory.Exists(applicationDataRoot))
+            {
+                Directory.Delete(applicationDataRoot, recursive: true);
+            }
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Main_window_uses_three_Ursa_path_pickers_with_loader_and_mod_filters()
+    {
+        var applicationDataRoot = Path.Combine(
+            Path.GetTempPath(),
+            "crystalfly-ui",
+            Guid.NewGuid().ToString("N"));
+        var selectedRoot = Path.Combine(applicationDataRoot, "versions");
+        Directory.CreateDirectory(selectedRoot);
+        var viewModel = new MainViewModel(applicationDataRoot)
         {
             CurrentPage = "Settings"
         };
@@ -160,11 +197,33 @@ public sealed class ThemeRenderingTests
             Assert.All(pickers, picker => Assert.True(picker.IsOmitCommandOnCancel));
             Assert.All(pickers, picker =>
                 Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(picker))));
+
+            folder.SelectedPathsText = selectedRoot;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(selectedRoot, viewModel.VersionRoot);
+
+            folder.Command!.Execute(Array.Empty<Avalonia.Platform.Storage.IStorageItem>());
+            for (var attempt = 0; attempt < 100 && viewModel.ApplyVersionRootCommand.IsRunning; attempt++)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Delay(10);
+            }
+
+            Assert.False(viewModel.ApplyVersionRootCommand.IsRunning);
+            Assert.Null(viewModel.ErrorMessage);
+            var settings = await CrystalflySettingsStore.LoadAsync(
+                Path.Combine(applicationDataRoot, "settings.json"));
+            Assert.Equal(Path.GetFullPath(selectedRoot), settings.VersionRoot);
         }
         finally
         {
             window.DataContext = null;
             window.Close();
+            await viewModel.DisposeAsync();
+            if (Directory.Exists(applicationDataRoot))
+            {
+                Directory.Delete(applicationDataRoot, recursive: true);
+            }
         }
     }
 
