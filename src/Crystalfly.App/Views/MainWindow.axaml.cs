@@ -35,6 +35,29 @@ public partial class MainWindow : Window
         Opened += OnOpened;
     }
 
+    private void OnWindowChromePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Handled
+            || e.GetCurrentPoint(this).Properties.PointerUpdateKind != PointerUpdateKind.LeftButtonPressed
+            || e.Source is not Avalonia.Visual visual
+            || visual.FindAncestorOfType<Button>() is not null)
+        {
+            return;
+        }
+
+        BeginMoveDrag(e);
+    }
+
+    private void OnWindowMinimizeClick(object? sender, RoutedEventArgs e) =>
+        WindowState = WindowState.Minimized;
+
+    private void OnWindowMaximizeClick(object? sender, RoutedEventArgs e) =>
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
+
+    private void OnWindowCloseClick(object? sender, RoutedEventArgs e) => Close();
+
     private async void OnOpened(object? sender, EventArgs eventArgs)
     {
         Opened -= OnOpened;

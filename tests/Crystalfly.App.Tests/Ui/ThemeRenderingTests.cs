@@ -5,6 +5,7 @@ using Avalonia.Controls.Notifications;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.LogicalTree;
 using Avalonia.Media;
@@ -31,6 +32,34 @@ public sealed class ThemeRenderingTests
         Assert.Contains("SemiTheme", styleTypes);
         Assert.Contains("UrsaSemiTheme", styleTypes);
         Assert.DoesNotContain("FluentTheme", styleTypes);
+    }
+
+    [AvaloniaFact]
+    public void Main_window_uses_custom_chrome_controls_without_system_decorations()
+    {
+        var window = new MainWindow { Width = 900, Height = 600 };
+        window.Show();
+        try
+        {
+            Assert.Equal(WindowDecorations.None, window.WindowDecorations);
+            var minimize = Assert.IsType<Button>(FindChromeButton(window, "cfp-window-minimize"));
+            var maximize = Assert.IsType<Button>(FindChromeButton(window, "cfp-window-maximize"));
+            var close = Assert.IsType<Button>(FindChromeButton(window, "cfp-window-close"));
+
+            maximize.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(WindowState.Maximized, window.WindowState);
+            maximize.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(WindowState.Normal, window.WindowState);
+            minimize.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(WindowState.Minimized, window.WindowState);
+            window.WindowState = WindowState.Normal;
+            close.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.False(window.IsVisible);
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 
     [AvaloniaFact]
@@ -602,6 +631,11 @@ public sealed class ThemeRenderingTests
         window.Show();
         return window;
     }
+
+    private static Button? FindChromeButton(MainWindow window, string className) =>
+        window.GetVisualDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(button => button.Classes.Contains(className));
 
     private static async Task CloseWindowAsync(MainWindow window)
     {

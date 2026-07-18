@@ -203,6 +203,33 @@
         <Setter Property="FontSize" Value="18" />
     </Style>
 
+    <Style Selector="Button.cfp-window-button">
+        <Setter Property="Width" Value="40" />
+        <Setter Property="Height" Value="40" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="4" />
+    </Style>
+
+    <Style Selector="Button.cfp-window-button:pointerover,
+                     Button.cfp-window-button:pressed">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+    </Style>
+
+    <Style Selector="Button.cfp-window-close:pointerover,
+                     Button.cfp-window-close:pressed">
+        <Setter Property="Background" Value="{DynamicResource CfDangerBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfOnDangerBrush}" />
+    </Style>
+
+    <Style Selector="Button.cfp-window-button:focus-visible">
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentTextBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+    </Style>
+
     <Style Selector="Button.cfp-primary">
         <Setter Property="Background" Value="{DynamicResource CfPrimaryActionBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource CfOnPrimaryActionBrush}" />

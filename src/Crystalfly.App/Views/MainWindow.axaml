@@ -17,6 +17,7 @@
         Height="720"
         MinWidth="900"
         MinHeight="600"
+        WindowDecorations="None"
         Icon="/Assets/hollow-knight-icon.png"
         Title="Crystalfly">
 
@@ -29,15 +30,18 @@
     </Design.DataContext>
 
     <Grid RowDefinitions="Auto,Auto,*">
-        <Border Grid.Row="0" Classes="cfp-topbar">
-            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="24" IsEnabled="{Binding CanNavigate}">
+        <Border Grid.Row="0"
+                Classes="cfp-topbar"
+                PointerPressed="OnWindowChromePointerPressed">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="24">
                 <TextBlock Grid.Column="0" Classes="cfp-brand" Text="Crystalfly" />
 
                 <StackPanel Grid.Column="1"
                             Orientation="Horizontal"
                             Spacing="4"
                             HorizontalAlignment="Center"
-                            VerticalAlignment="Center">
+                            VerticalAlignment="Center"
+                            IsEnabled="{Binding CanNavigate}">
                     <Button Classes="cfp-nav"
                             Classes.active="{Binding IsLaunchPage}"
                             Command="{Binding SelectPageCommand}"
@@ -76,14 +80,31 @@
                     </Button>
                 </StackPanel>
 
-                <Button Grid.Column="2"
-                        Classes="cfp-nav cfp-icon"
-                        Classes.active="{Binding IsSettingsPage}"
-                        Command="{Binding SelectPageCommand}"
-                        CommandParameter="Settings"
-                        ToolTip.Tip="{Binding Loc[NavSettings]}"
-                        AutomationProperties.Name="{Binding Loc[NavSettings]}"
-                        Content="{LucideIconContent Settings, 16}" />
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                    <Button Classes="cfp-nav cfp-icon"
+                            Classes.active="{Binding IsSettingsPage}"
+                            Command="{Binding SelectPageCommand}"
+                            CommandParameter="Settings"
+                            IsEnabled="{Binding CanNavigate}"
+                            ToolTip.Tip="{Binding Loc[NavSettings]}"
+                            AutomationProperties.Name="{Binding Loc[NavSettings]}"
+                            Content="{LucideIconContent Settings, 16}" />
+                    <Button Classes="cfp-window-button cfp-window-minimize"
+                            Click="OnWindowMinimizeClick"
+                            ToolTip.Tip="{Binding Loc[WindowMinimize]}"
+                            AutomationProperties.Name="{Binding Loc[WindowMinimize]}"
+                            Content="{LucideIconContent Minus, 16}" />
+                    <Button Classes="cfp-window-button cfp-window-maximize"
+                            Click="OnWindowMaximizeClick"
+                            ToolTip.Tip="{Binding Loc[WindowMaximize]}"
+                            AutomationProperties.Name="{Binding Loc[WindowMaximize]}"
+                            Content="{LucideIconContent Maximize2, 16}" />
+                    <Button Classes="cfp-window-button cfp-window-close"
+                            Click="OnWindowCloseClick"
+                            ToolTip.Tip="{Binding Loc[WindowClose]}"
+                            AutomationProperties.Name="{Binding Loc[WindowClose]}"
+                            Content="{LucideIconContent X, 16}" />
+                </StackPanel>
             </Grid>
         </Border>
 
