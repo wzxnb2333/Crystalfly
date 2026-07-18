@@ -414,8 +414,29 @@ public sealed class ModMarketRenderingTests
 
             Assert.False(context.ViewModel.PrepareMarketInstallTargetsCommand.IsRunning);
             var dialog = Assert.Single(GetDialogs(context.Window));
+            var preparationCommand = context.ViewModel.PrepareMarketInstallTargetsCommand;
+            var completedPreparation = preparationCommand.ExecutionTask;
+            Assert.NotNull(completedPreparation);
+            var preparationRestartCount = 0;
+            preparationCommand.PropertyChanged += (_, eventArgs) =>
+            {
+                if (eventArgs.PropertyName == nameof(preparationCommand.IsRunning)
+                    && preparationCommand.IsRunning)
+                {
+                    preparationRestartCount++;
+                }
+            };
+
             context.InstallButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Dispatcher.UIThread.RunJobs();
+            for (var attempt = 0; attempt < 10; attempt++)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Delay(10);
+            }
+
+            Assert.Equal(0, preparationRestartCount);
+            Assert.False(preparationCommand.IsRunning);
+            Assert.Same(completedPreparation, preparationCommand.ExecutionTask);
             Assert.Same(dialog, Assert.Single(GetDialogs(context.Window)));
             dialog.Close();
         }

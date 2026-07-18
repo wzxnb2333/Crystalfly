@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.LogicalTree;
@@ -112,11 +113,19 @@ public sealed class ThemeRenderingTests
 
             Assert.Contains("cfp-danger", confirm.Classes);
             Assert.False(confirm.IsEnabled);
+
+            window.MouseDown(new Point(4, 4), MouseButton.Left, RawInputModifiers.None);
+            window.MouseUp(new Point(4, 4), MouseButton.Left, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(result.IsCompleted);
+            Assert.Same(dialog, Assert.Single(
+                window.GetVisualDescendants().OfType<CustomDialogControl>()));
+
             Assert.NotNull(cancel.Command);
             cancel.Command.Execute(cancel.CommandParameter);
             Dispatcher.UIThread.RunJobs();
             Assert.True(result.IsCompleted);
-            Assert.False(await result);
+            Assert.False(await result.WaitAsync(TimeSpan.FromSeconds(1)));
             Assert.Empty(window.GetVisualDescendants().OfType<CustomDialogControl>());
         }
         finally
@@ -152,7 +161,8 @@ public sealed class ThemeRenderingTests
 
             confirm.Command!.Execute(confirm.CommandParameter);
             Dispatcher.UIThread.RunJobs();
-            Assert.True(await result);
+            Assert.True(result.IsCompleted);
+            Assert.True(await result.WaitAsync(TimeSpan.FromSeconds(1)));
         }
         finally
         {
