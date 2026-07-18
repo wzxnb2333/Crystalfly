@@ -11,13 +11,13 @@
 AppId={{5B0B81C8-D29A-46E5-A731-B889F5C2BE34}
 AppName={#AppName}
 AppVersion={#AppVersion}
-DefaultDirName={localappdata}\Programs\{#AppName}
+DefaultDirName=D:\Program Files\{#AppName}
 DefaultGroupName={#AppName}
 OutputDir=..\artifacts\installer
 OutputBaseFilename=Crystalfly-{#AppVersion}-win-x64-setup
 Compression=lzma2
 SolidCompression=yes
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
@@ -25,6 +25,9 @@ UninstallDisplayIcon={app}\Crystalfly.App.exe
 
 [Files]
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[InstallDelete]
+Type: files; Name: "{app}\Avalonia.Themes.Fluent.dll"
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\Crystalfly.App.exe"

@@ -2400,7 +2400,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     initializationTask ?? Task.CompletedTask,
                     LaunchGameCommand.ExecutionTask ?? Task.CompletedTask,
                     SignInWithQrCommand.ExecutionTask ?? Task.CompletedTask,
-                    DownloadBuildCommand.ExecutionTask ?? Task.CompletedTask);
+                    DownloadBuildCommand.ExecutionTask ?? Task.CompletedTask,
+                    PrepareMarketInstallTargetsCommand.ExecutionTask ?? Task.CompletedTask,
+                    InstallMarketModCommand.ExecutionTask ?? Task.CompletedTask);
             }
             catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
             {

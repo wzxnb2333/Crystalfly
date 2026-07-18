@@ -4,7 +4,7 @@ param(
     [ValidateSet('win-x64')]
     [string]$Runtime = 'win-x64',
     [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$')]
-    [string]$Version = '0.1.0',
+    [string]$Version = '0.1.7',
     [string]$IsccPath
 )
 
@@ -228,6 +228,32 @@ function Assert-ZipMatchesDirectory {
     }
 }
 
+function Write-ArtifactChecksums {
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$Paths,
+        [Parameter(Mandatory)]
+        [string]$ArtifactsPath,
+        [Parameter(Mandatory)]
+        [string]$OutputPath
+    )
+
+    $root = [IO.Path]::GetFullPath($ArtifactsPath).TrimEnd(
+        [IO.Path]::DirectorySeparatorChar,
+        [IO.Path]::AltDirectorySeparatorChar)
+    $rootPrefix = $root + [IO.Path]::DirectorySeparatorChar
+    $lines = foreach ($path in $Paths) {
+        $fullPath = [IO.Path]::GetFullPath($path)
+        if (-not $fullPath.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Refusing to hash '$fullPath' outside '$root'."
+        }
+        $hash = Get-FileHash -LiteralPath $fullPath -Algorithm SHA256
+        $relativePath = [IO.Path]::GetRelativePath($root, $fullPath).Replace('\', '/')
+        "{0} *{1}" -f $hash.Hash, $relativePath
+    }
+    $lines | Set-Content -LiteralPath $OutputPath -Encoding ascii
+}
+
 if ($MyInvocation.InvocationName -eq '.') {
     return
 }
@@ -282,7 +308,5 @@ if (-not (Test-Path -LiteralPath $installer)) {
 }
 
 $hashes = Get-FileHash -Algorithm SHA256 -LiteralPath $zip, $installer
-$hashes | ForEach-Object {
-    "{0} *{1}" -f $_.Hash, (Split-Path -Leaf $_.Path)
-} | Set-Content -LiteralPath $checksums -Encoding ascii
+Write-ArtifactChecksums -Paths $zip, $installer -ArtifactsPath $artifacts -OutputPath $checksums
 $hashes

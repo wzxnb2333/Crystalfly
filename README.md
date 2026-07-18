@@ -8,6 +8,13 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 
 ![Crystalfly 启动预检](docs/screenshots/crystalfly-1280x720-zh.jpg)
 
+### 界面验收截图
+
+![Mod 市场列表](docs/screenshots/crystalfly-mod-market-list-1280x720-zh.jpg)
+![Mod 详情](docs/screenshots/crystalfly-mod-market-detail-1280x720-zh.jpg)
+![安装目标实例](docs/screenshots/crystalfly-mod-install-overlay-1280x720-zh.jpg)
+![实例详情](docs/screenshots/crystalfly-instance-detail-900x600-zh.jpg)
+
 ## 功能
 
 - 扫描用户选择的版本根目录，并把每个直接子目录作为独立实例。
@@ -117,10 +124,10 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.1.7'
 ```
 
-脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。本地输出位于 `artifacts`：self-contained publish、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包和 `SHA256SUMS.txt`。首轮只公开源码；本地产物未做 Authenticode 签名，仅用于本机验证。详细设计见 [架构文档](docs/architecture.md)。
+脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包和 `SHA256SUMS.txt`。首轮只公开源码；本地产物未做 Authenticode 签名，仅用于本机验证。详细设计见 [架构文档](docs/architecture.md)。
 
 ## 许可证
 
@@ -133,6 +140,13 @@ Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, S
 This is the first source release. Crystalfly binary releases are not published yet; the repository builds a local self-contained portable ZIP and an Inno Setup installer.
 
 ![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
+
+### UI acceptance screenshots
+
+![Mod market list](docs/screenshots/crystalfly-mod-market-list-1280x720-zh.jpg)
+![Mod detail](docs/screenshots/crystalfly-mod-market-detail-1280x720-zh.jpg)
+![Install target dialog](docs/screenshots/crystalfly-mod-install-overlay-1280x720-zh.jpg)
+![Instance details](docs/screenshots/crystalfly-instance-detail-900x600-zh.jpg)
 
 ### Highlights
 
@@ -186,10 +200,10 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.1.7'
 ```
 
-The script automatically locates Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. Outputs under `artifacts` include the self-contained publish, portable ZIP, installer, and `SHA256SUMS.txt`.
+The script automatically locates Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, portable ZIP, installer, and `SHA256SUMS.txt`.
 
 Application settings use `%LOCALAPPDATA%\Crystalfly`, or `Data` beside the executable when `portable.flag` exists. Per-instance state always stays under `<version-root>\.crystalfly`.
 
