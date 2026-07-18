@@ -1231,51 +1231,59 @@
 
                     <Grid Grid.Column="1" IsVisible="{Binding IsModMarketDownloadSection}">
                         <Grid IsVisible="{Binding IsMarketList}" RowDefinitions="Auto,*">
-                            <StackPanel Grid.Row="0" Margin="24,20,24,12" Spacing="12">
+                            <StackPanel Grid.Row="0" Margin="24,16,24,8" Spacing="8">
                                 <StackPanel Spacing="4">
                                     <TextBlock Classes="cfp-page-title" Text="{Binding Loc[MarketTitle]}" />
                                     <TextBlock Classes="cfp-meta" Text="{Binding Loc[MarketHint]}" TextWrapping="Wrap" />
                                 </StackPanel>
-                                <Border Classes="cfp-card">
-                                    <StackPanel Spacing="4">
-                                        <TextBlock Classes="cfp-row-title" Text="{Binding OfficialModCatalogStatus}" />
-                                        <TextBlock Classes="cfp-meta" Text="{Binding OfficialModCatalogSummary}" TextWrapping="Wrap" />
+                                <Border Classes="cfp-card cfp-market-source">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                                        <TextBlock Classes="cfp-row-title"
+                                                   Text="{Binding OfficialModCatalogStatus}"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1"
+                                                   Classes="cfp-meta"
+                                                   Text="{Binding OfficialModCatalogSummary}"
+                                                   TextWrapping="Wrap"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Center" />
                                         <TextBlock Foreground="{DynamicResource CfErrorBrush}"
                                                    Text="{Binding OfficialModCatalogError}"
                                                    TextWrapping="Wrap"
+                                                   Grid.ColumnSpan="2"
                                                    IsVisible="{Binding OfficialModCatalogError, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-                                    </StackPanel>
+                                    </Grid>
                                 </Border>
                                 <TextBox Classes="cfp-input"
                                          Text="{Binding MarketSearchText, Mode=TwoWay}"
                                          PlaceholderText="{Binding Loc[MarketSearch]}"
                                          AutomationProperties.Name="{Binding Loc[MarketSearch]}" />
-                                <WrapPanel Orientation="Horizontal">
-                                    <ComboBox Width="156" Margin="0,0,8,8" Classes="cfp-input"
+                                <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+                                    <ComboBox Grid.Column="0" Classes="cfp-input" HorizontalAlignment="Stretch"
                                               ItemsSource="{Binding MarketBuildOptions}"
                                               SelectedItem="{Binding SelectedMarketBuildOption, Mode=TwoWay}"
                                               AutomationProperties.Name="{Binding Loc[MarketBuild]}">
                                         <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
                                     </ComboBox>
-                                    <ComboBox Width="156" Margin="0,0,8,8" Classes="cfp-input"
+                                    <ComboBox Grid.Column="1" Classes="cfp-input" HorizontalAlignment="Stretch"
                                               ItemsSource="{Binding MarketLoaderOptions}"
                                               SelectedItem="{Binding SelectedMarketLoaderOption, Mode=TwoWay}"
                                               AutomationProperties.Name="{Binding Loc[MarketLoader]}">
                                         <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
                                     </ComboBox>
-                                    <ComboBox Width="156" Margin="0,0,8,8" Classes="cfp-input"
+                                    <ComboBox Grid.Column="2" Classes="cfp-input" HorizontalAlignment="Stretch"
                                               ItemsSource="{Binding MarketSourceOptions}"
                                               SelectedItem="{Binding SelectedMarketSourceOption, Mode=TwoWay}"
                                               AutomationProperties.Name="{Binding Loc[MarketSource]}">
                                         <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
                                     </ComboBox>
-                                    <ComboBox Width="156" Margin="0,0,0,8" Classes="cfp-input"
+                                    <ComboBox Grid.Column="3" Classes="cfp-input" HorizontalAlignment="Stretch"
                                               ItemsSource="{Binding MarketTagOptions}"
                                               SelectedItem="{Binding SelectedMarketTagOption, Mode=TwoWay}"
                                               AutomationProperties.Name="{Binding Loc[MarketTag]}">
                                         <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
                                     </ComboBox>
-                                </WrapPanel>
+                                </Grid>
                             </StackPanel>
 
                             <Grid Grid.Row="1" Margin="24,0,24,24">
@@ -1289,20 +1297,20 @@
                                     </ListBox.ItemsPanel>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="models:ModManifest" x:CompileBindings="False">
-                                            <Button Classes="cfp-secondary"
+                                            <Button Classes="cfp-market-item"
                                                     HorizontalAlignment="Stretch"
                                                     HorizontalContentAlignment="Stretch"
                                                     Command="{Binding #Root.DataContext.OpenMarketModCommand}"
                                                     CommandParameter="{Binding}"
                                                     AutomationProperties.Name="{Binding Name}">
-                                                <Grid ColumnDefinitions="44,*,Auto" ColumnSpacing="12">
-                                                    <Border Width="40" Height="40" CornerRadius="6"
+                                                <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="10">
+                                                    <Border Width="32" Height="32" CornerRadius="6"
                                                             Background="{DynamicResource CfSurfaceHoverBrush}">
-                                                        <LucideIcon Kind="Package" Size="18"
+                                                        <LucideIcon Kind="Package" Size="16"
                                                                     HorizontalAlignment="Center"
                                                                     VerticalAlignment="Center" />
                                                     </Border>
-                                                    <StackPanel Grid.Column="1" Spacing="4">
+                                                    <StackPanel Grid.Column="1" Spacing="2">
                                                         <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                                                         <WrapPanel Orientation="Horizontal">
                                                             <TextBlock Classes="cfp-caption" Margin="0,0,10,0" Text="{Binding Version}" />
@@ -1312,7 +1320,7 @@
                                                         <ItemsControl ItemsSource="{Binding Tags}">
                                                             <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                                             <ItemsControl.ItemTemplate>
-                                                                <DataTemplate><Border Classes="cfp-badge" Margin="0,2,6,0"><TextBlock Classes="cfp-caption" Text="{Binding}" /></Border></DataTemplate>
+                                                                <DataTemplate><Border Classes="cfp-badge cfp-market-tag" Margin="0,2,6,0"><TextBlock Classes="cfp-caption" Text="{Binding}" /></Border></DataTemplate>
                                                             </ItemsControl.ItemTemplate>
                                                         </ItemsControl>
                                                     </StackPanel>

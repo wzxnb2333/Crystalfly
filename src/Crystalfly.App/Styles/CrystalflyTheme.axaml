@@ -204,8 +204,8 @@
     </Style>
 
     <Style Selector="Button.cfp-window-button">
-        <Setter Property="Width" Value="40" />
-        <Setter Property="Height" Value="40" />
+        <Setter Property="Width" Value="44" />
+        <Setter Property="Height" Value="44" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
@@ -399,6 +399,37 @@
     <Style Selector="ListBox.cfp-list > ListBoxItem:focus-visible">
         <Setter Property="BorderBrush" Value="{DynamicResource CfAccentTextBrush}" />
         <Setter Property="BorderThickness" Value="2" />
+    </Style>
+
+    <Style Selector="ListBox.cfp-market-list > ListBoxItem">
+        <Setter Property="Padding" Value="2,2" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+    </Style>
+
+    <Style Selector="Border.cfp-market-source">
+        <Setter Property="Padding" Value="12,10" />
+    </Style>
+
+    <Style Selector="Button.cfp-market-item">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="MinHeight" Value="0" />
+    </Style>
+
+    <Style Selector="Button.cfp-market-item:pointerover,
+                     Button.cfp-market-item:pressed">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+    </Style>
+
+    <Style Selector="Border.cfp-market-tag">
+        <Setter Property="Padding" Value="6,1" />
+        <Setter Property="CornerRadius" Value="8" />
     </Style>
 
     <Style Selector="TextBox.cfp-input, ComboBox.cfp-input">
