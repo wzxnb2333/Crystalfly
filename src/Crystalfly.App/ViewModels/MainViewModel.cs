@@ -493,6 +493,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             catch (Exception exception) when (exception is IOException
                 or InvalidDataException
+                or KeyNotFoundException
                 or UnauthorizedAccessException
                 or System.Text.Json.JsonException)
             {
@@ -1141,8 +1142,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             {
                 throw new InvalidOperationException(Loc["LoaderConflict"]);
             }
+            if (state == LoaderState.BepInEx && receipt is null)
+            {
+                throw new InvalidOperationException(Loc["ExternalLoaderBlocked"]);
+            }
             if (state == LoaderState.Drifted)
             {
+                if (receipt is null)
+                {
+                    throw new InvalidOperationException(Loc["ExternalLoaderBlocked"]);
+                }
                 if (!string.Equals(receipt?.PackageId, SelectedLoader.Id, StringComparison.OrdinalIgnoreCase))
                 {
                     throw new InvalidOperationException(Loc["RepairBeforeSwitch"]);
@@ -1155,6 +1164,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             else if (!string.Equals(receipt?.PackageId, SelectedLoader.Id, StringComparison.OrdinalIgnoreCase))
             {
+                if ((await CreateModManager(record).GetInstalledAsync()).Count != 0)
+                {
+                    throw new InvalidOperationException(Loc["LoaderSwitchBlockedByMods"]);
+                }
                 await manager.SwitchFromUriAsync(SelectedLoader);
             }
         });
@@ -1632,6 +1645,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         long generation = Interlocked.Increment(ref detailsLoadGeneration);
         AvailableLoaders.Clear();
+        SelectedLoader = null;
         AvailableMods.Clear();
         VisibleAvailableMods.Clear();
         InstalledMods.Clear();
@@ -1645,6 +1659,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             foreach (var loader in catalog.Loaders.Where(loader => loader.SupportedBuildIds.Contains(value.Record.BuildId)))
             {
                 AvailableLoaders.Add(loader);
+            }
+            if (AvailableLoaders.Count == 1)
+            {
+                SelectedLoader = AvailableLoaders[0];
             }
             foreach (var mod in catalog.Mods.Where(mod => mod.SupportedBuildIds.Contains(value.Record.BuildId)))
             {
@@ -1990,7 +2008,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
             CurrentLoaderState = loaderState;
             LoaderVerificationStatus = loaderReceipt is null
-                ? string.Empty
+                ? loaderState switch
+                {
+                    LoaderState.BepInEx or LoaderState.Drifted => Loc["ExternalLoaderBlocked"],
+                    LoaderState.Conflict => Loc["LoaderConflict"],
+                    _ => string.Empty
+                }
                 : loaderReceipt.IsVerified
                     ? Loc["VerifiedCatalogLoader"]
                     : Loc["UnverifiedLocalLoader"];
@@ -2028,19 +2051,20 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             or UnauthorizedAccessException
             or InvalidOperationException;
 
-    private async Task RefreshAfterFailedMutationAsync(string instanceId)
+    private async Task RefreshAfterFailedMutationAsync(string instanceId, string operationError)
     {
         try
         {
             await RefreshAsync();
             SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == instanceId);
+            ErrorMessage = operationError;
         }
         catch (Exception exception) when (exception is IOException
             or InvalidDataException
             or InvalidOperationException
             or System.Text.Json.JsonException)
         {
-            ErrorMessage += $" {Loc["RefreshFailed"]}: {exception.Message}";
+            ErrorMessage = $"{operationError} {Loc["RefreshFailed"]}: {exception.Message}";
         }
     }
 
@@ -2071,8 +2095,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             or ArgumentException
             or System.Text.Json.JsonException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
-            await RefreshAfterFailedMutationAsync(instanceId);
+            var operationError = $"{Loc["OperationFailed"]}: {exception.Message}";
+            await RefreshAfterFailedMutationAsync(instanceId, operationError);
         }
         finally
         {

@@ -73,6 +73,46 @@ public sealed class FileTransactionTests
     }
 
     [Fact]
+    public async Task ApplyDirectory_rejects_reparse_point_target_root_for_empty_transaction()
+    {
+        using var test = new TestDirectory();
+        var target = test.CreateDirectoryLink(test.CreateDirectory("real-target"), "target-link");
+        var journals = test.CreateDirectory("journals");
+
+        var exception = await Assert.ThrowsAsync<IOException>(() => FileTransaction.ApplyDirectoryAsync(
+            test.CreateDirectory("staging"),
+            target,
+            journals,
+            "reject-reparse"));
+
+        Assert.Contains("reparse point", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
+    }
+
+    [Fact]
+    public async Task ApplyDirectory_rejects_target_root_below_reparse_point()
+    {
+        using var test = new TestDirectory();
+        var realParent = test.CreateDirectory("real-parent");
+        var linkedParent = test.CreateDirectoryLink(realParent, "linked-parent");
+        var target = Path.Combine(linkedParent, "target");
+        var staging = test.CreateDirectory("staging");
+        var journals = test.CreateDirectory("journals");
+        await File.WriteAllTextAsync(Path.Combine(staging, "new.txt"), "new");
+
+        var exception = await Assert.ThrowsAsync<IOException>(() => FileTransaction.ApplyDirectoryAsync(
+            staging,
+            target,
+            journals,
+            "reject-reparse-parent"));
+
+        Assert.Contains("reparse point", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(Directory.Exists(Path.Combine(realParent, "target")));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(realParent));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
+    }
+
+    [Fact]
     public async Task ApplyDirectory_rejects_reparse_points_inside_staging_tree()
     {
         using var test = new TestDirectory();
@@ -115,6 +155,24 @@ public sealed class FileTransactionTests
         Assert.Contains(result.Changes, change => change.RelativePath == "nested/added.txt"
             && change.OriginalSha256 is null
             && change.AppliedSha256 == Sha256("added"));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
+    }
+
+    [Fact]
+    public async Task ApplyDirectory_preserves_empty_staging_directories()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var target = test.CreateDirectory("target");
+        var journals = test.CreateDirectory("journals");
+        Directory.CreateDirectory(Path.Combine(staging, "hollow_knight_Data", "Managed", "Mods"));
+
+        var result = await FileTransaction.ApplyDirectoryAsync(
+            staging, target, journals, "install-loader");
+
+        Assert.Equal(TransactionState.Committed, result.State);
+        Assert.True(Directory.Exists(Path.Combine(
+            target, "hollow_knight_Data", "Managed", "Mods")));
         Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
     }
 
@@ -164,6 +222,169 @@ public sealed class FileTransactionTests
     }
 
     [Fact]
+    public async Task ReplaceDirectory_removes_declared_empty_directory()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var target = test.CreateDirectory("target");
+        var journals = test.CreateDirectory("journals");
+        var obsolete = test.CreateDirectory("target", "obsolete");
+
+        var result = await FileTransaction.ReplaceDirectoryAsync(
+            staging, target, journals, "switch-loader", ["obsolete"]);
+
+        Assert.Equal(TransactionState.Committed, result.State);
+        Assert.False(Directory.Exists(obsolete));
+        Assert.Contains(obsolete, result.RemovedDirectories, StringComparer.OrdinalIgnoreCase);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
+    }
+
+    [Fact]
+    public async Task ReplaceDirectory_removes_declared_directory_tree_after_declared_files()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var target = test.CreateDirectory("target");
+        var journals = test.CreateDirectory("journals");
+        var core = test.CreateDirectory("target", "BepInEx", "core");
+        await File.WriteAllTextAsync(Path.Combine(core, "BepInEx.dll"), "old");
+
+        var result = await FileTransaction.ReplaceDirectoryAsync(
+            staging,
+            target,
+            journals,
+            "switch-loader",
+            ["BepInEx", "BepInEx/core", "BepInEx/core/BepInEx.dll"]);
+
+        Assert.Equal(TransactionState.Committed, result.State);
+        Assert.False(Directory.Exists(Path.Combine(target, "BepInEx")));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
+    }
+
+    [Fact]
+    public async Task ReplaceDirectory_restores_declared_directory_tree_when_later_write_fails()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var target = test.CreateDirectory("target");
+        var journals = test.CreateDirectory("journals");
+        var core = test.CreateDirectory("target", "BepInEx", "core");
+        var loader = Path.Combine(core, "BepInEx.dll");
+        await File.WriteAllTextAsync(loader, "old-loader");
+        await File.WriteAllTextAsync(Path.Combine(staging, "z.txt"), "new-z");
+        var laterTarget = Path.Combine(target, "z.txt");
+        await File.WriteAllTextAsync(laterTarget, "old-z");
+
+        await using (var locked = new FileStream(
+            laterTarget, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var exception = await Assert.ThrowsAnyAsync<IOException>(() => FileTransaction.ReplaceDirectoryAsync(
+                staging,
+                target,
+                journals,
+                "switch-loader",
+                ["BepInEx", "BepInEx/core", "BepInEx/core/BepInEx.dll"]));
+            Assert.DoesNotContain("Declared removal", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        Assert.True(Directory.Exists(core));
+        Assert.Equal("old-loader", await File.ReadAllTextAsync(loader));
+        Assert.Equal("old-z", await File.ReadAllTextAsync(laterTarget));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
+    }
+
+    [Fact]
+    public async Task ReplaceDirectory_rejects_incomplete_declared_directory_tree()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var target = test.CreateDirectory("target");
+        var journals = test.CreateDirectory("journals");
+        var nested = test.CreateDirectory("target", "obsolete", "nested");
+        var file = Path.Combine(nested, "old.txt");
+        await File.WriteAllTextAsync(file, "old");
+
+        var exception = await Assert.ThrowsAsync<IOException>(() => FileTransaction.ReplaceDirectoryAsync(
+            staging,
+            target,
+            journals,
+            "switch-loader",
+            ["obsolete", "obsolete/nested/old.txt"]));
+
+        Assert.Contains("not explicitly declared", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("old", await File.ReadAllTextAsync(file));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
+    }
+
+    [Fact]
+    public async Task ReplaceDirectory_rejects_reparse_point_in_declared_directory_tree()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var target = test.CreateDirectory("target");
+        var journals = test.CreateDirectory("journals");
+        var outside = test.CreateDirectory("outside");
+        var outsideFile = Path.Combine(outside, "keep.txt");
+        await File.WriteAllTextAsync(outsideFile, "keep");
+        var obsolete = test.CreateDirectory("target", "obsolete");
+        _ = Directory.CreateSymbolicLink(Path.Combine(obsolete, "linked"), outside);
+
+        var exception = await Assert.ThrowsAsync<IOException>(() => FileTransaction.ReplaceDirectoryAsync(
+            staging,
+            target,
+            journals,
+            "switch-loader",
+            ["obsolete", "obsolete/linked"]));
+
+        Assert.Contains("reparse point", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("keep", await File.ReadAllTextAsync(outsideFile));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
+    }
+
+    [Fact]
+    public async Task ReplaceDirectory_restores_removed_empty_directory_when_later_write_fails()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var target = test.CreateDirectory("target");
+        var journals = test.CreateDirectory("journals");
+        var obsolete = test.CreateDirectory("target", "obsolete");
+        await File.WriteAllTextAsync(Path.Combine(staging, "z.txt"), "new");
+        await File.WriteAllTextAsync(Path.Combine(target, "z.txt"), "old");
+
+        await using (var locked = new FileStream(
+            Path.Combine(target, "z.txt"), FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var exception = await Assert.ThrowsAnyAsync<IOException>(() => FileTransaction.ReplaceDirectoryAsync(
+                staging, target, journals, "switch-loader", ["obsolete"]));
+            Assert.DoesNotContain("Declared removal", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        Assert.True(Directory.Exists(obsolete));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(obsolete));
+        Assert.Equal("old", await File.ReadAllTextAsync(Path.Combine(target, "z.txt")));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
+    }
+
+    [Fact]
+    public async Task ReplaceDirectory_rejects_declared_non_empty_directory()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var target = test.CreateDirectory("target");
+        var journals = test.CreateDirectory("journals");
+        var keep = Path.Combine(test.CreateDirectory("target", "obsolete"), "keep.txt");
+        await File.WriteAllTextAsync(keep, "keep");
+
+        var exception = await Assert.ThrowsAsync<IOException>(() => FileTransaction.ReplaceDirectoryAsync(
+            staging, target, journals, "switch-loader", ["obsolete"]));
+
+        Assert.Contains("not empty", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("keep", await File.ReadAllTextAsync(keep));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
+    }
+
+    [Fact]
     public async Task ReplaceDirectory_rolls_back_writes_when_a_declared_delete_fails()
     {
         using var test = new TestDirectory();
@@ -193,6 +414,32 @@ public sealed class FileTransactionTests
         var target = test.CreateDirectory("target");
         var journals = test.CreateDirectory("journals");
         await File.WriteAllTextAsync(Path.Combine(staging, "slot", "new.txt").CreateParent(), "new");
+        await File.WriteAllTextAsync(Path.Combine(staging, "z.txt"), "new-z");
+        await File.WriteAllTextAsync(Path.Combine(target, "slot"), "original-file");
+        await File.WriteAllTextAsync(Path.Combine(target, "z.txt"), "old-z");
+
+        await using (var locked = new FileStream(
+            Path.Combine(target, "z.txt"), FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            await Assert.ThrowsAnyAsync<IOException>(() => FileTransaction.ReplaceDirectoryAsync(
+                staging, target, journals, "restore-snapshot", ["slot"]));
+        }
+
+        Assert.True(File.Exists(Path.Combine(target, "slot")));
+        Assert.Equal("original-file", await File.ReadAllTextAsync(Path.Combine(target, "slot")));
+        Assert.False(Directory.Exists(Path.Combine(target, "slot")));
+        Assert.Equal("old-z", await File.ReadAllTextAsync(Path.Combine(target, "z.txt")));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
+    }
+
+    [Fact]
+    public async Task ReplaceDirectory_restores_file_after_empty_directory_replacement_when_later_write_fails()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var target = test.CreateDirectory("target");
+        var journals = test.CreateDirectory("journals");
+        _ = test.CreateDirectory("staging", "slot", "nested");
         await File.WriteAllTextAsync(Path.Combine(staging, "z.txt"), "new-z");
         await File.WriteAllTextAsync(Path.Combine(target, "slot"), "original-file");
         await File.WriteAllTextAsync(Path.Combine(target, "z.txt"), "old-z");

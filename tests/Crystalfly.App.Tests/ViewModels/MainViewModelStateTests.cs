@@ -1,6 +1,7 @@
 using Crystalfly.App.ViewModels;
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Instances;
+using Crystalfly.Core.Loaders;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Mods;
 using Crystalfly.Core.Serialization;
@@ -64,6 +65,211 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Equal(UiLanguage.English, saved.Language);
         Assert.Equal(UiTheme.Dark, saved.Theme);
         Assert.Equal("practice", saved.CurrentInstanceId);
+    }
+
+    [Fact]
+    public async Task Selecting_instance_defaults_to_its_only_compatible_loader()
+    {
+        var viewModel = CreateViewModel();
+        var loader = new LoaderManifest
+        {
+            Id = "modding-api-77",
+            Name = "Modding API",
+            Version = "77",
+            DownloadUrl = "https://example.invalid/loader.zip",
+            Sha256 = new string('A', 64),
+            SupportedBuildIds = ["1.5.78.11833"]
+        };
+        SetCatalog(viewModel, new GameCatalog { Loaders = [loader] });
+
+        viewModel.SelectedInstance = new InstanceItemViewModel(
+            Instance("practice", applicationData.CreateDirectory("instance")) with
+            {
+                BuildId = "1.5.78.11833"
+            },
+            "1.5.78.11833",
+            "Vanilla",
+            0);
+
+        Assert.Same(loader, viewModel.SelectedLoader);
+        await viewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task External_modding_api_install_error_remains_visible_after_failed_refresh()
+    {
+        using var test = new TestDirectory();
+        var applicationDataRoot = test.CreateDirectory("app-data");
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        Directory.CreateDirectory(Path.Combine(instanceRoot, "hollow_knight_Data", "Managed", "Mods"));
+        var loader = new LoaderManifest
+        {
+            Id = "modding-api-77",
+            Name = "Modding API",
+            Version = "77",
+            DownloadUrl = "https://example.invalid/loader.zip",
+            Sha256 = new string('A', 64),
+            SupportedBuildIds = ["1.5.78.11833"]
+        };
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(applicationDataRoot) { VersionRoot = versionRoot };
+        SetCatalog(viewModel, new GameCatalog { Loaders = [loader] });
+        viewModel.SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Drifted", 0);
+        viewModel.SelectedLoader = loader;
+
+        await viewModel.InstallOrSwitchLoaderCommand.ExecuteAsync(null);
+
+        Assert.Contains("未由 Crystalfly 管理", viewModel.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task External_bepinex_without_receipt_shows_loader_block_reason()
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        InstallExternalBepInEx(instanceRoot);
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = test.CreateDirectory("versions"),
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "BepInEx", 0)
+        };
+
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+
+        Assert.Equal(LoaderState.BepInEx, viewModel.CurrentLoaderState);
+        Assert.Equal(viewModel.Loc["ExternalLoaderBlocked"], viewModel.LoaderVerificationStatus);
+    }
+
+    [Fact]
+    public async Task External_loader_conflict_without_receipt_shows_conflict_reason()
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        InstallExternalBepInEx(instanceRoot);
+        Directory.CreateDirectory(Path.Combine(instanceRoot, "hollow_knight_Data", "Managed", "Mods"));
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = test.CreateDirectory("versions"),
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Conflict", 0)
+        };
+
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+
+        Assert.Equal(LoaderState.Conflict, viewModel.CurrentLoaderState);
+        Assert.Equal(viewModel.Loc["LoaderConflict"], viewModel.LoaderVerificationStatus);
+    }
+
+    [Fact]
+    public async Task External_bepinex_loader_switch_keeps_loader_block_reason()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        InstallExternalBepInEx(instanceRoot);
+        var loader = new LoaderManifest
+        {
+            Id = "modding-api-77",
+            Name = "Modding API",
+            Version = "77",
+            DownloadUrl = "https://example.invalid/loader.zip",
+            Sha256 = new string('A', 64),
+            SupportedBuildIds = ["1.5.78.11833"]
+        };
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot
+        };
+        SetCatalog(viewModel, new GameCatalog { Loaders = [loader] });
+        viewModel.SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "BepInEx", 0);
+        viewModel.SelectedLoader = loader;
+
+        await viewModel.InstallOrSwitchLoaderCommand.ExecuteAsync(null);
+
+        Assert.Contains(viewModel.Loc["ExternalLoaderBlocked"], viewModel.ErrorMessage);
+        Assert.DoesNotContain("There is no installed loader receipt", viewModel.ErrorMessage);
+    }
+
+    [Theory]
+    [InlineData("modding-api-77", "bepinex-5.4.23.4", true, false)]
+    [InlineData("bepinex-5.4.23.4", "modding-api-77", true, false)]
+    [InlineData("modding-api-77", "bepinex-5.4.23.4", false, false)]
+    [InlineData("bepinex-5.4.23.4", "modding-api-77", false, true)]
+    public async Task Loader_switch_with_managed_mod_receipt_is_blocked_without_changing_files(
+        string currentLoaderId,
+        string targetLoaderId,
+        bool modEnabled,
+        bool isLocal)
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "practice");
+        var stateRoot = test.CreateDirectory("versions", ".crystalfly", "instances", "practice");
+        var transactionRoot = test.CreateDirectory("versions", ".crystalfly", "transactions");
+        var packageCacheRoot = test.CreateDirectory("versions", ".crystalfly", "packages");
+        var packageRoot = test.CreateDirectory("packages");
+        var currentPackage = Path.Combine(packageRoot, "current.zip");
+        var targetPackage = Path.Combine(packageRoot, "target.zip");
+        CreateZip(currentPackage, (LoaderPackageEntry(currentLoaderId), "current-loader"));
+        CreateZip(targetPackage, (LoaderPackageEntry(targetLoaderId), "target-loader"));
+        var currentLoader = LoaderManifestFor(currentLoaderId, currentPackage);
+        var targetLoader = LoaderManifestFor(targetLoaderId, targetPackage);
+        var loaderReceiptPath = Path.Combine(stateRoot, "loader.json");
+        var loaderManager = new LoaderManager(
+            instanceRoot,
+            transactionRoot,
+            loaderReceiptPath,
+            packageCacheRoot);
+        await loaderManager.InstallFromFileAsync(currentLoader, currentPackage);
+        File.Copy(targetPackage, Path.Combine(packageCacheRoot, $"{targetLoader.Sha256}.zip"));
+
+        var modRelativePath = currentLoaderId.StartsWith("bepinex-", StringComparison.OrdinalIgnoreCase)
+            ? "BepInEx/plugins/Sample/mod.dll"
+            : "hollow_knight_Data/Managed/Mods/Sample/mod.dll";
+        var modPath = Path.Combine(instanceRoot, modRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(modPath)!);
+        await File.WriteAllTextAsync(modPath, "managed-mod");
+        var modReceiptPath = Path.Combine(test.CreateDirectory(
+            "versions", ".crystalfly", "instances", "practice", "mods"), "sample.json");
+        await AtomicJsonStore.WriteAsync(modReceiptPath, Receipt("sample", "1.0.0", modEnabled, isLocal) with
+        {
+            LoaderId = currentLoaderId,
+            InstallRoot = Path.GetDirectoryName(modRelativePath)!.Replace('\\', '/'),
+            Files =
+            [
+                new InstalledFileReceipt
+                {
+                    RelativePath = modRelativePath,
+                    Sha256 = FileSha256(modPath)
+                }
+            ]
+        });
+        var originalLoaderReceipt = await File.ReadAllBytesAsync(loaderReceiptPath);
+        var originalModReceipt = await File.ReadAllBytesAsync(modReceiptPath);
+        var originalLoaderFile = await File.ReadAllBytesAsync(
+            Path.Combine(instanceRoot, LoaderInstalledPath(currentLoaderId)));
+        var originalModFile = await File.ReadAllBytesAsync(modPath);
+
+        var record = Instance("practice", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot
+        };
+        SetCatalog(viewModel, new GameCatalog { Loaders = [currentLoader, targetLoader] });
+        viewModel.SelectedInstance = new InstanceItemViewModel(record, record.BuildId, currentLoaderId, 1);
+        viewModel.SelectedLoader = targetLoader;
+
+        await viewModel.InstallOrSwitchLoaderCommand.ExecuteAsync(null);
+
+        Assert.Contains(viewModel.Loc["LoaderSwitchBlockedByMods"], viewModel.ErrorMessage);
+        Assert.Equal(originalLoaderReceipt, await File.ReadAllBytesAsync(loaderReceiptPath));
+        Assert.Equal(originalModReceipt, await File.ReadAllBytesAsync(modReceiptPath));
+        Assert.Equal(originalLoaderFile, await File.ReadAllBytesAsync(
+            Path.Combine(instanceRoot, LoaderInstalledPath(currentLoaderId))));
+        Assert.Equal(originalModFile, await File.ReadAllBytesAsync(modPath));
     }
 
     [Fact]
@@ -724,6 +930,39 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Contains(viewModel.Loc["OperationFailed"], target.StatusText, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("hkmod:MissingDependency")]
+    [InlineData("custom:test:MissingDependency")]
+    public async Task Market_install_target_with_missing_dependency_is_unavailable(string missingId)
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "practice");
+        var mod = Manifest("hkmod:Root", "1.0.0") with
+        {
+            LoaderId = "modding-api-77",
+            SupportedBuildIds = ["1.5.78.11833"],
+            Dependencies = [missingId]
+        };
+        var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        SetCatalog(viewModel, new GameCatalog { Mods = [mod] });
+        viewModel.SelectedMarketMod = mod;
+        viewModel.Instances.Add(new InstanceItemViewModel(
+            Instance("practice", instanceRoot) with { BuildId = "1.5.78.11833" },
+            "1.5.78.11833",
+            "Vanilla",
+            0));
+
+        await viewModel.PrepareMarketInstallTargetsCommand.ExecuteAsync(null);
+
+        var target = Assert.Single(viewModel.MarketInstallTargets);
+        Assert.False(target.IsAvailable);
+        Assert.Null(viewModel.SelectedMarketInstallTarget);
+        Assert.Contains(missingId, target.StatusText, StringComparison.Ordinal);
+        await viewModel.DisposeAsync();
+    }
+
     [Fact]
     public async Task Language_change_refreshes_localized_bindings_and_selected_option()
     {
@@ -913,6 +1152,27 @@ public sealed class MainViewModelStateTests : IDisposable
         LoaderId = "modding-api"
     };
 
+    private static LoaderManifest LoaderManifestFor(string id, string packagePath) => new()
+    {
+        Id = id,
+        Name = id,
+        Version = id[(id.LastIndexOf('-') + 1)..],
+        DownloadUrl = "https://example.invalid/loader.zip",
+        SizeBytes = new FileInfo(packagePath).Length,
+        Sha256 = FileSha256(packagePath),
+        SupportedBuildIds = ["1.5.78.11833"]
+    };
+
+    private static string LoaderPackageEntry(string id) =>
+        id.StartsWith("bepinex-", StringComparison.OrdinalIgnoreCase)
+            ? "BepInEx/core/BepInEx.dll"
+            : "MMHOOK_Assembly-CSharp.dll";
+
+    private static string LoaderInstalledPath(string id) =>
+        id.StartsWith("bepinex-", StringComparison.OrdinalIgnoreCase)
+            ? Path.Combine("BepInEx", "core", "BepInEx.dll")
+            : Path.Combine("hollow_knight_Data", "Managed", "MMHOOK_Assembly-CSharp.dll");
+
     private static InstanceRecord Instance(string id, string rootPath) => new()
     {
         Id = id,
@@ -924,13 +1184,21 @@ public sealed class MainViewModelStateTests : IDisposable
 
     private static Task InvokeLoadInstanceDetailsAsync(
         MainViewModel viewModel,
-        InstanceRecord record)
+        InstanceRecord record,
+        long generation = 0)
     {
         var method = typeof(MainViewModel).GetMethod(
             "LoadInstanceDetailsAsync",
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(method);
-        return Assert.IsAssignableFrom<Task>(method.Invoke(viewModel, [record, 0L]));
+        return Assert.IsAssignableFrom<Task>(method.Invoke(viewModel, [record, generation]));
+    }
+
+    private static void InstallExternalBepInEx(string instanceRoot)
+    {
+        var coreRoot = Path.Combine(instanceRoot, "BepInEx", "core");
+        Directory.CreateDirectory(coreRoot);
+        File.Copy(typeof(MainViewModel).Assembly.Location, Path.Combine(coreRoot, "BepInEx.dll"));
     }
 
     private static void InvokeRebuildSettingOptions(MainViewModel viewModel)

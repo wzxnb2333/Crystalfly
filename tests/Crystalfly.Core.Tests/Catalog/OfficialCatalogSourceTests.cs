@@ -28,6 +28,19 @@ public sealed class OfficialCatalogSourceTests : IDisposable
     }
 
     [Fact]
+    public async Task Load_returns_remote_catalog_when_cache_write_fails()
+    {
+        using var client = ClientFor(ModsXml("Remote Mod"), ApiXml("81"));
+        var cachePath = Directory.CreateDirectory(Path.Combine(directory, "official.json")).FullName;
+
+        var result = await OfficialCatalogSource.LoadAsync(client, cachePath);
+
+        Assert.Equal(OfficialCatalogLoadStatus.Remote, result.Status);
+        Assert.Equal("Remote Mod", Assert.Single(result.Catalog.Mods).Name);
+        Assert.Contains("Cache", result.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Load_returns_cached_status_when_remote_fails()
     {
         var cachePath = Path.Combine(directory, "official.json");
@@ -92,6 +105,20 @@ public sealed class OfficialCatalogSourceTests : IDisposable
         Assert.Empty(result.Catalog.Mods);
         Assert.Contains("Remote", result.Reason);
         Assert.Contains("cache", result.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Load_returns_failed_status_when_cache_read_is_unauthorized()
+    {
+        var cachePath = Directory.CreateDirectory(Path.Combine(directory, "official.json")).FullName;
+        using var client = new HttpClient(new StubHandler((_, _) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable))));
+
+        var result = await OfficialCatalogSource.LoadAsync(client, cachePath);
+
+        Assert.Equal(OfficialCatalogLoadStatus.Failed, result.Status);
+        Assert.Empty(result.Catalog.Mods);
+        Assert.Contains("Cache", result.Reason, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

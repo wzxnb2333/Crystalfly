@@ -29,12 +29,19 @@ public static class FileTransaction
         var target = Path.GetFullPath(targetRoot);
         var journals = Path.GetFullPath(journalRoot);
         EnsureSeparateRoots(staging, target);
+        RejectExistingReparsePointAncestors(target, nameof(targetRoot));
         Directory.CreateDirectory(target);
         Directory.CreateDirectory(journals);
 
         var files = EnumerateFilesSafely(staging)
             .Select(path => new StagedFile(path, NormalizeRelativePath(Path.GetRelativePath(staging, path))))
             .OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var directories = EnumerateDirectoriesSafely(staging)
+            .Where(path => !PathEquals(path, staging))
+            .Select(path => NormalizeRelativePath(Path.GetRelativePath(staging, path)))
+            .OrderBy(path => path.Length)
+            .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         var stagedPaths = files.Select(file => file.RelativePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var removals = removeRelativePaths
@@ -45,7 +52,15 @@ public static class FileTransaction
             .ToArray();
         var removalSet = removals.ToHashSet(StringComparer.OrdinalIgnoreCase);
         ValidateDestinations(target, files, removalSet);
-        ValidateRemovals(target, removals);
+        ValidateDirectoryDestinations(target, directories, removalSet);
+        ValidateRemovals(target, removals, removalSet);
+        removals = removals
+            .OrderBy(path => Directory.Exists(ResolveUnderRoot(target, path)))
+            .ThenByDescending(path => Directory.Exists(ResolveUnderRoot(target, path))
+                ? path.Count(character => character == '/')
+                : -1)
+            .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
         var id = Guid.NewGuid().ToString("N");
         var restorePoint = Path.Combine(journals, id);
@@ -69,10 +84,16 @@ public static class FileTransaction
             foreach (var relativePath in removals)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                journal = await DeleteFileAsync(relativePath, target, journal, journalPath, cancellationToken);
+                journal = await DeletePathAsync(relativePath, target, journal, journalPath, cancellationToken);
             }
             journal = await RemoveBlockingDirectoriesAsync(
                 files,
+                target,
+                journal,
+                journalPath,
+                cancellationToken);
+            journal = await ApplyDirectoriesAsync(
+                directories,
                 target,
                 journal,
                 journalPath,
@@ -231,7 +252,44 @@ public static class FileTransaction
         return journal;
     }
 
-    private static async Task<TransactionJournal> DeleteFileAsync(
+    private static async Task<TransactionJournal> ApplyDirectoriesAsync(
+        IReadOnlyList<string> relativePaths,
+        string targetRoot,
+        TransactionJournal journal,
+        string journalPath,
+        CancellationToken cancellationToken)
+    {
+        var createdDirectories = relativePaths
+            .Select(path => ResolveUnderRoot(targetRoot, path))
+            .SelectMany(path => GetMissingDirectories(targetRoot, path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (createdDirectories.Length == 0)
+        {
+            return journal;
+        }
+
+        journal = journal with
+        {
+            CreatedPaths = journal.CreatedPaths
+                .Concat(createdDirectories)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            CreatedDirectories = journal.CreatedDirectories
+                .Concat(createdDirectories)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+        };
+        await AtomicJsonStore.WriteAsync(journalPath, journal, cancellationToken);
+        foreach (var directory in createdDirectories)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Directory.CreateDirectory(directory);
+        }
+        return journal;
+    }
+
+    private static async Task<TransactionJournal> DeletePathAsync(
         string relativePath,
         string targetRoot,
         TransactionJournal journal,
@@ -239,6 +297,28 @@ public static class FileTransaction
         CancellationToken cancellationToken)
     {
         var targetPath = ResolveUnderRoot(targetRoot, relativePath);
+        if (Directory.Exists(targetPath))
+        {
+            if (Directory.EnumerateFileSystemEntries(targetPath).Any())
+            {
+                throw new IOException($"Declared removal directory is not empty: '{relativePath}'.");
+            }
+            journal = journal with
+            {
+                RemovedDirectories = journal.RemovedDirectories
+                    .Append(targetPath)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray()
+            };
+            await AtomicJsonStore.WriteAsync(journalPath, journal, cancellationToken);
+            Directory.Delete(targetPath);
+            if (Directory.Exists(targetPath))
+            {
+                throw new IOException($"Delete verification failed for directory '{relativePath}'.");
+            }
+            return journal;
+        }
+
         var originalHash = await HashFileAsync(targetPath, cancellationToken);
         var backupRelativePath = NormalizeRelativePath(Path.Combine("backup", relativePath));
         var backupPath = ResolveUnderRoot(journal.RestorePointPath, backupRelativePath);
@@ -329,49 +409,13 @@ public static class FileTransaction
         try
         {
             ValidateJournal(journal, journalPath);
-            foreach (var change in journal.Changes.Reverse())
+            foreach (var change in journal.Changes
+                .Where(change => change.OriginalSha256 is null)
+                .Reverse())
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var targetPath = ResolveUnderRoot(journal.RootPath, change.RelativePath);
-                if (change.OriginalSha256 is not null)
-                {
-                    if (!File.Exists(targetPath)
-                        || !StringComparer.OrdinalIgnoreCase.Equals(
-                            change.OriginalSha256,
-                            await HashFileAsync(targetPath, cancellationToken)))
-                    {
-                        if (change.BackupRelativePath is null)
-                        {
-                            throw new InvalidDataException($"Missing backup record for '{change.RelativePath}'.");
-                        }
-                        var backupPath = ResolveUnderRoot(journal.RestorePointPath, change.BackupRelativePath);
-                        if (!File.Exists(backupPath)
-                            || !StringComparer.OrdinalIgnoreCase.Equals(
-                                change.OriginalSha256,
-                                await HashFileAsync(backupPath, cancellationToken)))
-                        {
-                            throw new InvalidDataException($"Backup is missing or invalid for '{change.RelativePath}'.");
-                        }
-                        if (Directory.Exists(targetPath))
-                        {
-                            if (Directory.EnumerateFileSystemEntries(targetPath).Any())
-                            {
-                                throw new InvalidDataException(
-                                    $"A non-empty directory blocks restore for '{change.RelativePath}'.");
-                            }
-                            Directory.Delete(targetPath);
-                        }
-                        Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
-                        File.Copy(backupPath, targetPath, overwrite: true);
-                    }
-                    if (!StringComparer.OrdinalIgnoreCase.Equals(
-                        change.OriginalSha256,
-                        await HashFileAsync(targetPath, cancellationToken)))
-                    {
-                        throw new IOException($"Restore verification failed for '{change.RelativePath}'.");
-                    }
-                }
-                else if (File.Exists(targetPath))
+                if (File.Exists(targetPath))
                 {
                     if (!StringComparer.OrdinalIgnoreCase.Equals(
                         change.AppliedSha256,
@@ -399,6 +443,49 @@ public static class FileTransaction
                     throw new InvalidDataException($"Created directory is not empty: '{directory}'.");
                 }
                 Directory.Delete(directory);
+            }
+
+            foreach (var change in journal.Changes
+                .Where(change => change.OriginalSha256 is not null)
+                .Reverse())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var targetPath = ResolveUnderRoot(journal.RootPath, change.RelativePath);
+                if (!File.Exists(targetPath)
+                    || !StringComparer.OrdinalIgnoreCase.Equals(
+                        change.OriginalSha256,
+                        await HashFileAsync(targetPath, cancellationToken)))
+                {
+                    if (change.BackupRelativePath is null)
+                    {
+                        throw new InvalidDataException($"Missing backup record for '{change.RelativePath}'.");
+                    }
+                    var backupPath = ResolveUnderRoot(journal.RestorePointPath, change.BackupRelativePath);
+                    if (!File.Exists(backupPath)
+                        || !StringComparer.OrdinalIgnoreCase.Equals(
+                            change.OriginalSha256,
+                            await HashFileAsync(backupPath, cancellationToken)))
+                    {
+                        throw new InvalidDataException($"Backup is missing or invalid for '{change.RelativePath}'.");
+                    }
+                    if (Directory.Exists(targetPath))
+                    {
+                        if (Directory.EnumerateFileSystemEntries(targetPath).Any())
+                        {
+                            throw new InvalidDataException(
+                                $"A non-empty directory blocks restore for '{change.RelativePath}'.");
+                        }
+                        Directory.Delete(targetPath);
+                    }
+                    Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+                    File.Copy(backupPath, targetPath, overwrite: true);
+                }
+                if (!StringComparer.OrdinalIgnoreCase.Equals(
+                    change.OriginalSha256,
+                    await HashFileAsync(targetPath, cancellationToken)))
+                {
+                    throw new IOException($"Restore verification failed for '{change.RelativePath}'.");
+                }
             }
 
             foreach (var directory in journal.RemovedDirectories
@@ -520,18 +607,57 @@ public static class FileTransaction
         }
     }
 
-    private static void ValidateRemovals(string targetRoot, IReadOnlyList<string> relativePaths)
+    private static void ValidateDirectoryDestinations(
+        string targetRoot,
+        IReadOnlyList<string> directories,
+        IReadOnlySet<string> removals)
+    {
+        foreach (var relativePath in directories)
+        {
+            var targetPath = ResolveUnderRoot(targetRoot, relativePath);
+            if (File.Exists(targetPath) && !removals.Contains(relativePath))
+            {
+                throw new IOException($"A file blocks target directory '{relativePath}'.");
+            }
+            for (var parent = targetPath;
+                 parent is not null && !PathEquals(parent, targetRoot);
+                 parent = Path.GetDirectoryName(parent))
+            {
+                if (File.Exists(parent))
+                {
+                    var relativeParent = NormalizeRelativePath(Path.GetRelativePath(targetRoot, parent));
+                    if (!removals.Contains(relativeParent))
+                    {
+                        throw new IOException($"A file blocks target directory '{relativeParent}'.");
+                    }
+                }
+                if (Directory.Exists(parent) && IsReparsePoint(parent))
+                {
+                    throw new IOException($"A symbolic link blocks target directory '{relativePath}'.");
+                }
+            }
+        }
+    }
+
+    private static void ValidateRemovals(
+        string targetRoot,
+        IReadOnlyList<string> relativePaths,
+        IReadOnlySet<string> removalSet)
     {
         foreach (var relativePath in relativePaths)
         {
             var path = ResolveUnderRoot(targetRoot, relativePath);
-            if (!File.Exists(path) || Directory.Exists(path))
+            if (!File.Exists(path) && !Directory.Exists(path))
             {
-                throw new IOException($"Declared removal is not an existing file: '{relativePath}'.");
+                throw new IOException($"Declared removal does not exist: '{relativePath}'.");
             }
             if (IsReparsePoint(path))
             {
-                throw new IOException($"Declared removal is a symbolic link: '{relativePath}'.");
+                throw new IOException($"Declared removal is a reparse point: '{relativePath}'.");
+            }
+            if (Directory.Exists(path))
+            {
+                ValidateDeclaredDirectoryTree(targetRoot, path, removalSet);
             }
             for (var parent = Path.GetDirectoryName(path);
                  parent is not null && !PathEquals(parent, targetRoot);
@@ -621,6 +747,50 @@ public static class FileTransaction
             throw new IOException($"{parameterName} cannot be a reparse point: '{fullPath}'.");
         }
         return fullPath;
+    }
+
+    private static void RejectExistingReparsePointAncestors(string path, string parameterName)
+    {
+        for (var current = Path.GetFullPath(path);
+             current is not null;
+             current = Path.GetDirectoryName(current))
+        {
+            if ((File.Exists(current) || Directory.Exists(current)) && IsReparsePoint(current))
+            {
+                throw new IOException($"{parameterName} cannot be below a reparse point: '{current}'.");
+            }
+        }
+    }
+
+    private static void ValidateDeclaredDirectoryTree(
+        string targetRoot,
+        string root,
+        IReadOnlySet<string> removalSet)
+    {
+        var pending = new Stack<string>();
+        pending.Push(root);
+        while (pending.Count > 0)
+        {
+            foreach (var path in Directory.EnumerateFileSystemEntries(pending.Pop()))
+            {
+                var attributes = File.GetAttributes(path);
+                var relativePath = NormalizeRelativePath(Path.GetRelativePath(targetRoot, path));
+                if ((attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    throw new IOException(
+                        $"Declared removal directory tree contains reparse point '{relativePath}'.");
+                }
+                if (!removalSet.Contains(relativePath))
+                {
+                    throw new IOException(
+                        $"Declared removal directory is not empty because path is not explicitly declared: '{relativePath}'.");
+                }
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    pending.Push(path);
+                }
+            }
+        }
     }
 
     private static void EnsureSeparateRoots(string left, string right)

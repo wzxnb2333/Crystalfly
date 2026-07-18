@@ -22,30 +22,45 @@ public static class OfficialCatalogSource
         string cachePath,
         CancellationToken cancellationToken = default)
     {
-        Exception remoteFailure;
+        GameCatalog? remoteCatalog = null;
+        Exception? remoteFailure = null;
         try
         {
-            var catalog = await FetchAsync(httpClient, cancellationToken);
-            await AtomicJsonStore.WriteAsync(cachePath, catalog, cancellationToken);
-            return Result(OfficialCatalogLoadStatus.Remote, catalog, null);
+            remoteCatalog = await FetchAsync(httpClient, cancellationToken);
         }
         catch (Exception exception) when (IsRecoverable(exception, cancellationToken))
         {
             remoteFailure = exception;
         }
 
+        if (remoteCatalog is not null)
+        {
+            try
+            {
+                await AtomicJsonStore.WriteAsync(cachePath, remoteCatalog, cancellationToken);
+                return Result(OfficialCatalogLoadStatus.Remote, remoteCatalog, null);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                return Result(
+                    OfficialCatalogLoadStatus.Remote,
+                    remoteCatalog,
+                    $"Cache: {exception.Message}");
+            }
+        }
+
         try
         {
             var catalog = await AtomicJsonStore.ReadAsync<GameCatalog>(cachePath, cancellationToken);
             Validate(catalog);
-            return Result(OfficialCatalogLoadStatus.Cached, catalog, remoteFailure.Message);
+            return Result(OfficialCatalogLoadStatus.Cached, catalog, remoteFailure!.Message);
         }
         catch (Exception exception) when (IsRecoverable(exception, cancellationToken))
         {
             return Result(
                 OfficialCatalogLoadStatus.Failed,
                 new GameCatalog(),
-                $"Remote: {remoteFailure.Message} Cache: {exception.Message}");
+                $"Remote: {remoteFailure!.Message} Cache: {exception.Message}");
         }
     }
 
@@ -95,6 +110,7 @@ public static class OfficialCatalogSource
     private static bool IsRecoverable(Exception exception, CancellationToken cancellationToken) =>
         exception is HttpRequestException
             or IOException
+            or UnauthorizedAccessException
             or JsonException
             or InvalidDataException
             or XmlException
