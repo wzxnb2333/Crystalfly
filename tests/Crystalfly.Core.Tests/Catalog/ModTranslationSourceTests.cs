@@ -92,6 +92,28 @@ public sealed class ModTranslationSourceTests : IDisposable
     }
 
     [Fact]
+    public async Task Load_rejects_null_tag_values_and_falls_back_to_cache()
+    {
+        var cachePath = Path.Combine(directory, "mod-translations.json");
+        await AtomicJsonStore.WriteAsync(cachePath, Catalog("缓存名称", "缓存说明"));
+        using var client = new HttpClient(new StubHandler((_, _) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    "{\"schemaVersion\":1,\"language\":\"zh-CN\",\"tagNames\":{\"Gameplay\":null},\"mods\":[]}")
+            })));
+
+        var result = await ModTranslationSource.LoadAsync(
+            client,
+            cachePath,
+            Catalog("内置名称", "内置说明"),
+            new Uri("https://example.test/translations.json"));
+
+        Assert.Equal(ModTranslationLoadStatus.Cached, result.Status);
+        Assert.Equal("缓存名称", Assert.Single(result.Catalog.Mods).DisplayName);
+    }
+
+    [Fact]
     public async Task Load_uses_valid_remote_catalog_when_cache_write_fails()
     {
         Directory.CreateDirectory(directory);
