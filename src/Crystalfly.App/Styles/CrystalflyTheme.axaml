@@ -125,13 +125,6 @@
         <Setter Property="Padding" Value="16,8" />
     </Style>
 
-    <Style Selector="Border.cfp-page-header">
-        <Setter Property="Background" Value="{DynamicResource CfWindowBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
-        <Setter Property="BorderThickness" Value="0,0,0,1" />
-        <Setter Property="Padding" Value="16,12" />
-    </Style>
-
     <Style Selector="Border.cfp-rail">
         <Setter Property="Background" Value="{DynamicResource CfRailBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
