@@ -1,3 +1,4 @@
+using Crystalfly.App.Downloads;
 using Crystalfly.App.ViewModels;
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Instances;
@@ -457,6 +458,53 @@ public sealed class MainViewModelStateTests : IDisposable
 
         Assert.Equal("Steam: CDN unavailable", viewModel.ErrorMessage);
         Assert.Equal("Failed", viewModel.DownloadStatus);
+    }
+
+    [Fact]
+    public async Task Steam_download_command_enqueues_selected_build_and_deduplicates_target()
+    {
+        using var test = new TestDirectory();
+        var applicationDataRoot = test.CreateDirectory("app-data");
+        var versionRoot = test.CreateDirectory("versions");
+        var executor = new WaitingQueueExecutor();
+        var queue = new DownloadQueueService(
+            Path.Combine(applicationDataRoot, "download-queue.json"),
+            executor,
+            static () => false,
+            TimeSpan.FromMilliseconds(10));
+        await using var viewModel = new MainViewModel(
+            applicationDataRoot,
+            launchOverride: null,
+            downloadOverride: null,
+            disposeSteamOverride: null,
+            qrSignInOverride: null,
+            downloadQueueOverride: queue,
+            steamLoggedOnOverride: static () => true)
+        {
+            VersionRoot = versionRoot,
+            IsSteamLoggedIn = true,
+            SelectedDownloadBuild = new DownloadBuildOption(
+                "1.5.78.11833",
+                "1.5.78",
+                123456789UL)
+        };
+
+        await viewModel.DownloadBuildCommand.ExecuteAsync(null);
+        await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await viewModel.DownloadBuildCommand.ExecuteAsync(null);
+        InvokeApplyPendingDownloadQueueProjection(viewModel);
+
+        var group = Assert.Single(queue.Groups);
+        Assert.Equal(DownloadQueueGroupKind.AssetInstall, group.Kind);
+        Assert.Equal(
+            Path.Combine(versionRoot, "Hollow Knight 1.5.78"),
+            group.TargetInstanceRoot);
+        var item = Assert.Single(group.Items);
+        Assert.Equal("steam:1.5.78.11833", item.PackageId);
+        Assert.Equal("123456789", item.PackagePath);
+        Assert.Equal("steam-depot", item.LoaderId);
+        Assert.Single(viewModel.DownloadQueueGroups);
+        Assert.Equal(viewModel.Loc["QueueTaskAlreadyExists"], viewModel.DownloadStatus);
     }
 
     [Fact]
@@ -957,7 +1005,8 @@ public sealed class MainViewModelStateTests : IDisposable
         await viewModel.InstallMarketModCommand.ExecuteAsync(null);
 
         Assert.Null(viewModel.ErrorMessage);
-        Assert.Equal(viewModel.Loc["OperationComplete"], Assert.Single(notifications));
+        Assert.Equal(viewModel.Loc["AddedToDownloadQueue"], Assert.Single(notifications));
+        await viewModel.DownloadQueue.WaitForIdleAsync();
         Assert.True(File.Exists(Path.Combine(managedRoot, "MMHOOK_Assembly-CSharp.dll")));
         Assert.True(File.Exists(Path.Combine(managedRoot, "Mods", "Sample Mod", "mod.dll")));
     }
@@ -1150,10 +1199,174 @@ public sealed class MainViewModelStateTests : IDisposable
             "snapshot.json");
         var viewModel = CreateViewModel();
         viewModel.VersionRoot = versionRoot;
+        SetPrivateField(viewModel, "detailsLoadGeneration", 1L);
+        SetPrivateField(
+            viewModel,
+            "<SelectedInstance>k__BackingField",
+            new InstanceItemViewModel(record, record.BuildId, "Vanilla", 0));
 
-        await InvokeLoadInstanceDetailsAsync(viewModel, record);
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
 
         Assert.StartsWith(viewModel.Loc["OperationFailed"], viewModel.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Instance_details_waits_for_active_queue_install_before_reading_state()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var record = Instance("practice", test.CreateDirectory("versions", "practice"));
+        await using var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        SetPrivateField(
+            viewModel,
+            "<SelectedInstance>k__BackingField",
+            new InstanceItemViewModel(record, record.BuildId, "Vanilla", 0));
+        var coordinator = GetPrivateField<InstanceOperationCoordinator>(
+            viewModel,
+            "instanceOperationCoordinator");
+        var operationStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseOperation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var activeOperation = coordinator.RunAsync("other-instance", async _ =>
+        {
+            operationStarted.TrySetResult();
+            await releaseOperation.Task;
+        });
+        await operationStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var detailsLoad = InvokeLoadInstanceDetailsAsync(viewModel, record);
+        try
+        {
+            await Task.Delay(100);
+            Assert.False(detailsLoad.IsCompleted);
+        }
+        finally
+        {
+            releaseOperation.TrySetResult();
+            await activeOperation;
+        }
+
+        await detailsLoad;
+    }
+
+    [Fact]
+    public async Task Refresh_holds_transaction_gate_through_instance_state_scan()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "practice");
+        _ = test.CreateDirectory("versions", "practice", "hollow_knight_Data");
+        await File.WriteAllTextAsync(Path.Combine(instanceRoot, "hollow_knight.exe"), string.Empty);
+        await File.WriteAllTextAsync(
+            Path.Combine(instanceRoot, "hollow_knight_Data", "globalgamemanagers"),
+            string.Empty);
+        var record = Instance("practice", instanceRoot);
+        await InstanceSidecar.SaveAsync(record);
+        await using var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        var coordinator = GetPrivateField<InstanceOperationCoordinator>(
+            viewModel,
+            "instanceOperationCoordinator");
+        var blockerEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseBlocker = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var blocker = coordinator.RunAsync("blocker", async _ =>
+        {
+            blockerEntered.SetResult();
+            await releaseBlocker.Task;
+        });
+        await blockerEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var refresh = InvokeRefreshAsync(viewModel);
+        await Task.Delay(50);
+        var mutation = coordinator.RunAsync("mutation", _ =>
+        {
+            File.Delete(Path.Combine(instanceRoot, "hollow_knight.exe"));
+            return Task.CompletedTask;
+        });
+
+        releaseBlocker.SetResult();
+        await Task.WhenAll(blocker, refresh, mutation).WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Contains(viewModel.Instances, instance => instance.Id == record.Id);
+    }
+
+    [Fact]
+    public async Task Selecting_instance_cancels_previous_detail_load_and_dispose_waits_for_current_load()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var first = Instance("first", test.CreateDirectory("versions", "first"));
+        var second = Instance("second", test.CreateDirectory("versions", "second"));
+        var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        var coordinator = GetPrivateField<InstanceOperationCoordinator>(
+            viewModel,
+            "instanceOperationCoordinator");
+        var blockerEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseBlocker = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var blocker = coordinator.RunAsync("blocker", async _ =>
+        {
+            blockerEntered.SetResult();
+            await releaseBlocker.Task;
+        });
+        await blockerEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            viewModel.SelectedInstance = new InstanceItemViewModel(first, first.BuildId, "Vanilla", 0);
+            var firstCancellation = GetPrivateAssignableField<CancellationTokenSource>(
+                viewModel,
+                "detailsLoadCancellation").Token;
+
+            viewModel.SelectedInstance = new InstanceItemViewModel(second, second.BuildId, "Vanilla", 0);
+            var currentLoad = GetPrivateAssignableField<Task>(viewModel, "detailsLoadTask");
+
+            Assert.True(firstCancellation.IsCancellationRequested);
+            await viewModel.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(currentLoad.IsCompleted);
+        }
+        finally
+        {
+            releaseBlocker.TrySetResult();
+            await blocker;
+        }
+    }
+
+    [Fact]
+    public async Task Queue_retry_clears_terminal_refresh_marker_before_ui_projection_runs()
+    {
+        await using var viewModel = CreateViewModel();
+        var refreshed = GetPrivateField<HashSet<string>>(
+            viewModel,
+            "refreshedTerminalQueueGroups");
+        refreshed.Add("retry-group");
+
+        InvokeQueueDownloadQueueProjection(
+            viewModel,
+            QueueGroup("retry-group", DownloadQueueGroupState.Pending));
+
+        Assert.DoesNotContain("retry-group", refreshed);
+
+        InvokeQueueDownloadQueueProjection(
+            viewModel,
+            QueueGroup("retry-group", DownloadQueueGroupState.Completed));
+
+        Assert.Contains("retry-group", refreshed);
+    }
+
+    [Fact]
+    public async Task Terminal_snapshot_marks_every_group_for_one_coalesced_refresh()
+    {
+        await using var viewModel = CreateViewModel();
+        var refreshed = GetPrivateField<HashSet<string>>(
+            viewModel,
+            "refreshedTerminalQueueGroups");
+
+        InvokeQueueDownloadQueueProjection(
+            viewModel,
+            QueueGroup("completed-group", DownloadQueueGroupState.Completed),
+            QueueGroup("failed-group", DownloadQueueGroupState.Failed));
+
+        Assert.Contains("completed-group", refreshed);
+        Assert.Contains("failed-group", refreshed);
     }
 
     [Fact]
@@ -1242,9 +1455,14 @@ public sealed class MainViewModelStateTests : IDisposable
         var viewModel = CreateViewModel();
         viewModel.VersionRoot = test.CreateDirectory("versions");
         var record = Instance("..", test.CreateDirectory("instance"));
+        SetPrivateField(viewModel, "detailsLoadGeneration", 1L);
+        SetPrivateField(
+            viewModel,
+            "<SelectedInstance>k__BackingField",
+            new InstanceItemViewModel(record, record.BuildId, "Vanilla", 0));
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            InvokeLoadInstanceDetailsAsync(viewModel, record));
+            InvokeLoadInstanceDetailsAsync(viewModel, record, 1));
     }
 
     private static InstalledModReceipt Receipt(
@@ -1311,8 +1529,67 @@ public sealed class MainViewModelStateTests : IDisposable
             "LoadInstanceDetailsAsync",
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(method);
-        return Assert.IsAssignableFrom<Task>(method.Invoke(viewModel, [record, generation]));
+        return Assert.IsAssignableFrom<Task>(method.Invoke(
+            viewModel,
+            [record, generation, CancellationToken.None]));
     }
+
+    private static Task InvokeRefreshAsync(MainViewModel viewModel)
+    {
+        var method = typeof(MainViewModel).GetMethod(
+            "RefreshAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        return Assert.IsAssignableFrom<Task>(method.Invoke(viewModel, null));
+    }
+
+    private static void InvokeQueueDownloadQueueProjection(
+        MainViewModel viewModel,
+        params DownloadQueueGroup[] groups)
+    {
+        var method = typeof(MainViewModel).GetMethod(
+            "QueueDownloadQueueProjection",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        method.Invoke(viewModel, [groups]);
+    }
+
+    private static void InvokeApplyPendingDownloadQueueProjection(MainViewModel viewModel)
+    {
+        var method = typeof(MainViewModel).GetMethod(
+            "ApplyPendingDownloadQueueProjection",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        method.Invoke(viewModel, null);
+    }
+
+    private static DownloadQueueGroup QueueGroup(string id, DownloadQueueGroupState state) => new()
+    {
+        Id = id,
+        DeduplicationKey = $"instance:mod:{id}",
+        Name = id,
+        TargetInstanceId = "instance",
+        TargetInstanceName = "Instance",
+        TargetInstanceRoot = "C:\\versions\\instance",
+        CreatedAt = DateTimeOffset.UtcNow,
+        State = state,
+        Items =
+        [
+            new DownloadQueueItem
+            {
+                Id = $"{id}:item",
+                PackageId = id,
+                Name = id,
+                State = state switch
+                {
+                    DownloadQueueGroupState.Completed => DownloadQueueItemState.Completed,
+                    DownloadQueueGroupState.Failed => DownloadQueueItemState.Failed,
+                    DownloadQueueGroupState.Canceled => DownloadQueueItemState.Canceled,
+                    _ => DownloadQueueItemState.Pending
+                }
+            }
+        ]
+    };
 
     private static void InstallExternalBepInEx(string instanceRoot)
     {
@@ -1383,6 +1660,20 @@ public sealed class MainViewModelStateTests : IDisposable
         field.SetValue(viewModel, value);
     }
 
+    private static T GetPrivateField<T>(MainViewModel viewModel, string name)
+    {
+        var field = typeof(MainViewModel).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        return Assert.IsType<T>(field.GetValue(viewModel));
+    }
+
+    private static T GetPrivateAssignableField<T>(MainViewModel viewModel, string name)
+    {
+        var field = typeof(MainViewModel).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        return Assert.IsAssignableFrom<T>(field.GetValue(viewModel));
+    }
+
     private static void CreateZip(string path, params (string Name, string Content)[] entries)
     {
         using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
@@ -1416,6 +1707,32 @@ public sealed class MainViewModelStateTests : IDisposable
     private static string? ReadFileHash(string path) => File.Exists(path)
         ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)))
         : null;
+
+    private sealed class WaitingQueueExecutor : IDownloadQueueExecutor
+    {
+        public TaskCompletionSource Started { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public bool RequiresGameExit(DownloadQueueItem item) => false;
+
+        public bool IsTransient(Exception exception) => false;
+
+        public async Task TransferAsync(
+            DownloadQueueGroup group,
+            DownloadQueueItem item,
+            IProgress<Crystalfly.Core.Packages.PackageTransferProgress> progress,
+            SemaphoreSlim networkGate,
+            CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        }
+
+        public Task InstallAsync(
+            DownloadQueueGroup group,
+            DownloadQueueItem item,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+    }
 
     private sealed class TestDirectory : IDisposable
     {

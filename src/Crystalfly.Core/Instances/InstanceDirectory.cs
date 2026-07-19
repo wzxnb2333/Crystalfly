@@ -2,6 +2,8 @@ namespace Crystalfly.Core.Instances;
 
 public static class InstanceDirectory
 {
+    public const string PendingDownloadMarkerFileName = ".crystalfly-download.json";
+
     private static readonly string[] ReservedNames =
     [
         "CON", "PRN", "AUX", "NUL",

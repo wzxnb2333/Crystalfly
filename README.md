@@ -23,6 +23,7 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 - 事务化安装、切换、修复和卸载 Loader，检测冲突及文件漂移。
 - 支持带 Crystalfly 清单的高级本地 Loader 导入，并永久标记为“未验证”。
 - 在“下载 → Mod 市场”中搜索在线 Mod、查看详情并选择目标实例；在实例的“已安装 Mod”页启用、停用、更新、卸载或导入本地 ZIP/DLL。
+- 安装前展示 Loader、递归前置与主 Mod；确认后加入后台下载队列，同一依赖链串行，独立安装组最多三路并发。
 - 安装前检查游戏版本、精确 Loader ID 和完整依赖闭包，阻止 Modding API v37/v60/v77/v78、BepInEx 及不同游戏版本的 Mod 混装。
 - 启动前真实检查游戏文件、Loader、Mod 依赖、事务和实例 LocalLow；任一检查失败都会阻止启动。
 - 在实例日志页查看 BepInEx、Modding API 和 `Player.log` 的最新内容及来源路径。
@@ -60,7 +61,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 1. 在“设置”中选择版本根目录，例如 `D:\HK_ver`。
 2. Crystalfly 只扫描直接子目录，并忽略 `<版本根目录>\.crystalfly`。
 3. 在顶部“实例”中选择实例，再进入实例详情管理 Loader、“已安装 Mod”和“存档快照”。
-4. 需要下载游戏时进入“下载 → 游戏版本”；需要查找在线 Mod 时进入“下载 → Mod 市场”。
+4. 需要下载游戏时进入“下载 → 游戏版本”；需要查找在线 Mod 时进入“下载 → Mod 市场”；进度、速度、取消与重试位于“下载 → 下载队列”。
 5. 启动游戏时不要同时运行其他《空洞骑士》进程。
 
 ## 启动预检、Mod 市场与实例详情
@@ -68,6 +69,8 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 选择实例后，启动页会检查游戏可执行文件、是否已有游戏进程、Loader 冲突或漂移、已启用 Mod 的依赖、待恢复事务和实例 LocalLow。全部通过后才能启动；操作执行期间和游戏运行期间会锁定导航及实例修改。
 
 “下载 → Mod 市场”负责发现在线 Mod：可按关键词、游戏版本、Loader、来源和标签筛选，查看描述、作者、依赖、集成、仓库及精确兼容范围，再选择一个兼容实例安装。Vanilla 实例可在确认后先安装目录指定的精确 Loader，再重新验证并安装 Mod；Loader 冲突、漂移、未知构建和正式速通实例不可作为安装目标。
+
+选择目标实例后会先显示 Loader、全部递归前置和主 Mod 的安装计划。确认只负责加入后台队列，不会锁住市场。每条依赖链按 Loader、前置、主 Mod 顺序执行；互不相关的安装组最多并行三个网络任务。游戏运行时可继续下载，写入目标实例前会等待游戏退出。网络错误自动重试三次；哈希、清单和兼容性错误不会盲目重试。关闭程序时会保存未完成及失败任务；未完成任务会在重启后继续，失败任务会保留并等待手动重试。
 
 实例的“已安装 Mod”页只管理当前实例内的 Mod，可按名称、ID 或版本搜索，并按全部、启用、停用、本地和可更新状态筛选。受 catalog 管理的 Mod 支持单项更新；勾选多项后可批量启用、停用、更新或卸载。本地 Mod 不提供自动更新。停用或卸载仍被其他已安装 Mod 依赖的项目时，界面会列出反向依赖并阻止操作，不会自动级联删除。
 
@@ -124,7 +127,7 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.1.8'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.1.9'
 ```
 
 脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包和 `SHA256SUMS.txt`。首轮只公开源码；本地产物未做 Authenticode 签名，仅用于本机验证。详细设计见 [架构文档](docs/architecture.md)。
@@ -154,6 +157,7 @@ This is the first source release. Crystalfly binary releases are not published y
 - Recognizes `1.2.2.1`, `1.4.3.2`, `1.5.78.11833`, and a dynamic stable `latest` channel.
 - Installs, switches, repairs, and removes mutually exclusive loaders through recoverable file transactions.
 - Discovers online mods under Download → Mod Market, then installs them to a selected compatible instance; each instance keeps enable, disable, update, uninstall, and local ZIP/DLL import operations under Installed Mods.
+- Previews the loader, recursive dependencies, and requested mod before enqueueing background work. Dependency chains stay serial while independent install groups use up to three concurrent network transfers.
 - Validates the game build, exact loader package ID, and full dependency closure so Modding API v37/v60/v77/v78, BepInEx, and cross-build mods cannot be mixed.
 - Runs real launch checks for game files, loader state, mod dependencies, pending transactions, and per-instance LocalLow state; launch stays blocked until every check passes.
 - Displays detected BepInEx, Modding API, and `Player.log` files with their source paths and refreshable tail content.
@@ -169,6 +173,8 @@ The current built-in speedrun templates are intentionally unverified because the
 After an instance is selected, the launch page checks the game executable, running Hollow Knight processes, loader conflicts or drift, enabled mod dependencies, pending transaction recovery, and per-instance LocalLow readiness. Launch is enabled only when every check passes. Navigation and instance mutations are locked while an operation or the game is running.
 
 Download → Mod Market discovers online mods and filters them by keyword, game build, loader, source, and tag. Its detail view shows description, authors, dependencies, integrations, repository, source, and exact compatibility before the user chooses a target instance. A vanilla target can install the catalog's exact required loader after confirmation, then re-evaluates compatibility before installing the mod. Conflicted, drifted, unknown-build, and official speedrun instances remain unavailable.
+
+The target dialog previews the loader, every recursive dependency, and the requested mod. Confirmation only adds the plan to Download → Download Queue, so the market remains usable. Each dependency chain runs in loader/dependency/mod order; unrelated groups share up to three network slots. Transfers may continue while the game runs, but installation waits for the target game process to exit. Transient network failures retry three times, while deterministic hash, manifest, and compatibility errors fail immediately. Unfinished tasks resume after restart; failed tasks remain available for manual retry.
 
 When the UI is Simplified Chinese, the market also loads the maintained HK ModLinks Chinese translation catalog. It searches translated names, descriptions, and labels alongside official English metadata; missing translations fall back to English. The source data and import command are documented in [docs/mod-translations.zh-CN.md](docs/mod-translations.zh-CN.md).
 
@@ -202,7 +208,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.1.8'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.1.9'
 ```
 
 The script automatically locates Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, portable ZIP, installer, and `SHA256SUMS.txt`.

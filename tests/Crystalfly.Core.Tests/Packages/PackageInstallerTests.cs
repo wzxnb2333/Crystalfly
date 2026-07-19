@@ -152,6 +152,115 @@ public sealed class PackageInstallerTests
     }
 
     [Fact]
+    public async Task Concurrent_acquire_and_install_share_one_cache_transfer()
+    {
+        using var test = new TestDirectory();
+        var package = test.CreateZip(("mod.dll", "shared"));
+        var bytes = await File.ReadAllBytesAsync(package);
+        var hash = FileSha256(package);
+        var cache = test.CreateDirectory("cache");
+        var handler = new BlockingHandler(bytes);
+        using var client = new HttpClient(handler);
+
+        var acquire = PackageInstaller.AcquireVerifiedFileFromUriAsync(
+            new Uri("https://example.invalid/mod.zip"),
+            test.CreateDirectory("acquire-transactions"),
+            bytes.Length,
+            hash,
+            cache,
+            client);
+        await handler.FirstRequest.WaitAsync(TimeSpan.FromSeconds(5));
+        var install = PackageInstaller.InstallFromUriAsync(
+            new Uri("https://example.invalid/mod.zip"),
+            test.CreateDirectory("target"),
+            test.CreateDirectory("install-transactions"),
+            bytes.Length,
+            hash,
+            cache,
+            client);
+        await Task.Delay(100);
+        handler.ReleaseResponses();
+        await Task.WhenAll(acquire, install).WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(1, handler.RequestCount);
+        Assert.Equal(bytes, await File.ReadAllBytesAsync(Path.Combine(cache, $"{hash}.zip")));
+        Assert.Equal("shared", await File.ReadAllTextAsync(Path.Combine(test.CreateDirectory("target"), "mod.dll")));
+    }
+
+    [Fact]
+    public async Task AcquireVerifiedFileFromUri_reports_monotonic_transfer_progress()
+    {
+        using var test = new TestDirectory();
+        var source = Path.Combine(test.CreateDirectory("source"), "tool.dll");
+        await File.WriteAllTextAsync(source, new string('x', 32_000));
+        var bytes = await File.ReadAllBytesAsync(source);
+        var reports = new List<PackageTransferProgress>();
+        using var client = new HttpClient(new StubHandler(_ => Response(bytes)));
+
+        await PackageInstaller.AcquireVerifiedFileFromUriAsync(
+            new Uri("https://example.invalid/tool.dll"),
+            test.CreateDirectory("transactions"),
+            bytes.Length,
+            FileSha256(source),
+            test.CreateDirectory("cache"),
+            client,
+            new Progress<PackageTransferProgress>(reports.Add));
+
+        Assert.NotEmpty(reports);
+        Assert.Equal(bytes.Length, reports[^1].CompletedBytes);
+        Assert.Equal(bytes.Length, reports[^1].TotalBytes);
+        Assert.True(reports.Zip(reports.Skip(1), (before, after) => after.CompletedBytes >= before.CompletedBytes).All(value => value));
+    }
+
+    [Fact]
+    public async Task AcquireVerifiedFileFromUri_releases_network_slot_when_canceled()
+    {
+        using var test = new TestDirectory();
+        var handler = new BlockingHandler([1]);
+        using var client = new HttpClient(handler);
+        using var networkGate = new SemaphoreSlim(1, 1);
+        using var cancellation = new CancellationTokenSource();
+
+        var acquire = PackageInstaller.AcquireVerifiedFileFromUriAsync(
+            new Uri("https://example.invalid/tool.dll"),
+            test.CreateDirectory("transactions"),
+            1,
+            new string('0', 64),
+            test.CreateDirectory("cache"),
+            client,
+            cancellationToken: cancellation.Token,
+            networkGate: networkGate);
+        await handler.FirstRequest.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(0, networkGate.CurrentCount);
+
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => acquire);
+        Assert.Equal(1, networkGate.CurrentCount);
+    }
+
+    [Fact]
+    public async Task AcquireVerifiedFileFromUri_releases_network_slot_when_request_fails()
+    {
+        using var test = new TestDirectory();
+        using var client = new HttpClient(new StubHandler(_ => new HttpResponseMessage(
+            HttpStatusCode.InternalServerError)));
+        using var networkGate = new SemaphoreSlim(1, 1);
+
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            PackageInstaller.AcquireVerifiedFileFromUriAsync(
+                new Uri("https://example.invalid/tool.dll"),
+                test.CreateDirectory("transactions"),
+                1,
+                new string('0', 64),
+                test.CreateDirectory("cache"),
+                client,
+                networkGate: networkGate));
+
+        Assert.Equal(1, networkGate.CurrentCount);
+    }
+
+    [Fact]
     public async Task InstallFromUri_without_declared_size_uses_content_length_and_populates_cache()
     {
         using var test = new TestDirectory();
@@ -347,6 +456,31 @@ public sealed class PackageInstallerTests
         {
             RequestCount++;
             return Task.FromResult(respond(request));
+        }
+    }
+
+    private sealed class BlockingHandler(byte[] content) : HttpMessageHandler
+    {
+        private readonly TaskCompletionSource firstRequest =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource releaseResponses =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int requestCount;
+
+        public int RequestCount => Volatile.Read(ref requestCount);
+
+        public Task FirstRequest => firstRequest.Task;
+
+        public void ReleaseResponses() => releaseResponses.TrySetResult();
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref requestCount);
+            firstRequest.TrySetResult();
+            await releaseResponses.Task.WaitAsync(cancellationToken);
+            return Response(content);
         }
     }
 

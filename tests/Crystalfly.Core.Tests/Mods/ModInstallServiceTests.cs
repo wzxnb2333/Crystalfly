@@ -137,6 +137,109 @@ public sealed class ModInstallServiceTests : IDisposable
             InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "Feature")));
     }
 
+    [Fact]
+    public async Task CreatePlan_orders_loader_dependencies_and_requested_mod()
+    {
+        var service = CreateService(
+            Instance(),
+            [
+                Manifest("feature", "modding-api-77", dependencies: ["library"]),
+                Manifest("library", "modding-api-77")
+            ]);
+
+        var plan = await service.CreatePlanAsync("feature");
+
+        Assert.False(plan.IsBlocked);
+        Assert.Equal(
+            [ModInstallPlanItemKind.Loader, ModInstallPlanItemKind.Dependency, ModInstallPlanItemKind.Mod],
+            plan.Items.Select(item => item.Kind));
+        Assert.All(plan.Items, item => Assert.Equal(ModInstallPlanItemState.NeedsInstall, item.State));
+        Assert.Equal(["modding-api-77", "library", "feature"], plan.Items.Select(item => item.Id));
+    }
+
+    [Fact]
+    public async Task CreatePlan_marks_matching_and_old_installed_dependencies()
+    {
+        await WriteManagedLoaderAsync("modding-api-77", LoaderState.ModdingApi);
+        await WriteInstalledModAsync("library", "0.9", enabled: true);
+        await WriteInstalledModAsync("shared", "1.0", enabled: true);
+        await WriteInstalledModAsync("disabled", "1.0", enabled: false);
+        var service = CreateService(
+            Instance(),
+            [
+                Manifest("feature", "modding-api-77", dependencies: ["library", "shared", "disabled"]),
+                Manifest("library", "modding-api-77"),
+                Manifest("shared", "modding-api-77"),
+                Manifest("disabled", "modding-api-77")
+            ]);
+
+        var plan = await service.CreatePlanAsync("feature");
+
+        Assert.Equal(ModInstallPlanItemState.Satisfied, plan.Items[0].State);
+        Assert.Equal(ModInstallPlanItemState.NeedsUpdate, plan.Items.Single(item => item.Id == "library").State);
+        Assert.Equal(ModInstallPlanItemState.Satisfied, plan.Items.Single(item => item.Id == "shared").State);
+        var disabled = plan.Items.Single(item => item.Id == "disabled");
+        Assert.Equal(ModInstallPlanItemState.NeedsUpdate, disabled.State);
+        Assert.Contains("enable", disabled.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(ModInstallPlanItemState.NeedsInstall, plan.Items.Single(item => item.Id == "feature").State);
+    }
+
+    [Fact]
+    public async Task CreatePlan_marks_every_pending_item_blocked_when_loader_is_incompatible()
+    {
+        await WriteManagedLoaderAsync("modding-api-77", LoaderState.ModdingApi);
+        var service = CreateService(Instance(), [Manifest("feature", "bepinex-5.4.23.4")]);
+
+        var plan = await service.CreatePlanAsync("feature");
+
+        Assert.True(plan.IsBlocked);
+        Assert.All(plan.Items, item => Assert.Equal(ModInstallPlanItemState.Blocked, item.State));
+        Assert.All(plan.Items, item => Assert.False(string.IsNullOrWhiteSpace(item.Reason)));
+    }
+
+    [Fact]
+    public async Task CreatePlan_includes_display_metadata_and_reason_for_every_item()
+    {
+        var service = CreateService(Instance(), [Manifest("feature", "modding-api-77")]);
+
+        var plan = await service.CreatePlanAsync("feature");
+
+        Assert.Equal("Instance", plan.InstanceName);
+        Assert.All(plan.Items, item =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(item.Name));
+            Assert.False(string.IsNullOrWhiteSpace(item.Version));
+            Assert.False(string.IsNullOrWhiteSpace(item.LoaderId));
+            Assert.False(string.IsNullOrWhiteSpace(item.Reason));
+        });
+    }
+
+    [Fact]
+    public async Task CreatePlan_blocks_local_installed_mod()
+    {
+        await WriteManagedLoaderAsync("modding-api-77", LoaderState.ModdingApi);
+        await WriteInstalledModAsync("feature", "local", enabled: true, isLocal: true);
+        var service = CreateService(Instance(), [Manifest("feature", "modding-api-77")]);
+
+        var plan = await service.CreatePlanAsync("feature");
+
+        var item = plan.Items.Single(candidate => candidate.Id == "feature");
+        Assert.Equal(ModInstallPlanItemState.Blocked, item.State);
+        Assert.True(plan.IsBlocked);
+        Assert.Contains("Local", item.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CreatePlan_honors_pre_cancelled_token()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var service = CreateService(Instance(), [Manifest("feature", "modding-api-77")]);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => service.CreatePlanAsync("feature", cancellation.Token));
+    }
+
     private string InstanceRoot => Path.Combine(root, "instance");
     private string LoaderReceiptPath => Path.Combine(root, "state", "loader.json");
 
@@ -149,6 +252,18 @@ public sealed class ModInstallServiceTests : IDisposable
         return new ModInstallService(
             instance,
             catalog,
+            catalog.Select(manifest => manifest.LoaderId)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(loaderId => new LoaderManifest
+                {
+                    Id = loaderId,
+                    Name = loaderId,
+                    Version = loaderId.Split('-')[^1],
+                    DownloadUrl = "https://example.invalid/loader.zip",
+                    Sha256 = new string('B', 64),
+                    SupportedBuildIds = [instance.BuildId]
+                })
+                .ToArray(),
             new LoaderManager(
                 InstanceRoot,
                 Path.Combine(root, "transactions"),
@@ -181,6 +296,28 @@ public sealed class ModInstallServiceTests : IDisposable
                     Sha256 = FileSha256(path)
                 }
             ]
+        });
+    }
+
+    private async Task WriteInstalledModAsync(
+        string id,
+        string version,
+        bool enabled,
+        bool isLocal = false)
+    {
+        var receipts = Path.Combine(root, "state", "mods");
+        var receiptName = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(id))) + ".json";
+        await AtomicJsonStore.WriteAsync(Path.Combine(receipts, receiptName), new InstalledModReceipt
+        {
+            Id = id,
+            Name = id,
+            Version = version,
+            LoaderId = "modding-api-77",
+            InstallRoot = $"hollow_knight_Data/Managed/Mods/{id}",
+            Enabled = enabled,
+            IsLocal = isLocal,
+            Dependencies = [],
+            Files = []
         });
     }
 

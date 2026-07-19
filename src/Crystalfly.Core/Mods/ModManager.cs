@@ -49,28 +49,57 @@ public sealed class ModManager
         CancellationToken cancellationToken = default) =>
         FileTransaction.RecoverPendingAsync(_transactionRoot, cancellationToken);
 
+    public async Task<InstalledModReceipt> VerifyInstalledAsync(
+        ModManifest manifest,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        var current = (await GetInstalledAsync(cancellationToken)).SingleOrDefault(receipt =>
+            string.Equals(receipt.Id, manifest.Id, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"Mod '{manifest.Id}' is not installed.");
+        if (!current.Enabled
+            || !string.Equals(current.Version, manifest.Version, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Installed mod '{manifest.Id}' does not match catalog version '{manifest.Version}'.");
+        }
+        return await VerifyMatchingInstalledAsync(current, manifest, cancellationToken);
+    }
+
     public async Task<InstalledModReceipt> InstallFromFileAsync(
         ModManifest manifest,
         string packagePath,
         CancellationToken cancellationToken = default) =>
-        await InstallPackageAsync(manifest, packagePath, null, isLocal: false, cancellationToken);
+        await InstallPackageAsync(manifest, packagePath, null, isLocal: false, progress: null, cancellationToken);
 
     public async Task<InstalledModReceipt> InstallFromUriAsync(
         ModManifest manifest,
         CancellationToken cancellationToken = default) =>
+        await InstallFromUriAsync(manifest, progress: null, cancellationToken);
+
+    public async Task<InstalledModReceipt> InstallFromUriAsync(
+        ModManifest manifest,
+        IProgress<PackageTransferProgress>? progress,
+        CancellationToken cancellationToken = default) =>
         await InstallPackageAsync(
-            manifest, null, new Uri(manifest.DownloadUrl), isLocal: false, cancellationToken);
+            manifest, null, new Uri(manifest.DownloadUrl), isLocal: false, progress, cancellationToken);
 
     public async Task<InstalledModReceipt> UpdateFromFileAsync(
         ModManifest manifest,
         string packagePath,
         CancellationToken cancellationToken = default) =>
-        await UpdatePackageAsync(manifest, packagePath, null, cancellationToken);
+        await UpdatePackageAsync(manifest, packagePath, null, progress: null, cancellationToken);
 
     public async Task<InstalledModReceipt> UpdateFromUriAsync(
         ModManifest manifest,
         CancellationToken cancellationToken = default) =>
-        await UpdatePackageAsync(manifest, null, new Uri(manifest.DownloadUrl), cancellationToken);
+        await UpdateFromUriAsync(manifest, progress: null, cancellationToken);
+
+    public async Task<InstalledModReceipt> UpdateFromUriAsync(
+        ModManifest manifest,
+        IProgress<PackageTransferProgress>? progress,
+        CancellationToken cancellationToken = default) =>
+        await UpdatePackageAsync(manifest, null, new Uri(manifest.DownloadUrl), progress, cancellationToken);
 
     public async Task<IReadOnlyList<InstalledModReceipt>> InstallWithDependenciesFromFilesAsync(
         IEnumerable<ModManifest> catalog,
@@ -135,7 +164,7 @@ public sealed class ModManager
                 : []
         };
         return await InstallPackageAsync(
-            manifest, package.FullName, null, isLocal: true, cancellationToken);
+            manifest, package.FullName, null, isLocal: true, progress: null, cancellationToken);
     }
 
     public async Task<InstalledModReceipt> ImportLocalDllAsync(
@@ -234,13 +263,14 @@ public sealed class ModManager
         string? packagePath,
         Uri? packageUri,
         bool isLocal,
+        IProgress<PackageTransferProgress>? progress,
         CancellationToken cancellationToken)
     {
         var installed = await GetInstalledAsync(cancellationToken);
         EnsureCanInstall(manifest.Id, manifest.Dependencies, installed);
         using var workspace = new TemporaryDirectory(_transactionRoot, ".mod-install-");
         var (layout, activeRoot, staging) = await PreparePackageAsync(
-            manifest, packagePath, packageUri, enabled: true, workspace, cancellationToken);
+            manifest, packagePath, packageUri, enabled: true, workspace, progress, cancellationToken);
         return await CommitInstallAsync(
             manifest.Id,
             manifest.Name,
@@ -259,6 +289,7 @@ public sealed class ModManager
         ModManifest manifest,
         string? packagePath,
         Uri? packageUri,
+        IProgress<PackageTransferProgress>? progress,
         CancellationToken cancellationToken)
     {
         var installed = await GetInstalledAsync(cancellationToken);
@@ -276,7 +307,7 @@ public sealed class ModManager
 
         using var workspace = new TemporaryDirectory(_transactionRoot, ".mod-update-");
         var (layout, installRoot, staging) = await PreparePackageAsync(
-            manifest, packagePath, packageUri, current.Enabled, workspace, cancellationToken);
+            manifest, packagePath, packageUri, current.Enabled, workspace, progress, cancellationToken);
         EnsureUpdateTargetsAvailable(staging, current);
         EnsureInstallRootAvailable(manifest.Id, installRoot, layout, installed);
 
@@ -312,6 +343,7 @@ public sealed class ModManager
         Uri? packageUri,
         bool enabled,
         TemporaryDirectory workspace,
+        IProgress<PackageTransferProgress>? progress,
         CancellationToken cancellationToken)
     {
         var layout = GetLayout(manifest.LoaderId);
@@ -333,6 +365,7 @@ public sealed class ModManager
                 manifest.Sha256,
                 _packageCacheRoot,
                 _httpClient,
+                progress,
                 cancellationToken: cancellationToken);
         }
         else

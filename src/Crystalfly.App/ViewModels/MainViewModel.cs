@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Crystalfly.App.Downloads;
 using Crystalfly.Core.Catalog;
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Instances;
@@ -46,6 +47,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly Func<CancellationToken, Task>? downloadOverride;
     private readonly Func<Task>? disposeSteamOverride;
     private readonly Func<CancellationToken, Task<RefreshTokenCredential>>? qrSignInOverride;
+    private readonly Func<bool>? steamLoggedOnOverride;
     private CrystalflySettings settings = new();
     private Task settingsSaveQueue = Task.CompletedTask;
     private Task? initializationTask;
@@ -56,6 +58,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private InstanceRuntimeSession? runtimeSession;
     private Bitmap? qrCodeImage;
     private long detailsLoadGeneration;
+    private CancellationTokenSource? detailsLoadCancellation;
+    private Task detailsLoadTask = Task.CompletedTask;
     private OfficialCatalogLoadResult? officialCatalogResult;
     private ModTranslationLoadResult? modTranslationResult;
     private MarketModItemViewModel? selectedMarketModDisplay;
@@ -70,12 +74,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Func<Task>? launchOverride,
         Func<CancellationToken, Task>? downloadOverride,
         Func<Task>? disposeSteamOverride,
-        Func<CancellationToken, Task<RefreshTokenCredential>>? qrSignInOverride = null)
+        Func<CancellationToken, Task<RefreshTokenCredential>>? qrSignInOverride = null,
+        DownloadQueueService? downloadQueueOverride = null,
+        Func<bool>? steamLoggedOnOverride = null)
     {
         this.launchOverride = launchOverride;
         this.downloadOverride = downloadOverride;
         this.disposeSteamOverride = disposeSteamOverride;
         this.qrSignInOverride = qrSignInOverride;
+        this.steamLoggedOnOverride = steamLoggedOnOverride;
         paths = applicationDataRoot is null
             ? CrystalflyPaths.Resolve(
                 AppContext.BaseDirectory,
@@ -86,7 +93,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         catalog = EmbeddedCatalog.Load();
         modTranslations = EmbeddedModTranslationCatalog.Load();
         Loc = new LocalizationViewModel();
+        downloadQueue = downloadQueueOverride ?? CreateDownloadQueue();
+        downloadQueue.QueueChanged += OnDownloadQueueChanged;
     }
+
+    private bool IsSteamSessionLoggedOn() =>
+        steamLoggedOnOverride?.Invoke() ?? steamSession?.IsLoggedOn == true;
 
     public LocalizationViewModel Loc { get; private set; }
 
@@ -229,6 +241,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGameVersionsDownloadSection))]
     [NotifyPropertyChangedFor(nameof(IsModMarketDownloadSection))]
+    [NotifyPropertyChangedFor(nameof(IsDownloadQueueSection))]
     public partial string CurrentDownloadSection { get; set; } = "GameVersions";
 
     [ObservableProperty]
@@ -430,6 +443,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             StatusMessage = Loc["ChooseRoot"];
         }
+        await InitializeDownloadQueueAsync();
     }
 
     [RelayCommand]
@@ -453,7 +467,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     private void SelectDownloadSection(string? section)
     {
-        if (!CanNavigate || section is not ("GameVersions" or "ModMarket"))
+        if (IsBusy || section is not ("GameVersions" or "ModMarket" or "DownloadQueue"))
         {
             return;
         }
@@ -539,43 +553,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     private async Task InstallMarketModAsync()
     {
-        if (SelectedMarketMod is null
-            || SelectedMarketInstallTarget is null
-            || !SelectedMarketInstallTarget.IsAvailable)
-        {
-            ErrorMessage = Loc["NoInstallTargets"];
-            return;
-        }
-
-        var mod = SelectedMarketMod;
-        var targetId = SelectedMarketInstallTarget.Instance.Id;
-        SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == targetId);
-        if (SelectedInstance is null)
-        {
-            ErrorMessage = Loc["NoInstance"];
-            return;
-        }
-
-        await RunInstanceMutationAsync(async record =>
-        {
-            var loaderManager = CreateLoaderManager(record);
-            var service = new ModInstallService(
-                record,
-                catalog.Mods,
-                loaderManager,
-                CreateModManager(record));
-            var evaluation = await service.EvaluateAsync(mod.Id, lifetimeCancellation.Token);
-            if (evaluation.Status == ModInstallReadiness.RequiresLoader)
-            {
-                var loader = catalog.Loaders.SingleOrDefault(candidate =>
-                    string.Equals(candidate.Id, evaluation.RequiredLoaderId, StringComparison.OrdinalIgnoreCase)
-                    && candidate.SupportedBuildIds.Contains(record.BuildId, StringComparer.OrdinalIgnoreCase))
-                    ?? throw new InvalidOperationException(Loc["NoLoadersAction"]);
-                await loaderManager.InstallFromUriAsync(loader, lifetimeCancellation.Token);
-            }
-
-            await service.InstallAsync(mod.Id, lifetimeCancellation.Token);
-        });
+        await EnqueueSelectedMarketModAsync();
     }
 
     private string FormatLoaderDisplay(LoaderInspection loader)
@@ -668,34 +646,56 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         StatusMessage = Loc["StatusChecking"];
         try
         {
-            await EnsureTransactionsHealthyAsync();
-            var records = await InstanceImportService.DiscoverAsync(VersionRoot, catalog);
-            var isolation = new LocalLowIsolationService(
-                GetSharedLocalLowPath(),
-                paths.GetVersionDataRoot(VersionRoot));
-            bool canCompleteActiveSession = runtimeSession is null
-                && !IsGameRunning
-                && !new SystemHollowKnightProcessProbe().IsRunning();
-            await isolation.InitializeBaselinesAsync(
-                records.Select(static record => record.Id),
-                allowActiveSessionCompletion: canCompleteActiveSession);
+            var discovered = new List<(
+                InstanceRecord Record,
+                LoaderState LoaderState,
+                InstalledPackageReceipt? LoaderReceipt,
+                int ModCount)>();
+            await instanceOperationCoordinator.RunAsync(
+                "transactions",
+                async cancellationToken =>
+                {
+                    await EnsureTransactionsHealthyAsync(cancellationToken);
+                    var records = await InstanceImportService.DiscoverAsync(
+                        VersionRoot,
+                        catalog,
+                        cancellationToken);
+                    var isolation = new LocalLowIsolationService(
+                        GetSharedLocalLowPath(),
+                        paths.GetVersionDataRoot(VersionRoot));
+                    bool canCompleteActiveSession = runtimeSession is null
+                        && !IsGameRunning
+                        && !new SystemHollowKnightProcessProbe().IsRunning();
+                    await isolation.InitializeBaselinesAsync(
+                        records.Select(static record => record.Id),
+                        allowActiveSessionCompletion: canCompleteActiveSession,
+                        cancellationToken);
+                    foreach (var record in records.OrderBy(
+                        instance => instance.Name,
+                        StringComparer.OrdinalIgnoreCase))
+                    {
+                        var loaderManager = CreateLoaderManager(record);
+                        var loaderState = await loaderManager.GetStateAsync(cancellationToken);
+                        var loaderReceipt = await loaderManager.GetReceiptAsync(cancellationToken);
+                        var modCount = (await CreateModManager(record)
+                            .GetInstalledAsync(cancellationToken)).Count;
+                        discovered.Add((record, loaderState, loaderReceipt, modCount));
+                    }
+                },
+                lifetimeCancellation.Token);
             Instances.Clear();
-            foreach (var record in records.OrderBy(instance => instance.Name, StringComparer.OrdinalIgnoreCase))
+            foreach (var item in discovered)
             {
-                var build = catalog.Builds.FirstOrDefault(candidate => candidate.Id == record.BuildId);
-                var loaderManager = CreateLoaderManager(record);
-                var loaderState = await loaderManager.GetStateAsync();
-                var loaderReceipt = await loaderManager.GetReceiptAsync();
-                var modCount = (await CreateModManager(record).GetInstalledAsync()).Count;
+                var build = catalog.Builds.FirstOrDefault(candidate => candidate.Id == item.Record.BuildId);
                 Instances.Add(new InstanceItemViewModel(
-                    record,
+                    item.Record,
                     build?.DisplayVersion ?? Loc["UnknownBuild"],
-                    loaderReceipt is null
-                        ? loaderState.ToString()
-                        : loaderReceipt.IsVerified
-                            ? loaderReceipt.PackageId
-                            : $"{loaderReceipt.PackageId} · {Loc["Unverified"]}",
-                    modCount));
+                    item.LoaderReceipt is null
+                        ? item.LoaderState.ToString()
+                        : item.LoaderReceipt.IsVerified
+                            ? item.LoaderReceipt.PackageId
+                            : $"{item.LoaderReceipt.PackageId} · {Loc["Unverified"]}",
+                    item.ModCount));
             }
 
             ApplyInstanceFilter();
@@ -738,19 +738,32 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ErrorMessage = null;
         try
         {
-            if (await CreateLoaderManager(SelectedInstance.Record).GetStateAsync() != LoaderState.Vanilla
-                || (await CreateModManager(SelectedInstance.Record).GetInstalledAsync()).Count != 0)
-            {
-                throw new InvalidOperationException(Loc["CloneVanillaOnly"]);
-            }
-
-            var clone = await InstanceCloneService.CloneAsync(
-                SelectedInstance.RootPath,
-                CloneInstanceName.Trim(),
-                Guid.NewGuid().ToString("N"));
+            var source = SelectedInstance.Record;
+            InstanceRecord? clone = null;
+            await instanceOperationCoordinator.RunAsync(
+                source.Id,
+                async _ =>
+                {
+                    if (new SystemHollowKnightProcessProbe().IsRunning())
+                    {
+                        throw new InvalidOperationException(Loc["CloseGameFirst"]);
+                    }
+                    if (await CreateLoaderManager(source).GetStateAsync() != LoaderState.Vanilla
+                        || (await CreateModManager(source).GetInstalledAsync()).Count != 0)
+                    {
+                        throw new InvalidOperationException(Loc["CloneVanillaOnly"]);
+                    }
+                    clone = await InstanceCloneService.CloneAsync(
+                        source.RootPath,
+                        CloneInstanceName.Trim(),
+                        Guid.NewGuid().ToString("N"));
+                },
+                lifetimeCancellation.Token);
+            var createdClone = clone
+                ?? throw new InvalidOperationException("The instance clone was not created.");
             CloneInstanceName = string.Empty;
             await RefreshAsync();
-            SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == clone.Id);
+            SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == createdClone.Id);
             NotifyOperationCompleted();
         }
         catch (Exception exception) when (exception is IOException
@@ -800,30 +813,48 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             return;
         }
 
+        var record = SelectedInstance.Record;
         var isolation = new LocalLowIsolationService(
             GetSharedLocalLowPath(),
             paths.GetVersionDataRoot(VersionRoot));
         IsGameRunning = true;
+        Process? process = null;
         try
         {
-            await EnsureTransactionsHealthyAsync();
-            if (SelectedInstance.Record.SpeedrunTemplateId is not null)
+            await instanceOperationCoordinator.RunAsync(
+                record.Id,
+                async _ =>
+                {
+                    if (new SystemHollowKnightProcessProbe().IsRunning())
+                    {
+                        throw new InvalidOperationException("Hollow Knight is already running.");
+                    }
+                    await EnsureTransactionsHealthyAsync();
+                    if (record.SpeedrunTemplateId is not null)
+                    {
+                        await VerifySpeedrunLaunchAsync(record);
+                    }
+                    runtimeSession = await InstanceRuntimeSession.StartAsync(isolation, record.Id);
+                    process = Process.Start(new ProcessStartInfo(executable)
+                    {
+                        WorkingDirectory = record.RootPath,
+                        UseShellExecute = true
+                    }) ?? throw new InvalidOperationException("The game process did not start.");
+                },
+                lifetimeCancellation.Token);
+            using (var startedProcess = process
+                   ?? throw new InvalidOperationException("The game process did not start."))
             {
-                await VerifySpeedrunLaunchAsync(SelectedInstance.Record);
+                await startedProcess.WaitForExitAsync();
             }
-            runtimeSession = await InstanceRuntimeSession.StartAsync(isolation, SelectedInstance.Id);
-            using var process = Process.Start(new ProcessStartInfo(executable)
-            {
-                WorkingDirectory = SelectedInstance.RootPath,
-                UseShellExecute = true
-            }) ?? throw new InvalidOperationException("The game process did not start.");
-            await process.WaitForExitAsync();
             var probe = new SystemHollowKnightProcessProbe();
             while (probe.IsRunning())
             {
                 await Task.Delay(500);
             }
-            await runtimeSession.CompleteAsync();
+            var completedSession = runtimeSession
+                ?? throw new InvalidOperationException("The instance runtime session was not created.");
+            await completedSession.CompleteAsync();
             runtimeSession = null;
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException)
@@ -1008,84 +1039,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             return;
         }
 
-        if (steamSession?.IsLoggedOn != true || SelectedDownloadBuild is null)
-        {
-            ErrorMessage = "Sign in to Steam and select a build first.";
-            return;
-        }
-        if (!Directory.Exists(VersionRoot))
-        {
-            ErrorMessage = Loc["ChooseRoot"];
-            return;
-        }
-
-        downloadCancellation = new CancellationTokenSource();
-        IsDownloading = true;
-        DownloadProgress = 0;
-        ErrorMessage = null;
-        var staging = Path.Combine(
-            VersionRoot,
-            ".crystalfly",
-            "downloads",
-            $"steam-{Guid.NewGuid():N}");
         try
         {
-            using var content = new SteamKitContentDeliveryClient(steamSession.Client);
-            var service = new SteamDepotDownloadService(content, progress =>
-                Dispatcher.UIThread.Post(() =>
-                {
-                    if (!IsDownloading)
-                        return;
-                    DownloadProgress = progress.Fraction;
-                    DownloadStatus = FormatDownloadStatus(progress);
-                }));
-            var result = await service.DownloadAsync(
-                new SteamDownloadRequest(staging, SelectedDownloadBuild.ManifestId),
-                downloadCancellation.Token);
-            var build = catalog.Builds.FirstOrDefault(candidate =>
-                candidate.ManifestId == result.ManifestId.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            var name = UniqueInstanceName(build?.DisplayVersion ?? $"public-{result.ManifestId}");
-            var destination = InstanceDirectory.ResolveUnderRoot(VersionRoot, name);
-            Directory.Move(staging, destination);
-            await InstanceSidecar.SaveAsync(new InstanceRecord
-            {
-                Id = Guid.NewGuid().ToString("N"),
-                Name = name,
-                RootPath = destination,
-                BuildId = build?.Id ?? $"steam-public-{result.ManifestId}",
-                CreatedAt = DateTimeOffset.UtcNow
-            });
-            await RefreshAsync();
-            DownloadStatus = $"Completed: {name}";
-            CurrentPage = "Versions";
-        }
-        catch (OperationCanceledException)
-        {
-            DownloadStatus = "Cancelled";
+            ErrorMessage = null;
+            await EnqueueSteamBuildAsync();
         }
         catch (Exception exception)
         {
             ErrorMessage = $"Steam: {exception.Message}";
-            DownloadStatus = "Failed";
-        }
-        finally
-        {
-            IsDownloading = false;
-            downloadCancellation.Dispose();
-            downloadCancellation = null;
-            if (Directory.Exists(staging))
-            {
-                try
-                {
-                    Directory.Delete(staging, recursive: true);
-                }
-                catch (Exception cleanupException)
-                {
-                    ErrorMessage = string.IsNullOrWhiteSpace(ErrorMessage)
-                        ? $"Steam cleanup: {cleanupException.Message}"
-                        : $"{ErrorMessage} Cleanup: {cleanupException.Message}";
-                }
-            }
+            DownloadStatus = Loc["QueueStateFailed"];
         }
     }
 
@@ -1499,45 +1461,59 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         IsBusy = true;
         ErrorMessage = null;
         string? createdRoot = null;
+        InstanceRecord? createdInstance = null;
         try
         {
-            await EnsureTransactionsHealthyAsync();
-            var source = await FindVanillaSourceAsync(SelectedSpeedrunTemplate.BuildId)
-                ?? throw new InvalidOperationException(Loc["NoVanillaSource"]);
-            var name = string.IsNullOrWhiteSpace(SpeedrunEnvironmentName)
-                ? UniqueInstanceName($"{SelectedSpeedrunTemplate.Name} Speedrun")
-                : SpeedrunEnvironmentName.Trim();
-            var clone = await InstanceCloneService.CloneAsync(
-                source.RootPath,
-                name,
-                Guid.NewGuid().ToString("N"));
-            createdRoot = clone.RootPath;
-            if (SelectedSpeedrunTemplate.RequiredAssetIds.Count > 0)
-            {
-                await new SpeedrunEnvironmentProvisioner().ProvisionAsync(new SpeedrunProvisioningRequest
+            await instanceOperationCoordinator.RunAsync(
+                "transactions",
+                async _ =>
                 {
-                    Catalog = catalog,
-                    TemplateId = SelectedSpeedrunTemplate.Id,
-                    InstanceRoot = clone.RootPath,
-                    TransactionRoot = Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
-                    PackageCacheRoot = Path.Combine(paths.GetVersionDataRoot(VersionRoot), "packages"),
-                    LoadNormaliserSeconds = SelectedLoadNormaliserSeconds,
-                    HttpClient = PackageHttpClient
-                });
-            }
-            clone = clone with
-            {
-                Purpose = SelectedSpeedrunTemplate.IsOfficial
-                    ? InstancePurpose.OfficialSpeedrun
-                    : InstancePurpose.CustomSpeedrun,
-                ProvisioningMode = InstanceProvisioningMode.FullCopy,
-                LoaderId = null,
-                SpeedrunTemplateId = SelectedSpeedrunTemplate.Id,
-                SpeedrunRulesRevision = SelectedSpeedrunTemplate.RulesRevision,
-                LoadNormaliserSeconds = SelectedLoadNormaliserSeconds
-            };
-            await InstanceSidecar.SaveAsync(clone);
-            createdRoot = null;
+                    if (new SystemHollowKnightProcessProbe().IsRunning())
+                    {
+                        throw new InvalidOperationException(Loc["CloseGameFirst"]);
+                    }
+                    await EnsureTransactionsHealthyAsync();
+                    var source = await FindVanillaSourceAsync(SelectedSpeedrunTemplate.BuildId)
+                        ?? throw new InvalidOperationException(Loc["NoVanillaSource"]);
+                    var name = string.IsNullOrWhiteSpace(SpeedrunEnvironmentName)
+                        ? UniqueInstanceName($"{SelectedSpeedrunTemplate.Name} Speedrun")
+                        : SpeedrunEnvironmentName.Trim();
+                    var clone = await InstanceCloneService.CloneAsync(
+                        source.RootPath,
+                        name,
+                        Guid.NewGuid().ToString("N"));
+                    createdRoot = clone.RootPath;
+                    if (SelectedSpeedrunTemplate.RequiredAssetIds.Count > 0)
+                    {
+                        await new SpeedrunEnvironmentProvisioner().ProvisionAsync(new SpeedrunProvisioningRequest
+                        {
+                            Catalog = catalog,
+                            TemplateId = SelectedSpeedrunTemplate.Id,
+                            InstanceRoot = clone.RootPath,
+                            TransactionRoot = Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
+                            PackageCacheRoot = Path.Combine(paths.GetVersionDataRoot(VersionRoot), "packages"),
+                            LoadNormaliserSeconds = SelectedLoadNormaliserSeconds,
+                            HttpClient = PackageHttpClient
+                        });
+                    }
+                    clone = clone with
+                    {
+                        Purpose = SelectedSpeedrunTemplate.IsOfficial
+                            ? InstancePurpose.OfficialSpeedrun
+                            : InstancePurpose.CustomSpeedrun,
+                        ProvisioningMode = InstanceProvisioningMode.FullCopy,
+                        LoaderId = null,
+                        SpeedrunTemplateId = SelectedSpeedrunTemplate.Id,
+                        SpeedrunRulesRevision = SelectedSpeedrunTemplate.RulesRevision,
+                        LoadNormaliserSeconds = SelectedLoadNormaliserSeconds
+                    };
+                    await InstanceSidecar.SaveAsync(clone);
+                    createdInstance = clone;
+                    createdRoot = null;
+                },
+                lifetimeCancellation.Token);
+            var clone = createdInstance
+                ?? throw new InvalidOperationException("The speedrun instance was not created.");
             SpeedrunStatus = SelectedSpeedrunTemplate.IsOfficial
                 && catalog.SpeedrunFileManifests.Any(manifest => manifest.Id == SelectedSpeedrunTemplate.FileManifestId)
                     ? Loc["SpeedrunNeedsVerification"]
@@ -1661,6 +1637,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     partial void OnSelectedInstanceChanged(InstanceItemViewModel? value)
     {
         long generation = Interlocked.Increment(ref detailsLoadGeneration);
+        var previousLoadCancellation = Interlocked.Exchange(ref detailsLoadCancellation, null);
+        previousLoadCancellation?.Cancel();
+        previousLoadCancellation?.Dispose();
         IsLoadingInstanceDetails = value is not null;
         AvailableLoaders.Clear();
         SelectedLoader = null;
@@ -1689,7 +1668,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ApplyModFilters();
             settings = settings with { CurrentInstanceId = value.Id };
             _ = QueueSettingsSave();
-            _ = LoadInstanceDetailsAsync(value.Record, generation);
+            if (!Directory.Exists(VersionRoot))
+            {
+                IsLoadingInstanceDetails = false;
+                return;
+            }
+            var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation.Token);
+            detailsLoadCancellation = cancellation;
+            detailsLoadTask = LoadInstanceDetailsAsync(value.Record, generation, cancellation.Token);
         }
     }
 
@@ -1859,13 +1845,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         else SelectedMarketTagOption = selected;
     }
 
-    private MarketModItemViewModel ProjectMarketMod(ModManifest manifest, bool? chinese = null) =>
+    internal MarketModItemViewModel ProjectMarketMod(ModManifest manifest, bool? chinese = null) =>
         new(
             manifest,
             modTranslations.Mods.FirstOrDefault(translation =>
                 string.Equals(translation.Id, manifest.Id, StringComparison.OrdinalIgnoreCase)),
             modTranslations.TagNames,
             chinese ?? Loc.Culture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase));
+
+    internal MarketModItemViewModel? ProjectMarketMod(string id) =>
+        catalog.Mods.FirstOrDefault(manifest =>
+            string.Equals(manifest.Id, id, StringComparison.OrdinalIgnoreCase)) is { } manifest
+            ? ProjectMarketMod(manifest)
+            : null;
 
     private string DisplayMarketTag(string value) =>
         Loc.Culture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase)
@@ -1895,6 +1887,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Loc = localization;
         OnPropertyChanged(nameof(Loc));
         NotifyOfficialCatalogLabels();
+        if (DownloadQueueGroups.Count > 0)
+        {
+            QueueDownloadQueueProjection(downloadQueue.Groups);
+        }
 
         if (Application.Current is { } application)
         {
@@ -2064,18 +2060,50 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private static bool IsExpectedSettingsException(Exception exception) =>
         exception is IOException or UnauthorizedAccessException;
 
-    private async Task LoadInstanceDetailsAsync(InstanceRecord record, long generation)
+    private async Task LoadInstanceDetailsAsync(
+        InstanceRecord record,
+        long generation,
+        CancellationToken cancellationToken)
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (generation != Volatile.Read(ref detailsLoadGeneration)
+                || SelectedInstance?.Id != record.Id)
+            {
+                return;
+            }
             var loaderManager = CreateLoaderManager(record);
-            var loaderState = await loaderManager.GetStateAsync();
-            var loaderReceipt = await loaderManager.GetReceiptAsync();
-            var installed = await CreateModManager(record).GetInstalledAsync();
-            var snapshots = await CreateSnapshotService().ListAsync(record.Id);
+            var loaderState = LoaderState.Vanilla;
+            InstalledPackageReceipt? loaderReceipt = null;
+            IReadOnlyList<InstalledModReceipt> installed = [];
+            IReadOnlyList<TransactionJournal> recoveries = [];
+            var stateLoaded = false;
+            await instanceOperationCoordinator.RunAsync(record.Id, async cancellationToken =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (generation != Volatile.Read(ref detailsLoadGeneration)
+                    || SelectedInstance?.Id != record.Id)
+                {
+                    return;
+                }
+                recoveries = await FileTransaction.RecoverPendingAsync(
+                    Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
+                    cancellationToken);
+                loaderState = await loaderManager.GetStateAsync(cancellationToken);
+                loaderReceipt = await loaderManager.GetReceiptAsync(cancellationToken);
+                installed = await CreateModManager(record).GetInstalledAsync(cancellationToken);
+                stateLoaded = true;
+            }, cancellationToken);
+            if (!stateLoaded
+                || generation != Volatile.Read(ref detailsLoadGeneration)
+                || SelectedInstance?.Id != record.Id)
+            {
+                return;
+            }
+            var snapshots = await CreateSnapshotService().ListAsync(record.Id, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             var logs = InstanceLogService.Discover(record.RootPath, GetSharedLocalLowPath());
-            var recoveries = await FileTransaction.RecoverPendingAsync(
-                Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"));
             var isolation = new LocalLowIsolationService(
                 GetSharedLocalLowPath(),
                 paths.GetVersionDataRoot(VersionRoot));
@@ -2127,6 +2155,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             SelectedLogFile = InstanceLogs.FirstOrDefault();
             LaunchPreflight = preflight;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
         catch (Exception exception) when (IsExpectedInstanceDetailsException(exception))
         {
             ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
@@ -2176,8 +2207,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ErrorMessage = null;
         try
         {
-            await EnsureTransactionsHealthyAsync();
-            await operation(SelectedInstance.Record);
+            var record = SelectedInstance.Record;
+            await instanceOperationCoordinator.RunAsync(
+                record.Id,
+                async _ =>
+                {
+                    if (new SystemHollowKnightProcessProbe().IsRunning())
+                    {
+                        throw new InvalidOperationException(Loc["CloseGameFirst"]);
+                    }
+                    await EnsureTransactionsHealthyAsync();
+                    await operation(record);
+                },
+                lifetimeCancellation.Token);
             await RefreshAsync();
             SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == instanceId);
             NotifyOperationCompleted();
@@ -2214,10 +2256,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         return false;
     }
 
-    private async Task EnsureTransactionsHealthyAsync()
+    private async Task EnsureTransactionsHealthyAsync(CancellationToken cancellationToken = default)
     {
         var recoveries = await FileTransaction.RecoverPendingAsync(
-            Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"));
+            Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
+            cancellationToken);
         if (recoveries.Any(recovery => recovery.State == TransactionState.NeedsAttention))
         {
             throw new InvalidOperationException(Loc["RecoveryNeedsAttention"]);
@@ -2442,6 +2485,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private ModInstallService CreateModInstallService(InstanceRecord record) => new(
         record,
         catalog.Mods,
+        catalog.Loaders,
         CreateLoaderManager(record),
         CreateModManager(record));
 
@@ -2469,6 +2513,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private async Task DisposeCoreAsync()
     {
         lifetimeCancellation.Cancel();
+        var detailsCancellation = Interlocked.Exchange(ref detailsLoadCancellation, null);
+        detailsCancellation?.Cancel();
+        var pendingDetailsLoad = detailsLoadTask;
         var signInCancellation = Interlocked.Exchange(ref steamSignInCancellation, null);
         signInCancellation?.Cancel();
         downloadCancellation?.Cancel();
@@ -2482,18 +2529,34 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     SignInWithQrCommand.ExecutionTask ?? Task.CompletedTask,
                     DownloadBuildCommand.ExecutionTask ?? Task.CompletedTask,
                     PrepareMarketInstallTargetsCommand.ExecutionTask ?? Task.CompletedTask,
-                    InstallMarketModCommand.ExecutionTask ?? Task.CompletedTask);
+                    InstallMarketModCommand.ExecutionTask ?? Task.CompletedTask,
+                    pendingDetailsLoad);
             }
             catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
             {
             }
             finally
             {
-                await FlushSettingsSavesAsync();
+                try
+                {
+                    await FlushSettingsSavesAsync();
+                }
+                finally
+                {
+                    try
+                    {
+                        await downloadQueue.DisposeAsync();
+                    }
+                    finally
+                    {
+                        downloadQueue.QueueChanged -= OnDownloadQueueChanged;
+                    }
+                }
             }
         }
         finally
         {
+            detailsCancellation?.Dispose();
             signInCancellation?.Dispose();
             try
             {

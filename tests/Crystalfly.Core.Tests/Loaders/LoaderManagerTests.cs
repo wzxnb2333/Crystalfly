@@ -288,6 +288,22 @@ public sealed class LoaderManagerTests : IDisposable
         Assert.Equal(LoaderState.ModdingApi, await manager.GetStateAsync());
     }
 
+    [Fact]
+    public async Task Remote_install_forwards_package_transfer_progress()
+    {
+        var package = CreateZip(("MMHOOK_Assembly-CSharp.dll", new string('x', 32_000)));
+        using var client = new HttpClient(new CountingHandler(await File.ReadAllBytesAsync(package)));
+        var manager = CreateManager(Path.Combine(_root, "progress-packages"), client);
+        var reports = new List<Crystalfly.Core.Packages.PackageTransferProgress>();
+
+        await manager.InstallFromUriAsync(
+            Manifest("modding-api-77", package),
+            new Progress<Crystalfly.Core.Packages.PackageTransferProgress>(reports.Add));
+
+        Assert.NotEmpty(reports);
+        Assert.Equal(new FileInfo(package).Length, reports[^1].CompletedBytes);
+    }
+
     [Theory]
     [InlineData("modding-api-37")]
     [InlineData("modding-api-60")]

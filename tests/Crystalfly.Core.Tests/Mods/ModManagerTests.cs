@@ -470,6 +470,23 @@ public sealed class ModManagerTests : IDisposable
         Assert.Equal("test", receipt.Id);
     }
 
+    [Fact]
+    public async Task InstallFromUri_forwards_package_transfer_progress()
+    {
+        var package = CreateZip(("mod.dll", new string('x', 32_000)));
+        var packageBytes = await File.ReadAllBytesAsync(package);
+        using var httpClient = new HttpClient(new SingleResponseHandler(packageBytes));
+        var manager = CreateManager(Path.Combine(_root, "package-progress-cache"), httpClient);
+        var reports = new List<Crystalfly.Core.Packages.PackageTransferProgress>();
+
+        await manager.InstallFromUriAsync(
+            Manifest("progress", "Progress", "modding-api-77", package),
+            new Progress<Crystalfly.Core.Packages.PackageTransferProgress>(reports.Add));
+
+        Assert.NotEmpty(reports);
+        Assert.Equal(packageBytes.Length, reports[^1].CompletedBytes);
+    }
+
     private string InstanceRoot => Path.Combine(_root, "instance");
 
     private string ReceiptPath(string id)
