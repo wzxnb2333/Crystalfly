@@ -119,6 +119,10 @@ public static class ModTranslationSource
         foreach (var tag in tags)
         {
             Text(tag.Key, MaxTagLength, "Translation tag key");
+            if (tag.Value is null)
+            {
+                throw new InvalidDataException($"Translation tag '{tag.Key}' value is required.");
+            }
             Text(tag.Value, MaxTagLength, $"Translation tag '{tag.Key}' value");
             if (!tagKeys.Add(tag.Key))
             {
