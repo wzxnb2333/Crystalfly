@@ -7,24 +7,24 @@
              x:DataType="vm:MarketInstallDialogViewModel"
              Width="600"
              MinWidth="480"
-             MaxHeight="560">
+             MaxHeight="600">
     <UserControl.KeyBindings>
         <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
     </UserControl.KeyBindings>
 
     <Grid Margin="24"
-          RowDefinitions="Auto,Auto,*,Auto,Auto"
-          RowSpacing="12">
+          RowDefinitions="Auto,Auto,*,Auto,Auto">
         <TextBlock Classes="cfp-section-title"
                    Text="{Binding Main.Loc[InstallToInstance]}"
                    TextWrapping="Wrap" />
         <TextBlock Grid.Row="1"
                    Classes="cfp-meta"
+                   Margin="0,4,0,16"
                    Text="{Binding ModName}"
                    TextWrapping="Wrap" />
         <ScrollViewer Grid.Row="2"
                       VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="8">
+            <StackPanel Spacing="16">
                 <ItemsControl ItemsSource="{Binding Targets}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:MarketInstallTargetOptionViewModel">
@@ -33,14 +33,14 @@
                                          IsEnabled="{Binding IsAvailable}"
                                          IsChecked="{Binding IsSelected, Mode=TwoWay}"
                                          HorizontalContentAlignment="Stretch"
-                                         Padding="12"
-                                         MinHeight="72"
-                                         Margin="0,0,0,8"
+                                         Padding="12,8"
+                                         MinHeight="56"
+                                         Margin="0,0,0,4"
                                          u:FocusHelper.DialogFocusHint="{Binding IsSelected}"
                                          AutomationProperties.Name="{Binding DisplayName}">
                                 <RadioButton.ContentTemplate>
                                     <DataTemplate x:DataType="vm:MarketInstallTargetOptionViewModel">
-                                        <StackPanel Spacing="3">
+                                        <StackPanel Spacing="4">
                                             <TextBlock Classes="cfp-row-title"
                                                        Text="{Binding DisplayName}"
                                                        TextWrapping="Wrap" />
@@ -66,27 +66,81 @@
                            TextAlignment="Center"
                            TextWrapping="Wrap"
                            IsVisible="{Binding HasTargets, Converter={x:Static converters:BoolConverters.Not}}" />
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="cfp-section-title"
+                               Text="{Binding Main.Loc[InstallationPlan]}" />
+                    <u:LoadingContainer IsLoading="{Binding IsPlanLoading}"
+                                        LoadingMessage="{Binding Main.Loc[StatusChecking]}"
+                                        MinHeight="80"
+                                        HorizontalContentAlignment="Stretch">
+                        <ItemsControl ItemsSource="{Binding PlanItems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:MarketInstallPlanItemViewModel">
+                                    <Grid ColumnDefinitions="72,*,Auto"
+                                          ColumnSpacing="12"
+                                          MinHeight="48"
+                                          Margin="0,4">
+                                        <Border Classes="cfp-badge"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Classes="cfp-caption" Text="{Binding KindText}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Classes="cfp-row-title"
+                                                       Text="{Binding PrimaryName}"
+                                                       TextWrapping="Wrap" />
+                                            <TextBlock Classes="cfp-caption"
+                                                       Text="{Binding SecondaryName}"
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding HasSecondaryName}" />
+                                            <TextBlock Classes="cfp-caption"
+                                                       Foreground="{DynamicResource CfErrorBrush}"
+                                                       Text="{Binding Reason}"
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding IsBlocked}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2"
+                                                    Spacing="4"
+                                                    VerticalAlignment="Center"
+                                                    HorizontalAlignment="Right">
+                                            <TextBlock Classes="cfp-meta"
+                                                       Text="{Binding StateText}"
+                                                       TextAlignment="Right" />
+                                            <TextBlock Classes="cfp-caption"
+                                                       Text="{Binding Version}"
+                                                       TextAlignment="Right" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </u:LoadingContainer>
+                </StackPanel>
             </StackPanel>
         </ScrollViewer>
         <TextBlock Grid.Row="3"
+                   Margin="0,12,0,0"
                    Foreground="{DynamicResource CfErrorBrush}"
                    Text="{Binding DialogError}"
                    TextWrapping="Wrap"
                    IsVisible="{Binding DialogError, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
         <StackPanel Grid.Row="4"
+                    Margin="0,16,0,0"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Spacing="8">
             <Button Classes="cfp-secondary"
                     Command="{Binding CancelCommand}"
+                    IsEnabled="{Binding CanCancel}"
                     Content="{Binding Main.Loc[Cancel]}"
                     MinWidth="96"
                     AutomationProperties.Name="{Binding Main.Loc[Cancel]}" />
             <Button Classes="cfp-primary"
                     Command="{Binding InstallCommand}"
-                    Content="{Binding Main.Loc[InstallSelectedMod]}"
+                    IsEnabled="{Binding CanInstall}"
+                    Content="{Binding Main.Loc[AddToDownloadQueue]}"
                     MinWidth="128"
-                    AutomationProperties.Name="{Binding Main.Loc[InstallSelectedMod]}" />
+                    AutomationProperties.Name="{Binding Main.Loc[AddToDownloadQueue]}" />
         </StackPanel>
     </Grid>
 </UserControl>

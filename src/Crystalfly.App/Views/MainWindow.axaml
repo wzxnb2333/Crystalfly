@@ -1069,6 +1069,16 @@
                                     <TextBlock Grid.Column="1" Text="{Binding Loc[ModMarket]}" />
                                 </Grid>
                             </Button>
+                            <Button Classes="cfp-local-nav"
+                                    Classes.active="{Binding IsDownloadQueueSection}"
+                                    Command="{Binding SelectDownloadSectionCommand}"
+                                    CommandParameter="DownloadQueue"
+                                    AutomationProperties.Name="{Binding Loc[DownloadQueue]}">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                    <LucideIcon Kind="ListTodo" Size="16" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Loc[DownloadQueue]}" />
+                                </Grid>
+                            </Button>
                         </StackPanel>
                     </Border>
 
@@ -1360,6 +1370,158 @@
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>
+
+                    <ScrollViewer Grid.Column="1"
+                                  IsVisible="{Binding IsDownloadQueueSection}"
+                                  HorizontalContentAlignment="Stretch"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Classes="cfp-workspace"
+                                    Margin="24"
+                                    Spacing="16"
+                                    MaxWidth="1200"
+                                    HorizontalAlignment="Stretch">
+                            <StackPanel Spacing="4">
+                                <TextBlock Classes="cfp-page-title" Text="{Binding Loc[DownloadQueue]}" />
+                                <TextBlock Classes="cfp-meta"
+                                           Text="{Binding Loc[DownloadQueueHint]}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <ItemsControl ItemsSource="{Binding DownloadQueueGroups}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:DownloadQueueGroupItemViewModel">
+                                            <Border Classes="cfp-card" Margin="0,0,0,8">
+                                                <StackPanel Spacing="8">
+                                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                                        <StackPanel Spacing="4">
+                                                            <TextBlock Classes="cfp-row-title"
+                                                                       Text="{Binding Name}"
+                                                                       TextWrapping="Wrap" />
+                                                            <TextBlock Classes="cfp-caption">
+                                                                <TextBlock.TextWrapping>Wrap</TextBlock.TextWrapping>
+                                                                <TextBlock.Inlines>
+                                                                    <Run Text="{Binding #Root.DataContext.Loc[QueueTarget]}" />
+                                                                    <Run Text=": " />
+                                                                    <Run Text="{Binding TargetInstanceName}" />
+                                                                    <Run Text=" · " />
+                                                                    <Run Text="{Binding StageText}" />
+                                                                </TextBlock.Inlines>
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                        <Button Grid.Column="1"
+                                                                Classes="cfp-secondary cfp-icon"
+                                                                Width="44"
+                                                                Height="44"
+                                                                Command="{Binding #Root.DataContext.RetryQueuedDownloadCommand}"
+                                                                CommandParameter="{Binding Id}"
+                                                                ToolTip.Tip="{Binding #Root.DataContext.Loc[QueueRetry]}"
+                                                                AutomationProperties.Name="{Binding #Root.DataContext.Loc[QueueRetry]}"
+                                                                IsVisible="{Binding CanRetry}"
+                                                                Content="{LucideIconContent RotateCcw, 16}" />
+                                                        <Button Grid.Column="2"
+                                                                Classes="cfp-secondary cfp-icon"
+                                                                Width="44"
+                                                                Height="44"
+                                                                Command="{Binding #Root.DataContext.CancelQueuedDownloadCommand}"
+                                                                CommandParameter="{Binding Id}"
+                                                                ToolTip.Tip="{Binding #Root.DataContext.Loc[Cancel]}"
+                                                                AutomationProperties.Name="{Binding #Root.DataContext.Loc[Cancel]}"
+                                                                IsVisible="{Binding CanCancel}"
+                                                                Content="{LucideIconContent X, 16}" />
+                                                    </Grid>
+                                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                                        <ProgressBar Minimum="0"
+                                                                     Maximum="1"
+                                                                     Value="{Binding Progress}"
+                                                                     VerticalAlignment="Center" />
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                                            <TextBlock Classes="cfp-caption" Text="{Binding ProgressText}" />
+                                                            <TextBlock Classes="cfp-caption" Text="{Binding SpeedText}" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                    <TextBlock Classes="cfp-caption"
+                                                               Foreground="{DynamicResource CfErrorBrush}"
+                                                               Text="{Binding Error}"
+                                                               TextWrapping="Wrap"
+                                                               IsVisible="{Binding HasError}" />
+                                                    <Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                                                        <Expander.Header>
+                                                            <TextBlock Classes="cfp-caption"
+                                                                       Text="{Binding #Root.DataContext.Loc[QueueDetails]}" />
+                                                        </Expander.Header>
+                                                        <ItemsControl ItemsSource="{Binding Items}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="vm:DownloadQueueItemViewModel">
+                                                                    <Grid ColumnDefinitions="*,Auto"
+                                                                          ColumnSpacing="12"
+                                                                          Margin="0,4">
+                                                                        <StackPanel Spacing="4">
+                                                                            <TextBlock Text="{Binding Name}"
+                                                                                       TextWrapping="Wrap" />
+                                                                            <TextBlock Classes="cfp-caption">
+                                                                                <TextBlock.TextWrapping>Wrap</TextBlock.TextWrapping>
+                                                                                <TextBlock.Inlines>
+                                                                                    <Run Text="{Binding Version}" />
+                                                                                    <Run Text=" · " />
+                                                                                    <Run Text="{Binding StageText}" />
+                                                                                </TextBlock.Inlines>
+                                                                            </TextBlock>
+                                                                            <TextBlock Classes="cfp-caption"
+                                                                                       Foreground="{DynamicResource CfErrorBrush}"
+                                                                                       Text="{Binding Error}"
+                                                                                       TextWrapping="Wrap"
+                                                                                       IsVisible="{Binding HasError}" />
+                                                                        </StackPanel>
+                                                                        <StackPanel Grid.Column="1"
+                                                                                    HorizontalAlignment="Right"
+                                                                                    Spacing="4">
+                                                                            <TextBlock Classes="cfp-caption"
+                                                                                       Text="{Binding ProgressText}"
+                                                                                       TextAlignment="Right" />
+                                                                            <TextBlock Classes="cfp-caption"
+                                                                                       Text="{Binding SpeedText}"
+                                                                                       TextAlignment="Right" />
+                                                                            <TextBlock Classes="cfp-caption"
+                                                                                       Text="{Binding RetryText}"
+                                                                                       TextAlignment="Right"
+                                                                                       IsVisible="{Binding HasRetries}" />
+                                                                        </StackPanel>
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </Expander>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <StackPanel Spacing="12"
+                                            HorizontalAlignment="Center"
+                                            Margin="24"
+                                            IsVisible="{Binding DownloadQueueGroups.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}">
+                                    <TextBlock Classes="cfp-meta"
+                                               MaxWidth="480"
+                                               Text="{Binding Loc[DownloadQueueEmpty]}"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap" />
+                                    <StackPanel Orientation="Horizontal"
+                                                HorizontalAlignment="Center"
+                                                Spacing="8">
+                                        <Button Classes="cfp-secondary"
+                                                Command="{Binding SelectDownloadSectionCommand}"
+                                                CommandParameter="GameVersions"
+                                                Content="{Binding Loc[GameVersions]}" />
+                                        <Button Classes="cfp-secondary"
+                                                Command="{Binding SelectDownloadSectionCommand}"
+                                                CommandParameter="ModMarket"
+                                                Content="{Binding Loc[ModMarket]}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
             </Grid>
 
@@ -1484,6 +1646,25 @@
             </Grid>
         </Grid>
         </u:LoadingContainer>
+        <Button Grid.Row="2"
+                Classes="cfp-primary"
+                Margin="16"
+                MinHeight="44"
+                MaxWidth="320"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                Command="{Binding OpenDownloadQueueCommand}"
+                ToolTip.Tip="{Binding ActiveDownloadSummary}"
+                AutomationProperties.Name="{Binding Loc[DownloadQueue]}"
+                IsVisible="{Binding HasActiveDownloads}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <LucideIcon Kind="Download" Size="16" />
+                <TextBlock Text="{Binding ActiveDownloadCount}" />
+                <TextBlock MaxWidth="240"
+                           Text="{Binding ActiveDownloadSummary}"
+                           TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </Button>
         <u:OverlayDialogHost x:Name="MainOverlayDialogHost"
                              Grid.RowSpan="3"
                              HostId="Crystalfly.Main" />

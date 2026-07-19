@@ -221,7 +221,7 @@ public sealed class DocumentationScreenshotTests
                 Assert.Single(fixture.Window.GetVisualDescendants().OfType<CustomDialogControl>());
                 Assert.Contains(fixture.Mod.Name, visibleText);
                 Assert.Contains(fixture.Instance.Name, visibleText);
-                Assert.Contains(fixture.ViewModel.Loc["InstallSelectedMod"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["AddToDownloadQueue"], visibleText);
                 break;
             case ScreenshotState.InstanceDetail:
                 Assert.Contains(fixture.ViewModel.Loc["Overview"], visibleText);

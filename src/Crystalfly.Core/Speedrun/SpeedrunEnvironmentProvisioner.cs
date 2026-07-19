@@ -186,7 +186,7 @@ public sealed class SpeedrunEnvironmentProvisioner
             asset.Sha256,
             cacheRoot,
             request.HttpClient,
-            cancellationToken);
+            cancellationToken: cancellationToken);
     }
 
     private static async Task CopyAssetAsync(

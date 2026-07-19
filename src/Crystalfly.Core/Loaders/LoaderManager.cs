@@ -57,13 +57,20 @@ public sealed class LoaderManager
     public async Task<InstalledPackageReceipt> InstallFromUriAsync(
         LoaderManifest manifest,
         CancellationToken cancellationToken = default)
+        => await InstallFromUriAsync(manifest, progress: null, cancellationToken);
+
+    public async Task<InstalledPackageReceipt> InstallFromUriAsync(
+        LoaderManifest manifest,
+        IProgress<PackageTransferProgress>? progress,
+        CancellationToken cancellationToken = default)
     {
         if (await GetStateAsync(cancellationToken) != LoaderState.Vanilla)
         {
             throw new InvalidOperationException("Loader installation requires a vanilla instance.");
         }
         return await ApplyPackageAsync(
-            manifest, null, new Uri(manifest.DownloadUrl), null, "install-loader", cancellationToken);
+            manifest, null, new Uri(manifest.DownloadUrl), null, "install-loader", cancellationToken,
+            progress: progress);
     }
 
     public async Task<InstalledPackageReceipt> InstallLocalFromFileAsync(
@@ -161,7 +168,8 @@ public sealed class LoaderManager
         string operation,
         CancellationToken cancellationToken,
         LoaderState? loaderStateOverride = null,
-        bool isVerified = true)
+        bool isVerified = true,
+        IProgress<PackageTransferProgress>? progress = null)
     {
         var size = manifest.SizeBytes;
         if (previousReceipt is not null)
@@ -186,6 +194,7 @@ public sealed class LoaderManager
             await PackageInstaller.InstallFromUriAsync(
                 packageUri, extracted, packageTransactions, size, manifest.Sha256,
                 _packageCacheRoot, _httpClient,
+                progress,
                 cancellationToken: cancellationToken);
         }
         else

@@ -22,7 +22,9 @@ public partial class MainWindow : Window
     private bool toastManagerClosing;
     private bool toastManagerUninstalled;
     private Task? disposeBeforeCloseTask;
+    private Task? closeConfirmationTask;
     private Task<bool>? marketInstallDialogTask;
+    private int marketInstallDialogOpening;
     private readonly WindowToastManager toastManager;
     private Action<string>? toastRequestedHandler;
     private MainViewModel? toastViewModel;
@@ -90,13 +92,47 @@ public partial class MainWindow : Window
             return;
         }
 
+        e.Cancel = true;
+        base.OnClosing(e);
+        if (DataContext is MainViewModel { HasUnfinishedDownloads: true } viewModel)
+        {
+            closeConfirmationTask ??= ConfirmCloseWithDownloadsAsync(viewModel);
+            return;
+        }
+        CloseOpenDialogs();
+        disposeBeforeCloseTask ??= DisposeBeforeCloseAsync();
+    }
+
+    private async Task ConfirmCloseWithDownloadsAsync(MainViewModel viewModel)
+    {
+        try
+        {
+            var confirmed = await ShowConfirmationAsync(
+                viewModel.Loc["ConfirmCloseDownloadsTitle"],
+                viewModel.Loc["ConfirmCloseDownloadsMessage"],
+                string.IsNullOrWhiteSpace(viewModel.ActiveDownloadSummary)
+                    ? viewModel.Loc["DownloadQueue"]
+                    : viewModel.ActiveDownloadSummary,
+                viewModel,
+                isDangerous: true);
+            if (confirmed)
+            {
+                CloseOpenDialogs();
+                disposeBeforeCloseTask ??= DisposeBeforeCloseAsync();
+            }
+        }
+        finally
+        {
+            closeConfirmationTask = null;
+        }
+    }
+
+    private void CloseOpenDialogs()
+    {
         foreach (var dialog in MainOverlayDialogHost.Children.OfType<CustomDialogControl>().ToArray())
         {
             dialog.Close();
         }
-        e.Cancel = true;
-        base.OnClosing(e);
-        disposeBeforeCloseTask ??= DisposeBeforeCloseAsync();
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -326,7 +362,9 @@ public partial class MainWindow : Window
         {
             return;
         }
-        if (viewModel.PrepareMarketInstallTargetsCommand.IsRunning || marketInstallDialogTask is not null)
+        if (viewModel.PrepareMarketInstallTargetsCommand.IsRunning
+            || marketInstallDialogTask is not null
+            || Interlocked.Exchange(ref marketInstallDialogOpening, 1) != 0)
         {
             return;
         }
@@ -334,18 +372,14 @@ public partial class MainWindow : Window
         try
         {
             await viewModel.PrepareMarketInstallTargetsCommand.ExecuteAsync(null);
-        }
-        catch (OperationCanceledException)
-        {
-            return;
-        }
-        if (!IsVisible || !ReferenceEquals(viewModel.SelectedMarketMod, mod))
-        {
-            return;
-        }
-        using var dialogViewModel = new MarketInstallDialogViewModel(viewModel, mod.DisplayName ?? mod.Name);
-        try
-        {
+            if (!IsVisible || !ReferenceEquals(viewModel.SelectedMarketMod, mod))
+            {
+                return;
+            }
+            using var dialogViewModel = new MarketInstallDialogViewModel(
+                viewModel,
+                mod.DisplayName ?? mod.Name);
+            await dialogViewModel.LoadPlanAsync();
             marketInstallDialogTask = OverlayDialog.ShowCustomAsync<
                 MarketInstallDialogView,
                 MarketInstallDialogViewModel,
@@ -355,9 +389,13 @@ public partial class MainWindow : Window
                 CreateOverlayOptions());
             await marketInstallDialogTask;
         }
+        catch (OperationCanceledException)
+        {
+        }
         finally
         {
             marketInstallDialogTask = null;
+            Interlocked.Exchange(ref marketInstallDialogOpening, 0);
         }
     }
 

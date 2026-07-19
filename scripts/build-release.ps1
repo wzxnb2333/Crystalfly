@@ -4,7 +4,7 @@ param(
     [ValidateSet('win-x64')]
     [string]$Runtime = 'win-x64',
     [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$')]
-    [string]$Version = '0.1.8',
+    [string]$Version = '0.1.9',
     [string]$IsccPath
 )
 

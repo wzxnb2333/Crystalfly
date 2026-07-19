@@ -7,10 +7,12 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Crystalfly.App.Downloads;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views;
 using Crystalfly.Core.Configuration;
+using Crystalfly.Core.Instances;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Serialization;
 using Ursa.Controls;
@@ -56,7 +58,7 @@ public sealed class ModMarketRenderingTests
     }
 
     [AvaloniaFact]
-    public void Downloads_use_a_176_pixel_rail_with_game_and_market_sections()
+    public void Downloads_use_a_176_pixel_rail_with_game_market_and_queue_sections()
     {
         var (window, _) = Show(page: "Downloads");
         try
@@ -70,7 +72,7 @@ public sealed class ModMarketRenderingTests
                 .OfType<Button>()
                 .Where(button => button.IsEffectivelyVisible && button.Classes.Contains("cfp-local-nav"))
                 .ToArray();
-            Assert.Equal(2, sectionButtons.Length);
+            Assert.Equal(3, sectionButtons.Length);
             Assert.All(sectionButtons, button => Assert.True(button.Bounds.Height >= 35.5));
             Assert.All(sectionButtons, button =>
                 Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(button))));
@@ -278,7 +280,7 @@ public sealed class ModMarketRenderingTests
             var dialog = Assert.Single(dialogs);
             var dialogView = Assert.Single(dialog.GetVisualDescendants()
                 .OfType<Crystalfly.App.Views.Dialogs.MarketInstallDialogView>());
-            Assert.InRange(dialogView.Bounds.Height, 300, 360);
+            Assert.InRange(dialogView.Bounds.Height, 420, 480);
             var targetButtons = dialog.GetVisualDescendants().OfType<RadioButton>().ToArray();
             Assert.Equal(2, targetButtons.Length);
             var availableTarget = Assert.Single(targetButtons, target => target.IsEnabled);
@@ -288,7 +290,7 @@ public sealed class ModMarketRenderingTests
             Assert.True(availableTarget.IsChecked);
             Assert.True(availableTarget.IsFocused);
             Assert.Contains(dialog.GetVisualDescendants().OfType<Button>(), button =>
-                AutomationProperties.GetName(button) == viewModel.Loc["InstallSelectedMod"]);
+                AutomationProperties.GetName(button) == viewModel.Loc["AddToDownloadQueue"]);
             Assert.Contains(dialog.GetVisualDescendants().OfType<TextBlock>(), text =>
                 text.Text?.Contains("Modding API v77", StringComparison.OrdinalIgnoreCase) == true);
             dialog.Close();
@@ -462,7 +464,7 @@ public sealed class ModMarketRenderingTests
         {
             var install = context.Dialog.GetVisualDescendants().OfType<Button>()
                 .Single(button => AutomationProperties.GetName(button)
-                    == context.ViewModel.Loc["InstallSelectedMod"]);
+                    == context.ViewModel.Loc["AddToDownloadQueue"]);
 
             install.Command!.Execute(install.CommandParameter);
             for (var attempt = 0; attempt < 100 && GetDialogs(context.Window).Length > 0; attempt++)
@@ -473,6 +475,7 @@ public sealed class ModMarketRenderingTests
 
             Assert.Empty(GetDialogs(context.Window));
             Assert.Null(context.ViewModel.ErrorMessage);
+            await context.ViewModel.DownloadQueue.WaitForIdleAsync();
             Assert.True(File.Exists(context.InstalledModPath));
         }
         finally
@@ -482,33 +485,61 @@ public sealed class ModMarketRenderingTests
     }
 
     [AvaloniaFact]
-    public async Task Market_install_failure_keeps_overlay_and_shows_error()
+    public async Task Market_install_missing_sidecar_closes_overlay_and_fails_first_queue_item()
     {
         var context = await ShowReadyMarketInstallAsync();
+        var releaseInstall = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task? heldOperation = null;
         try
         {
             var dialogViewModel = Assert.IsType<MarketInstallDialogViewModel>(context.Dialog.DataContext);
-            context.ViewModel.Instances.Clear();
+            var coordinator = Assert.IsType<InstanceOperationCoordinator>(typeof(MainViewModel)
+                .GetField("instanceOperationCoordinator", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(context.ViewModel));
+            var coordinatorEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            heldOperation = coordinator.RunAsync("practice", async cancellationToken =>
+            {
+                coordinatorEntered.SetResult();
+                await releaseInstall.Task.WaitAsync(cancellationToken);
+            });
+            await coordinatorEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
             var install = context.Dialog.GetVisualDescendants().OfType<Button>()
                 .Single(button => AutomationProperties.GetName(button)
-                    == context.ViewModel.Loc["InstallSelectedMod"]);
+                    == context.ViewModel.Loc["AddToDownloadQueue"]);
 
             install.Command!.Execute(install.CommandParameter);
-            for (var attempt = 0; attempt < 100 && context.ViewModel.InstallMarketModCommand.IsRunning; attempt++)
+            for (var attempt = 0; attempt < 100 && GetDialogs(context.Window).Length > 0; attempt++)
             {
                 Dispatcher.UIThread.RunJobs();
                 await Task.Delay(10);
             }
             Dispatcher.UIThread.RunJobs();
 
-            Assert.Contains(context.Dialog, GetDialogs(context.Window));
-            Assert.Equal(context.ViewModel.Loc["NoInstance"], context.ViewModel.ErrorMessage);
-            Assert.Equal(context.ViewModel.Loc["NoInstance"], dialogViewModel.DialogError);
-            Assert.Contains(context.Dialog.GetVisualDescendants().OfType<TextBlock>(), text =>
-                text.IsEffectivelyVisible && text.Text == context.ViewModel.Loc["NoInstance"]);
+            Assert.Empty(GetDialogs(context.Window));
+            Assert.Null(context.ViewModel.ErrorMessage);
+            Assert.Null(dialogViewModel.DialogError);
+
+            File.Delete(InstanceSidecar.GetMarkerPath(context.InstanceRoot));
+            releaseInstall.SetResult();
+            await heldOperation;
+            await context.ViewModel.DownloadQueue.WaitForIdleAsync();
+
+            var group = Assert.Single(context.ViewModel.DownloadQueue.Groups);
+            Assert.Equal(DownloadQueueGroupState.Failed, group.State);
+            Assert.Equal(DownloadQueueItemState.Failed,
+                Assert.Single(group.Items, item => item.Kind == DownloadQueueItemKind.Loader).State);
+            Assert.Equal(DownloadQueueItemState.Blocked,
+                Assert.Single(group.Items, item => item.Kind == DownloadQueueItemKind.Mod).State);
+            Assert.Contains(".crystalfly-instance.json", group.Error, StringComparison.Ordinal);
+            Assert.False(File.Exists(context.InstalledModPath));
         }
         finally
         {
+            releaseInstall.TrySetResult();
+            if (heldOperation is not null)
+            {
+                await heldOperation;
+            }
             await CloseReadyMarketInstallAsync(context);
         }
     }
@@ -708,6 +739,8 @@ public sealed class ModMarketRenderingTests
             LoaderId = "modding-api-77",
             SupportedBuildIds = ["1.5.78.11833"]
         };
+        var instance = Instance("practice", "Practice", instanceRoot);
+        await InstanceSidecar.SaveAsync(instance);
         var viewModel = new MainViewModel(Path.Combine(root, "app-data"))
         {
             CurrentPage = "Downloads",
@@ -718,7 +751,7 @@ public sealed class ModMarketRenderingTests
         typeof(MainViewModel).GetField("catalog", BindingFlags.Instance | BindingFlags.NonPublic)!
             .SetValue(viewModel, new GameCatalog { Mods = [mod] });
         viewModel.Instances.Add(new InstanceItemViewModel(
-            Instance("practice", "Practice", instanceRoot),
+            instance,
             "1.5.78.11833",
             "Modding API v77",
             0));
@@ -743,6 +776,7 @@ public sealed class ModMarketRenderingTests
             window,
             viewModel,
             Assert.Single(dialogs),
+            instanceRoot,
             Path.Combine(managedRoot, "Mods", "Sample Mod", "mod.dll"));
     }
 
@@ -776,6 +810,7 @@ public sealed class ModMarketRenderingTests
         MainWindow Window,
         MainViewModel ViewModel,
         CustomDialogControl Dialog,
+        string InstanceRoot,
         string InstalledModPath);
 
     private static async Task<SlowMarketInstallContext> ShowSlowMarketInstallAsync()

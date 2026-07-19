@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Security.Cryptography;
+using System.Diagnostics;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Transactions;
 
@@ -11,6 +13,8 @@ public static class PackageInstaller
     private const long MaxExtractedFileBytes = 512L * 1024 * 1024;
     private const long MaxExtractedPackageBytes = 1024L * 1024 * 1024;
     private static readonly HttpClient SharedHttpClient = new();
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> CacheGates =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public static async Task<string> AcquireVerifiedFileFromFileAsync(
         string packagePath,
@@ -30,11 +34,14 @@ public static class PackageInstaller
         var normalizedHash = ValidateSha256(expectedSha256);
         await VerifyPackageAsync(package.FullName, verifiedSize, normalizedHash, cancellationToken);
         var cachePath = GetCachePath(cacheRoot, normalizedHash);
-        if (!await IsValidPackageAsync(cachePath, verifiedSize, normalizedHash, cancellationToken))
+        return await UseCacheAsync(cachePath, async () =>
         {
-            await WriteCacheAsync(package.FullName, cachePath, verifiedSize, cancellationToken);
-        }
-        return cachePath;
+            if (!await IsValidPackageAsync(cachePath, verifiedSize, normalizedHash, cancellationToken))
+            {
+                await WriteCacheAsync(package.FullName, cachePath, verifiedSize, cancellationToken);
+            }
+            return cachePath;
+        }, cancellationToken);
     }
 
     public static async Task<string> AcquireVerifiedFileFromUriAsync(
@@ -44,7 +51,9 @@ public static class PackageInstaller
         string expectedSha256,
         string cacheRoot,
         HttpClient? httpClient = null,
-        CancellationToken cancellationToken = default)
+        IProgress<PackageTransferProgress>? progress = null,
+        CancellationToken cancellationToken = default,
+        SemaphoreSlim? networkGate = null)
     {
         if (!packageUri.IsAbsoluteUri || packageUri.Scheme != Uri.UriSchemeHttps)
         {
@@ -54,34 +63,52 @@ public static class PackageInstaller
         ValidateExpectedSize(expectedSize, remote: true);
         var normalizedHash = ValidateSha256(expectedSha256);
         var cachePath = GetCachePath(cacheRoot, normalizedHash);
-        if (await IsValidPackageAsync(cachePath, expectedSize, normalizedHash, cancellationToken))
+        return await UseCacheAsync(cachePath, async () =>
         {
-            return cachePath;
-        }
-
-        var workspace = CreateWorkspace(transactionRoot);
-        var downloadPath = Path.Combine(workspace, "package.download");
-        try
-        {
-            using var response = await (httpClient ?? SharedHttpClient).GetAsync(
-                packageUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            response.EnsureSuccessStatusCode();
-            var downloadSize = ResolveRemoteSize(response.Content.Headers.ContentLength, expectedSize);
-            await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
-            await using (var destination = new FileStream(
-                downloadPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920,
-                FileOptions.Asynchronous | FileOptions.WriteThrough))
+            if (await IsValidPackageAsync(cachePath, expectedSize, normalizedHash, cancellationToken))
             {
-                await CopyWithSizeLimitAsync(source, destination, downloadSize, cancellationToken);
+                var cachedSize = new FileInfo(cachePath).Length;
+                progress?.Report(new PackageTransferProgress(cachedSize, cachedSize, 0, "Cached"));
+                return cachePath;
             }
-            await VerifyPackageAsync(downloadPath, downloadSize, normalizedHash, cancellationToken);
-            await WriteCacheAsync(downloadPath, cachePath, downloadSize, cancellationToken);
-            return cachePath;
-        }
-        finally
-        {
-            DeleteWorkspace(workspace);
-        }
+
+            var workspace = CreateWorkspace(transactionRoot);
+            var downloadPath = Path.Combine(workspace, "package.download");
+            try
+            {
+                long downloadSize;
+                if (networkGate is not null)
+                {
+                    await networkGate.WaitAsync(cancellationToken);
+                }
+                try
+                {
+                    using var response = await (httpClient ?? SharedHttpClient).GetAsync(
+                        packageUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                    response.EnsureSuccessStatusCode();
+                    downloadSize = ResolveRemoteSize(response.Content.Headers.ContentLength, expectedSize);
+                    await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
+                    await using (var destination = new FileStream(
+                        downloadPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920,
+                        FileOptions.Asynchronous | FileOptions.WriteThrough))
+                    {
+                        await CopyWithSizeLimitAsync(
+                            source, destination, downloadSize, "Downloading", progress, cancellationToken);
+                    }
+                }
+                finally
+                {
+                    networkGate?.Release();
+                }
+                await VerifyPackageAsync(downloadPath, downloadSize, normalizedHash, cancellationToken);
+                await WriteCacheAsync(downloadPath, cachePath, downloadSize, cancellationToken);
+                return cachePath;
+            }
+            finally
+            {
+                DeleteWorkspace(workspace);
+            }
+        }, cancellationToken);
     }
 
     public static async Task<TransactionJournal> InstallFromUriAsync(
@@ -92,6 +119,7 @@ public static class PackageInstaller
         string expectedSha256,
         string? cacheRoot = null,
         HttpClient? httpClient = null,
+        IProgress<PackageTransferProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         if (!packageUri.IsAbsoluteUri || packageUri.Scheme != Uri.UriSchemeHttps)
@@ -101,12 +129,17 @@ public static class PackageInstaller
 
         ValidateExpectedSize(expectedSize, remote: true);
         var normalizedHash = ValidateSha256(expectedSha256);
-        var cachePath = cacheRoot is null
-            ? null
-            : GetCachePath(cacheRoot, normalizedHash);
-        if (cachePath is not null
-            && await IsValidPackageAsync(cachePath, expectedSize, normalizedHash, cancellationToken))
+        if (cacheRoot is not null)
         {
+            var cachePath = await AcquireVerifiedFileFromUriAsync(
+                packageUri,
+                transactionRoot,
+                expectedSize,
+                normalizedHash,
+                cacheRoot,
+                httpClient,
+                progress,
+                cancellationToken);
             var cachedSize = new FileInfo(cachePath).Length;
             var cachedWorkspace = CreateWorkspace(transactionRoot);
             try
@@ -134,15 +167,11 @@ public static class PackageInstaller
                 packagePath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920,
                 FileOptions.Asynchronous | FileOptions.WriteThrough))
             {
-                await CopyWithSizeLimitAsync(source, destination, downloadSize, cancellationToken);
+                await CopyWithSizeLimitAsync(
+                    source, destination, downloadSize, "Downloading", progress, cancellationToken);
             }
 
             await VerifyPackageAsync(packagePath, downloadSize, normalizedHash, cancellationToken);
-            if (cachePath is not null)
-            {
-                await WriteCacheAsync(packagePath, cachePath, downloadSize, cancellationToken);
-                packagePath = cachePath;
-            }
             return await InstallVerifiedAsync(
                 packagePath, targetRoot, transactionRoot, workspace, downloadSize, normalizedHash, cancellationToken);
         }
@@ -340,10 +369,13 @@ public static class PackageInstaller
         Stream source,
         Stream destination,
         long expectedSize,
+        string stage,
+        IProgress<PackageTransferProgress>? progress,
         CancellationToken cancellationToken)
     {
         var buffer = new byte[81920];
         long total = 0;
+        var stopwatch = Stopwatch.StartNew();
         int read;
         while ((read = await source.ReadAsync(buffer, cancellationToken)) != 0)
         {
@@ -353,11 +385,25 @@ public static class PackageInstaller
                 throw new InvalidDataException($"Package exceeds expected size {expectedSize}.");
             }
             await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            progress?.Report(new PackageTransferProgress(
+                total,
+                expectedSize,
+                stopwatch.Elapsed.TotalSeconds <= 0
+                    ? total
+                    : total / stopwatch.Elapsed.TotalSeconds,
+                stage));
         }
         if (total != expectedSize)
         {
             throw new InvalidDataException($"Package size mismatch. Expected {expectedSize}, received {total}.");
         }
+        progress?.Report(new PackageTransferProgress(
+            total,
+            expectedSize,
+            stopwatch.Elapsed.TotalSeconds <= 0
+                ? total
+                : total / stopwatch.Elapsed.TotalSeconds,
+            stage));
     }
 
     private static long ResolveRemoteSize(long? contentLength, long? expectedSize)
@@ -442,6 +488,23 @@ public static class PackageInstaller
         return Path.Combine(root, $"{normalizedHash}.zip");
     }
 
+    private static async Task<T> UseCacheAsync<T>(
+        string cachePath,
+        Func<Task<T>> operation,
+        CancellationToken cancellationToken)
+    {
+        var gate = CacheGates.GetOrAdd(cachePath, static _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            return await operation();
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
     private static async Task WriteCacheAsync(
         string sourcePath,
         string cachePath,
@@ -459,7 +522,8 @@ public static class PackageInstaller
                 temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920,
                 FileOptions.Asynchronous | FileOptions.WriteThrough))
             {
-                await CopyWithSizeLimitAsync(source, destination, expectedSize, cancellationToken);
+                await CopyWithSizeLimitAsync(
+                    source, destination, expectedSize, "Caching", progress: null, cancellationToken);
             }
             File.Move(temporaryPath, cachePath, overwrite: true);
         }

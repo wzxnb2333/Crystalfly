@@ -13,6 +13,10 @@ public static class InstanceImportService
         foreach (var path in VersionDirectoryScanner.Scan(versionRoot))
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (File.Exists(Path.Combine(path, InstanceDirectory.PendingDownloadMarkerFileName)))
+            {
+                continue;
+            }
             if (!File.Exists(Path.Combine(path, "hollow_knight.exe"))
                 || !File.Exists(Path.Combine(path, "hollow_knight_Data", "globalgamemanagers")))
             {
