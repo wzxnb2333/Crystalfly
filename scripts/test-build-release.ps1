@@ -34,6 +34,9 @@ $absoluteIsccPathPattern = '(?i)-IsccPath\s+[''"]?[A-Z]:[\\/]'
 if ($source -notmatch "\[ValidateSet\('win-x64'\)\]") {
     throw 'Runtime must be restricted to win-x64 before release paths are constructed.'
 }
+if ($source -notmatch '(?m)\[string\]\$Version\s*=\s*''0\.1\.7''') {
+    throw 'Release build must default to version 0.1.7.'
+}
 if ($source -notmatch '(?m)-p:CopyOutputSymbolsToPublishDirectory=false') {
     throw 'Release publish must exclude debug symbols from the publish directory.'
 }
@@ -46,6 +49,15 @@ foreach ($requiredDefine in 'PublishDir', 'AppVersion') {
 if ($installerSource -match '(?m)^\s*#define\s+(?:PublishDir|AppVersion)\b') {
     throw 'Inno Setup must not silently use default release inputs.'
 }
+if ($installerSource -notmatch '(?ms)^\[InstallDelete\].*?Type:\s*files;\s*Name:\s*"\{app\}\\Avalonia\.Themes\.Fluent\.dll"') {
+    throw 'Inno Setup upgrades must remove the retired Fluent theme assembly.'
+}
+if ($installerSource -notmatch '(?m)^DefaultDirName=D:\\Program Files\\\{#AppName\}$') {
+    throw 'Inno Setup must default to D:\\Program Files\\Crystalfly.'
+}
+if ($installerSource -notmatch '(?m)^PrivilegesRequired=admin$') {
+    throw 'The fixed Program Files install must request administrator privileges.'
+}
 if ("-IsccPath 'D:\Tools\Inno Setup 6\ISCC.exe'" -notmatch $absoluteIsccPathPattern) {
     throw 'The README absolute ISCC path check does not cover arbitrary drive paths.'
 }
@@ -54,6 +66,10 @@ if ('-IsccPath "Z:/Tools/Inno Setup 6/ISCC.exe"' -notmatch $absoluteIsccPathPatt
 }
 if ($readme -match $absoluteIsccPathPattern) {
     throw 'README must not hard-code a machine-specific Inno Setup path.'
+}
+$releaseCommandPattern = '(?i)build-release\.ps1[''"`\s\\\r\n]+-Version\s+[''"]0\.1\.7[''"]'
+if ($readme -notmatch $releaseCommandPattern) {
+    throw 'README must pin local release builds to version 0.1.7.'
 }
 $englishReadme = [regex]::Match($readme, '(?ms)^## English\s*(?<content>.*)$').Groups['content'].Value
 if (
@@ -295,6 +311,18 @@ try {
     }
     if (-not $zipInventoryStopped) {
         throw 'ZIP inventory accepted a file not present in the portable directory.'
+    }
+
+    $installer = Join-Path $installerOutput 'Crystalfly-0.1.7-win-x64-setup.exe'
+    Set-Content -LiteralPath $installer -Value 'installer'
+    $checksums = Join-Path $artifacts 'SHA256SUMS.txt'
+    Write-ArtifactChecksums -Paths $zip, $installer -ArtifactsPath $artifacts -OutputPath $checksums
+    $checksumLines = Get-Content -LiteralPath $checksums
+    if (-not ($checksumLines -match '\*portable\.zip$')) {
+        throw 'Checksums must address the portable archive from the artifacts root.'
+    }
+    if (-not ($checksumLines -match '\*installer/Crystalfly-0\.1\.7-win-x64-setup\.exe$')) {
+        throw 'Checksums must address the installer relative to the artifacts root.'
     }
 }
 finally {

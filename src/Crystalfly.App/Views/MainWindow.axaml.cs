@@ -1,23 +1,62 @@
-using Avalonia;
+using System.ComponentModel;
 using Avalonia.Controls;
+using Avalonia.Controls.Notifications;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Layout;
-using Avalonia.Platform.Storage;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels;
+using Crystalfly.App.ViewModels.Dialogs;
+using Crystalfly.App.Views.Dialogs;
+using Irihi.Avalonia.Shared.Contracts;
+using Ursa.Controls;
 
 namespace Crystalfly.App.Views;
 
 public partial class MainWindow : Window
 {
+    internal const string OverlayHostId = "Crystalfly.Main";
+
     private bool closeAfterDispose;
+    private bool toastManagerClosing;
+    private bool toastManagerUninstalled;
     private Task? disposeBeforeCloseTask;
+    private Task<bool>? marketInstallDialogTask;
+    private readonly WindowToastManager toastManager;
+    private Action<string>? toastRequestedHandler;
+    private MainViewModel? toastViewModel;
 
     public MainWindow()
     {
         InitializeComponent();
+        toastManager = new WindowToastManager(this) { MaxItems = 3 };
+        DataContextChanged += OnDataContextChanged;
+        OnDataContextChanged(this, EventArgs.Empty);
         Opened += OnOpened;
     }
+
+    private void OnWindowChromePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Handled
+            || e.GetCurrentPoint(this).Properties.PointerUpdateKind != PointerUpdateKind.LeftButtonPressed
+            || e.Source is not Avalonia.Visual visual
+            || visual.FindAncestorOfType<Button>() is not null)
+        {
+            return;
+        }
+
+        BeginMoveDrag(e);
+    }
+
+    private void OnWindowMinimizeClick(object? sender, RoutedEventArgs e) =>
+        WindowState = WindowState.Minimized;
+
+    private void OnWindowMaximizeClick(object? sender, RoutedEventArgs e) =>
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
+
+    private void OnWindowCloseClick(object? sender, RoutedEventArgs e) => Close();
 
     private async void OnOpened(object? sender, EventArgs eventArgs)
     {
@@ -50,9 +89,27 @@ public partial class MainWindow : Window
             return;
         }
 
+        foreach (var dialog in MainOverlayDialogHost.Children.OfType<CustomDialogControl>().ToArray())
+        {
+            dialog.Close();
+        }
         e.Cancel = true;
         base.OnClosing(e);
         disposeBeforeCloseTask ??= DisposeBeforeCloseAsync();
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape
+            && MainOverlayDialogHost.Children.OfType<CustomDialogControl>().LastOrDefault()?.DataContext
+                is IDialogContext context)
+        {
+            e.Handled = true;
+            context.Close();
+            return;
+        }
+
+        base.OnKeyDown(e);
     }
 
     private async Task DisposeBeforeCloseAsync()
@@ -66,77 +123,112 @@ public partial class MainWindow : Window
         }
         finally
         {
-            closeAfterDispose = true;
-            Close();
+            try
+            {
+                await UninstallToastManagerAsync();
+            }
+            finally
+            {
+                closeAfterDispose = true;
+                Close();
+            }
         }
     }
 
-    private async void BrowseVersionRoot(object? sender, RoutedEventArgs eventArgs)
+    private void OnDataContextChanged(object? sender, EventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel)
+        if (toastViewModel is not null)
         {
-            return;
+            if (toastRequestedHandler is not null)
+            {
+                toastViewModel.ToastRequested -= toastRequestedHandler;
+            }
+            toastViewModel.PropertyChanged -= OnToastViewModelPropertyChanged;
         }
-        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+
+        toastRequestedHandler = null;
+        toastViewModel = DataContext as MainViewModel;
+        if (toastViewModel is not null)
         {
-            Title = viewModel.Loc["SelectVersionRootTitle"],
-            AllowMultiple = false
-        });
-        var path = folders.FirstOrDefault()?.TryGetLocalPath();
-        if (path is not null)
-        {
-            viewModel.VersionRoot = path;
-            await viewModel.ApplyVersionRootCommand.ExecuteAsync(null);
+            var owner = toastViewModel;
+            toastRequestedHandler = message => ShowToast(owner, message, NotificationType.Success);
+            toastViewModel.ToastRequested += toastRequestedHandler;
+            toastViewModel.PropertyChanged += OnToastViewModelPropertyChanged;
         }
     }
 
-    private async void BrowseLocalMod(object? sender, RoutedEventArgs eventArgs)
+    private void OnToastViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel)
+        if (eventArgs.PropertyName == nameof(MainViewModel.ErrorMessage)
+            && sender is MainViewModel viewModel
+            && !string.IsNullOrWhiteSpace(viewModel.ErrorMessage))
         {
-            return;
-        }
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = viewModel.Loc["SelectModPackageTitle"],
-            AllowMultiple = false,
-            FileTypeFilter =
-            [
-                new FilePickerFileType(viewModel.Loc["ModFileType"])
-                {
-                    Patterns = ["*.zip", "*.dll"]
-                }
-            ]
-        });
-        var path = files.FirstOrDefault()?.TryGetLocalPath();
-        if (path is not null)
-        {
-            viewModel.LocalModPath = path;
+            ShowToast(viewModel, viewModel.ErrorMessage, NotificationType.Error);
         }
     }
 
-    private async void BrowseLocalLoaderManifest(object? sender, RoutedEventArgs eventArgs)
+    private void ShowToast(MainViewModel owner, string message, NotificationType type) =>
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!toastManagerClosing && ReferenceEquals(owner, toastViewModel))
+            {
+                toastManager.Show(message, type);
+            }
+        });
+
+    private async Task UninstallToastManagerAsync()
     {
-        if (DataContext is not MainViewModel viewModel)
+        if (toastManagerUninstalled)
         {
             return;
         }
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+
+        DetachToastSubscriptions();
+        toastManagerClosing = true;
+        var cards = toastManager.GetVisualDescendants().OfType<ToastCard>()
+            .Where(card => !card.IsClosed)
+            .ToArray();
+        var completions = new List<Task>(cards.Length);
+        foreach (var card in cards)
         {
-            Title = viewModel.Loc["SelectLoaderManifestTitle"],
-            AllowMultiple = false,
-            FileTypeFilter =
-            [
-                new FilePickerFileType(viewModel.Loc["LoaderManifestFileType"])
-                {
-                    Patterns = ["*.json"]
-                }
-            ]
-        });
-        var path = files.FirstOrDefault()?.TryGetLocalPath();
-        if (path is not null)
+            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            EventHandler<MessageClosedEventArgs>? handler = null;
+            handler = (_, _) =>
+            {
+                card.MessageClosed -= handler;
+                completion.TrySetResult();
+            };
+            card.MessageClosed += handler;
+            completions.Add(completion.Task);
+        }
+
+        toastManager.CloseAll();
+        var allClosed = Task.WhenAll(completions);
+        if (await Task.WhenAny(allClosed, Task.Delay(TimeSpan.FromSeconds(2))) != allClosed)
         {
-            viewModel.LocalLoaderManifestPath = path;
+            foreach (var card in cards.Where(card => !card.IsClosed))
+            {
+                card.IsClosed = true;
+            }
+            await allClosed;
+            await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
+        }
+        toastManager.Uninstall();
+        toastManagerUninstalled = true;
+    }
+
+    private void DetachToastSubscriptions()
+    {
+        DataContextChanged -= OnDataContextChanged;
+        if (toastViewModel is not null)
+        {
+            if (toastRequestedHandler is not null)
+            {
+                toastViewModel.ToastRequested -= toastRequestedHandler;
+            }
+            toastViewModel.PropertyChanged -= OnToastViewModelPropertyChanged;
+            toastRequestedHandler = null;
+            toastViewModel = null;
         }
     }
 
@@ -233,7 +325,7 @@ public partial class MainWindow : Window
         {
             return;
         }
-        if (viewModel.PrepareMarketInstallTargetsCommand.IsRunning)
+        if (viewModel.PrepareMarketInstallTargetsCommand.IsRunning || marketInstallDialogTask is not null)
         {
             return;
         }
@@ -246,193 +338,29 @@ public partial class MainWindow : Window
         {
             return;
         }
-        if (!ReferenceEquals(viewModel.SelectedMarketMod, mod))
+        if (!IsVisible || !ReferenceEquals(viewModel.SelectedMarketMod, mod))
         {
             return;
         }
-        var dialog = new Window
+        using var dialogViewModel = new MarketInstallDialogViewModel(viewModel, mod.DisplayName ?? mod.Name);
+        try
         {
-            Title = viewModel.Loc["InstallModTitle"],
-            Width = 640,
-            Height = 560,
-            MinWidth = 520,
-            MinHeight = 420,
-            ShowInTaskbar = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Icon = Icon
-        };
-        dialog.Classes.Add("cfp-window");
-        dialog.Closing += (_, args) =>
-        {
-            if (viewModel.IsBusy)
-            {
-                args.Cancel = true;
-            }
-        };
-
-        var targets = new StackPanel { Spacing = 8 };
-        var targetButtons = new List<RadioButton>();
-        foreach (var target in viewModel.MarketInstallTargets)
-        {
-            var details = new StackPanel
-            {
-                Spacing = 3,
-                Children =
-                {
-                    new TextBlock
-                    {
-                        Text = target.DisplayName,
-                        FontWeight = Avalonia.Media.FontWeight.SemiBold,
-                        TextWrapping = Avalonia.Media.TextWrapping.Wrap
-                    },
-                    new TextBlock
-                    {
-                        Text = $"{target.BuildDisplayName} · {target.LoaderDisplayName}",
-                        Opacity = 0.7,
-                        TextWrapping = Avalonia.Media.TextWrapping.Wrap
-                    },
-                    new TextBlock
-                    {
-                        Text = target.StatusText,
-                        Opacity = target.IsAvailable ? 0.8 : 0.6,
-                        TextWrapping = Avalonia.Media.TextWrapping.Wrap
-                    }
-                }
-            };
-            var option = new RadioButton
-            {
-                GroupName = "market-install-target",
-                Content = details,
-                IsEnabled = target.IsAvailable,
-                IsChecked = ReferenceEquals(target, viewModel.SelectedMarketInstallTarget),
-                HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                Padding = new Thickness(12),
-                MinHeight = 72
-            };
-            Avalonia.Automation.AutomationProperties.SetName(option, target.DisplayName);
-            option.IsCheckedChanged += (_, _) =>
-            {
-                if (option.IsChecked == true)
-                {
-                    viewModel.SelectedMarketInstallTarget = target;
-                }
-            };
-            targets.Children.Add(option);
-            targetButtons.Add(option);
+            marketInstallDialogTask = OverlayDialog.ShowCustomAsync<
+                MarketInstallDialogView,
+                MarketInstallDialogViewModel,
+                bool>(
+                dialogViewModel,
+                OverlayHostId,
+                CreateOverlayOptions());
+            await marketInstallDialogTask;
         }
-
-        if (viewModel.MarketInstallTargets.Count == 0)
+        finally
         {
-            targets.Children.Add(new TextBlock
-            {
-                Text = viewModel.Loc["NoInstallTargets"],
-                TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-                Opacity = 0.7
-            });
+            marketInstallDialogTask = null;
         }
-
-        var error = new TextBlock
-        {
-            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-            IsVisible = false
-        };
-        var cancelButton = new Button
-        {
-            Content = viewModel.Loc["Cancel"],
-            MinWidth = 96
-        };
-        cancelButton.Classes.Add("cfp-secondary");
-        var installButton = new Button
-        {
-            Content = viewModel.Loc["InstallSelectedMod"],
-            MinWidth = 128,
-            IsEnabled = viewModel.SelectedMarketInstallTarget?.IsAvailable == true
-        };
-        installButton.Classes.Add("cfp-primary");
-
-        cancelButton.Click += (_, _) => dialog.Close(false);
-        installButton.Click += async (_, _) =>
-        {
-            installButton.IsEnabled = false;
-            cancelButton.IsEnabled = false;
-            error.IsVisible = false;
-            await viewModel.InstallMarketModCommand.ExecuteAsync(null);
-            if (viewModel.ErrorMessage is null)
-            {
-                dialog.Close(true);
-                return;
-            }
-
-            error.Text = viewModel.ErrorMessage;
-            error.IsVisible = true;
-            cancelButton.IsEnabled = true;
-            installButton.IsEnabled = viewModel.SelectedMarketInstallTarget?.IsAvailable == true;
-        };
-        foreach (var option in targetButtons)
-        {
-            option.IsCheckedChanged += (_, _) =>
-                installButton.IsEnabled = viewModel.SelectedMarketInstallTarget?.IsAvailable == true;
-        }
-        dialog.Opened += (_, _) =>
-            targetButtons.FirstOrDefault(button => button.IsChecked == true)?.Focus(
-                NavigationMethod.Tab,
-                KeyModifiers.None);
-        dialog.KeyDown += (_, args) =>
-        {
-            if (args.Key == Key.Escape)
-            {
-                args.Handled = true;
-                if (!viewModel.IsBusy)
-                {
-                    dialog.Close(false);
-                }
-            }
-        };
-
-        dialog.Content = new Grid
-        {
-            RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,Auto"),
-            Margin = new Thickness(24),
-            RowSpacing = 12,
-            Children =
-            {
-                new TextBlock
-                {
-                    Text = viewModel.Loc["InstallToInstance"],
-                    FontSize = 20,
-                    FontWeight = Avalonia.Media.FontWeight.SemiBold,
-                    TextWrapping = Avalonia.Media.TextWrapping.Wrap
-                },
-                new TextBlock
-                {
-                    [Grid.RowProperty] = 1,
-                    Text = mod.DisplayName ?? mod.Name,
-                    Opacity = 0.7,
-                    TextWrapping = Avalonia.Media.TextWrapping.Wrap
-                },
-                new ScrollViewer
-                {
-                    [Grid.RowProperty] = 2,
-                    Content = targets,
-                    VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
-                },
-                error,
-                new StackPanel
-                {
-                    [Grid.RowProperty] = 4,
-                    Orientation = Orientation.Horizontal,
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    Spacing = 8,
-                    Children = { cancelButton, installButton }
-                }
-            }
-        };
-        Grid.SetRow(error, 3);
-
-        await dialog.ShowDialog<bool>(this);
     }
 
-    private async Task<bool> ShowConfirmationAsync(
+    internal async Task<bool> ShowConfirmationAsync(
         string title,
         string message,
         string target,
@@ -440,82 +368,28 @@ public partial class MainWindow : Window
         bool canConfirm = true,
         bool isDangerous = false)
     {
-        var dialog = new Window
-        {
-            Title = title,
-            Width = 440,
-            SizeToContent = SizeToContent.Height,
-            CanResize = false,
-            ShowInTaskbar = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Icon = Icon
-        };
-        dialog.Classes.Add("cfp-window");
-
-        var cancelButton = new Button
-        {
-            Content = viewModel.Loc["Cancel"],
-            MinWidth = 96
-        };
-        cancelButton.Classes.Add("cfp-secondary");
-
-        var confirmButton = new Button
-        {
-            Content = viewModel.Loc["Confirm"],
-            MinWidth = 96,
-            IsEnabled = canConfirm
-        };
-        ApplyConfirmationStyle(confirmButton, isDangerous);
-
-        cancelButton.Click += (_, _) => dialog.Close(false);
-        confirmButton.Click += (_, _) => dialog.Close(true);
-        dialog.Opened += (_, _) => cancelButton.Focus(NavigationMethod.Tab, KeyModifiers.None);
-        dialog.KeyDown += (_, eventArgs) =>
-        {
-            if (eventArgs.Key == Key.Escape)
-            {
-                eventArgs.Handled = true;
-                dialog.Close(false);
-            }
-        };
-
-        dialog.Content = new StackPanel
-        {
-            Margin = new Thickness(24),
-            Spacing = 16,
-            Children =
-            {
-                new TextBlock
-                {
-                    Text = title,
-                    FontSize = 20,
-                    FontWeight = Avalonia.Media.FontWeight.SemiBold,
-                    TextWrapping = Avalonia.Media.TextWrapping.Wrap
-                },
-                new TextBlock
-                {
-                    Text = message,
-                    TextWrapping = Avalonia.Media.TextWrapping.Wrap
-                },
-                new TextBlock
-                {
-                    Text = target,
-                    TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-                    Opacity = 0.7
-                },
-                new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    Spacing = 8,
-                    Children = { cancelButton, confirmButton }
-                }
-            }
-        };
-
-        return await dialog.ShowDialog<bool>(this);
+        var dialogViewModel = new ConfirmationDialogViewModel(
+            title,
+            message,
+            target,
+            viewModel.Loc["Confirm"],
+            viewModel.Loc["Cancel"],
+            canConfirm,
+            isDangerous);
+        return await OverlayDialog.ShowCustomAsync<
+            ConfirmationDialogView,
+            ConfirmationDialogViewModel,
+            bool>(
+            dialogViewModel,
+            OverlayHostId,
+            CreateOverlayOptions());
     }
 
-    internal static void ApplyConfirmationStyle(Button button, bool isDangerous)
-        => button.Classes.Add(isDangerous ? "cfp-danger" : "cfp-primary");
+    private static OverlayDialogOptions CreateOverlayOptions() => new()
+    {
+        CanLightDismiss = false,
+        CanDragMove = false,
+        IsCloseButtonVisible = true,
+        CanResize = false
+    };
 }

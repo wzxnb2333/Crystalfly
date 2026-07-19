@@ -13,6 +13,9 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["NavSpeedrun"] = "Speedrun",
         ["NavDownloads"] = "Downloads",
         ["NavSettings"] = "Settings",
+        ["WindowMinimize"] = "Minimize",
+        ["WindowMaximize"] = "Maximize / restore",
+        ["WindowClose"] = "Close",
         ["Ready"] = "Ready",
         ["ReadyHint"] = "The selected instance passed launch checks.",
         ["NoInstance"] = "No instance selected",
@@ -209,6 +212,9 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["NavSpeedrun"] = "速通",
         ["NavDownloads"] = "下载",
         ["NavSettings"] = "设置",
+        ["WindowMinimize"] = "最小化",
+        ["WindowMaximize"] = "最大化 / 还原",
+        ["WindowClose"] = "关闭",
         ["Ready"] = "准备就绪",
         ["ReadyHint"] = "当前实例已通过启动前检查。",
         ["NoInstance"] = "未选择实例",
@@ -401,11 +407,14 @@ public sealed class LocalizationViewModel : ViewModelBase
 
     public string this[string key] => values.TryGetValue(key, out var value) ? value : key;
 
+    public CultureInfo Culture { get; private set; } = CultureInfo.GetCultureInfo("zh-CN");
+
     public void Apply(UiLanguage language)
     {
         var useChinese = language == UiLanguage.SimplifiedChinese
             || (language == UiLanguage.FollowSystem
                 && CultureInfo.CurrentUICulture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase));
+        Culture = CultureInfo.GetCultureInfo(useChinese ? "zh-CN" : "en-US");
         values = useChinese ? Chinese : English;
         OnPropertyChanged("Item[]");
     }
