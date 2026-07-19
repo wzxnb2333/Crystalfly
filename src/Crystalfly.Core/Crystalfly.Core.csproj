@@ -4,6 +4,9 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Data/official-catalog.json" />
+    <EmbeddedResource Include="..\..\catalog\mod-translations.zh-CN.v1.json">
+      <LogicalName>Crystalfly.Core.Data.mod-translations.zh-CN.v1.json</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Crystalfly.Core.Tests" />

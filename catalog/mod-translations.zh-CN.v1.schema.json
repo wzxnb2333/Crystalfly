@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/wzxnb2333/Crystalfly/main/catalog/mod-translations.zh-CN.v1.schema.json",
+  "title": "Crystalfly Hollow Knight Mod Chinese translations",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "language", "tagNames", "mods"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "language": { "const": "zh-CN" },
+    "tagNames": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 64 }
+    },
+    "mods": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "displayName"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^hkmod:.+", "maxLength": 256 },
+          "displayName": { "type": "string", "minLength": 1, "maxLength": 160 },
+          "description": { "type": "string", "minLength": 1, "maxLength": 16384 }
+        }
+      }
+    }
+  }
+}

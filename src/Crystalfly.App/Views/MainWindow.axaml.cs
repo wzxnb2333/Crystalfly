@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
 using Avalonia.Input;
@@ -383,6 +384,28 @@ public partial class MainWindow : Window
             dialogViewModel,
             OverlayHostId,
             CreateOverlayOptions());
+    }
+
+    private void OpenExternalUrl(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (sender is not Button { Tag: string value }
+            || !Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            || uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
+        {
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            }
+        }
     }
 
     private static OverlayDialogOptions CreateOverlayOptions() => new()

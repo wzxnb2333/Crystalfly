@@ -35,6 +35,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly CrystalflyPaths paths;
     private readonly string settingsPath;
     private GameCatalog catalog;
+    private ModTranslationCatalog modTranslations;
     private readonly DpapiRefreshTokenStore tokenStore;
     private readonly SemaphoreSlim settingsSaveLock = new(1, 1);
     private readonly SemaphoreSlim steamConnectionGate = new(1, 1);
@@ -56,6 +57,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private Bitmap? qrCodeImage;
     private long detailsLoadGeneration;
     private OfficialCatalogLoadResult? officialCatalogResult;
+    private ModTranslationLoadResult? modTranslationResult;
+    private MarketModItemViewModel? selectedMarketModDisplay;
 
     public MainViewModel(string? applicationDataRoot = null)
         : this(applicationDataRoot, null, null, null)
@@ -81,6 +84,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         settingsPath = Path.Combine(paths.ApplicationDataRoot, "settings.json");
         tokenStore = new DpapiRefreshTokenStore(Path.Combine(paths.ApplicationDataRoot, "steam-token.dat"));
         catalog = EmbeddedCatalog.Load();
+        modTranslations = EmbeddedModTranslationCatalog.Load();
         Loc = new LocalizationViewModel();
     }
 
@@ -103,6 +107,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public ObservableCollection<ModManifest> MarketMods { get; } = [];
 
     public ObservableCollection<ModManifest> VisibleMarketMods { get; } = [];
+
+    public ObservableCollection<MarketModItemViewModel> MarketDisplayMods { get; } = [];
+
+    public ObservableCollection<MarketModItemViewModel> VisibleMarketDisplayMods { get; } = [];
 
     public ObservableCollection<SettingOption<string>> MarketBuildOptions { get; } = [];
 
@@ -190,6 +198,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public bool IsMarketList => SelectedMarketMod is null;
 
     public bool IsMarketDetail => SelectedMarketMod is not null;
+
+    public MarketModItemViewModel? SelectedMarketModDisplay => selectedMarketModDisplay;
 
     public Bitmap? QrCodeImage
     {
@@ -1750,53 +1760,87 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private void ApplyMarketFilters()
     {
         VisibleMarketMods.Clear();
-        foreach (var mod in MarketMods.Where(mod =>
-            (string.IsNullOrWhiteSpace(MarketSearchText)
-                || mod.Name.Contains(MarketSearchText, StringComparison.OrdinalIgnoreCase)
-                || mod.Id.Contains(MarketSearchText, StringComparison.OrdinalIgnoreCase)
-                || mod.Version.Contains(MarketSearchText, StringComparison.OrdinalIgnoreCase)
-                || mod.Description?.Contains(MarketSearchText, StringComparison.OrdinalIgnoreCase) == true)
+        VisibleMarketDisplayMods.Clear();
+        foreach (var item in MarketDisplayMods.Where(item =>
+            item.MatchesSearch(MarketSearchText)
             && (string.IsNullOrEmpty(SelectedMarketBuildOption?.Value)
-                || mod.SupportedBuildIds.Contains(SelectedMarketBuildOption.Value, StringComparer.OrdinalIgnoreCase))
+                || item.SupportedBuildIds.Contains(SelectedMarketBuildOption.Value, StringComparer.OrdinalIgnoreCase))
             && (string.IsNullOrEmpty(SelectedMarketLoaderOption?.Value)
-                || string.Equals(mod.LoaderId, SelectedMarketLoaderOption.Value, StringComparison.OrdinalIgnoreCase))
+                || string.Equals(item.LoaderId, SelectedMarketLoaderOption.Value, StringComparison.OrdinalIgnoreCase))
             && (string.IsNullOrEmpty(SelectedMarketSourceOption?.Value)
-                || string.Equals(mod.SourceName, SelectedMarketSourceOption.Value, StringComparison.OrdinalIgnoreCase))
+                || string.Equals(item.SourceName, SelectedMarketSourceOption.Value, StringComparison.OrdinalIgnoreCase))
             && (string.IsNullOrEmpty(SelectedMarketTagOption?.Value)
-                || mod.Tags.Contains(SelectedMarketTagOption.Value, StringComparer.OrdinalIgnoreCase))))
+                || item.CanonicalTags.Contains(SelectedMarketTagOption.Value, StringComparer.OrdinalIgnoreCase))))
         {
-            VisibleMarketMods.Add(mod);
+            VisibleMarketDisplayMods.Add(item);
+            VisibleMarketMods.Add(item.Manifest);
         }
     }
 
     private void RebuildMarketCatalog()
     {
+        var selectedModId = SelectedMarketMod?.Id;
+        var selectedBuild = SelectedMarketBuildOption?.Value;
+        var selectedLoader = SelectedMarketLoaderOption?.Value;
+        var selectedSource = SelectedMarketSourceOption?.Value;
+        var selectedTag = SelectedMarketTagOption?.Value;
+        var chinese = Loc.Culture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
         MarketMods.Clear();
-        foreach (var mod in catalog.Mods.OrderBy(mod => mod.Name, StringComparer.OrdinalIgnoreCase))
+        MarketDisplayMods.Clear();
+        foreach (var mod in catalog.Mods)
         {
             MarketMods.Add(mod);
+            MarketDisplayMods.Add(ProjectMarketMod(mod, chinese));
+        }
+        var ordered = MarketDisplayMods
+            .OrderBy(item => item.PrimaryName, StringComparer.Create(Loc.Culture, ignoreCase: true))
+            .ToArray();
+        MarketDisplayMods.Clear();
+        foreach (var item in ordered)
+        {
+            MarketDisplayMods.Add(item);
         }
         RebuildMarketOptions(
             MarketBuildOptions,
-            MarketMods.SelectMany(mod => mod.SupportedBuildIds),
+            MarketDisplayMods.SelectMany(mod => mod.SupportedBuildIds),
             value => catalog.Builds.FirstOrDefault(build =>
-                string.Equals(build.Id, value, StringComparison.OrdinalIgnoreCase))?.DisplayVersion ?? value);
+                string.Equals(build.Id, value, StringComparison.OrdinalIgnoreCase))?.DisplayVersion ?? value,
+            selectedBuild);
         RebuildMarketOptions(
             MarketLoaderOptions,
-            MarketMods.Select(mod => mod.LoaderId),
+            MarketDisplayMods.Select(mod => mod.LoaderId),
             value => catalog.Loaders.FirstOrDefault(loader =>
                 string.Equals(loader.Id, value, StringComparison.OrdinalIgnoreCase)) is { } loader
                     ? $"{loader.Name} {loader.Version}"
-                    : value);
-        RebuildMarketOptions(MarketSourceOptions, MarketMods.Select(mod => mod.SourceName).OfType<string>());
-        RebuildMarketOptions(MarketTagOptions, MarketMods.SelectMany(mod => mod.Tags));
+                    : value,
+            selectedLoader);
+        RebuildMarketOptions(
+            MarketSourceOptions,
+            MarketDisplayMods.Select(mod => mod.SourceName).OfType<string>(),
+            selectedValue: selectedSource);
+        RebuildMarketOptions(
+            MarketTagOptions,
+            MarketDisplayMods.SelectMany(mod => mod.CanonicalTags),
+            DisplayMarketTag,
+            selectedTag);
         ApplyMarketFilters();
+        selectedMarketModDisplay = selectedModId is null
+            ? null
+            : MarketDisplayMods.FirstOrDefault(item =>
+                string.Equals(item.Id, selectedModId, StringComparison.OrdinalIgnoreCase));
+        if (selectedModId is not null)
+        {
+            SelectedMarketMod = MarketMods.FirstOrDefault(mod =>
+                string.Equals(mod.Id, selectedModId, StringComparison.OrdinalIgnoreCase));
+        }
+        OnPropertyChanged(nameof(SelectedMarketModDisplay));
     }
 
     private void RebuildMarketOptions(
         ObservableCollection<SettingOption<string>> options,
         IEnumerable<string> values,
-        Func<string, string>? displayName = null)
+        Func<string, string>? displayName = null,
+        string? selectedValue = null)
     {
         options.Clear();
         options.Add(new(string.Empty, Loc["FilterAll"]));
@@ -1807,11 +1851,27 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             options.Add(new(value, displayName?.Invoke(value) ?? value));
         }
-        if (ReferenceEquals(options, MarketBuildOptions)) SelectedMarketBuildOption = options[0];
-        else if (ReferenceEquals(options, MarketLoaderOptions)) SelectedMarketLoaderOption = options[0];
-        else if (ReferenceEquals(options, MarketSourceOptions)) SelectedMarketSourceOption = options[0];
-        else SelectedMarketTagOption = options[0];
+        var selected = options.FirstOrDefault(option =>
+            string.Equals(option.Value, selectedValue, StringComparison.OrdinalIgnoreCase)) ?? options[0];
+        if (ReferenceEquals(options, MarketBuildOptions)) SelectedMarketBuildOption = selected;
+        else if (ReferenceEquals(options, MarketLoaderOptions)) SelectedMarketLoaderOption = selected;
+        else if (ReferenceEquals(options, MarketSourceOptions)) SelectedMarketSourceOption = selected;
+        else SelectedMarketTagOption = selected;
     }
+
+    private MarketModItemViewModel ProjectMarketMod(ModManifest manifest, bool? chinese = null) =>
+        new(
+            manifest,
+            modTranslations.Mods.FirstOrDefault(translation =>
+                string.Equals(translation.Id, manifest.Id, StringComparison.OrdinalIgnoreCase)),
+            modTranslations.TagNames,
+            chinese ?? Loc.Culture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase));
+
+    private string DisplayMarketTag(string value) =>
+        Loc.Culture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase)
+            && modTranslations.TagNames.TryGetValue(value, out var translated)
+                ? translated
+                : value;
 
     private void RebuildSettingOptions()
     {
@@ -1841,6 +1901,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             SemiTheme.OverrideLocaleResources(application, localization.Culture);
             UrsaSemiTheme.OverrideLocaleResources(application, localization.Culture);
         }
+    }
+
+    partial void OnSelectedMarketModChanged(ModManifest? value)
+    {
+        selectedMarketModDisplay = value is null
+            ? null
+            : ProjectMarketMod(value);
+        OnPropertyChanged(nameof(SelectedMarketModDisplay));
     }
 
     private void NotifyOperationCompleted()
@@ -2277,6 +2345,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             result = CatalogMerger.Merge(result, null, null, [officialCatalogResult.Catalog]);
         }
+        modTranslationResult = await ModTranslationSource.LoadAsync(
+            MetadataHttpClient,
+            Path.Combine(paths.ApplicationDataRoot, "catalog", "mod-translations.zh-CN.v1.json"),
+            cancellationToken);
+        modTranslations = modTranslationResult.Catalog;
+        ApplicationLog.Write(
+            Path.Combine(paths.ApplicationDataRoot, "logs", "crystalfly.log"),
+            "mod-translation-catalog",
+            $"source={modTranslationResult.Status} count={modTranslationResult.ModCount}"
+                + (string.IsNullOrWhiteSpace(modTranslationResult.Reason)
+                    ? string.Empty
+                    : $" reason={modTranslationResult.Reason}"));
         OnPropertyChanged(nameof(OfficialModCatalogStatus));
         OnPropertyChanged(nameof(OfficialModCatalogSummary));
         OnPropertyChanged(nameof(OfficialModCatalogError));

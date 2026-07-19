@@ -110,7 +110,7 @@ public sealed class ModMarketRenderingTests
     public void Market_is_a_single_virtualized_list_with_focusable_item_buttons()
     {
         var (window, viewModel) = Show(page: "Downloads", downloadSection: "ModMarket");
-        viewModel.VisibleMarketMods.Add(new ModManifest
+        var manifest = new ModManifest
         {
             Id = "sample-mod",
             Name = "Sample Mod",
@@ -118,7 +118,12 @@ public sealed class ModMarketRenderingTests
             DownloadUrl = "https://example.invalid/sample.zip",
             Sha256 = new string('0', 64),
             LoaderId = "sample-loader"
-        });
+        };
+        viewModel.VisibleMarketDisplayMods.Add(new MarketModItemViewModel(
+            manifest,
+            null,
+            new Dictionary<string, string>(),
+            chinese: false));
         Dispatcher.UIThread.RunJobs();
 
         try

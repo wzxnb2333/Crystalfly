@@ -58,7 +58,7 @@ public static class OfficialXmlCatalogParser
             return new ModManifest
             {
                 Id = OfficialModId(sourceName),
-                Name = displayName,
+                Name = sourceName,
                 DisplayName = displayName,
                 SourceName = "HK ModLinks",
                 Description = OptionalValue(manifest, ns + "Description"),
