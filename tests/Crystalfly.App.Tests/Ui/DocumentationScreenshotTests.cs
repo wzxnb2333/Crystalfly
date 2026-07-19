@@ -90,12 +90,12 @@ public sealed class DocumentationScreenshotTests
 
         var mod = new ModManifest
         {
-            Id = "debugmod",
+            Id = "hkmod:DebugMod",
             Name = "DebugMod",
             DisplayName = "DebugMod",
-            Description = "面向调试、练习与路线验证的完整工具集。",
+            Description = "Enables debugging tools and utilities for practice and route verification.",
             Authors = ["TheMulhima", "Crystalfly maintainers"],
-            Tags = ["调试", "练习", "工具"],
+            Tags = ["Utility"],
             Integrations = ["Modding API"],
             RepositoryUrl = "https://github.com/wzxnb2333/New.HK.Debug",
             IssuesUrl = "https://github.com/wzxnb2333/New.HK.Debug/issues",
@@ -168,15 +168,7 @@ public sealed class DocumentationScreenshotTests
             null));
         viewModel.Instances.Add(instance);
         viewModel.VisibleInstances.Add(instance);
-        foreach (var marketMod in mods)
-        {
-            viewModel.MarketMods.Add(marketMod);
-            viewModel.VisibleMarketMods.Add(marketMod);
-        }
-        AddMarketOption(viewModel.MarketBuildOptions, option => viewModel.SelectedMarketBuildOption = option, viewModel.Loc["FilterAll"]);
-        AddMarketOption(viewModel.MarketLoaderOptions, option => viewModel.SelectedMarketLoaderOption = option, viewModel.Loc["FilterAll"]);
-        AddMarketOption(viewModel.MarketSourceOptions, option => viewModel.SelectedMarketSourceOption = option, viewModel.Loc["FilterAll"]);
-        AddMarketOption(viewModel.MarketTagOptions, option => viewModel.SelectedMarketTagOption = option, viewModel.Loc["FilterAll"]);
+        InvokeRebuildMarketCatalog(viewModel);
         viewModel.DownloadBuilds.Add(new("1.5.78.11833", "Hollow Knight 1.5.78.11833", 9207084990026249690));
         viewModel.SelectedDownloadBuild = viewModel.DownloadBuilds[0];
         viewModel.LanguageOptions.Add(new(UiLanguage.FollowSystem, viewModel.Loc["FollowSystem"]));
@@ -187,16 +179,6 @@ public sealed class DocumentationScreenshotTests
         viewModel.ThemeOptions.Add(new(UiTheme.Dark, viewModel.Loc["Dark"]));
 
         return new ScreenshotFixture(root, viewModel, new MainWindow(), instance, mod, previousThemeVariant);
-    }
-
-    private static void AddMarketOption(
-        ICollection<SettingOption<string>> options,
-        Action<SettingOption<string>> select,
-        string name)
-    {
-        var option = new SettingOption<string>(string.Empty, name);
-        options.Add(option);
-        select(option);
     }
 
     private static void AssertExpectedContent(ScreenshotFixture fixture, ScreenshotState state)
@@ -224,11 +206,14 @@ public sealed class DocumentationScreenshotTests
                 break;
             case ScreenshotState.MarketList:
                 Assert.Contains(fixture.ViewModel.Loc["MarketTitle"], visibleText);
+                Assert.Contains("调试模组", visibleText);
                 Assert.Contains(fixture.Mod.Name, visibleText);
                 Assert.Contains("ScreenShakeModifier", visibleText);
                 break;
             case ScreenshotState.MarketDetail:
+                Assert.Contains("调试模组", visibleText);
                 Assert.Contains(fixture.Mod.Name, visibleText);
+                Assert.Contains("官方英文说明", visibleText);
                 Assert.Contains("TheMulhima", visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["Install"], visibleText);
                 break;
@@ -252,6 +237,13 @@ public sealed class DocumentationScreenshotTests
         var field = typeof(MainViewModel).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(field);
         field.SetValue(viewModel, value);
+    }
+
+    private static void InvokeRebuildMarketCatalog(MainViewModel viewModel)
+    {
+        var method = typeof(MainViewModel).GetMethod("RebuildMarketCatalog", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        method.Invoke(viewModel, null);
     }
 
     private static string FindRepositoryRoot()

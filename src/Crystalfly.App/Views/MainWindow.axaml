@@ -1238,7 +1238,7 @@
 
                             <Grid Grid.Row="1" Margin="24,0,24,24">
                                 <ListBox Classes="cfp-list cfp-market-list"
-                                         ItemsSource="{Binding VisibleMarketMods}"
+                                         ItemsSource="{Binding VisibleMarketDisplayMods}"
                                          AutomationProperties.Name="{Binding Loc[ModMarket]}">
                                     <ListBox.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -1246,13 +1246,13 @@
                                         </ItemsPanelTemplate>
                                     </ListBox.ItemsPanel>
                                     <ListBox.ItemTemplate>
-                                        <DataTemplate x:DataType="models:ModManifest" x:CompileBindings="False">
+                                        <DataTemplate x:DataType="vm:MarketModItemViewModel" x:CompileBindings="False">
                                             <Button Classes="cfp-market-item"
                                                     HorizontalAlignment="Stretch"
                                                     HorizontalContentAlignment="Stretch"
                                                     Command="{Binding #Root.DataContext.OpenMarketModCommand}"
-                                                    CommandParameter="{Binding}"
-                                                    AutomationProperties.Name="{Binding Name}">
+                                                    CommandParameter="{Binding Manifest}"
+                                                    AutomationProperties.Name="{Binding PrimaryName}">
                                                 <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="10">
                                                     <Border Width="32" Height="32" CornerRadius="6"
                                                             Background="{DynamicResource CfSurfaceHoverBrush}">
@@ -1261,8 +1261,13 @@
                                                                     VerticalAlignment="Center" />
                                                     </Border>
                                                     <StackPanel Grid.Column="1" Spacing="2">
-                                                        <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Classes="cfp-row-title" Text="{Binding PrimaryName}" TextTrimming="CharacterEllipsis" />
                                                         <WrapPanel Orientation="Horizontal">
+                                                            <TextBlock Classes="cfp-caption"
+                                                                       Margin="0,0,10,0"
+                                                                       Text="{Binding SecondaryName}"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       IsVisible="{Binding HasSecondaryName}" />
                                                             <TextBlock Classes="cfp-caption" Margin="0,0,10,0" Text="{Binding Version}" />
                                                             <TextBlock Classes="cfp-caption" Margin="0,0,10,0" Text="{Binding LoaderId}" />
                                                             <TextBlock Classes="cfp-caption" Text="{Binding SourceName}" />
@@ -1270,7 +1275,7 @@
                                                         <ItemsControl ItemsSource="{Binding Tags}">
                                                             <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                                             <ItemsControl.ItemTemplate>
-                                                                <DataTemplate><Border Classes="cfp-badge cfp-market-tag" Margin="0,2,6,0"><TextBlock Classes="cfp-caption" Text="{Binding}" /></Border></DataTemplate>
+                                                                <DataTemplate><Border Classes="cfp-badge cfp-market-tag" Margin="0,2,6,0"><TextBlock Classes="cfp-caption" Text="{Binding Name}" /></Border></DataTemplate>
                                                             </ItemsControl.ItemTemplate>
                                                         </ItemsControl>
                                                     </StackPanel>
@@ -1288,7 +1293,7 @@
                                            TextAlignment="Center"
                                            TextWrapping="Wrap"
                                            VerticalAlignment="Center"
-                                           IsVisible="{Binding VisibleMarketMods.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}" />
+                                           IsVisible="{Binding VisibleMarketDisplayMods.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}" />
                             </Grid>
                         </Grid>
 
@@ -1307,11 +1312,15 @@
                                 </Button>
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                                     <StackPanel Spacing="4">
-                                        <TextBlock Classes="cfp-page-title" Text="{Binding SelectedMarketMod.Name}" TextWrapping="Wrap" />
+                                        <TextBlock Classes="cfp-page-title" Text="{Binding SelectedMarketModDisplay.PrimaryName}" TextWrapping="Wrap" />
+                                        <TextBlock Classes="cfp-meta"
+                                                   Text="{Binding SelectedMarketModDisplay.SecondaryName}"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding SelectedMarketModDisplay.HasSecondaryName}" />
                                         <WrapPanel Orientation="Horizontal">
-                                            <TextBlock Classes="cfp-meta" Margin="0,0,12,0" Text="{Binding SelectedMarketMod.Version}" />
-                                            <TextBlock Classes="cfp-meta" Margin="0,0,12,0" Text="{Binding SelectedMarketMod.LoaderId}" />
-                                            <TextBlock Classes="cfp-meta" Text="{Binding SelectedMarketMod.SourceName}" />
+                                            <TextBlock Classes="cfp-meta" Margin="0,0,12,0" Text="{Binding SelectedMarketModDisplay.Version}" />
+                                            <TextBlock Classes="cfp-meta" Margin="0,0,12,0" Text="{Binding SelectedMarketModDisplay.LoaderId}" />
+                                            <TextBlock Classes="cfp-meta" Text="{Binding SelectedMarketModDisplay.SourceName}" />
                                         </WrapPanel>
                                     </StackPanel>
                                     <Button Grid.Column="1"
@@ -1325,15 +1334,27 @@
                                     </Button>
                                 </Grid>
 
+                                <Border Classes="cfp-card" IsVisible="{Binding SelectedMarketModDisplay.HasPrimaryDescription}">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Text="{Binding SelectedMarketModDisplay.PrimaryDescription}" TextWrapping="Wrap" />
+                                        <StackPanel Spacing="4" IsVisible="{Binding SelectedMarketModDisplay.HasSecondaryDescription}">
+                                            <TextBlock Classes="cfp-row-title" Text="{Binding Loc[OfficialEnglishDescription]}" />
+                                            <TextBlock Classes="cfp-meta"
+                                                       Text="{Binding SelectedMarketModDisplay.SecondaryDescription}"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
                                 <Border Classes="cfp-card">
                                     <StackPanel Spacing="12">
-                                        <Grid ColumnDefinitions="140,*"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[Authors]}" /><ItemsControl Grid.Column="1" ItemsSource="{Binding SelectedMarketMod.Authors}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></Grid>
-                                        <Grid ColumnDefinitions="140,*"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[Tags]}" /><ItemsControl Grid.Column="1" ItemsSource="{Binding SelectedMarketMod.Tags}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></Grid>
-                                        <Grid ColumnDefinitions="140,*"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[Integrations]}" /><ItemsControl Grid.Column="1" ItemsSource="{Binding SelectedMarketMod.Integrations}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></Grid>
-                                        <Grid ColumnDefinitions="140,*"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[SupportedBuilds]}" /><ItemsControl Grid.Column="1" ItemsSource="{Binding SelectedMarketMod.SupportedBuildIds}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></Grid>
-                                        <Grid ColumnDefinitions="140,*"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[Dependencies]}" /><ItemsControl Grid.Column="1" ItemsSource="{Binding SelectedMarketMod.Dependencies}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></Grid>
-                                        <Grid ColumnDefinitions="140,*"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[Repository]}" /><TextBlock Grid.Column="1" Text="{Binding SelectedMarketMod.RepositoryUrl}" TextWrapping="Wrap" /></Grid>
-                                        <Grid ColumnDefinitions="140,*"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[Issues]}" /><TextBlock Grid.Column="1" Text="{Binding SelectedMarketMod.IssuesUrl}" TextWrapping="Wrap" /></Grid>
+                                        <Grid ColumnDefinitions="140,*"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[Authors]}" /><ItemsControl Grid.Column="1" ItemsSource="{Binding SelectedMarketModDisplay.Authors}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></Grid>
+                                        <Grid ColumnDefinitions="140,*"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[Tags]}" /><ItemsControl Grid.Column="1" ItemsSource="{Binding SelectedMarketModDisplay.Tags}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Classes="cfp-badge cfp-market-tag" Margin="0,0,6,4"><TextBlock Classes="cfp-caption" Text="{Binding Name}" /></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></Grid>
+                                        <Grid ColumnDefinitions="140,*"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[Integrations]}" /><ItemsControl Grid.Column="1" ItemsSource="{Binding SelectedMarketModDisplay.Integrations}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></Grid>
+                                        <Grid ColumnDefinitions="140,*"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[SupportedBuilds]}" /><ItemsControl Grid.Column="1" ItemsSource="{Binding SelectedMarketModDisplay.SupportedBuildIds}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></Grid>
+                                        <Grid ColumnDefinitions="140,*"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[Dependencies]}" /><ItemsControl Grid.Column="1" ItemsSource="{Binding SelectedMarketModDisplay.Dependencies}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></Grid>
+                                        <Grid ColumnDefinitions="140,*" IsVisible="{Binding SelectedMarketModDisplay.HasRepositoryUrl}"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[Repository]}" /><Button Grid.Column="1" Classes="cfp-link" Tag="{Binding SelectedMarketModDisplay.RepositoryUrl}" Click="OpenExternalUrl" AutomationProperties.Name="{Binding Loc[Repository]}"><TextBlock Text="{Binding SelectedMarketModDisplay.RepositoryUrl}" TextWrapping="Wrap" /></Button></Grid>
+                                        <Grid ColumnDefinitions="140,*" IsVisible="{Binding SelectedMarketModDisplay.HasIssuesUrl}"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[Issues]}" /><Button Grid.Column="1" Classes="cfp-link" Tag="{Binding SelectedMarketModDisplay.IssuesUrl}" Click="OpenExternalUrl" AutomationProperties.Name="{Binding Loc[Issues]}"><TextBlock Text="{Binding SelectedMarketModDisplay.IssuesUrl}" TextWrapping="Wrap" /></Button></Grid>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>

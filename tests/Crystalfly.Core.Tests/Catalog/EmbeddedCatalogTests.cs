@@ -12,6 +12,87 @@ public sealed class EmbeddedCatalogTests
     private static readonly Lazy<JsonSchema> CatalogSchema = new(() =>
         JsonSchema.FromFile(Path.Combine(FindRepositoryRoot(), "catalog", "catalog.v1.schema.json")));
 
+    private static readonly Lazy<JsonSchema> ModTranslationSchema = new(() =>
+        JsonSchema.FromFile(Path.Combine(
+            FindRepositoryRoot(),
+            "catalog",
+            "mod-translations.zh-CN.v1.schema.json")));
+
+    [Fact]
+    public void Public_mod_translation_catalog_matches_schema_and_is_presentation_only()
+    {
+        string path = Path.Combine(
+            FindRepositoryRoot(),
+            "catalog",
+            "mod-translations.zh-CN.v1.json");
+
+        Assert.True(File.Exists(path));
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        EvaluationResults validation = ModTranslationSchema.Value.Evaluate(document.RootElement);
+        Assert.True(validation.IsValid, validation.ToString());
+
+        JsonElement root = document.RootElement;
+        Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal("zh-CN", root.GetProperty("language").GetString());
+        Assert.Equal(10, root.GetProperty("tagNames").EnumerateObject().Count());
+
+        var mods = root.GetProperty("mods").EnumerateArray().ToArray();
+        Assert.Equal(649, mods.Length);
+        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string[] installFields =
+        [
+            "version",
+            "dependencies",
+            "downloadUrl",
+            "sha256",
+            "sizeBytes",
+            "loaderId",
+            "supportedBuildIds",
+            "flatFiles"
+        ];
+
+        foreach (JsonElement mod in mods)
+        {
+            string id = mod.GetProperty("id").GetString()!;
+            Assert.StartsWith("hkmod:", id, StringComparison.OrdinalIgnoreCase);
+            Assert.True(ids.Add(id), $"Duplicate translation ID: {id}");
+            Assert.DoesNotContain(
+                mod.EnumerateObject(),
+                property => installFields.Contains(property.Name, StringComparer.OrdinalIgnoreCase));
+        }
+
+        Assert.DoesNotContain(ids, id =>
+            string.Equals(id, "hkmod:Another Location", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(mods, mod => mod.EnumerateObject().Any(property =>
+            property.Value.ValueKind == JsonValueKind.String
+            && property.Value.GetString()!.Contains("Another Location", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public void Embedded_mod_translation_catalog_loads_expected_entries()
+    {
+        var catalog = EmbeddedModTranslationCatalog.Load();
+
+        Assert.Equal(1, catalog.SchemaVersion);
+        Assert.Equal("zh-CN", catalog.Language);
+        Assert.Equal(649, catalog.Mods.Count);
+        Assert.Equal(10, catalog.TagNames.Count);
+        Assert.All(catalog.Mods, mod => Assert.StartsWith(
+            "hkmod:",
+            mod.Id,
+            StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(
+            catalog.Mods.Count,
+            catalog.Mods.Select(mod => mod.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+
+        var noskGod = catalog.Mods.Single(mod => mod.Id == "hkmod:Nosk God");
+        Assert.Equal("神之诺斯克", noskGod.DisplayName);
+        Assert.Null(noskGod.Description);
+        Assert.DoesNotContain(
+            catalog.Mods,
+            mod => string.Equals(mod.Id, "hkmod:Another Location", StringComparison.OrdinalIgnoreCase));
+    }
+
     [Fact]
     public void Load_returns_verified_official_fallback_data()
     {

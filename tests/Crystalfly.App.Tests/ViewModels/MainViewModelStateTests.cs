@@ -719,8 +719,8 @@ public sealed class MainViewModelStateTests : IDisposable
         var viewModel = CreateViewModel();
         var debugMod = Manifest("debugmod", "2.0.0");
         var benchwarp = Manifest("benchwarp", "1.0.0");
-        viewModel.MarketMods.Add(debugMod);
-        viewModel.MarketMods.Add(benchwarp);
+        SetCatalog(viewModel, new GameCatalog { Mods = [debugMod, benchwarp] });
+        InvokeRebuildMarketCatalog(viewModel);
         viewModel.InstalledMods.Add(new InstalledModItemViewModel(
             Receipt("debugmod", "1.0.0", enabled: true),
             debugMod,
@@ -749,20 +749,23 @@ public sealed class MainViewModelStateTests : IDisposable
     public void Mod_market_filters_by_exact_build_loader_source_and_tag()
     {
         var viewModel = CreateViewModel();
-        viewModel.MarketMods.Add(Manifest("debugmod", "2.0.0") with
+        var debugMod = Manifest("debugmod", "2.0.0") with
         {
             LoaderId = "modding-api-77",
             SupportedBuildIds = ["1.5.78.11833"],
             SourceName = "HK ModLinks",
             Tags = ["Utility"]
-        });
-        viewModel.MarketMods.Add(Manifest("overlay", "1.0.0") with
+        };
+        var overlay = Manifest("overlay", "1.0.0") with
         {
             LoaderId = "bepinex-5.4.23.4",
             SupportedBuildIds = ["latest-stable"],
             SourceName = "custom:test",
             Tags = ["Visual"]
-        });
+        };
+
+        SetCatalog(viewModel, new GameCatalog { Mods = [debugMod, overlay] });
+        InvokeRebuildMarketCatalog(viewModel);
 
         viewModel.SelectedMarketBuildOption = new("1.5.78.11833", "1.5.78.11833");
         viewModel.SelectedMarketLoaderOption = new("modding-api-77", "Modding API v77");
@@ -1102,8 +1105,10 @@ public sealed class MainViewModelStateTests : IDisposable
             ],
             Mods =
             [
-                Manifest("debugmod", "2.0.0") with
+                Manifest("hkmod:DebugMod", "2.0.0") with
                 {
+                    Name = "DebugMod",
+                    DisplayName = "DebugMod",
                     LoaderId = "modding-api-77",
                     SupportedBuildIds = ["1.5.78.11833"],
                     SourceName = "HK ModLinks",
@@ -1113,11 +1118,18 @@ public sealed class MainViewModelStateTests : IDisposable
         });
         InvokeRebuildMarketCatalog(viewModel);
         Assert.All(MarketFilterLabels(viewModel), label => Assert.Equal("全部状态", label));
+        var selected = Assert.Single(viewModel.MarketMods);
+        viewModel.SelectedMarketTagOption = viewModel.MarketTagOptions.Single(option => option.Value == "Utility");
+        viewModel.SelectedMarketMod = selected;
+        Assert.Equal("调试模组", viewModel.SelectedMarketModDisplay?.PrimaryName);
 
         viewModel.SelectedLanguage = viewModel.LanguageOptions.Single(option =>
             option.Value == UiLanguage.English);
 
         Assert.All(MarketFilterLabels(viewModel), label => Assert.Equal("All statuses", label));
+        Assert.Equal("Utility", viewModel.SelectedMarketTagOption?.Value);
+        Assert.Same(selected, viewModel.SelectedMarketMod);
+        Assert.Equal("DebugMod", viewModel.SelectedMarketModDisplay?.PrimaryName);
         await viewModel.DisposeAsync();
     }
 

@@ -60,7 +60,7 @@ public sealed class OfficialXmlCatalogParserTests
         var mod = Assert.Single(OfficialXmlCatalogParser.ParseMods(xml, "modding-api-78", "build"));
 
         Assert.Equal("hkmod:Source Name", mod.Id);
-        Assert.Equal("Friendly Name", mod.Name);
+        Assert.Equal("Source Name", mod.Name);
         Assert.Equal("Friendly Name", mod.DisplayName);
         Assert.Equal("HK ModLinks", mod.SourceName);
         Assert.Equal("Example description", mod.Description);
