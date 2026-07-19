@@ -167,14 +167,14 @@
                                 </StackPanel>
                             </Button>
                             <Button Classes="cfp-secondary"
-                                     MinHeight="48"
+                                     MinHeight="40"
                                      HorizontalAlignment="Stretch"
                                      HorizontalContentAlignment="Center"
                                      Command="{Binding SelectPageCommand}"
                                     CommandParameter="Versions"
                                     Content="{Binding Loc[NavVersions]}" />
                             <Button Classes="cfp-secondary"
-                                     MinHeight="48"
+                                     MinHeight="40"
                                      HorizontalAlignment="Stretch"
                                      HorizontalContentAlignment="Center"
                                      Command="{Binding ManageSelectedInstanceCommand}"

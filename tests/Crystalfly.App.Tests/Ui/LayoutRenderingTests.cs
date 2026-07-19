@@ -312,7 +312,7 @@ public sealed class LayoutRenderingTests
             var origins = buttons
                 .Select(button => Assert.IsType<Point>(button.TranslatePoint(default, rail)))
                 .ToArray();
-            Assert.All(buttons, button => Assert.True(button.Bounds.Height >= 47.5));
+            Assert.All(buttons, button => Assert.True(button.Bounds.Height >= 39.5));
             Assert.All(buttons, button => Assert.Equal(HorizontalAlignment.Center, button.HorizontalContentAlignment));
             Assert.All(buttons, button => Assert.InRange(Math.Abs(button.Bounds.Width - buttons[0].Bounds.Width), 0, 0.5));
             Assert.True(origins[1].Y >= origins[0].Y + buttons[0].Bounds.Height + 7.5);
@@ -378,7 +378,7 @@ public sealed class LayoutRenderingTests
 
             foreach (var button in buttons)
             {
-                Assert.True(button.Bounds.Height >= 39.5,
+                Assert.True(button.Bounds.Height >= 35.5,
                     $"{page}/{manageTab}: button height {button.Bounds.Height:F1} at {renderScaling:P0} scaling.");
                 var contentControls = button.GetVisualDescendants()
                     .OfType<Control>()

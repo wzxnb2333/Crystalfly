@@ -71,7 +71,7 @@ public sealed class ModMarketRenderingTests
                 .Where(button => button.IsEffectivelyVisible && button.Classes.Contains("cfp-local-nav"))
                 .ToArray();
             Assert.Equal(2, sectionButtons.Length);
-            Assert.All(sectionButtons, button => Assert.True(button.Bounds.Height >= 43.5));
+            Assert.All(sectionButtons, button => Assert.True(button.Bounds.Height >= 35.5));
             Assert.All(sectionButtons, button =>
                 Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(button))));
         }
@@ -271,6 +271,9 @@ public sealed class ModMarketRenderingTests
             }
 
             var dialog = Assert.Single(dialogs);
+            var dialogView = Assert.Single(dialog.GetVisualDescendants()
+                .OfType<Crystalfly.App.Views.Dialogs.MarketInstallDialogView>());
+            Assert.InRange(dialogView.Bounds.Height, 300, 360);
             var targetButtons = dialog.GetVisualDescendants().OfType<RadioButton>().ToArray();
             Assert.Equal(2, targetButtons.Length);
             var availableTarget = Assert.Single(targetButtons, target => target.IsEnabled);

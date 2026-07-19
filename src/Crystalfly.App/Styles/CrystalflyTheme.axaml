@@ -60,7 +60,7 @@
     <Style Selector="Window.cfp-window">
         <Setter Property="Background" Value="{DynamicResource CfWindowBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
-        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontSize" Value="13" />
     </Style>
 
     <Style Selector="Button">
@@ -84,52 +84,52 @@
     </Style>
 
     <Style Selector="TextBlock.cfp-brand">
-        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
     <Style Selector="TextBlock.cfp-page-title">
-        <Setter Property="FontSize" Value="24" />
+        <Setter Property="FontSize" Value="20" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="LineHeight" Value="32" />
+        <Setter Property="LineHeight" Value="26" />
     </Style>
 
     <Style Selector="TextBlock.cfp-section-title">
-        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontSize" Value="16" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="LineHeight" Value="28" />
+        <Setter Property="LineHeight" Value="22" />
     </Style>
 
     <Style Selector="TextBlock.cfp-row-title">
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="LineHeight" Value="20" />
+        <Setter Property="LineHeight" Value="17" />
     </Style>
 
     <Style Selector="TextBlock.cfp-meta">
         <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
-        <Setter Property="FontSize" Value="14" />
-        <Setter Property="LineHeight" Value="22" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="LineHeight" Value="18" />
     </Style>
 
     <Style Selector="TextBlock.cfp-caption">
         <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
-        <Setter Property="FontSize" Value="13" />
-        <Setter Property="LineHeight" Value="18" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="LineHeight" Value="15" />
     </Style>
 
     <Style Selector="Border.cfp-topbar">
         <Setter Property="Background" Value="{DynamicResource CfChromeBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
-        <Setter Property="Padding" Value="16,8" />
+        <Setter Property="Padding" Value="12,6" />
     </Style>
 
     <Style Selector="Border.cfp-page-header">
         <Setter Property="Background" Value="{DynamicResource CfWindowBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
-        <Setter Property="Padding" Value="16,12" />
+        <Setter Property="Padding" Value="12,8" />
     </Style>
 
     <Style Selector="Border.cfp-rail">
@@ -141,7 +141,7 @@
     <Style Selector="Border.cfp-card">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
         <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="16" />
+        <Setter Property="Padding" Value="12" />
     </Style>
 
     <Style Selector="Border.cfp-list-frame">
@@ -153,20 +153,20 @@
     <Style Selector="Border.cfp-divider-row">
         <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
-        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="Padding" Value="10,8" />
     </Style>
 
     <Style Selector="Border.cfp-badge">
         <Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}" />
         <Setter Property="CornerRadius" Value="10" />
-        <Setter Property="Padding" Value="8,3" />
+        <Setter Property="Padding" Value="6,2" />
     </Style>
 
     <Style Selector="Border.cfp-error">
         <Setter Property="Background" Value="{DynamicResource CfErrorSurfaceBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfErrorBrush}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
-        <Setter Property="Padding" Value="16,10" />
+        <Setter Property="Padding" Value="12,8" />
     </Style>
 
     <Style Selector="Button.cfp-nav">
@@ -174,8 +174,8 @@
         <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="CornerRadius" Value="6" />
-        <Setter Property="Padding" Value="10,7" />
-        <Setter Property="MinHeight" Value="44" />
+        <Setter Property="Padding" Value="8,5" />
+        <Setter Property="MinHeight" Value="36" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
     </Style>
 
@@ -196,16 +196,16 @@
     </Style>
 
     <Style Selector="Button.cfp-icon">
-        <Setter Property="Width" Value="44" />
-        <Setter Property="Height" Value="44" />
+        <Setter Property="Width" Value="36" />
+        <Setter Property="Height" Value="36" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="CornerRadius" Value="6" />
-        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontSize" Value="16" />
     </Style>
 
     <Style Selector="Button.cfp-window-button">
-        <Setter Property="Width" Value="44" />
-        <Setter Property="Height" Value="44" />
+        <Setter Property="Width" Value="36" />
+        <Setter Property="Height" Value="36" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
@@ -235,8 +235,8 @@
         <Setter Property="Foreground" Value="{DynamicResource CfOnPrimaryActionBrush}" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="CornerRadius" Value="6" />
-        <Setter Property="Padding" Value="16,11" />
-        <Setter Property="MinHeight" Value="48" />
+        <Setter Property="Padding" Value="13,8" />
+        <Setter Property="MinHeight" Value="40" />
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
@@ -251,8 +251,8 @@
         <Setter Property="Foreground" Value="{DynamicResource CfOnAccentBrush}" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="CornerRadius" Value="6" />
-        <Setter Property="Padding" Value="14,8" />
-        <Setter Property="MinHeight" Value="44" />
+        <Setter Property="Padding" Value="11,6" />
+        <Setter Property="MinHeight" Value="36" />
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
@@ -268,8 +268,8 @@
         <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="6" />
-        <Setter Property="Padding" Value="12,7" />
-        <Setter Property="MinHeight" Value="44" />
+        <Setter Property="Padding" Value="10,5" />
+        <Setter Property="MinHeight" Value="36" />
     </Style>
 
     <Style Selector="Button.cfp-secondary:pointerover,
@@ -283,8 +283,8 @@
         <Setter Property="Foreground" Value="{DynamicResource CfOnDangerBrush}" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="CornerRadius" Value="6" />
-        <Setter Property="Padding" Value="14,8" />
-        <Setter Property="MinHeight" Value="44" />
+        <Setter Property="Padding" Value="11,6" />
+        <Setter Property="MinHeight" Value="36" />
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
@@ -330,9 +330,9 @@
         <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="CornerRadius" Value="6" />
-        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="Padding" Value="8,6" />
         <Setter Property="HorizontalContentAlignment" Value="Left" />
-        <Setter Property="MinHeight" Value="44" />
+        <Setter Property="MinHeight" Value="36" />
     </Style>
 
     <Style Selector="Button.cfp-local-nav:pointerover">
@@ -366,9 +366,9 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
-        <Setter Property="Padding" Value="12" />
+        <Setter Property="Padding" Value="10" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-        <Setter Property="MinHeight" Value="56" />
+        <Setter Property="MinHeight" Value="44" />
     </Style>
 
     <Style Selector="ListBox.cfp-list > ListBoxItem:last-child">
@@ -408,7 +408,7 @@
     </Style>
 
     <Style Selector="Border.cfp-market-source">
-        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="Padding" Value="8,6" />
     </Style>
 
     <Style Selector="Button.cfp-market-item">
@@ -433,7 +433,7 @@
     </Style>
 
     <Style Selector="TextBox.cfp-input, ComboBox.cfp-input">
-        <Setter Property="MinHeight" Value="44" />
+        <Setter Property="MinHeight" Value="36" />
     </Style>
 
     <Style Selector="ProgressBar.cfp-progress">

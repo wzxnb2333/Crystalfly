@@ -602,16 +602,16 @@ public sealed class ThemeRenderingTests
         });
         try
         {
-            Assert.Equal(16, body.FontSize);
-            Assert.Equal(24, pageTitle.FontSize);
-            Assert.Equal(18, sectionTitle.FontSize);
-            Assert.Equal(14, meta.FontSize);
-            Assert.Equal(13, caption.FontSize);
-            Assert.Equal(48, primaryButton.MinHeight);
-            Assert.Equal(44, secondaryButton.MinHeight);
-            Assert.Equal(44, iconButton.Width);
-            Assert.Equal(44, iconButton.Height);
-            Assert.Equal(44, input.MinHeight);
+            Assert.Equal(13, body.FontSize);
+            Assert.Equal(20, pageTitle.FontSize);
+            Assert.Equal(16, sectionTitle.FontSize);
+            Assert.Equal(12, meta.FontSize);
+            Assert.Equal(11, caption.FontSize);
+            Assert.Equal(40, primaryButton.MinHeight);
+            Assert.Equal(36, secondaryButton.MinHeight);
+            Assert.Equal(36, iconButton.Width);
+            Assert.Equal(36, iconButton.Height);
+            Assert.Equal(36, input.MinHeight);
         }
         finally
         {

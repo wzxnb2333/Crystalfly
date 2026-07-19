@@ -7,7 +7,6 @@
              x:DataType="vm:MarketInstallDialogViewModel"
              Width="600"
              MinWidth="480"
-             MinHeight="400"
              MaxHeight="560">
     <UserControl.KeyBindings>
         <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
