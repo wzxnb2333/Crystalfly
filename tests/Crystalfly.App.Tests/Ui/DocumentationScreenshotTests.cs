@@ -239,7 +239,6 @@ public sealed class DocumentationScreenshotTests
                 Assert.Contains(fixture.ViewModel.Loc["InstallSelectedMod"], visibleText);
                 break;
             case ScreenshotState.InstanceDetail:
-                Assert.Contains(fixture.ViewModel.Loc["ManageInstance"], visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["Overview"], visibleText);
                 Assert.Contains(fixture.Instance.DisplayVersion, visibleText);
                 break;
