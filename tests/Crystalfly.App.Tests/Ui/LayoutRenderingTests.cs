@@ -173,6 +173,35 @@ public sealed class LayoutRenderingTests
         }
     }
 
+    [AvaloniaTheory]
+    [InlineData("Versions")]
+    [InlineData("Manage")]
+    [InlineData("Speedrun")]
+    [InlineData("Downloads")]
+    [InlineData("Settings")]
+    public void Secondary_page_headers_are_removed(string page)
+    {
+        var viewModel = new MainViewModel(Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N")))
+        {
+            CurrentPage = page
+        };
+        var window = new MainWindow { Width = 1280, Height = 720 };
+        window.Show();
+        window.DataContext = viewModel;
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            Assert.DoesNotContain(window.GetVisualDescendants()
+                .OfType<Border>(),
+                border => border.IsEffectivelyVisible && border.Classes.Contains("cfp-page-header"));
+        }
+        finally
+        {
+            CloseImmediately(window);
+        }
+    }
+
     [AvaloniaFact]
     public void Top_navigation_follows_visual_keyboard_order()
     {

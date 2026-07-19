@@ -220,7 +220,6 @@ public sealed class DocumentationScreenshotTests
                 Assert.Contains(fixture.ViewModel.Loc["Ready"], visibleText);
                 break;
             case ScreenshotState.Settings:
-                Assert.Contains(fixture.ViewModel.Loc["SettingsTitle"], visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["VersionRoot"], visibleText);
                 break;
             case ScreenshotState.MarketList:

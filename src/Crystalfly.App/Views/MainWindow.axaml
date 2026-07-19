@@ -288,19 +288,8 @@
             </Grid>
 
             <!-- Versions -->
-            <Grid IsVisible="{Binding IsVersionsPage}" RowDefinitions="Auto,*">
-                <Border Grid.Row="0" Classes="cfp-page-header">
-                    <StackPanel Orientation="Horizontal" Spacing="12" IsEnabled="{Binding CanNavigate}">
-                        <Button Classes="cfp-nav cfp-icon"
-                                Command="{Binding SelectPageCommand}"
-                                CommandParameter="Launch"
-                                Content="{LucideIconContent ArrowLeft, 16}"
-                                ToolTip.Tip="{Binding Loc[Back]}"
-                                AutomationProperties.Name="{Binding Loc[Back]}" />
-                        <TextBlock Classes="cfp-page-title" Text="{Binding Loc[NavVersions]}" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Border>
-                <ScrollViewer Grid.Row="1"
+            <Grid IsVisible="{Binding IsVersionsPage}">
+                <ScrollViewer
                               HorizontalContentAlignment="Stretch"
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Classes="cfp-workspace"
@@ -420,25 +409,8 @@
             </Grid>
 
             <!-- Instance management -->
-            <Grid IsVisible="{Binding IsManagePage}" RowDefinitions="Auto,*">
-                <Border Grid.Row="0" Classes="cfp-page-header">
-                    <StackPanel Orientation="Horizontal" Spacing="12" IsEnabled="{Binding CanNavigate}">
-                        <Button Classes="cfp-nav cfp-icon"
-                                Command="{Binding SelectPageCommand}"
-                                CommandParameter="Versions"
-                                Content="{LucideIconContent ArrowLeft, 16}"
-                                ToolTip.Tip="{Binding Loc[NavVersions]}"
-                                AutomationProperties.Name="{Binding Loc[NavVersions]}" />
-                        <StackPanel Spacing="2" VerticalAlignment="Center">
-                            <TextBlock Classes="cfp-page-title" Text="{Binding Loc[ManageInstance]}" />
-                            <TextBlock Classes="cfp-caption"
-                                       Text="{Binding SelectedInstance.Name}"
-                                       TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-
-                <Grid Grid.Row="1" ColumnDefinitions="176,*">
+            <Grid IsVisible="{Binding IsManagePage}">
+                <Grid ColumnDefinitions="176,*">
                     <Border Grid.Column="0" Classes="cfp-rail" Padding="12,16">
                         <StackPanel Spacing="4" IsEnabled="{Binding CanNavigate}">
                             <Button Classes="cfp-local-nav"
@@ -974,19 +946,8 @@
             </Grid>
 
             <!-- Speedrun -->
-            <Grid IsVisible="{Binding IsSpeedrunPage}" RowDefinitions="Auto,*">
-                <Border Grid.Row="0" Classes="cfp-page-header">
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button Classes="cfp-nav cfp-icon"
-                                Command="{Binding SelectPageCommand}"
-                                CommandParameter="Launch"
-                                Content="{LucideIconContent ArrowLeft, 16}"
-                                ToolTip.Tip="{Binding Loc[Back]}"
-                                AutomationProperties.Name="{Binding Loc[Back]}" />
-                        <TextBlock Classes="cfp-page-title" Text="{Binding Loc[NavSpeedrun]}" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Border>
-                <ScrollViewer Grid.Row="1"
+            <Grid IsVisible="{Binding IsSpeedrunPage}">
+                <ScrollViewer
                               HorizontalContentAlignment="Stretch"
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Classes="cfp-workspace"
@@ -1084,19 +1045,8 @@
             </Grid>
 
             <!-- Downloads -->
-            <Grid IsVisible="{Binding IsDownloadsPage}" RowDefinitions="Auto,*">
-                <Border Grid.Row="0" Classes="cfp-page-header">
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button Classes="cfp-nav cfp-icon"
-                                Command="{Binding SelectPageCommand}"
-                                CommandParameter="Launch"
-                                Content="{LucideIconContent ArrowLeft, 16}"
-                                ToolTip.Tip="{Binding Loc[Back]}"
-                                AutomationProperties.Name="{Binding Loc[Back]}" />
-                        <TextBlock Classes="cfp-page-title" Text="{Binding Loc[NavDownloads]}" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Border>
-                <Grid Grid.Row="1" ColumnDefinitions="176,*" x:CompileBindings="False">
+            <Grid IsVisible="{Binding IsDownloadsPage}">
+                <Grid ColumnDefinitions="176,*" x:CompileBindings="False">
                     <Border Grid.Column="0" Classes="cfp-rail cfp-download-rail" Padding="8,16">
                         <StackPanel Spacing="4" IsEnabled="{Binding CanNavigate}">
                             <Button Classes="cfp-local-nav"
@@ -1393,19 +1343,8 @@
             </Grid>
 
             <!-- Settings -->
-            <Grid IsVisible="{Binding IsSettingsPage}" RowDefinitions="Auto,*">
-                <Border Grid.Row="0" Classes="cfp-page-header">
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button Classes="cfp-nav cfp-icon"
-                                Command="{Binding SelectPageCommand}"
-                                CommandParameter="Launch"
-                                Content="{LucideIconContent ArrowLeft, 16}"
-                                ToolTip.Tip="{Binding Loc[Back]}"
-                                AutomationProperties.Name="{Binding Loc[Back]}" />
-                        <TextBlock Classes="cfp-page-title" Text="{Binding Loc[SettingsTitle]}" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Border>
-                <ScrollViewer Grid.Row="1"
+            <Grid IsVisible="{Binding IsSettingsPage}">
+                <ScrollViewer
                               HorizontalContentAlignment="Stretch"
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Classes="cfp-workspace cfp-settings-workspace"
