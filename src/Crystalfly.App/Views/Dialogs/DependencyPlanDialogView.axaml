@@ -1,0 +1,93 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Crystalfly.App.ViewModels.Dialogs"
+             xmlns:converters="using:Avalonia.Data.Converters"
+             xmlns:u="https://irihi.tech/ursa"
+             x:Class="Crystalfly.App.Views.Dialogs.DependencyPlanDialogView"
+             x:DataType="vm:DependencyPlanDialogViewModel"
+             Width="620"
+             MinWidth="480"
+             MaxHeight="640">
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+    </UserControl.KeyBindings>
+
+    <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="16">
+        <TextBlock Classes="cfp-section-title"
+                   Text="{Binding Title}"
+                   TextWrapping="Wrap" />
+        <TextBlock Grid.Row="1"
+                   Text="{Binding Message}"
+                   TextWrapping="Wrap" />
+        <ScrollViewer Grid.Row="2"
+                      MaxHeight="420"
+                      VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Nodes}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DependencyPlanNodeViewModel">
+                        <Grid ColumnDefinitions="Auto,*"
+                              Margin="0,0,0,6">
+                            <Border Width="{Binding Indent}" />
+                            <Border Grid.Column="1"
+                                    Classes="cfp-card"
+                                    Padding="12,10">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Classes="cfp-row-title"
+                                                   Text="{Binding PrimaryName}"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Classes="cfp-caption"
+                                                   Text="{Binding SecondaryName}"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding SecondaryName, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+                                        <TextBlock Classes="cfp-caption"
+                                                   Text="{Binding ModId}"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Classes="cfp-caption"
+                                                   Text="{Binding InstallRoot}"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding InstallRoot, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1"
+                                                HorizontalAlignment="Right"
+                                                Spacing="4">
+                                        <Border Classes="cfp-badge"
+                                                IsVisible="{Binding IsTarget}">
+                                            <TextBlock Classes="cfp-caption" Text="{Binding TargetLabel}" />
+                                        </Border>
+                                        <TextBlock Classes="cfp-meta"
+                                                   Text="{Binding Status}"
+                                                   TextAlignment="Right" />
+                                        <TextBlock Classes="cfp-caption"
+                                                   Foreground="{DynamicResource CfErrorBrush}"
+                                                   Text="{Binding UnresolvedLabel}"
+                                                   TextAlignment="Right"
+                                                   IsVisible="{Binding IsUnresolved}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+        <StackPanel Grid.Row="3"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Classes="cfp-secondary"
+                    Command="{Binding CancelCommand}"
+                    Content="{Binding CancelText}"
+                    MinWidth="96"
+                    u:FocusHelper.DialogFocusHint="True"
+                    AutomationProperties.Name="{Binding CancelText}" />
+            <Button Classes.cfp-danger="{Binding IsDangerous}"
+                    Classes.cfp-primary="{Binding IsDangerous, Converter={x:Static converters:BoolConverters.Not}}"
+                    Command="{Binding ConfirmCommand}"
+                    Content="{Binding ConfirmText}"
+                    IsEnabled="{Binding CanConfirm}"
+                    MinWidth="96"
+                    AutomationProperties.Name="{Binding ConfirmText}" />
+        </StackPanel>
+    </Grid>
+</UserControl>

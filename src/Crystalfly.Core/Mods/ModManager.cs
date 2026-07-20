@@ -194,7 +194,19 @@ public sealed class ModManager
     public async Task<InstalledModReceipt> SetEnabledAsync(
         string id,
         bool enabled,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        await SetEnabledCoreAsync(id, enabled, ignoreEnabledDependents: false, cancellationToken);
+
+    public async Task<InstalledModReceipt> DisableIgnoringDependentsAsync(
+        string id,
+        CancellationToken cancellationToken = default) =>
+        await SetEnabledCoreAsync(id, enabled: false, ignoreEnabledDependents: true, cancellationToken);
+
+    private async Task<InstalledModReceipt> SetEnabledCoreAsync(
+        string id,
+        bool enabled,
+        bool ignoreEnabledDependents,
+        CancellationToken cancellationToken)
     {
         var installed = await GetInstalledAsync(cancellationToken);
         var receipt = Find(installed, id);
@@ -202,13 +214,13 @@ public sealed class ModManager
         {
             return receipt;
         }
-        if (!enabled)
-        {
-            EnsureNoEnabledDependents(installed, id);
-        }
-        else
+        if (enabled)
         {
             EnsureDependenciesInstalled(receipt.Dependencies, installed);
+        }
+        else if (!ignoreEnabledDependents)
+        {
+            EnsureNoEnabledDependents(installed, id);
         }
         await VerifyFilesAsync(receipt, cancellationToken);
 
@@ -241,11 +253,25 @@ public sealed class ModManager
         return updated;
     }
 
-    public async Task UninstallAsync(string id, CancellationToken cancellationToken = default)
+    public async Task UninstallAsync(string id, CancellationToken cancellationToken = default) =>
+        await UninstallCoreAsync(id, ignoreDependents: false, cancellationToken);
+
+    public async Task UninstallIgnoringDependentsAsync(
+        string id,
+        CancellationToken cancellationToken = default) =>
+        await UninstallCoreAsync(id, ignoreDependents: true, cancellationToken);
+
+    private async Task UninstallCoreAsync(
+        string id,
+        bool ignoreDependents,
+        CancellationToken cancellationToken)
     {
         var installed = await GetInstalledAsync(cancellationToken);
         var receipt = Find(installed, id);
-        EnsureNoDependents(installed, id);
+        if (!ignoreDependents)
+        {
+            EnsureNoDependents(installed, id);
+        }
         await VerifyFilesAsync(receipt, cancellationToken);
         using var workspace = new TemporaryDirectory(_transactionRoot, ".mod-uninstall-");
         await ApplyModStateAsync(

@@ -4,9 +4,10 @@ namespace Crystalfly.App.Downloads;
 
 public enum DownloadQueueGroupKind
 {
-    ModInstall,
-    LoaderInstall,
-    AssetInstall
+    ModInstall = 0,
+    LoaderInstall = 1,
+    AssetInstall = 2,
+    ModDependencyRepair = 3
 }
 
 public enum DownloadQueueGroupState
@@ -20,10 +21,11 @@ public enum DownloadQueueGroupState
 
 public enum DownloadQueueItemKind
 {
-    Loader,
-    Dependency,
-    Mod,
-    Asset
+    Loader = 0,
+    Dependency = 1,
+    Mod = 2,
+    Asset = 3,
+    DependencyReEnable = 4
 }
 
 public enum DownloadQueueItemState
@@ -53,6 +55,10 @@ public sealed record DownloadQueueGroup
     public string TargetInstanceName { get; init; } = string.Empty;
 
     public string TargetInstanceRoot { get; init; } = string.Empty;
+
+    public string ExpectedBuildId { get; init; } = string.Empty;
+
+    public string ExpectedLoaderId { get; init; } = string.Empty;
 
     public DateTimeOffset CreatedAt { get; init; }
 

@@ -36,7 +36,8 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
     }
 
     public bool RequiresGameExit(DownloadQueueItem item) => item.Kind is
-        DownloadQueueItemKind.Loader or DownloadQueueItemKind.Dependency or DownloadQueueItemKind.Mod;
+        DownloadQueueItemKind.Loader or DownloadQueueItemKind.Dependency
+        or DownloadQueueItemKind.DependencyReEnable or DownloadQueueItemKind.Mod;
 
     public bool IsTransient(Exception exception)
     {
@@ -64,6 +65,23 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
     {
         ArgumentNullException.ThrowIfNull(progress);
         ArgumentNullException.ThrowIfNull(networkGate);
+        if (group.Kind == DownloadQueueGroupKind.ModDependencyRepair)
+        {
+            RepairContext repair = null!;
+            await coordinator.RunAsync(
+                group.TargetInstanceId,
+                async token => repair = await InspectRepairAsync(group, item, token),
+                cancellationToken);
+            if (item.Kind == DownloadQueueItemKind.DependencyReEnable || repair.Receipt is not null)
+            {
+                progress.Report(new PackageTransferProgress(
+                    item.TotalBytes,
+                    item.TotalBytes,
+                    0,
+                    "Satisfied"));
+                return;
+            }
+        }
         if (item.IsSatisfied
             && await IsStillSatisfiedAsync(group, item, cancellationToken))
         {
@@ -182,6 +200,14 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
         if (!string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal))
         {
             throw new InvalidDataException("Download target does not match the instance sidecar.");
+        }
+        if (group.Kind == DownloadQueueGroupKind.ModDependencyRepair)
+        {
+            await InstallRepairAsync(
+                await InspectRepairAsync(group, item, cancellationToken),
+                item,
+                cancellationToken);
+            return;
         }
 
         var catalog = getCatalog();
@@ -358,6 +384,102 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
         }
     }
 
+    private async Task<RepairContext> InspectRepairAsync(
+        DownloadQueueGroup group,
+        DownloadQueueItem item,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(group.ExpectedBuildId)
+            || string.IsNullOrWhiteSpace(group.ExpectedLoaderId)
+            || item.Kind is not (DownloadQueueItemKind.Dependency or DownloadQueueItemKind.DependencyReEnable)
+            || !string.Equals(item.LoaderId, group.ExpectedLoaderId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException("The dependency repair queue item is invalid.");
+        }
+
+        var paths = GetPaths(group);
+        var instance = await InstanceSidecar.LoadAsync(paths.InstanceRoot, cancellationToken);
+        if (!string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal)
+            || !string.Equals(instance.BuildId, group.ExpectedBuildId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("The dependency repair target instance or build has changed.");
+        }
+        if (instance.Purpose == InstancePurpose.OfficialSpeedrun)
+        {
+            throw new InvalidOperationException("Official speedrun instances cannot be modified.");
+        }
+
+        var loaderManager = new LoaderManager(
+            paths.InstanceRoot,
+            paths.TransactionRoot,
+            Path.Combine(paths.StateRoot, "loader.json"),
+            paths.PackageRoot,
+            httpClient);
+        var inspection = await loaderManager.InspectAsync(cancellationToken);
+        if (inspection.State is not (LoaderState.ModdingApi or LoaderState.BepInEx)
+            || !string.Equals(inspection.PackageId, group.ExpectedLoaderId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("The dependency repair target loader has changed.");
+        }
+
+        var modManager = new ModManager(
+            paths.InstanceRoot,
+            paths.TransactionRoot,
+            Path.Combine(paths.StateRoot, "mods"),
+            paths.PackageRoot,
+            httpClient);
+        var receipt = (await modManager.GetInstalledAsync(cancellationToken)).SingleOrDefault(candidate =>
+            string.Equals(candidate.Id, item.PackageId, StringComparison.OrdinalIgnoreCase));
+        if (receipt is not null
+            && (!string.Equals(receipt.Version, item.Version, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(receipt.LoaderId, item.LoaderId, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException(
+                $"Installed dependency '{item.PackageId}' no longer matches the repair plan.");
+        }
+        if (item.Kind == DownloadQueueItemKind.DependencyReEnable && receipt is null)
+        {
+            throw new KeyNotFoundException(
+                $"Installed dependency '{item.PackageId}' is missing from the target instance.");
+        }
+
+        ModManifest? manifest = null;
+        if (item.Kind == DownloadQueueItemKind.Dependency)
+        {
+            manifest = ResolveMod(getCatalog(), item).Mod!;
+            if (!manifest.SupportedBuildIds.Contains(group.ExpectedBuildId, StringComparer.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Dependency '{item.PackageId}' is not compatible with build '{group.ExpectedBuildId}'.");
+            }
+        }
+        return new RepairContext(paths, modManager, receipt, manifest);
+    }
+
+    private static async Task InstallRepairAsync(
+        RepairContext context,
+        DownloadQueueItem item,
+        CancellationToken cancellationToken)
+    {
+        if (context.Receipt is not null)
+        {
+            if (!context.Receipt.Enabled)
+            {
+                await context.ModManager.SetEnabledAsync(item.PackageId, enabled: true, cancellationToken);
+            }
+            return;
+        }
+
+        if (item.Kind != DownloadQueueItemKind.Dependency || context.Manifest is null)
+        {
+            throw new InvalidDataException("The dependency repair package is unavailable.");
+        }
+        await context.ModManager.InstallFromFileAsync(
+            context.Manifest,
+            CachePath(context.Paths.PackageRoot, context.Manifest.Sha256),
+            cancellationToken);
+    }
+
     private static ResolvedPackage ResolvePackage(GameCatalog catalog, DownloadQueueItem item) => item.Kind switch
     {
         DownloadQueueItemKind.Loader => ResolveLoader(catalog, item),
@@ -417,4 +539,10 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
         string StateRoot,
         string TransactionRoot,
         string PackageRoot);
+
+    private sealed record RepairContext(
+        ExecutorPaths Paths,
+        ModManager ModManager,
+        InstalledModReceipt? Receipt,
+        ModManifest? Manifest);
 }

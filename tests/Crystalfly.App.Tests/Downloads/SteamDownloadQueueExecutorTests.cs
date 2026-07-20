@@ -564,8 +564,10 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
         Assert.False(Directory.Exists(staging));
     }
 
-    [Fact]
-    public async Task Non_Steam_items_are_forwarded_to_fallback_executor()
+    [Theory]
+    [InlineData(DownloadQueueItemKind.Mod)]
+    [InlineData(DownloadQueueItemKind.DependencyReEnable)]
+    public async Task Non_Steam_items_are_forwarded_to_fallback_executor(DownloadQueueItemKind kind)
     {
         var fallback = new RecordingFallbackExecutor();
         var executor = new SteamDownloadQueueExecutor(
@@ -575,7 +577,7 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
         var group = new DownloadQueueGroup();
         var item = new DownloadQueueItem
         {
-            Kind = DownloadQueueItemKind.Mod,
+            Kind = kind,
             PackageId = "hkmod:DebugMod"
         };
 

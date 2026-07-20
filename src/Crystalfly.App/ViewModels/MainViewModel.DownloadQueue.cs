@@ -270,6 +270,37 @@ public partial class MainViewModel
         }
     }
 
+
+    private async Task EnqueueModDependencyRepairAsync(ModDependencyRepairPlan plan)
+    {
+        if (SelectedInstance is null)
+        {
+            ErrorMessage = Loc["NoInstance"];
+            return;
+        }
+
+        ErrorMessage = null;
+        try
+        {
+            await downloadQueue.InitializeAsync(lifetimeCancellation.Token);
+            var group = ModDependencyRepairQueueGroupFactory.Create(plan, catalog, SelectedInstance.Record);
+            var result = await downloadQueue.EnqueueAsync(group, lifetimeCancellation.Token);
+            ToastRequested?.Invoke(result.Added
+                ? Loc["AddedToDownloadQueue"]
+                : Loc["QueueTaskAlreadyExists"]);
+        }
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or InvalidOperationException
+            or UnauthorizedAccessException
+            or HttpRequestException
+            or KeyNotFoundException
+            or ArgumentException
+            or System.Text.Json.JsonException)
+        {
+            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+        }
+    }
     private async Task EnqueueSteamBuildAsync()
     {
         if (!IsSteamSessionLoggedOn() || SelectedDownloadBuild is null)

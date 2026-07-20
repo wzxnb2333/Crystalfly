@@ -5,6 +5,7 @@ using Crystalfly.Core.Instances;
 using Crystalfly.Core.Loaders;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Mods;
+using Crystalfly.Core.Networking;
 using Crystalfly.Core.Serialization;
 using Crystalfly.Steam.Downloads;
 using Crystalfly.Steam.Security;
@@ -104,6 +105,42 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Equal(UiTheme.Dark, saved.Theme);
         Assert.Equal(GitHubDownloadRoute.Mirror, saved.GitHubDownloadRoute);
         Assert.Equal("practice", saved.CurrentInstanceId);
+    }
+
+    [Fact]
+    public async Task GitHub_latency_test_reports_both_routes_without_switching_selection()
+    {
+        var tested = false;
+        await using var viewModel = new MainViewModel(
+            applicationData.CreateDirectory("latency-app-data"),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            _ =>
+            {
+                tested = true;
+                return Task.FromResult(new GitHubRouteLatencyTestResult(
+                    new GitHubRouteLatencyResult(
+                        GitHubDownloadRoute.Direct,
+                        GitHubRouteLatencyStatus.Success,
+                        TimeSpan.FromMilliseconds(42)),
+                    new GitHubRouteLatencyResult(
+                        GitHubDownloadRoute.Mirror,
+                        GitHubRouteLatencyStatus.Timeout,
+                        null)));
+            });
+        viewModel.SelectedGitHubRoute = new(GitHubDownloadRoute.Mirror, "GitHub mirror");
+
+        await viewModel.TestGitHubLatencyCommand.ExecuteAsync(null);
+
+        Assert.True(tested);
+        Assert.Equal(GitHubDownloadRoute.Mirror, viewModel.SelectedGitHubRoute.Value);
+        Assert.Equal("42 ms", viewModel.GitHubDirectLatency);
+        Assert.Equal(viewModel.Loc["LatencyTimeout"], viewModel.GitHubMirrorLatency);
+        Assert.False(viewModel.IsTestingGitHubLatency);
     }
 
     [Fact]
@@ -546,13 +583,18 @@ public sealed class MainViewModelStateTests : IDisposable
         var applicationDataRoot = test.CreateDirectory("app-data");
         var versionRoot = test.CreateDirectory("versions");
         var instanceRoot = test.CreateDirectory("versions", "source");
+        await File.WriteAllTextAsync(Path.Combine(instanceRoot, "hollow_knight.exe"), string.Empty);
+        await File.WriteAllTextAsync(
+            Path.Combine(test.CreateDirectory("versions", "source", "hollow_knight_Data"), "globalgamemanagers"),
+            string.Empty);
         var record = Instance("source", instanceRoot) with { Name = "Source" };
         await InstanceSidecar.SaveAsync(record);
         await using var viewModel = new MainViewModel(applicationDataRoot)
         {
             VersionRoot = versionRoot,
             SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Vanilla", 0),
-            CloneInstanceName = "Clone"
+            CloneInstanceName = "Clone",
+            CurrentPage = "Versions"
         };
         var notifications = new List<string>();
         viewModel.ToastRequested += notifications.Add;
@@ -561,6 +603,57 @@ public sealed class MainViewModelStateTests : IDisposable
 
         Assert.Null(viewModel.ErrorMessage);
         Assert.Equal(viewModel.Loc["OperationComplete"], Assert.Single(notifications));
+        Assert.Equal("Clone", viewModel.SelectedInstance?.Name);
+        Assert.NotEqual(record.Id, viewModel.SelectedInstance?.Id);
+        Assert.Equal("Launch", viewModel.CurrentPage);
+    }
+
+    [Fact]
+    public void Mod_market_jump_uses_exact_current_loader_inspection_and_clears_unknown_loader()
+    {
+        var viewModel = CreateViewModel();
+        var record = Instance("practice", applicationData.CreateDirectory("market-jump", "practice"));
+        SetPrivateField(
+            viewModel,
+            "<SelectedInstance>k__BackingField",
+            new InstanceItemViewModel(record, record.BuildId, "BepInEx", 1));
+        SetCatalog(viewModel, new GameCatalog
+        {
+            Mods =
+            [
+                Manifest("modding", "1.0.0") with
+                {
+                    LoaderId = "modding-api-77",
+                    SupportedBuildIds = [record.BuildId]
+                },
+                Manifest("plugin", "1.0.0") with
+                {
+                    LoaderId = "bepinex-5.4.23.4",
+                    SupportedBuildIds = [record.BuildId]
+                }
+            ]
+        });
+        InvokeRebuildMarketCatalog(viewModel);
+        SetCurrentLoaderInspection(viewModel, new LoaderInspection
+        {
+            State = LoaderState.BepInEx,
+            PackageId = "bepinex-5.4.23.4",
+            Version = "5.4.23.4",
+            Ownership = LoaderOwnership.External
+        });
+
+        viewModel.OpenModMarketForSelectedInstanceCommand.Execute(null);
+
+        Assert.Equal("bepinex-5.4.23.4", viewModel.SelectedMarketLoaderOption?.Value);
+
+        SetCurrentLoaderInspection(viewModel, new LoaderInspection
+        {
+            State = LoaderState.Drifted,
+            Ownership = LoaderOwnership.External
+        });
+        viewModel.OpenModMarketForSelectedInstanceCommand.Execute(null);
+
+        Assert.Null(viewModel.SelectedMarketLoaderOption);
     }
 
     [Theory]
@@ -626,6 +719,87 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Instance_row_selection_returns_to_launch_and_settings_targets_its_row()
+    {
+        await using var viewModel = CreateViewModel();
+        var first = new InstanceItemViewModel(
+            Instance("first", applicationData.CreateDirectory("versions", "first")),
+            "1.5.78.11833",
+            "Vanilla",
+            0);
+        var second = new InstanceItemViewModel(
+            Instance("second", applicationData.CreateDirectory("versions", "second")),
+            "1.4.3.2",
+            "Vanilla",
+            0);
+        viewModel.SelectedInstance = first;
+        viewModel.CurrentPage = "Versions";
+
+        viewModel.SelectInstanceForLaunchCommand.Execute(second);
+
+        Assert.Same(second, viewModel.SelectedInstance);
+        Assert.Equal("Launch", viewModel.CurrentPage);
+
+        viewModel.OpenInstanceSettingsCommand.Execute(first);
+
+        Assert.Same(first, viewModel.SelectedInstance);
+        Assert.Equal("Manage", viewModel.CurrentPage);
+        Assert.Equal("Overview", viewModel.CurrentManageTab);
+    }
+
+    [Fact]
+    public async Task Delete_instance_runs_condition_check_inside_coordinator_and_selects_next()
+    {
+        InstanceRecord? deleted = null;
+        InstanceDeletionConditions? evaluated = null;
+        await using var viewModel = new MainViewModel(
+            applicationData.CreateDirectory("delete-app-data"),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            async (record, conditionEvaluator, cancellationToken) =>
+            {
+                deleted = record;
+                evaluated = await conditionEvaluator(cancellationToken);
+                return new InstanceDeletionResult(
+                    record.Id,
+                    record.RootPath,
+                    Path.Combine(record.RootPath, "pending"),
+                    CleanupCompleted: true,
+                    CleanupError: null);
+            });
+        viewModel.VersionRoot = applicationData.CreateDirectory("delete-versions");
+        var first = new InstanceItemViewModel(
+            Instance("first", applicationData.CreateDirectory("delete-versions", "first")),
+            "1.5.78.11833",
+            "Vanilla",
+            0);
+        var second = new InstanceItemViewModel(
+            Instance("second", applicationData.CreateDirectory("delete-versions", "second")),
+            "1.4.3.2",
+            "Vanilla",
+            0);
+        viewModel.Instances.Add(first);
+        viewModel.Instances.Add(second);
+        viewModel.SelectedInstance = first;
+        viewModel.CurrentPage = "Versions";
+
+        await viewModel.DeleteInstanceCommand.ExecuteAsync(first);
+
+        Assert.Same(first.Record, deleted);
+        Assert.NotNull(evaluated);
+        Assert.False(evaluated.HasBlockingQueueTasks);
+        Assert.True(evaluated.TransactionsHealthy);
+        Assert.DoesNotContain(first, viewModel.Instances);
+        Assert.Same(second, viewModel.SelectedInstance);
+        Assert.Equal("Launch", viewModel.CurrentPage);
+    }
+
+    [Fact]
     public void Mod_search_and_status_filter_both_lists()
     {
         var viewModel = CreateViewModel();
@@ -653,6 +827,114 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Equal("local-helper", viewModel.VisibleInstalledMods[0].Id);
     }
 
+    [Fact]
+    public void Installed_mod_selection_supports_single_ctrl_shift_and_global_select_all()
+    {
+        var viewModel = CreateViewModel();
+        var first = Installed("first");
+        var hidden = Installed("hidden");
+        var second = Installed("second");
+        var third = Installed("third");
+        foreach (var item in new[] { first, hidden, second, third })
+        {
+            viewModel.InstalledMods.Add(item);
+        }
+        foreach (var item in new[] { first, second, third })
+        {
+            viewModel.VisibleInstalledMods.Add(item);
+        }
+
+        viewModel.SelectInstalledMod(first, control: false, shift: false);
+        viewModel.SelectInstalledMod(third, control: false, shift: true);
+
+        Assert.True(first.IsSelected);
+        Assert.True(second.IsSelected);
+        Assert.True(third.IsSelected);
+        Assert.False(hidden.IsSelected);
+
+        viewModel.SelectInstalledMod(second, control: true, shift: false);
+        Assert.False(second.IsSelected);
+
+        viewModel.ClearInstalledModSelectionCommand.Execute(null);
+        Assert.DoesNotContain(viewModel.InstalledMods, item => item.IsSelected);
+
+        viewModel.SelectAllInstalledModsCommand.Execute(null);
+        Assert.All(viewModel.InstalledMods, item => Assert.True(item.IsSelected));
+    }
+
+    [Fact]
+    public void Mod_removal_plan_keeps_selected_targets_and_reports_affected_dependents()
+    {
+        var viewModel = CreateViewModel();
+        var library = new InstalledModItemViewModel(
+            Receipt("library", "1.0.0", enabled: true),
+            null,
+            static () => { }) { IsSelected = true };
+        var feature = new InstalledModItemViewModel(
+            Receipt("feature", "1.0.0", enabled: true) with { Dependencies = ["library"] },
+            null,
+            static () => { });
+        viewModel.InstalledMods.Add(library);
+        viewModel.InstalledMods.Add(feature);
+
+        var plan = viewModel.CreateModRemovalPlan(bulk: true);
+
+        Assert.Equal(["library"], plan.TargetModIds);
+        Assert.Contains(plan.Nodes, node =>
+            node.ModId == "library" && node.Kind == ModRemovalImpactKind.WillRemove);
+        Assert.Contains(plan.Nodes, node =>
+            node.ModId == "feature" && node.Kind == ModRemovalImpactKind.DependencyWillBeMissing);
+    }
+
+    [Fact]
+    public void Mod_dependency_repair_plan_uses_selected_instance_build_and_exact_loader()
+    {
+        var viewModel = CreateViewModel();
+        var record = Instance("practice", applicationData.CreateDirectory("repair", "practice"));
+        SetPrivateField(
+            viewModel,
+            "<SelectedInstance>k__BackingField",
+            new InstanceItemViewModel(record, record.BuildId, "Modding API", 2));
+        var libraryManifest = Manifest("library", "1.0.0") with
+        {
+            SupportedBuildIds = [record.BuildId]
+        };
+        SetCatalog(viewModel, new GameCatalog { Mods = [libraryManifest] });
+        viewModel.InstalledMods.Add(new InstalledModItemViewModel(
+            Receipt("library", "1.0.0", enabled: false),
+            libraryManifest,
+            static () => { }));
+        viewModel.InstalledMods.Add(new InstalledModItemViewModel(
+            Receipt("feature", "1.0.0", enabled: true) with { Dependencies = ["library"] },
+            null,
+            static () => { }));
+
+        var plan = viewModel.CreateModDependencyRepairPlan();
+
+        Assert.Equal(record.BuildId, plan.BuildId);
+        Assert.Equal("modding-api", plan.LoaderId);
+        var repair = Assert.Single(plan.Items);
+        Assert.Equal("library", repair.ModId);
+        Assert.Equal(ModDependencyRepairAction.ReEnable, repair.Action);
+    }
+
+    [Fact]
+    public void Mod_dependency_repair_plan_rejects_mixed_loader_receipts()
+    {
+        var viewModel = CreateViewModel();
+        var record = Instance("practice", applicationData.CreateDirectory("mixed", "practice"));
+        SetPrivateField(
+            viewModel,
+            "<SelectedInstance>k__BackingField",
+            new InstanceItemViewModel(record, record.BuildId, "Conflict", 2));
+        viewModel.InstalledMods.Add(Installed("first"));
+        viewModel.InstalledMods.Add(new InstalledModItemViewModel(
+            Receipt("second", "1.0.0", enabled: true) with { LoaderId = "bepinex-5" },
+            null,
+            static () => { }));
+
+        Assert.Throws<InvalidOperationException>(() => viewModel.CreateModDependencyRepairPlan());
+    }
     [Fact]
     public async Task Bulk_mod_update_rechecks_instance_build_before_writing()
     {
@@ -1185,6 +1467,39 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Language_change_rebuilds_installed_mod_projection_and_keeps_selection()
+    {
+        var viewModel = CreateViewModel();
+        InvokeRebuildSettingOptions(viewModel);
+        var manifest = Manifest("hkmod:DebugMod", "2.0.0") with
+        {
+            Name = "DebugMod",
+            DisplayName = "DebugMod",
+            Description = "Official description",
+            Tags = ["Utility"]
+        };
+        SetCatalog(viewModel, new GameCatalog { Mods = [manifest] });
+        viewModel.InstalledMods.Add(new InstalledModItemViewModel(
+            Receipt("hkmod:DebugMod", "1.0.0", enabled: true) with { Name = "DebugMod" },
+            manifest,
+            static () => { },
+            viewModel.ProjectMarketMod(manifest, chinese: false))
+        {
+            IsSelected = true
+        });
+        viewModel.SelectedInstalledMod = viewModel.InstalledMods[0];
+        viewModel.SelectedLanguage = viewModel.LanguageOptions.Single(option =>
+            option.Value == UiLanguage.SimplifiedChinese);
+
+        var projected = Assert.Single(viewModel.InstalledMods);
+        Assert.Equal("调试模组", projected.PrimaryName);
+        Assert.Equal("DebugMod", projected.SecondaryName);
+        Assert.True(projected.IsSelected);
+        Assert.Same(projected, viewModel.SelectedInstalledMod);
+        await viewModel.DisposeAsync();
+    }
+
+    [Fact]
     public async Task Instance_details_reports_access_failures_from_background_load()
     {
         using var test = new TestDirectory();
@@ -1482,6 +1797,11 @@ public sealed class MainViewModelStateTests : IDisposable
         IsLocal = isLocal
     };
 
+    private static InstalledModItemViewModel Installed(string id) => new(
+        Receipt(id, "1.0.0", enabled: true) with { Name = id },
+        null,
+        static () => { });
+
     private static ModManifest Manifest(string id, string version) => new()
     {
         Id = id,
@@ -1660,6 +1980,15 @@ public sealed class MainViewModelStateTests : IDisposable
         var field = typeof(MainViewModel).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(field);
         field.SetValue(viewModel, value);
+    }
+
+    private static void SetCurrentLoaderInspection(MainViewModel viewModel, LoaderInspection inspection)
+    {
+        var field = typeof(MainViewModel).GetField(
+            "currentLoaderInspection",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        field.SetValue(viewModel, inspection);
     }
 
     private static T GetPrivateField<T>(MainViewModel viewModel, string name)

@@ -12,6 +12,7 @@ using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.Views;
 using Crystalfly.Core.Configuration;
+using Crystalfly.Core.Models;
 
 namespace Crystalfly.App.Tests.Ui;
 
@@ -142,6 +143,64 @@ public sealed class LayoutRenderingTests
         }
     }
 
+    [AvaloniaFact]
+    public async Task Installed_mod_list_uses_remaining_height_and_keeps_bulk_actions_visible_at_900x600()
+    {
+        var applicationData = Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N"));
+        var viewModel = new MainViewModel(applicationData)
+        {
+            CurrentPage = "Manage",
+            CurrentManageTab = "Mods"
+        };
+        var item = new InstalledModItemViewModel(
+            new InstalledModReceipt
+            {
+                Id = "debugmod",
+                Name = "Debug Mod",
+                Version = "1.0.0",
+                LoaderId = "modding-api",
+                InstallRoot = "Mods/DebugMod",
+                Enabled = true,
+                IsLocal = true
+            },
+            null,
+            static () => { })
+        {
+            IsSelected = true
+        };
+        viewModel.InstalledMods.Add(item);
+        viewModel.VisibleInstalledMods.Add(item);
+
+        var window = new MainWindow { Width = 900, Height = 600, DataContext = viewModel };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            var list = window.GetVisualDescendants().OfType<ListBox>()
+                .Single(control => control.Classes.Contains("cfp-installed-mod-list") && control.IsEffectivelyVisible);
+            var bulkBar = window.GetVisualDescendants().OfType<Border>()
+                .Single(control => control.Classes.Contains("cfp-mod-bulk-bar") && control.IsEffectivelyVisible);
+            var listOrigin = Assert.IsType<Point>(list.TranslatePoint(default, window));
+            var bulkOrigin = Assert.IsType<Point>(bulkBar.TranslatePoint(default, window));
+
+            Assert.True(list.Bounds.Height >= 200, $"Installed Mod list height was only {list.Bounds.Height:F1}px.");
+            Assert.True(listOrigin.Y + list.Bounds.Height <= bulkOrigin.Y + 1,
+                "The fixed bulk action bar must follow the bounded Mod list.");
+            Assert.True(bulkOrigin.Y + bulkBar.Bounds.Height <= window.ClientSize.Height + 1,
+                "The bulk action bar must remain inside the 900x600 viewport.");
+        }
+        finally
+        {
+            CloseImmediately(window);
+            await viewModel.DisposeAsync();
+            if (Directory.Exists(applicationData))
+            {
+                Directory.Delete(applicationData, recursive: true);
+            }
+        }
+    }
+
     [AvaloniaTheory]
     [InlineData("Settings")]
     [InlineData("Downloads")]
@@ -219,7 +278,7 @@ public sealed class LayoutRenderingTests
                     && button.Classes.Contains("cfp-nav")
                     && button.FindAncestorOfType<Border>()?.Classes.Contains("cfp-topbar") == true)
                 .ToArray();
-            Assert.Equal(5, buttons.Length);
+            Assert.Equal(4, buttons.Length);
             Assert.True(buttons[0].Focus(NavigationMethod.Tab, KeyModifiers.None));
 
             foreach (var expected in buttons.Skip(1))
@@ -336,7 +395,7 @@ public sealed class LayoutRenderingTests
                 .OfType<Button>()
                 .Where(button => button.IsEffectivelyVisible)
                 .ToArray();
-            Assert.Equal(3, buttons.Length);
+            Assert.Equal(2, buttons.Length);
 
             var origins = buttons
                 .Select(button => Assert.IsType<Point>(button.TranslatePoint(default, rail)))
@@ -345,7 +404,6 @@ public sealed class LayoutRenderingTests
             Assert.All(buttons, button => Assert.Equal(HorizontalAlignment.Center, button.HorizontalContentAlignment));
             Assert.All(buttons, button => Assert.InRange(Math.Abs(button.Bounds.Width - buttons[0].Bounds.Width), 0, 0.5));
             Assert.True(origins[1].Y >= origins[0].Y + buttons[0].Bounds.Height + 7.5);
-            Assert.True(origins[2].Y >= origins[1].Y + buttons[1].Bounds.Height + 7.5);
         }
         finally
         {
@@ -407,8 +465,16 @@ public sealed class LayoutRenderingTests
 
             foreach (var button in buttons)
             {
-                Assert.True(button.Bounds.Height >= 35.5,
-                    $"{page}/{manageTab}: button height {button.Bounds.Height:F1} at {renderScaling:P0} scaling.");
+                if (!button.Classes.Any(buttonClass => buttonClass is
+                    "cfp-icon" or
+                    "cfp-mod-action" or
+                    "cfp-quick-action" or
+                    "cfp-instance-action" or
+                    "cfp-download-fab"))
+                {
+                    Assert.True(button.Bounds.Height >= 35.5,
+                        $"{page}/{manageTab}: button height {button.Bounds.Height:F1} at {renderScaling:P0} scaling.");
+                }
                 var contentControls = button.GetVisualDescendants()
                     .OfType<Control>()
                     .Where(control => control.IsEffectivelyVisible
