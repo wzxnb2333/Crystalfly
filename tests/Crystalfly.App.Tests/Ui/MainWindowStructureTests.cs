@@ -22,13 +22,35 @@ public sealed class MainWindowStructureTests
         var launchGrid = FindSectionRoot(document, "IsLaunchPage");
         Assert.DoesNotContain(launchGrid.Descendants(Avalonia + "Button"), button => HasBinding(button, "Command", "ManageSelectedInstanceCommand"));
         Assert.Contains(launchGrid.Descendants(Avalonia + "Button"), button => HasBinding(button, "Command", "SelectPageCommand") && (string?)button.Attribute("CommandParameter") == "Versions");
+        Assert.Contains(launchGrid.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "OpenInstanceSettingsCommand")
+            && HasBinding(button, "CommandParameter", "SelectedInstance"));
 
         var versionsGrid = FindSectionRoot(document, "IsVersionsPage");
-        Assert.Contains(versionsGrid.Descendants(Avalonia + "ListBox"), list => HasClass(list, "cfp-instance-list"));
+        var instanceList = versionsGrid.Descendants(Avalonia + "ListBox").Single(list => HasClass(list, "cfp-instance-list"));
+        var instanceRow = instanceList.Descendants(Avalonia + "Grid").Single(grid => HasClass(grid, "cfp-instance-row"));
+        var instanceMain = instanceRow.Elements(Avalonia + "Button").Single(button => HasClass(button, "cfp-instance-main"));
+        var instanceSummary = instanceRow.Elements(Avalonia + "Grid").Single(grid => HasClass(grid, "cfp-instance-summary"));
+        var instanceActions = instanceRow.Elements(Avalonia + "StackPanel").Single(panel => HasClass(panel, "cfp-instance-actions"));
+
+        Assert.Equal("Stretch", (string?)instanceRow.Attribute("HorizontalAlignment"));
+        Assert.Equal("2", (string?)instanceMain.Attribute("Grid.ColumnSpan"));
+        Assert.Equal("Left", (string?)instanceSummary.Attribute("HorizontalAlignment"));
+        Assert.Equal("94", (string?)instanceActions.Attribute("Width"));
         Assert.Contains(versionsGrid.Descendants(Avalonia + "Button"), button => HasClass(button, "cfp-instance-action") && (string?)button.Attribute("Click") == "ConfirmDeleteInstance");
         Assert.Contains(versionsGrid.Descendants(Avalonia + "Button"), button => HasClass(button, "cfp-instance-action") && (string?)button.Attribute("Click") == "CloneInstanceWithName");
         Assert.Contains(versionsGrid.Descendants(Avalonia + "Button"), button => HasClass(button, "cfp-instance-action") && HasBinding(button, "Command", "OpenInstanceSettingsCommand"));
         Assert.DoesNotContain(versionsGrid.Descendants(Avalonia + "TextBox"), textBox => HasBinding(textBox, "Text", "CloneInstanceName"));
+
+        var theme = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Styles",
+            "CrystalflyTheme.axaml"));
+        Assert.Contains("ListBox.cfp-instance-list > ListBoxItem:pointerover StackPanel.cfp-instance-actions", theme, StringComparison.Ordinal);
+        Assert.Contains("ListBox.cfp-instance-list > ListBoxItem:selected StackPanel.cfp-instance-actions", theme, StringComparison.Ordinal);
+        Assert.DoesNotContain("Grid.cfp-instance-row:pointerover StackPanel.cfp-instance-actions", theme, StringComparison.Ordinal);
     }
 
     [Fact]

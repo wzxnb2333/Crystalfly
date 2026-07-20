@@ -128,7 +128,7 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.2.0'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.2.1'
 ```
 
 脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包和 `SHA256SUMS.txt`。首轮只公开源码；本地产物未做 Authenticode 签名，仅用于本机验证。详细设计见 [架构文档](docs/architecture.md)。
@@ -211,7 +211,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.2.0'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.2.1'
 ```
 
 The script automatically locates Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, portable ZIP, installer, and `SHA256SUMS.txt`.
