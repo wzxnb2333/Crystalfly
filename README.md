@@ -129,9 +129,12 @@ dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
 pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.2.1'
+
+# 构建、测试并静默更新固定安装目录（请先关闭 Crystalfly）
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1'
 ```
 
-脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包和 `SHA256SUMS.txt`。首轮只公开源码；本地产物未做 Authenticode 签名，仅用于本机验证。详细设计见 [架构文档](docs/architecture.md)。
+脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。`build-and-install.ps1` 会从 `Directory.Build.props` 读取版本号，执行完整 Release 构建和测试，验证产物后以管理员权限静默更新 `D:\Program Files\Crystalfly`，最后核对已安装版本。运行中的 Crystalfly 会使流程停止，不会强制关闭程序。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包和 `SHA256SUMS.txt`。首轮只公开源码；本地产物未做 Authenticode 签名，仅用于本机验证。详细设计见 [架构文档](docs/architecture.md)。
 
 ## 许可证
 
@@ -212,9 +215,12 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 
 ```powershell
 pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.2.1'
+
+# Build, test, and silently update the fixed install directory after closing Crystalfly.
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1'
 ```
 
-The script automatically locates Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, portable ZIP, installer, and `SHA256SUMS.txt`.
+The scripts automatically locate Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. `build-and-install.ps1` reads the version from `Directory.Build.props`, runs the full Release build and tests, validates the artifacts, then silently updates `D:\Program Files\Crystalfly` with administrator approval and verifies the installed version. It stops when Crystalfly is running and never terminates the process. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, portable ZIP, installer, and `SHA256SUMS.txt`.
 
 Application settings use `%LOCALAPPDATA%\Crystalfly`, or `Data` beside the executable when `portable.flag` exists. Per-instance state always stays under `<version-root>\.crystalfly`.
 
