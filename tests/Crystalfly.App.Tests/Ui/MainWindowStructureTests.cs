@@ -50,6 +50,7 @@ public sealed class MainWindowStructureTests
             "CrystalflyTheme.axaml"));
         Assert.Contains("ListBox.cfp-instance-list > ListBoxItem:pointerover StackPanel.cfp-instance-actions", theme, StringComparison.Ordinal);
         Assert.Contains("ListBox.cfp-instance-list > ListBoxItem:selected StackPanel.cfp-instance-actions", theme, StringComparison.Ordinal);
+        Assert.Contains("Button.cfp-instance-main:pointerover /template/ ContentPresenter#PART_ContentPresenter", theme, StringComparison.Ordinal);
         Assert.DoesNotContain("Grid.cfp-instance-row:pointerover StackPanel.cfp-instance-actions", theme, StringComparison.Ordinal);
     }
 
