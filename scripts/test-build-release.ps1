@@ -56,10 +56,10 @@ if ($installerSource -match '(?m)^\s*#define\s+(?:PublishDir|AppVersion)\b') {
 if ($installerSource -notmatch '(?ms)^\[InstallDelete\].*?Type:\s*files;\s*Name:\s*"\{app\}\\Avalonia\.Themes\.Fluent\.dll"') {
     throw 'Inno Setup upgrades must remove the retired Fluent theme assembly.'
 }
-if ($installerSource -notmatch '(?m)^DefaultDirName=D:\\Program Files\\\{#AppName\}$') {
+if ($installerSource -notmatch '(?m)^DefaultDirName=D:\\Program Files\\\{#AppName\}\r?$') {
     throw 'Inno Setup must default to D:\\Program Files\\Crystalfly.'
 }
-if ($installerSource -notmatch '(?m)^PrivilegesRequired=admin$') {
+if ($installerSource -notmatch '(?m)^PrivilegesRequired=admin\r?$') {
     throw 'The fixed Program Files install must request administrator privileges.'
 }
 if ("-IsccPath 'D:\Tools\Inno Setup 6\ISCC.exe'" -notmatch $absoluteIsccPathPattern) {
