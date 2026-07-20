@@ -73,6 +73,71 @@ public sealed class ModManagerTests : IDisposable
     }
 
     [Fact]
+    public async Task Confirmed_disable_ignores_enabled_dependents_but_still_checks_file_drift()
+    {
+        var manager = CreateManager();
+        var basePackage = CreateZip(("base.dll", "base"));
+        await manager.InstallFromFileAsync(Manifest("base", "Base", "modding-api-77", basePackage), basePackage);
+        var dependentPackage = CreateZip(("dependent.dll", "dependent"));
+        await manager.InstallFromFileAsync(
+            Manifest("dependent", "Dependent", "modding-api-77", dependentPackage, "base"),
+            dependentPackage);
+
+        var disabled = await manager.DisableIgnoringDependentsAsync("base");
+
+        Assert.False(disabled.Enabled);
+        Assert.True((await manager.GetInstalledAsync()).Single(mod => mod.Id == "dependent").Enabled);
+
+        var disabledPath = Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "Disabled", "Base", "base.dll");
+        await File.WriteAllTextAsync(disabledPath, "drifted");
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            manager.UninstallIgnoringDependentsAsync("base"));
+    }
+
+    [Fact]
+    public async Task Confirmed_disable_succeeds_when_the_mods_own_dependency_is_missing()
+    {
+        var manager = CreateManager();
+        var dependencyPackage = CreateZip(("dependency.dll", "dependency"));
+        await manager.InstallFromFileAsync(
+            Manifest("dependency", "Dependency", "modding-api-77", dependencyPackage),
+            dependencyPackage);
+        var featurePackage = CreateZip(("feature.dll", "feature"));
+        await manager.InstallFromFileAsync(
+            Manifest("feature", "Feature", "modding-api-77", featurePackage, "dependency"),
+            featurePackage);
+        await manager.UninstallIgnoringDependentsAsync("dependency");
+
+        var disabled = await manager.DisableIgnoringDependentsAsync("feature");
+
+        Assert.False(disabled.Enabled);
+        Assert.True(File.Exists(Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "Disabled", "Feature", "feature.dll")));
+    }
+
+    [Fact]
+    public async Task Confirmed_uninstall_removes_only_the_target_and_keeps_dependents()
+    {
+        var manager = CreateManager();
+        var basePackage = CreateZip(("base.dll", "base"));
+        await manager.InstallFromFileAsync(Manifest("base", "Base", "modding-api-77", basePackage), basePackage);
+        var dependentPackage = CreateZip(("dependent.dll", "dependent"));
+        await manager.InstallFromFileAsync(
+            Manifest("dependent", "Dependent", "modding-api-77", dependentPackage, "base"),
+            dependentPackage);
+
+        await manager.UninstallIgnoringDependentsAsync("base");
+
+        var remaining = Assert.Single(await manager.GetInstalledAsync());
+        Assert.Equal("dependent", remaining.Id);
+        Assert.True(File.Exists(Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "Dependent", "dependent.dll")));
+        Assert.False(Directory.Exists(Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "Base")));
+    }
+
+    [Fact]
     public async Task Install_rejects_missing_dependencies_before_writing_files()
     {
         var manager = CreateManager();

@@ -452,4 +452,28 @@
         <Setter Property="Height" Value="3" />
         <Setter Property="Foreground" Value="{DynamicResource CfAccentBrush}" />
     </Style>
+
+
+    <Style Selector="Button.cfp-instance-main"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
+    <Style Selector="Grid.cfp-instance-row StackPanel.cfp-instance-actions"><Setter Property="Opacity" Value="0"/><Setter Property="IsHitTestVisible" Value="False"/></Style>
+    <Style Selector="Grid.cfp-instance-row:pointerover StackPanel.cfp-instance-actions, Grid.cfp-instance-row:focus-within StackPanel.cfp-instance-actions"><Setter Property="Opacity" Value="1"/><Setter Property="IsHitTestVisible" Value="True"/></Style>
+    <Style Selector="Button.cfp-instance-action, Button.cfp-mod-action, Button.cfp-quick-action"><Setter Property="Width" Value="30"/><Setter Property="Height" Value="30"/><Setter Property="Padding" Value="0"/><Setter Property="Background" Value="Transparent"/></Style>
+    <Style Selector="Border.cfp-mod-bulk-bar"><Setter Property="Padding" Value="8,6"/><Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}"/><Setter Property="CornerRadius" Value="6"/></Style>
+    <Style Selector="WrapPanel.cfp-mod-quick-actions"><Setter Property="Height" Value="34"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+    <Style Selector="Grid.cfp-installed-mod-row"><Setter Property="MinHeight" Value="40"/></Style>
+    <Style Selector="StackPanel.cfp-installed-mod-actions"><Setter Property="Opacity" Value="0"/><Setter Property="IsHitTestVisible" Value="False"/></Style>
+    <Style Selector="Grid.cfp-installed-mod-row:pointerover StackPanel.cfp-installed-mod-actions, Grid.cfp-installed-mod-row:focus-within StackPanel.cfp-installed-mod-actions, ListBox.cfp-installed-mod-list > ListBoxItem:focus-within StackPanel.cfp-installed-mod-actions"><Setter Property="Opacity" Value="1"/><Setter Property="IsHitTestVisible" Value="True"/></Style>
+    <Style Selector="TextBlock.cfp-installed-mod-name.disabled"><Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}"/><Setter Property="TextDecorations" Value="Strikethrough"/></Style>
+    <Style Selector="Button.cfp-download-fab"><Setter Property="CornerRadius" Value="22"/><Setter Property="Padding" Value="0"/><Setter Property="MinHeight" Value="44"/><Setter Property="MinWidth" Value="44"/></Style>
+    <Style Selector="Border.cfp-latency-result"><Setter Property="Padding" Value="8,6"/><Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}"/><Setter Property="CornerRadius" Value="6"/></Style>
+    <Style Selector="Grid.cfp-manage-nav"><Setter Property="HorizontalAlignment" Value="Stretch"/></Style>
+
+    <Style Selector="ListBox.cfp-installed-mod-list > ListBoxItem"><Setter Property="MinHeight" Value="40"/><Setter Property="Padding" Value="5,3"/></Style>
+    <Style Selector="ListBox.cfp-installed-mod-list > ListBoxItem:selected"><Setter Property="Background" Value="Transparent"/></Style>
+    <Style Selector="ListBox.cfp-installed-mod-list > ListBoxItem:selected:pointerover, ListBox.cfp-installed-mod-list > ListBoxItem:selected:pressed"><Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}"/></Style>
+    <Style Selector="Grid.cfp-installed-mod-row.selected"><Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedBrush}"/></Style>
+    <Style Selector="Grid.cfp-installed-mod-row.selected:pointerover"><Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedHoverBrush}"/></Style>
+    <Style Selector="Border.cfp-installed-mod-accent"><Setter Property="Opacity" Value="0"/></Style>
+    <Style Selector="Grid.cfp-installed-mod-row.selected Border.cfp-installed-mod-accent"><Setter Property="Opacity" Value="1"/></Style>
+    <Style Selector="Grid.cfp-installed-mod-row.disabled"><Setter Property="Opacity" Value="0.72"/></Style>
 </Styles>

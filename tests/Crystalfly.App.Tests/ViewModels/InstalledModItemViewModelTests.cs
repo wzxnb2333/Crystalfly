@@ -36,6 +36,57 @@ public sealed class InstalledModItemViewModelTests
         Assert.True(item.IsLocal);
     }
 
+    [Fact]
+    public void Chinese_market_projection_drives_installed_name_tags_and_search()
+    {
+        var manifest = Manifest("debugmod", "1.1.0") with
+        {
+            Description = "Official debug tools",
+            Tags = ["Utility"]
+        };
+        var display = new MarketModItemViewModel(
+            manifest,
+            new ModTranslationEntry
+            {
+                Id = "hkmod:Debug Mod",
+                DisplayName = "调试模组",
+                Description = "用于调试与练习"
+            },
+            new Dictionary<string, string> { ["Utility"] = "工具" },
+            chinese: true);
+        var item = new InstalledModItemViewModel(
+            Receipt("debugmod", "1.0.0", enabled: true),
+            manifest,
+            static () => { },
+            display);
+
+        Assert.Equal("调试模组", item.PrimaryName);
+        Assert.Equal("Debug Mod", item.SecondaryName);
+        Assert.True(item.HasSecondaryName);
+        Assert.Equal("用于调试与练习", item.Description);
+        Assert.Equal("工具", Assert.Single(item.Tags).Name);
+        Assert.True(item.Matches("调试", ModStatusFilter.All));
+        Assert.True(item.Matches("Official debug", ModStatusFilter.All));
+        Assert.True(item.Matches("工具", ModStatusFilter.All));
+        Assert.True(item.Matches("debugmod", ModStatusFilter.All));
+    }
+
+    [Fact]
+    public void Unknown_local_mod_falls_back_to_receipt_name()
+    {
+        var item = new InstalledModItemViewModel(
+            Receipt("local-test", "local", enabled: false, isLocal: true) with
+            {
+                Name = "Local Helper"
+            },
+            null,
+            static () => { });
+
+        Assert.Equal("Local Helper", item.PrimaryName);
+        Assert.False(item.HasSecondaryName);
+        Assert.True(item.Matches("Local Helper", ModStatusFilter.Local));
+    }
+
     [Theory]
     [InlineData("debug", ModStatusFilter.All, true)]
     [InlineData("missing", ModStatusFilter.All, false)]

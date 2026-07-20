@@ -19,16 +19,16 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 
 - 扫描用户选择的版本根目录，并把每个直接子目录作为独立实例。
 - 识别 `1.2.2.1`、`1.4.3.2`、`1.5.78.11833` 和动态 `latest` 稳定通道。
-- 完整复制实例；Loader、Mod 和存档互不共享。
+- 顶部实例选择器可直接切换、进入设置、完整克隆或永久删除实例；删除会先检查游戏进程、下载任务与文件事务，确认后同时移除游戏目录和实例状态。
 - 事务化安装、切换、修复和卸载 Loader，检测冲突及文件漂移。
 - 支持带 Crystalfly 清单的高级本地 Loader 导入，并永久标记为“未验证”。
-- 在“下载 → Mod 市场”中搜索在线 Mod、查看详情并选择目标实例；在实例的“已安装 Mod”页启用、停用、更新、卸载或导入本地 ZIP/DLL。
+- 在“下载 → Mod 市场”中搜索在线 Mod、查看详情并选择目标实例；在实例的“已安装 Mod”页通过信息、打开目录、启停和卸载快捷操作管理单个 Mod，也可多选后批量处理。
 - 安装前展示 Loader、递归前置与主 Mod；确认后加入后台下载队列，同一依赖链串行，独立安装组最多三路并发。
 - 安装前检查游戏版本、精确 Loader ID 和完整依赖闭包，阻止 Modding API v37/v60/v77/v78、BepInEx 及不同游戏版本的 Mod 混装。
 - 启动前真实检查游戏文件、Loader、Mod 依赖、事务和实例 LocalLow；任一检查失败都会阻止启动。
 - 在实例日志页查看 BepInEx、Modding API 和 `Player.log` 的最新内容及来源路径。
 - 通过 SteamKit2 扫码登录并下载 public 分支历史 manifest；同一文件最多十六路并发下载 Chunk，完成后生成 `steam_appid.txt` 以直接启动对应实例，refresh token 仅以当前 Windows 用户的 DPAPI 加密保存。
-- 设置页可在 GitHub 直连与 GitHub 镜像间切换；镜像仅代理官方 GitHub 目录和 GitHub 托管安装包，Steam、自定义目录及其他下载地址保持原线路，包校验规则不变。
+- 设置页可在 GitHub 直连与 GitHub 镜像间切换并分别测试延迟；镜像仅代理官方 GitHub 目录和 GitHub 托管安装包，Steam、自定义目录及其他下载地址保持原线路，包校验规则不变。
 - 启动前切换实例 LocalLow，退出后写回，并恢复原共享数据。
 - 创建永久命名“存档快照”；快照仅包含实例的非日志 LocalLow，事务临时恢复点成功后自动清理。
 - 创建独立速通副本，按模板部署速通工具，并在每次启动前写出验证报告。
@@ -73,7 +73,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 
 选择目标实例后会先显示 Loader、全部递归前置和主 Mod 的安装计划。确认只负责加入后台队列，不会锁住市场。每条依赖链按 Loader、前置、主 Mod 顺序执行；互不相关的安装组最多并行三个网络任务。游戏运行时可继续下载，写入目标实例前会等待游戏退出。网络错误自动重试三次；哈希、清单和兼容性错误不会盲目重试。关闭程序时会保存未完成及失败任务；未完成任务会在重启后继续，失败任务会保留并等待手动重试。
 
-实例的“已安装 Mod”页只管理当前实例内的 Mod，可按名称、ID 或版本搜索，并按全部、启用、停用、本地和可更新状态筛选。受 catalog 管理的 Mod 支持单项更新；勾选多项后可批量启用、停用、更新或卸载。本地 Mod 不提供自动更新。停用或卸载仍被其他已安装 Mod 依赖的项目时，界面会列出反向依赖并阻止操作，不会自动级联删除。
+实例的“已安装 Mod”页只管理当前实例内的 Mod，可按名称、ID 或版本搜索，并按全部、启用、停用、本地和可更新状态筛选。每项提供信息、打开目录、启停和卸载快捷操作；进入多选后可全选、取消选择，并批量启用、停用、更新或卸载。卸载前会展示依赖影响树；依赖修复会列出需要重新启用或下载安装的项目，无法安全修复时明确阻止操作。本地 Mod 不提供自动更新。
 
 Loader 兼容按精确包 ID 判断，不会把所有 Modding API 或 BepInEx 版本视为等价。Crystalfly 安装的 Loader 可修复和卸载；手动安装且能确认版本的 BepInEx 标记为外部所有，仅允许安装完全匹配的插件，不会修复、卸载、覆盖或接管 BepInEx 本体。手动安装的 Modding API 因缺少原版程序集备份会保持 `Drifted`。
 
@@ -128,7 +128,7 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.1.10'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.2.0'
 ```
 
 脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包和 `SHA256SUMS.txt`。首轮只公开源码；本地产物未做 Authenticode 签名，仅用于本机验证。详细设计见 [架构文档](docs/architecture.md)。
@@ -156,15 +156,16 @@ This is the first source release. Crystalfly binary releases are not published y
 
 - Discovers direct child directories under a user-selected version root and keeps each instance isolated.
 - Recognizes `1.2.2.1`, `1.4.3.2`, `1.5.78.11833`, and a dynamic stable `latest` channel.
+- Uses the top instance selector to switch, open settings, clone a full copy, or permanently delete an instance. Deletion first checks running games, queued downloads, and file transactions, then removes both game and instance state directories after confirmation.
 - Installs, switches, repairs, and removes mutually exclusive loaders through recoverable file transactions.
-- Discovers online mods under Download → Mod Market, then installs them to a selected compatible instance; each instance keeps enable, disable, update, uninstall, and local ZIP/DLL import operations under Installed Mods.
+- Discovers online mods under Download → Mod Market, then installs them to a selected compatible instance. Installed Mods provides information, open-folder, enable/disable, and uninstall shortcuts plus multi-select batch actions.
 - Previews the loader, recursive dependencies, and requested mod before enqueueing background work. Dependency chains stay serial while independent install groups use up to three concurrent network transfers.
 - Validates the game build, exact loader package ID, and full dependency closure so Modding API v37/v60/v77/v78, BepInEx, and cross-build mods cannot be mixed.
 - Runs real launch checks for game files, loader state, mod dependencies, pending transactions, and per-instance LocalLow state; launch stays blocked until every check passes.
 - Displays detected BepInEx, Modding API, and `Player.log` files with their source paths and refreshable tail content.
 - Imports local loaders only through a validated Crystalfly manifest and keeps them marked unverified.
 - Uses SteamKit2 for QR authentication and public manifest downloads, with up to sixteen concurrent chunk requests per file. Completed instances receive `steam_appid.txt` for direct launch. Refresh tokens are protected with Windows DPAPI for the current user.
-- Lets users switch between direct GitHub access and a GitHub mirror. Only official GitHub catalogs and GitHub-hosted packages are proxied; Steam, custom catalogs, and other download URLs keep their original route, with the same package verification.
+- Lets users switch between direct GitHub access and a GitHub mirror and test each route latency. Only official GitHub catalogs and GitHub-hosted packages are proxied; Steam, custom catalogs, and other download URLs keep their original route, with the same package verification.
 - Swaps per-instance LocalLow data before launch, captures it after exit, then restores the original shared data.
 - Creates persistent named save snapshots containing only non-log LocalLow data, plus dedicated speedrun copies with template-specific tools and a pre-launch report.
 
@@ -180,7 +181,7 @@ The target dialog previews the loader, every recursive dependency, and the reque
 
 When the UI is Simplified Chinese, the market also loads the maintained HK ModLinks Chinese translation catalog. It searches translated names, descriptions, and labels alongside official English metadata; missing translations fall back to English. The source data and import command are documented in [docs/mod-translations.zh-CN.md](docs/mod-translations.zh-CN.md).
 
-The Installed Mods page searches the current instance by name, ID, or version and filters installed mods by all, enabled, disabled, local, or update available. Catalog-managed mods support single-item updates; checked items can be enabled, disabled, updated, or removed in batches. Local mods do not receive automatic updates. Disabling or removing a mod that still has installed dependents lists those reverse dependencies and blocks the operation instead of cascading removal.
+The Installed Mods page searches the current instance by name, ID, or version and filters installed mods by all, enabled, disabled, local, or update available. Each item exposes information, open-folder, enable/disable, and uninstall shortcuts. Multi-select supports select all, clear selection, and batch enable, disable, update, or uninstall. Uninstall previews a dependency-impact tree; dependency repair lists mods that will be re-enabled or downloaded and installed, and blocks plans that cannot be repaired safely. Local mods do not receive automatic updates.
 
 Compatibility uses the exact loader package ID rather than treating every Modding API or BepInEx release as interchangeable. Crystalfly-managed loaders can be repaired or removed. A manually installed BepInEx with a verifiable version is detected as externally owned: matching plugins may be installed, but Crystalfly never repairs, removes, overwrites, or takes ownership of the BepInEx installation. Manually installed Modding API remains `Drifted` because no trusted vanilla assembly backup exists.
 
@@ -210,7 +211,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.1.10'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.2.0'
 ```
 
 The script automatically locates Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, portable ZIP, installer, and `SHA256SUMS.txt`.

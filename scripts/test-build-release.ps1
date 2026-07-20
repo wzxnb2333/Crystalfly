@@ -28,14 +28,18 @@ function Assert-Rejected {
 $buildScript = Join-Path $PSScriptRoot 'build-release.ps1'
 $source = Get-Content -Raw -LiteralPath $buildScript
 $root = Split-Path -Parent $PSScriptRoot
+$buildProps = Get-Content -Raw -LiteralPath (Join-Path $root 'Directory.Build.props')
 $installerSource = Get-Content -Raw -LiteralPath (Join-Path $root 'installer\Crystalfly.iss')
 $readme = Get-Content -Raw -LiteralPath (Join-Path $root 'README.md')
 $absoluteIsccPathPattern = '(?i)-IsccPath\s+[''"]?[A-Z]:[\\/]'
 if ($source -notmatch "\[ValidateSet\('win-x64'\)\]") {
     throw 'Runtime must be restricted to win-x64 before release paths are constructed.'
 }
-if ($source -notmatch '(?m)\[string\]\$Version\s*=\s*''0\.1\.10''') {
-    throw 'Release build must default to version 0.1.10.'
+if ($source -notmatch '(?m)\[string\]\$Version\s*=\s*''0\.2\.0''') {
+    throw 'Release build must default to version 0.2.0.'
+}
+if ($buildProps -notmatch '(?m)<Version>0\.2\.0</Version>') {
+    throw 'Project version must be 0.2.0.'
 }
 if ($source -notmatch '(?m)-p:CopyOutputSymbolsToPublishDirectory=false') {
     throw 'Release publish must exclude debug symbols from the publish directory.'
@@ -67,11 +71,22 @@ if ('-IsccPath "Z:/Tools/Inno Setup 6/ISCC.exe"' -notmatch $absoluteIsccPathPatt
 if ($readme -match $absoluteIsccPathPattern) {
     throw 'README must not hard-code a machine-specific Inno Setup path.'
 }
-$releaseCommandPattern = '(?i)build-release\.ps1[''"`\s\\\r\n]+-Version\s+[''"]0\.1\.10[''"]'
+$releaseCommandPattern = '(?i)build-release\.ps1[''"`\s\\\r\n]+-Version\s+[''"]0\.2\.0[''"]'
 if ($readme -notmatch $releaseCommandPattern) {
-    throw 'README must pin local release builds to version 0.1.10.'
+    throw 'README must pin local release builds to version 0.2.0.'
 }
 $englishReadme = [regex]::Match($readme, '(?ms)^## English\s*(?<content>.*)$').Groups['content'].Value
+foreach ($requiredDocumentation in @(
+    '永久删除实例',
+    '依赖影响树',
+    '测试延迟',
+    'permanently delete an instance',
+    'dependency-impact tree',
+    'test each route latency')) {
+    if ($readme -notmatch [regex]::Escape($requiredDocumentation)) {
+        throw "README must document: $requiredDocumentation"
+    }
+}
 if (
     $englishReadme -notmatch '(?i)pwsh\s+-NoProfile\s+-File\s+[''"]?\.\\scripts\\build-release\.ps1' -or
     $englishReadme -notmatch '(?i)automatically[^\r\n]*Inno Setup 6' -or
@@ -313,7 +328,7 @@ try {
         throw 'ZIP inventory accepted a file not present in the portable directory.'
     }
 
-    $installer = Join-Path $installerOutput 'Crystalfly-0.1.10-win-x64-setup.exe'
+    $installer = Join-Path $installerOutput 'Crystalfly-0.2.0-win-x64-setup.exe'
     Set-Content -LiteralPath $installer -Value 'installer'
     $checksums = Join-Path $artifacts 'SHA256SUMS.txt'
     Write-ArtifactChecksums -Paths $zip, $installer -ArtifactsPath $artifacts -OutputPath $checksums
@@ -321,7 +336,7 @@ try {
     if (-not ($checksumLines -match '\*portable\.zip$')) {
         throw 'Checksums must address the portable archive from the artifacts root.'
     }
-    if (-not ($checksumLines -match '\*installer/Crystalfly-0\.1\.10-win-x64-setup\.exe$')) {
+    if (-not ($checksumLines -match '\*installer/Crystalfly-0\.2\.0-win-x64-setup\.exe$')) {
         throw 'Checksums must address the installer relative to the artifacts root.'
     }
 }

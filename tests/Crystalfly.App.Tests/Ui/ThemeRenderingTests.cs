@@ -469,7 +469,7 @@ public sealed class ThemeRenderingTests
     }
 
     [AvaloniaFact]
-    public async Task Main_window_uses_three_Ursa_path_pickers_with_loader_and_mod_filters()
+    public async Task Main_window_uses_two_Ursa_path_pickers_and_a_quick_mod_import_action()
     {
         var applicationDataRoot = Path.Combine(
             Path.GetTempPath(),
@@ -489,14 +489,14 @@ public sealed class ThemeRenderingTests
         try
         {
             var pickers = window.GetLogicalDescendants().OfType<PathPicker>().ToArray();
-            Assert.Equal(3, pickers.Length);
+            Assert.Equal(2, pickers.Length);
             var folder = Assert.Single(pickers, picker => picker.UsePickerType == UsePickerTypes.OpenFolder);
-            var files = pickers.Where(picker => picker.UsePickerType == UsePickerTypes.OpenFile).ToArray();
-            Assert.Equal(2, files.Length);
+            var file = Assert.Single(pickers, picker => picker.UsePickerType == UsePickerTypes.OpenFile);
             Assert.Same(viewModel.ApplyVersionRootCommand, folder.Command);
-            Assert.Contains(files, picker => picker.FileFilter.Contains("*.json", StringComparison.Ordinal));
-            Assert.Contains(files, picker => picker.FileFilter.Contains("*.zip", StringComparison.Ordinal)
-                && picker.FileFilter.Contains("*.dll", StringComparison.Ordinal));
+            Assert.Contains("*.json", file.FileFilter, StringComparison.Ordinal);
+            var modImport = Assert.Single(window.GetLogicalDescendants().OfType<Button>(), button =>
+                AutomationProperties.GetName(button) == viewModel.Loc["ImportLocalMod"]);
+            Assert.Contains("cfp-quick-action", modImport.Classes);
             Assert.All(pickers, picker => Assert.True(picker.IsOmitCommandOnCancel));
             Assert.All(pickers, picker =>
                 Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(picker))));

@@ -314,15 +314,23 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     throw new InvalidOperationException("Only failed download groups can be retried.");
                 }
                 snapshot = CloneGroup(group);
-                foreach (var item in group.Items.Where(item => item.State is
-                    DownloadQueueItemState.Failed or DownloadQueueItemState.Blocked))
+                if (group.Kind == DownloadQueueGroupKind.ModDependencyRepair)
                 {
-                    item.State = DownloadQueueItemState.Pending;
-                    item.Stage = "Pending";
-                    item.Error = null;
-                    item.RetryCount = 0;
-                    item.BytesPerSecond = 0;
-                    item.CompletedAt = null;
+                    ResetRepairItems(group);
+                    UpdateGroupProgress(group);
+                }
+                else
+                {
+                    foreach (var item in group.Items.Where(item => item.State is
+                        DownloadQueueItemState.Failed or DownloadQueueItemState.Blocked))
+                    {
+                        item.State = DownloadQueueItemState.Pending;
+                        item.Stage = "Pending";
+                        item.Error = null;
+                        item.RetryCount = 0;
+                        item.BytesPerSecond = 0;
+                        item.CompletedAt = null;
+                    }
                 }
                 group.State = DownloadQueueGroupState.Pending;
                 group.Stage = "Pending";
@@ -829,6 +837,19 @@ public sealed class DownloadQueueService : IAsyncDisposable
 
     private static bool NormalizeLoadedGroup(DownloadQueueGroup group)
     {
+        if (group.Kind == DownloadQueueGroupKind.ModDependencyRepair
+            && group.State is DownloadQueueGroupState.Pending or DownloadQueueGroupState.Running
+            && !group.Items.Any(item => item.State == DownloadQueueItemState.Failed))
+        {
+            ResetRepairItems(group);
+            group.State = DownloadQueueGroupState.Pending;
+            group.Stage = "Pending";
+            group.CompletedAt = null;
+            group.Error = null;
+            UpdateGroupProgress(group);
+            return true;
+        }
+
         for (var index = 0; index < group.Items.Count; index++)
         {
             var item = group.Items[index];
@@ -879,18 +900,40 @@ public sealed class DownloadQueueService : IAsyncDisposable
 
     private static void ResetInterruptedGroup(DownloadQueueGroup group)
     {
-        foreach (var item in group.Items.Where(item => !IsTerminal(item.State)))
+        if (group.Kind == DownloadQueueGroupKind.ModDependencyRepair)
         {
-            item.State = DownloadQueueItemState.Pending;
-            item.Stage = "Pending";
-            item.BytesPerSecond = 0;
-            item.Error = null;
+            ResetRepairItems(group);
+        }
+        else
+        {
+            foreach (var item in group.Items.Where(item => !IsTerminal(item.State)))
+            {
+                item.State = DownloadQueueItemState.Pending;
+                item.Stage = "Pending";
+                item.BytesPerSecond = 0;
+                item.Error = null;
+            }
         }
         group.State = DownloadQueueGroupState.Pending;
         group.Stage = "Pending";
         group.Error = null;
         group.CompletedAt = null;
         UpdateGroupProgress(group);
+    }
+
+    private static void ResetRepairItems(DownloadQueueGroup group)
+    {
+        foreach (var item in group.Items)
+        {
+            item.State = DownloadQueueItemState.Pending;
+            item.Stage = "Pending";
+            item.Error = null;
+            item.RetryCount = 0;
+            item.CompletedBytes = 0;
+            item.BytesPerSecond = 0;
+            item.StartedAt = null;
+            item.CompletedAt = null;
+        }
     }
 
     private static void CancelGroup(DownloadQueueGroup group)

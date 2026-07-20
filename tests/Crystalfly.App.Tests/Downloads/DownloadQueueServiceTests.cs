@@ -255,6 +255,34 @@ public sealed class DownloadQueueServiceTests : IDisposable
         Assert.Equal(2, executor.StartedTransfers);
     }
 
+    [Theory]
+    [InlineData(DownloadQueueGroupKind.ModDependencyRepair, 2)]
+    [InlineData(DownloadQueueGroupKind.ModInstall, 1)]
+    public async Task Retry_replays_completed_steps_only_for_dependency_repairs(
+        DownloadQueueGroupKind groupKind,
+        int expectedLibraryTransfers)
+    {
+        var executor = new ControlledExecutor(
+            transferFailure: attempt => attempt == 2 ? new InvalidDataException("bad package") : null);
+        await using var queue = CreateQueue(executor);
+        await queue.InitializeAsync();
+        await queue.EnqueueAsync(Group(
+            "retry-steps",
+            "feature",
+            Item("library", DownloadQueueItemKind.Dependency),
+            Item("feature", DownloadQueueItemKind.Mod)) with { Kind = groupKind });
+        await queue.WaitForIdleAsync();
+
+        await queue.RetryAsync("retry-steps");
+        await queue.WaitForIdleAsync();
+
+        Assert.Equal(DownloadQueueGroupState.Completed, Assert.Single(queue.Groups).State);
+        Assert.Equal(
+            expectedLibraryTransfers,
+            executor.Events.Count(entry => entry == "transfer:library"));
+        Assert.Equal(2, executor.Events.Count(entry => entry == "transfer:feature"));
+    }
+
     [Fact]
     public async Task Failed_group_can_be_canceled_and_removed_from_persistence()
     {
@@ -389,6 +417,40 @@ public sealed class DownloadQueueServiceTests : IDisposable
 
         Assert.Equal(DownloadQueueGroupState.Completed, Assert.Single(secondQueue.Groups).State);
         Assert.Equal(1, secondExecutor.StartedTransfers);
+    }
+
+    [Theory]
+    [InlineData(DownloadQueueGroupKind.ModDependencyRepair, 1)]
+    [InlineData(DownloadQueueGroupKind.ModInstall, 0)]
+    public async Task Restart_replays_completed_steps_only_for_dependency_repairs(
+        DownloadQueueGroupKind groupKind,
+        int expectedLibraryTransfers)
+    {
+        var library = Item("library", DownloadQueueItemKind.Dependency);
+        library.State = DownloadQueueItemState.Completed;
+        library.Stage = "Completed";
+        library.CompletedAt = DateTimeOffset.UtcNow;
+        var feature = Item("feature", DownloadQueueItemKind.Mod);
+        feature.State = DownloadQueueItemState.Installing;
+        feature.Stage = "Installing";
+        var interrupted = Group("resume-steps", "feature", library, feature) with
+        {
+            Kind = groupKind,
+            State = DownloadQueueGroupState.Running,
+            Stage = "Installing"
+        };
+        await WriteStoredGroupsAsync([interrupted], CancellationToken.None);
+        var executor = new ControlledExecutor();
+        await using var queue = CreateQueue(executor);
+
+        await queue.InitializeAsync();
+        await queue.WaitForIdleAsync();
+
+        Assert.Equal(DownloadQueueGroupState.Completed, Assert.Single(queue.Groups).State);
+        Assert.Equal(
+            expectedLibraryTransfers,
+            executor.Events.Count(entry => entry == "transfer:library"));
+        Assert.Equal(1, executor.Events.Count(entry => entry == "transfer:feature"));
     }
 
     [Fact]

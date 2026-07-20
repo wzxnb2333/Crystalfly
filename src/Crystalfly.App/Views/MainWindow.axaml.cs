@@ -4,11 +4,13 @@ using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views.Dialogs;
+using Crystalfly.Core.Mods;
 using Irihi.Avalonia.Shared.Contracts;
 using Ursa.Controls;
 
@@ -269,6 +271,407 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void CloneInstanceWithName(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || sender is not Control { DataContext: InstanceItemViewModel instance })
+        {
+            return;
+        }
+        viewModel.SelectedInstance = instance;
+        var dialog = new TextInputDialogViewModel(
+            viewModel.Loc["CloneInstance"],
+            viewModel.Loc["CloneInstanceName"],
+            $"{instance.Name} {viewModel.Loc["CopySuffix"]}",
+            viewModel.Loc["CloneInstanceName"],
+            viewModel.Loc["Confirm"],
+            viewModel.Loc["Cancel"]);
+        var name = await OverlayDialog.ShowCustomAsync<
+            TextInputDialogView,
+            TextInputDialogViewModel,
+            string?>(dialog, OverlayHostId, CreateOverlayOptions());
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+        viewModel.CloneInstanceName = name;
+        await viewModel.CloneSelectedInstanceCommand.ExecuteAsync(null);
+        if (viewModel.SelectedInstance is { } selected
+            && !string.Equals(selected.Id, instance.Id, StringComparison.Ordinal))
+        {
+            viewModel.CurrentPage = "Launch";
+        }
+    }
+
+    private async void ConfirmDeleteInstance(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || sender is not Control { DataContext: InstanceItemViewModel instance })
+        {
+            return;
+        }
+        var confirmed = await ShowConfirmationAsync(
+            viewModel.Loc["DeleteInstance"],
+            viewModel.Loc["PermanentDeleteWarning"],
+            instance.Name,
+            viewModel,
+            isDangerous: true);
+        if (confirmed)
+        {
+            await viewModel.DeleteInstanceCommand.ExecuteAsync(instance);
+        }
+    }
+
+    private void OnInstalledModPointerPressed(object? sender, PointerPressedEventArgs eventArgs)
+    {
+        if (eventArgs.GetCurrentPoint(this).Properties.PointerUpdateKind != PointerUpdateKind.LeftButtonPressed
+            || eventArgs.Source is Avalonia.Visual visual && visual.FindAncestorOfType<Button>() is not null
+            || DataContext is not MainViewModel viewModel
+            || sender is not Control { DataContext: InstalledModItemViewModel item })
+        {
+            return;
+        }
+        viewModel.SelectInstalledMod(
+            item,
+            eventArgs.KeyModifiers.HasFlag(KeyModifiers.Control),
+            eventArgs.KeyModifiers.HasFlag(KeyModifiers.Shift));
+        InstalledModsList.Focus(NavigationMethod.Pointer, eventArgs.KeyModifiers);
+        eventArgs.Handled = true;
+    }
+
+    private void OnInstalledModsKeyDown(object? sender, KeyEventArgs eventArgs)
+    {
+        if (eventArgs.Key == Key.A
+            && eventArgs.KeyModifiers.HasFlag(KeyModifiers.Control)
+            && DataContext is MainViewModel viewModel)
+        {
+            viewModel.SelectAllInstalledModsCommand.Execute(null);
+            eventArgs.Handled = true;
+        }
+    }
+
+    private void OpenInstalledModInfo(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel viewModel
+            && sender is Control { DataContext: InstalledModItemViewModel item })
+        {
+            viewModel.OpenInstalledModInfoCommand.Execute(item);
+        }
+    }
+
+    private void OpenInstalledModFolder(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance } viewModel
+            || sender is not Control { DataContext: InstalledModItemViewModel item })
+        {
+            return;
+        }
+        viewModel.SelectedInstalledMod = item;
+        OpenSafeInstanceFolder(instance.RootPath, item.InstallRoot, viewModel);
+    }
+
+    private void OpenInstalledModRoot(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance } viewModel)
+        {
+            return;
+        }
+        var relative = viewModel.CurrentLoaderState == Crystalfly.Core.Models.LoaderState.BepInEx
+            ? Path.Combine("BepInEx", "plugins")
+            : Path.Combine("hollow_knight_Data", "Managed", "Mods");
+        OpenSafeInstanceFolder(instance.RootPath, relative, viewModel);
+    }
+
+    private async void ImportLocalModPackage(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = viewModel.Loc["SelectModPackageTitle"],
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType(viewModel.Loc["Mods"])
+                {
+                    Patterns = ["*.zip", "*.dll"]
+                }
+            ]
+        });
+        var path = files.FirstOrDefault()?.TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+        viewModel.LocalModPath = path;
+        await viewModel.ImportLocalModCommand.ExecuteAsync(null);
+    }
+
+    private async void ToggleHoveredInstalledMod(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel viewModel
+            && sender is Control { DataContext: InstalledModItemViewModel item })
+        {
+            viewModel.SelectedInstalledMod = item;
+            await viewModel.ToggleSelectedModCommand.ExecuteAsync(null);
+        }
+    }
+
+    private async void ConfirmHoveredModUninstall(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel viewModel
+            && sender is Control { DataContext: InstalledModItemViewModel item })
+        {
+            viewModel.SelectedInstalledMod = item;
+            await ConfirmModRemovalAsync(viewModel, bulk: false);
+        }
+    }
+
+    private async void ConfirmRepairDependencies(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+        try
+        {
+            var plan = viewModel.CreateModDependencyRepairPlan();
+            var nodes = BuildDependencyRepairNodes(viewModel, plan);
+            var dialog = new DependencyPlanDialogViewModel(
+                viewModel.Loc["RepairDependencies"],
+                viewModel.Loc["DependencyImpact"],
+                nodes,
+                viewModel.Loc["Confirm"],
+                viewModel.Loc["Cancel"],
+                nodes.Any(node => !node.IsUnresolved),
+                isDangerous: false);
+            var confirmed = await OverlayDialog.ShowCustomAsync<
+                DependencyPlanDialogView,
+                DependencyPlanDialogViewModel,
+                bool>(dialog, OverlayHostId, CreateOverlayOptions());
+            if (confirmed)
+            {
+                await viewModel.RepairModDependenciesCommand.ExecuteAsync(null);
+            }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or KeyNotFoundException)
+        {
+            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+        }
+    }
+
+    private async Task ConfirmModRemovalAsync(MainViewModel viewModel, bool bulk)
+    {
+        var plan = viewModel.CreateModRemovalPlan(bulk);
+        var installed = viewModel.InstalledMods.ToDictionary(mod => mod.Id, StringComparer.OrdinalIgnoreCase);
+        var nodes = plan.Nodes.Select(node =>
+        {
+            installed.TryGetValue(node.ModId, out var item);
+            return new DependencyPlanNodeViewModel(
+                item?.PrimaryName ?? node.ReceiptName,
+                item?.SecondaryName ?? string.Empty,
+                node.ModId,
+                node.InstallRoot,
+                node.Kind == Crystalfly.Core.Mods.ModRemovalImpactKind.WillRemove
+                    ? viewModel.Loc["WillDelete"]
+                    : viewModel.Loc["DependenciesWillBeMissing"],
+                node.Depth,
+                node.Kind == Crystalfly.Core.Mods.ModRemovalImpactKind.WillRemove,
+                isUnresolved: false);
+        }).ToArray();
+        var dialog = new DependencyPlanDialogViewModel(
+            bulk ? viewModel.Loc["ConfirmBulkUninstallTitle"] : viewModel.Loc["ConfirmModUninstallTitle"],
+            viewModel.Loc["DependencyImpact"],
+            nodes,
+            viewModel.Loc["Uninstall"],
+            viewModel.Loc["Cancel"],
+            canConfirm: true,
+            isDangerous: true);
+        var confirmed = await OverlayDialog.ShowCustomAsync<
+            DependencyPlanDialogView,
+            DependencyPlanDialogViewModel,
+            bool>(dialog, OverlayHostId, CreateOverlayOptions());
+        if (confirmed)
+        {
+            if (bulk)
+            {
+                await viewModel.UninstallSelectedModsCommand.ExecuteAsync(null);
+            }
+            else
+            {
+                await viewModel.UninstallSelectedModCommand.ExecuteAsync(null);
+            }
+        }
+    }
+
+    private static void OpenSafeInstanceFolder(
+        string instanceRoot,
+        string relativePath,
+        MainViewModel viewModel)
+    {
+        try
+        {
+            var target = ResolveSafeInstanceFolder(instanceRoot, relativePath);
+            Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is IOException
+            or UnauthorizedAccessException
+            or InvalidOperationException
+            or ArgumentException
+            or Win32Exception)
+        {
+            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+        }
+    }
+
+    private static string ResolveSafeInstanceFolder(string instanceRoot, string relativePath)
+    {
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(instanceRoot));
+        if (!Directory.Exists(root))
+        {
+            throw new DirectoryNotFoundException($"Instance root '{root}' was not found.");
+        }
+        RejectReparsePoint(root);
+
+        var target = Path.GetFullPath(Path.Combine(
+            root,
+            relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        var rootPrefix = root + Path.DirectorySeparatorChar;
+        if (!target.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("The requested Mod path is outside the selected instance.");
+        }
+
+        var current = root;
+        foreach (var segment in Path.GetRelativePath(root, target).Split(
+                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, segment);
+            if (!Directory.Exists(current))
+            {
+                throw new DirectoryNotFoundException($"Mod directory '{current}' was not found.");
+            }
+            RejectReparsePoint(current);
+        }
+        return target;
+    }
+
+    private static void RejectReparsePoint(string path)
+    {
+        if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+        {
+            throw new IOException($"Cannot open reparse point '{path}'.");
+        }
+    }
+
+    private static IReadOnlyList<DependencyPlanNodeViewModel> BuildDependencyRepairNodes(
+        MainViewModel viewModel,
+        ModDependencyRepairPlan plan)
+    {
+        var installed = viewModel.InstalledMods.ToDictionary(mod => mod.Id, StringComparer.OrdinalIgnoreCase);
+        var items = plan.Items.ToDictionary(item => item.ModId, StringComparer.OrdinalIgnoreCase);
+        var children = plan.Items
+            .SelectMany(item => item.RequiredByModIds.Select(parent => (Parent: parent, Item: item)))
+            .GroupBy(link => link.Parent, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(link => link.Item).ToArray(),
+                StringComparer.OrdinalIgnoreCase);
+        var nodes = new List<DependencyPlanNodeViewModel>();
+        var rendered = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var roots = plan.Items.SelectMany(item => item.RequiredByModIds)
+            .Where(id => !items.ContainsKey(id))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        foreach (var rootId in roots)
+        {
+            installed.TryGetValue(rootId, out var root);
+            nodes.Add(NewNode(
+                root?.PrimaryName ?? rootId,
+                root?.SecondaryName ?? string.Empty,
+                rootId,
+                root?.InstallRoot ?? string.Empty,
+                root is null ? viewModel.Loc["Missing"] : root.IsEnabled ? viewModel.Loc["Enabled"] : viewModel.Loc["Disabled"],
+                0,
+                isTarget: true,
+                isUnresolved: false));
+            AppendChildren(rootId, 1, new HashSet<string>(StringComparer.OrdinalIgnoreCase) { rootId });
+        }
+        foreach (var item in plan.Items.Where(item => !rendered.Contains(item.ModId)))
+        {
+            AppendItem(item, 0, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        }
+        return nodes;
+
+        void AppendChildren(string parentId, int depth, HashSet<string> path)
+        {
+            if (!children.TryGetValue(parentId, out var childItems))
+            {
+                return;
+            }
+            foreach (var child in childItems)
+            {
+                AppendItem(child, depth, path);
+            }
+        }
+
+        void AppendItem(
+            ModDependencyRepairPlanItem item,
+            int depth,
+            IReadOnlySet<string> parentPath)
+        {
+            if (parentPath.Contains(item.ModId))
+            {
+                return;
+            }
+            rendered.Add(item.ModId);
+            installed.TryGetValue(item.ModId, out var current);
+            var currentStatus = current is null
+                ? viewModel.Loc["Missing"]
+                : current.IsEnabled ? viewModel.Loc["Enabled"] : viewModel.Loc["Disabled"];
+            var actionStatus = item.Action switch
+            {
+                ModDependencyRepairAction.ReEnable => viewModel.Loc["WillReEnable"],
+                ModDependencyRepairAction.DownloadAndInstall => viewModel.Loc["WillDownloadAndInstall"],
+                _ => viewModel.Loc["CannotRepair"]
+            };
+            nodes.Add(NewNode(
+                current?.PrimaryName ?? item.Name,
+                current?.SecondaryName ?? string.Empty,
+                item.ModId,
+                current?.InstallRoot ?? string.Empty,
+                $"{currentStatus} · {actionStatus}",
+                depth,
+                isTarget: false,
+                isUnresolved: item.Action == ModDependencyRepairAction.Unresolved));
+            var path = new HashSet<string>(parentPath, StringComparer.OrdinalIgnoreCase) { item.ModId };
+            AppendChildren(item.ModId, depth + 1, path);
+        }
+
+        DependencyPlanNodeViewModel NewNode(
+            string primaryName,
+            string secondaryName,
+            string modId,
+            string installRoot,
+            string status,
+            int depth,
+            bool isTarget,
+            bool isUnresolved) => new(
+                primaryName,
+                secondaryName,
+                modId,
+                installRoot,
+                status,
+                depth,
+                isTarget,
+                isUnresolved,
+                viewModel.Loc["Target"],
+                viewModel.Loc["Unresolved"]);
+    }
     private async void ConfirmUninstallLoader(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is not MainViewModel viewModel || viewModel.SelectedInstance is null)
@@ -289,53 +692,17 @@ public partial class MainWindow : Window
 
     private async void ConfirmUninstallMod(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel || viewModel.SelectedInstalledMod is null)
+        if (DataContext is MainViewModel viewModel)
         {
-            return;
-        }
-        var dependents = viewModel.GetSelectedModExternalDependentNames(bulk: false);
-        var message = viewModel.Loc["ConfirmModUninstallMessage"];
-        if (dependents.Count > 0)
-        {
-            message += $"{Environment.NewLine}{Environment.NewLine}{viewModel.Loc["CannotUninstallDependents"]} "
-                + string.Join(", ", dependents);
-        }
-        var confirmed = await ShowConfirmationAsync(
-            viewModel.Loc["ConfirmModUninstallTitle"],
-            message,
-            viewModel.SelectedInstalledMod.Name,
-            viewModel,
-            canConfirm: dependents.Count == 0,
-            isDangerous: true);
-        if (confirmed)
-        {
-            await viewModel.UninstallSelectedModCommand.ExecuteAsync(null);
+            await ConfirmModRemovalAsync(viewModel, bulk: false);
         }
     }
 
     private async void ConfirmBulkUninstallMods(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel || !viewModel.HasSelectedMods)
+        if (DataContext is MainViewModel viewModel && viewModel.HasSelectedMods)
         {
-            return;
-        }
-        var dependents = viewModel.GetSelectedModExternalDependentNames(bulk: true);
-        var message = viewModel.Loc["ConfirmBulkUninstallMessage"];
-        if (dependents.Count > 0)
-        {
-            message += $"{Environment.NewLine}{Environment.NewLine}{viewModel.Loc["CannotUninstallDependents"]} "
-                + string.Join(", ", dependents);
-        }
-        var confirmed = await ShowConfirmationAsync(
-            viewModel.Loc["ConfirmBulkUninstallTitle"],
-            message,
-            viewModel.GetSelectedModNames(bulk: true),
-            viewModel,
-            canConfirm: dependents.Count == 0,
-            isDangerous: true);
-        if (confirmed)
-        {
-            await viewModel.UninstallSelectedModsCommand.ExecuteAsync(null);
+            await ConfirmModRemovalAsync(viewModel, bulk: true);
         }
     }
 

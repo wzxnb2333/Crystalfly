@@ -344,6 +344,85 @@ public sealed class CatalogPackageQueueExecutorTests : IDisposable
     }
 
     [Fact]
+    public async Task Dependency_repair_reenables_without_network_transfer()
+    {
+        using var fixture = await CreateFixtureAsync();
+        var loader = fixture.Group.Items[0];
+        var library = fixture.Group.Items[1];
+        await fixture.Executor.TransferAsync(
+            fixture.Group, loader, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+        await fixture.Executor.InstallAsync(fixture.Group, loader, CancellationToken.None);
+        await fixture.Executor.TransferAsync(
+            fixture.Group, library, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+        await fixture.Executor.InstallAsync(fixture.Group, library, CancellationToken.None);
+        var manager = ModManager(fixture);
+        await manager.SetEnabledAsync("library", enabled: false);
+        var repair = RepairGroup(
+            fixture,
+            Item("library", DownloadQueueItemKind.DependencyReEnable, LoaderId));
+        var requestCount = fixture.Handler.RequestCount;
+
+        await fixture.Executor.TransferAsync(
+            repair, repair.Items[0], new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+        await fixture.Executor.InstallAsync(repair, repair.Items[0], CancellationToken.None);
+
+        Assert.Equal(requestCount, fixture.Handler.RequestCount);
+        Assert.True((await manager.GetInstalledAsync()).Single(mod => mod.Id == "library").Enabled);
+    }
+
+    [Fact]
+    public async Task Dependency_repair_downloads_and_installs_missing_dependency()
+    {
+        using var fixture = await CreateFixtureAsync();
+        var loader = fixture.Group.Items[0];
+        await fixture.Executor.TransferAsync(
+            fixture.Group, loader, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+        await fixture.Executor.InstallAsync(fixture.Group, loader, CancellationToken.None);
+        var repair = RepairGroup(fixture, fixture.Group.Items[1]);
+
+        await fixture.Executor.TransferAsync(
+            repair, repair.Items[0], new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+        await fixture.Executor.InstallAsync(repair, repair.Items[0], CancellationToken.None);
+
+        var receipt = Assert.Single(await ModManager(fixture).GetInstalledAsync());
+        Assert.Equal("library", receipt.Id);
+        Assert.True(receipt.Enabled);
+    }
+
+    [Fact]
+    public async Task Dependency_repair_rechecks_instance_build_before_transfer()
+    {
+        using var fixture = await CreateFixtureAsync();
+        var repair = RepairGroup(fixture, fixture.Group.Items[1]);
+        var instance = await InstanceSidecar.LoadAsync(fixture.InstanceRoot);
+        await InstanceSidecar.SaveAsync(instance with { BuildId = "changed" });
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            fixture.Executor.TransferAsync(
+                repair, repair.Items[0], new InlineProgress(_ => { }), networkGate, CancellationToken.None));
+
+        Assert.Contains("build", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, fixture.Handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task Dependency_repair_reenable_fails_when_receipt_disappears()
+    {
+        using var fixture = await CreateFixtureAsync();
+        var loader = fixture.Group.Items[0];
+        await fixture.Executor.TransferAsync(
+            fixture.Group, loader, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+        await fixture.Executor.InstallAsync(fixture.Group, loader, CancellationToken.None);
+        var repair = RepairGroup(
+            fixture,
+            Item("library", DownloadQueueItemKind.DependencyReEnable, LoaderId));
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            fixture.Executor.TransferAsync(
+                repair, repair.Items[0], new InlineProgress(_ => { }), networkGate, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Concurrent_instances_share_one_cache_transfer_for_the_same_sha()
     {
         using var fixture = await CreateFixtureAsync();
@@ -569,6 +648,32 @@ public sealed class CatalogPackageQueueExecutorTests : IDisposable
             SupportedBuildIds = [BuildId],
             Dependencies = dependencies ?? []
         };
+
+    private static DownloadQueueGroup RepairGroup(Fixture fixture, params DownloadQueueItem[] items) => new()
+    {
+        Id = Guid.NewGuid().ToString("N"),
+        DeduplicationKey = "practice:repair:modding-api-77",
+        Kind = DownloadQueueGroupKind.ModDependencyRepair,
+        Name = "Repair dependencies",
+        TargetInstanceId = "practice",
+        TargetInstanceName = "Practice",
+        TargetInstanceRoot = fixture.InstanceRoot,
+        ExpectedBuildId = BuildId,
+        ExpectedLoaderId = LoaderId,
+        CreatedAt = DateTimeOffset.UtcNow,
+        Items = items
+    };
+
+    private static ModManager ModManager(Fixture fixture)
+    {
+        var dataRoot = Path.Combine(fixture.VersionRoot, ".crystalfly");
+        return new ModManager(
+            fixture.InstanceRoot,
+            Path.Combine(dataRoot, "transactions"),
+            Path.Combine(dataRoot, "instances", "practice", "mods"),
+            Path.Combine(dataRoot, "packages"),
+            fixture.Client);
+    }
 
     private static DownloadQueueItem Item(
         string id,
