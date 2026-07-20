@@ -161,12 +161,24 @@
                                 </StackPanel>
                             </Button>
                             <Button Classes="cfp-secondary"
-                                     MinHeight="40"
-                                     HorizontalAlignment="Stretch"
-                                     HorizontalContentAlignment="Center"
-                                     Command="{Binding SelectPageCommand}"
-                                    CommandParameter="Versions"
-                                    Content="{Binding Loc[NavVersions]}" />
+                                      MinHeight="40"
+                                      HorizontalAlignment="Stretch"
+                                      HorizontalContentAlignment="Center"
+                                      Command="{Binding SelectPageCommand}"
+                                      CommandParameter="Versions"
+                                      Content="{Binding Loc[NavVersions]}" />
+                            <Button Classes="cfp-secondary"
+                                    MinHeight="40"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    Command="{Binding OpenInstanceSettingsCommand}"
+                                    CommandParameter="{Binding SelectedInstance}"
+                                    IsEnabled="{Binding HasInstance}">
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                    <LucideIcon Kind="Settings" Size="16" />
+                                    <TextBlock Text="{Binding Loc[ManageInstance]}" />
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -304,34 +316,44 @@
                                          SelectedItem="{Binding SelectedInstance, Mode=TwoWay}">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="vm:InstanceItemViewModel">
-                                            <Grid Classes="cfp-instance-row" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                                <Button Grid.Column="0"
+                                            <Grid Classes="cfp-instance-row"
+                                                  ColumnDefinitions="*,Auto"
+                                                  ColumnSpacing="8"
+                                                  HorizontalAlignment="Stretch">
+                                                <Button Grid.ColumnSpan="2"
                                                         Classes="cfp-instance-main"
                                                         Command="{Binding #Root.DataContext.SelectInstanceForLaunchCommand}"
                                                         CommandParameter="{Binding}"
-                                                        HorizontalContentAlignment="Stretch">
-                                                    <Grid ColumnDefinitions="44,*" ColumnSpacing="12">
-                                                        <Border Width="40" Height="40" CornerRadius="6"
-                                                                Background="{DynamicResource CfSurfaceHoverBrush}">
-                                                            <LucideIcon Kind="Box" Size="18"
-                                                                        HorizontalAlignment="Center"
-                                                                        VerticalAlignment="Center" />
-                                                        </Border>
-                                                        <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
-                                                            <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                                            <WrapPanel Orientation="Horizontal">
-                                                                <TextBlock Classes="cfp-meta" Text="{Binding DisplayVersion}" />
-                                                                <TextBlock Classes="cfp-meta" Margin="8,0" Text="{Binding LoaderDisplay}" TextTrimming="CharacterEllipsis" />
-                                                                <TextBlock Classes="cfp-meta" Margin="0,0,4,0" Text="{Binding ModCount}" />
-                                                                <TextBlock Classes="cfp-meta" Text="Mods" />
-                                                            </WrapPanel>
-                                                        </StackPanel>
-                                                    </Grid>
-                                                </Button>
+                                                        HorizontalAlignment="Stretch"
+                                                        VerticalAlignment="Stretch" />
+                                                <Grid Grid.Column="0"
+                                                      Classes="cfp-instance-summary"
+                                                      ColumnDefinitions="44,*"
+                                                      ColumnSpacing="12"
+                                                      HorizontalAlignment="Left"
+                                                      IsHitTestVisible="False">
+                                                    <Border Width="40" Height="40" CornerRadius="6"
+                                                            Background="{DynamicResource CfSurfaceHoverBrush}">
+                                                        <LucideIcon Kind="Box" Size="18"
+                                                                    HorizontalAlignment="Center"
+                                                                    VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                                                        <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                        <WrapPanel Orientation="Horizontal">
+                                                            <TextBlock Classes="cfp-meta" Text="{Binding DisplayVersion}" />
+                                                            <TextBlock Classes="cfp-meta" Margin="8,0" Text="{Binding LoaderDisplay}" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Classes="cfp-meta" Margin="0,0,4,0" Text="{Binding ModCount}" />
+                                                            <TextBlock Classes="cfp-meta" Text="Mods" />
+                                                        </WrapPanel>
+                                                    </StackPanel>
+                                                </Grid>
                                                 <StackPanel Grid.Column="1"
                                                             Classes="cfp-instance-actions"
                                                             Orientation="Horizontal"
                                                             Spacing="2"
+                                                            Width="94"
+                                                            HorizontalAlignment="Right"
                                                             VerticalAlignment="Center">
                                                     <Button Classes="cfp-instance-action"
                                                             Click="ConfirmDeleteInstance"

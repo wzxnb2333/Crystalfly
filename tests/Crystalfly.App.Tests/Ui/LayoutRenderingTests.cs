@@ -395,7 +395,7 @@ public sealed class LayoutRenderingTests
                 .OfType<Button>()
                 .Where(button => button.IsEffectivelyVisible)
                 .ToArray();
-            Assert.Equal(2, buttons.Length);
+            Assert.Equal(3, buttons.Length);
 
             var origins = buttons
                 .Select(button => Assert.IsType<Point>(button.TranslatePoint(default, rail)))
@@ -404,6 +404,74 @@ public sealed class LayoutRenderingTests
             Assert.All(buttons, button => Assert.Equal(HorizontalAlignment.Center, button.HorizontalContentAlignment));
             Assert.All(buttons, button => Assert.InRange(Math.Abs(button.Bounds.Width - buttons[0].Bounds.Width), 0, 0.5));
             Assert.True(origins[1].Y >= origins[0].Y + buttons[0].Bounds.Height + 7.5);
+            Assert.True(origins[2].Y >= origins[1].Y + buttons[1].Bounds.Height + 7.5);
+        }
+        finally
+        {
+            CloseImmediately(window);
+        }
+    }
+
+    [AvaloniaFact]
+    public void Instance_rows_keep_summary_left_and_selected_actions_visible()
+    {
+        var viewModel = new MainViewModel(Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N")))
+        {
+            CurrentPage = "Versions"
+        };
+        var instances = Enumerable.Range(1, 3)
+            .Select(index => new InstanceItemViewModel(
+                new InstanceRecord
+                {
+                    Id = $"instance-{index}",
+                    Name = $"Hollow Knight {index}",
+                    RootPath = Path.Combine(Path.GetTempPath(), $"hollow-knight-{index}"),
+                    BuildId = "1.5.78.11833",
+                    CreatedAt = DateTimeOffset.UtcNow
+                },
+                "1.5.78.11833",
+                "modding-api-77",
+                index))
+            .ToArray();
+        foreach (var instance in instances)
+        {
+            viewModel.Instances.Add(instance);
+            viewModel.VisibleInstances.Add(instance);
+        }
+        viewModel.SelectedInstance = instances[1];
+
+        var window = new MainWindow { Width = 1100, Height = 720 };
+        window.Show();
+        window.DataContext = viewModel;
+        Dispatcher.UIThread.RunJobs();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+
+        try
+        {
+            var rows = window.GetVisualDescendants()
+                .OfType<Grid>()
+                .Where(grid => grid.Classes.Contains("cfp-instance-row"))
+                .ToArray();
+            Assert.Equal(3, rows.Length);
+
+            foreach (var row in rows)
+            {
+                var summary = row.Children.OfType<Grid>().Single(grid => grid.Classes.Contains("cfp-instance-summary"));
+                var actions = row.Children.OfType<StackPanel>().Single(panel => panel.Classes.Contains("cfp-instance-actions"));
+                var main = row.Children.OfType<Button>().Single(button => button.Classes.Contains("cfp-instance-main"));
+                var summaryOrigin = Assert.IsType<Point>(summary.TranslatePoint(default, row));
+                var actionsOrigin = Assert.IsType<Point>(actions.TranslatePoint(default, row));
+
+                Assert.InRange(summaryOrigin.X, 0, 0.5);
+                Assert.InRange(actionsOrigin.X, row.Bounds.Width - 94.5, row.Bounds.Width - 93.5);
+                Assert.InRange(Math.Abs(main.Bounds.Width - row.Bounds.Width), 0, 0.5);
+            }
+
+            var selectedRow = rows.Single(row => ReferenceEquals(row.DataContext, instances[1]));
+            var selectedActions = selectedRow.Children.OfType<StackPanel>()
+                .Single(panel => panel.Classes.Contains("cfp-instance-actions"));
+            Assert.Equal(1, selectedActions.Opacity);
+            Assert.True(selectedActions.IsHitTestVisible);
         }
         finally
         {
