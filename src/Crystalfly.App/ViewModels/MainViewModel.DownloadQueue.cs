@@ -45,7 +45,7 @@ public partial class MainViewModel
     {
         var packageExecutor = new CatalogPackageQueueExecutor(
             () => catalog,
-            PackageHttpClient,
+            packageHttpClient,
             instanceOperationCoordinator,
             static () => new SystemHollowKnightProcessProbe().IsRunning());
         var executor = new SteamDownloadQueueExecutor(

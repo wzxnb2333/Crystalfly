@@ -57,6 +57,22 @@ public sealed class ModMarketRenderingTests
         Assert.Equal(failed, localization["CatalogFailed"]);
     }
 
+    [AvaloniaTheory]
+    [InlineData(UiLanguage.SimplifiedChinese, "下载线路", "GitHub 直连", "GitHub 镜像")]
+    [InlineData(UiLanguage.English, "Download route", "GitHub direct", "GitHub mirror")]
+    public void GitHub_download_routes_are_localized(
+        UiLanguage language,
+        string title,
+        string direct,
+        string mirror)
+    {
+        var localization = new LocalizationViewModel();
+        localization.Apply(language);
+
+        Assert.Equal(title, localization["GitHubRoute"]);
+        Assert.Equal(direct, localization["GitHubDirect"]);
+        Assert.Equal(mirror, localization["GitHubMirror"]);
+    }
     [AvaloniaFact]
     public void Downloads_use_a_176_pixel_rail_with_game_market_and_queue_sections()
     {
@@ -205,6 +221,23 @@ public sealed class ModMarketRenderingTests
         }
     }
 
+    [AvaloniaFact]
+    public void Settings_show_GitHub_download_route_selector()
+    {
+        var (window, viewModel) = Show(page: "Settings");
+        try
+        {
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text =>
+                text.IsEffectivelyVisible && text.Text == viewModel.Loc["GitHubRoute"]);
+            Assert.Contains(window.GetVisualDescendants().OfType<ComboBox>(), comboBox =>
+                comboBox.IsEffectivelyVisible
+                && AutomationProperties.GetName(comboBox) == viewModel.Loc["GitHubRoute"]);
+        }
+        finally
+        {
+            CloseImmediately(window);
+        }
+    }
     [AvaloniaFact]
     public async Task Market_install_dialog_lists_targets_and_disables_blocked_instances()
     {

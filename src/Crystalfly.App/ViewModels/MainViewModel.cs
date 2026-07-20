@@ -13,6 +13,7 @@ using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Instances;
 using Crystalfly.Core.Loaders;
 using Crystalfly.Core.LocalLow;
+using Crystalfly.Core.Networking;
 using Crystalfly.Core.Logs;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Mods;
@@ -31,8 +32,9 @@ namespace Crystalfly.App.ViewModels;
 
 public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 {
-    private static readonly HttpClient MetadataHttpClient = new() { Timeout = TimeSpan.FromSeconds(15) };
-    private static readonly HttpClient PackageHttpClient = new() { Timeout = TimeSpan.FromMinutes(30) };
+    private readonly HttpClient metadataHttpClient;
+    private readonly HttpClient directMetadataHttpClient = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private readonly HttpClient packageHttpClient;
     private readonly CrystalflyPaths paths;
     private readonly string settingsPath;
     private GameCatalog catalog;
@@ -92,6 +94,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         tokenStore = new DpapiRefreshTokenStore(Path.Combine(paths.ApplicationDataRoot, "steam-token.dat"));
         catalog = EmbeddedCatalog.Load();
         modTranslations = EmbeddedModTranslationCatalog.Load();
+        metadataHttpClient = new HttpClient(new GitHubDownloadRouteHandler(
+            () => settings.GitHubDownloadRoute,
+            new HttpClientHandler())) { Timeout = TimeSpan.FromSeconds(15) };
+        packageHttpClient = new HttpClient(new GitHubDownloadRouteHandler(
+            () => settings.GitHubDownloadRoute,
+            new HttpClientHandler())) { Timeout = TimeSpan.FromMinutes(30) };
         Loc = new LocalizationViewModel();
         downloadQueue = downloadQueueOverride ?? CreateDownloadQueue();
         downloadQueue.QueueChanged += OnDownloadQueueChanged;
@@ -147,6 +155,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public ObservableCollection<SettingOption<UiLanguage>> LanguageOptions { get; } = [];
 
     public ObservableCollection<SettingOption<UiTheme>> ThemeOptions { get; } = [];
+
+    public ObservableCollection<SettingOption<GitHubDownloadRoute>> GitHubRouteOptions { get; } = [];
 
     public ObservableCollection<DownloadBuildOption> DownloadBuilds { get; } = [];
 
@@ -395,6 +405,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial SettingOption<UiTheme>? SelectedTheme { get; set; }
+    [ObservableProperty]
+    public partial SettingOption<GitHubDownloadRoute>? SelectedGitHubRoute { get; set; }
+
 
     public Task InitializeAsync()
     {
@@ -1493,7 +1506,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                             TransactionRoot = Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
                             PackageCacheRoot = Path.Combine(paths.GetVersionDataRoot(VersionRoot), "packages"),
                             LoadNormaliserSeconds = SelectedLoadNormaliserSeconds,
-                            HttpClient = PackageHttpClient
+                            HttpClient = packageHttpClient
                         });
                     }
                     clone = clone with
@@ -1711,6 +1724,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ApplyTheme(value.Value);
         _ = QueueSettingsSave();
     }
+    partial void OnSelectedGitHubRouteChanged(SettingOption<GitHubDownloadRoute>? value)
+    {
+        if (value is null || value.Value == settings.GitHubDownloadRoute)
+        {
+            return;
+        }
+        settings = settings with { GitHubDownloadRoute = value.Value };
+        _ = QueueSettingsSave();
+    }
+
 
     private void ApplyInstanceFilter()
     {
@@ -1878,6 +1901,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ThemeOptions.Add(new(UiTheme.Dark, Loc["Dark"]));
         SelectedLanguage = LanguageOptions.First(option => option.Value == settings.Language);
         SelectedTheme = ThemeOptions.First(option => option.Value == settings.Theme);
+        GitHubRouteOptions.Clear();
+        GitHubRouteOptions.Add(new(GitHubDownloadRoute.Direct, Loc["GitHubDirect"]));
+        GitHubRouteOptions.Add(new(GitHubDownloadRoute.Mirror, Loc["GitHubMirror"]));
+        SelectedGitHubRoute = GitHubRouteOptions.First(option => option.Value == settings.GitHubDownloadRoute);
     }
 
     private void ApplyLanguage(UiLanguage language)
@@ -2378,10 +2405,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var result = await CatalogProvider.LoadAsync(
             new Uri("https://raw.githubusercontent.com/wzxnb2333/Crystalfly/main/catalog/catalog.v1.json"),
             Path.Combine(paths.ApplicationDataRoot, "catalog", "catalog.v1.json"),
-            MetadataHttpClient,
+            metadataHttpClient,
             cancellationToken: cancellationToken);
         officialCatalogResult = await OfficialCatalogSource.LoadAsync(
-            MetadataHttpClient,
+            metadataHttpClient,
             Path.Combine(paths.ApplicationDataRoot, "catalog", "hk-modlinks.v77.json"),
             cancellationToken);
         if (officialCatalogResult.Status != OfficialCatalogLoadStatus.Failed)
@@ -2389,7 +2416,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             result = CatalogMerger.Merge(result, null, null, [officialCatalogResult.Catalog]);
         }
         modTranslationResult = await ModTranslationSource.LoadAsync(
-            MetadataHttpClient,
+            metadataHttpClient,
             Path.Combine(paths.ApplicationDataRoot, "catalog", "mod-translations.zh-CN.v1.json"),
             cancellationToken);
         modTranslations = modTranslationResult.Catalog;
@@ -2413,7 +2440,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 customCatalogs.Add(await CustomCatalogSource.LoadAsync(
                     definition.Namespace,
                     new Uri(definition.Url),
-                    MetadataHttpClient,
+                    directMetadataHttpClient,
                     cancellationToken));
             }
             catch (Exception exception) when (exception is HttpRequestException
@@ -2472,7 +2499,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
             Path.Combine(stateRoot, "loader.json"),
             Path.Combine(paths.GetVersionDataRoot(VersionRoot), "packages"),
-            PackageHttpClient);
+            packageHttpClient);
     }
 
     private ModManager CreateModManager(InstanceRecord record) => new(
@@ -2480,7 +2507,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
         Path.Combine(GetInstanceStateRoot(record.Id), "mods"),
         Path.Combine(paths.GetVersionDataRoot(VersionRoot), "packages"),
-        PackageHttpClient);
+        packageHttpClient);
 
     private ModInstallService CreateModInstallService(InstanceRecord record) => new(
         record,
@@ -2573,6 +2600,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             {
                 QrCodeImage = null;
                 steamConnectionGate.Dispose();
+                metadataHttpClient.Dispose();
+                directMetadataHttpClient.Dispose();
+                packageHttpClient.Dispose();
                 lifetimeCancellation.Dispose();
             }
         }
