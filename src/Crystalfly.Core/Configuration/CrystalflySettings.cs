@@ -14,6 +14,12 @@ public enum UiTheme
     Dark
 }
 
+public enum GitHubDownloadRoute
+{
+    Direct,
+    Mirror
+}
+
 public sealed record CrystalflySettings
 {
     public const int CurrentSchemaVersion = 1;
@@ -27,6 +33,8 @@ public sealed record CrystalflySettings
     public UiLanguage Language { get; init; } = UiLanguage.FollowSystem;
 
     public UiTheme Theme { get; init; } = UiTheme.System;
+
+    public GitHubDownloadRoute GitHubDownloadRoute { get; init; } = GitHubDownloadRoute.Direct;
 
     public IReadOnlyList<CustomCatalogDefinition> CustomCatalogs { get; init; } = [];
 }

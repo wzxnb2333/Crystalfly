@@ -90,6 +90,7 @@ public sealed class MainViewModelStateTests : IDisposable
 
         viewModel.SelectedLanguage = new(UiLanguage.English, "English");
         viewModel.SelectedTheme = new(UiTheme.Dark, "Dark");
+        viewModel.SelectedGitHubRoute = new(GitHubDownloadRoute.Mirror, "GitHub mirror");
         viewModel.SelectedInstance = new(
             Instance("practice", instanceRoot),
             "1.5.78.11833",
@@ -101,6 +102,7 @@ public sealed class MainViewModelStateTests : IDisposable
             Path.Combine(applicationDataRoot, "settings.json"));
         Assert.Equal(UiLanguage.English, saved.Language);
         Assert.Equal(UiTheme.Dark, saved.Theme);
+        Assert.Equal(GitHubDownloadRoute.Mirror, saved.GitHubDownloadRoute);
         Assert.Equal("practice", saved.CurrentInstanceId);
     }
 

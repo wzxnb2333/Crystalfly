@@ -1592,6 +1592,27 @@
                                 </StackPanel>
                             </Grid>
                         </Border>
+                        <Border Classes="cfp-card">
+                            <Grid ColumnDefinitions="*,16,*">
+                                <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                                    <TextBlock Classes="cfp-row-title" Text="{Binding Loc[GitHubRoute]}" />
+                                    <TextBlock Classes="cfp-caption"
+                                               Text="{Binding Loc[GitHubRouteHint]}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ComboBox Grid.Column="2"
+                                          Classes="cfp-input"
+                                          ItemsSource="{Binding GitHubRouteOptions}"
+                                          SelectedItem="{Binding SelectedGitHubRoute, Mode=TwoWay}"
+                                          AutomationProperties.Name="{Binding Loc[GitHubRoute]}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Name}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+                        </Border>
 
                         <Border Classes="cfp-card">
                             <StackPanel Spacing="6">

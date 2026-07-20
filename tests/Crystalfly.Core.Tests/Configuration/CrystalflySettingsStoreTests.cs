@@ -13,6 +13,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         var defaults = await CrystalflySettingsStore.LoadAsync(path);
         Assert.Equal(UiLanguage.FollowSystem, defaults.Language);
         Assert.Equal(UiTheme.System, defaults.Theme);
+        Assert.Equal(GitHubDownloadRoute.Direct, defaults.GitHubDownloadRoute);
 
         var expected = defaults with
         {
@@ -20,6 +21,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
             CurrentInstanceId = "practice-1578",
             Language = UiLanguage.SimplifiedChinese,
             Theme = UiTheme.Dark,
+            GitHubDownloadRoute = GitHubDownloadRoute.Mirror,
             CustomCatalogs =
             [
                 new CustomCatalogDefinition
@@ -35,6 +37,22 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         Assert.Equal(expected with { CustomCatalogs = [] }, actual with { CustomCatalogs = [] });
         Assert.Equal(expected.CustomCatalogs, actual.CustomCatalogs);
     }
+    [Fact]
+    public async Task Load_legacy_settings_without_route_uses_direct_GitHub()
+    {
+        var path = Path.Combine(root, "legacy-settings.json");
+        Directory.CreateDirectory(root);
+        await File.WriteAllTextAsync(
+            path,
+            """
+            {"schemaVersion":1,"language":"english","theme":"dark","customCatalogs":[]}
+            """);
+
+        var settings = await CrystalflySettingsStore.LoadAsync(path);
+
+        Assert.Equal(GitHubDownloadRoute.Direct, settings.GitHubDownloadRoute);
+    }
+
 
     public void Dispose()
     {

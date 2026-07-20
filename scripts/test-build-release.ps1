@@ -34,8 +34,8 @@ $absoluteIsccPathPattern = '(?i)-IsccPath\s+[''"]?[A-Z]:[\\/]'
 if ($source -notmatch "\[ValidateSet\('win-x64'\)\]") {
     throw 'Runtime must be restricted to win-x64 before release paths are constructed.'
 }
-if ($source -notmatch '(?m)\[string\]\$Version\s*=\s*''0\.1\.9''') {
-    throw 'Release build must default to version 0.1.9.'
+if ($source -notmatch '(?m)\[string\]\$Version\s*=\s*''0\.1\.10''') {
+    throw 'Release build must default to version 0.1.10.'
 }
 if ($source -notmatch '(?m)-p:CopyOutputSymbolsToPublishDirectory=false') {
     throw 'Release publish must exclude debug symbols from the publish directory.'
@@ -67,9 +67,9 @@ if ('-IsccPath "Z:/Tools/Inno Setup 6/ISCC.exe"' -notmatch $absoluteIsccPathPatt
 if ($readme -match $absoluteIsccPathPattern) {
     throw 'README must not hard-code a machine-specific Inno Setup path.'
 }
-$releaseCommandPattern = '(?i)build-release\.ps1[''"`\s\\\r\n]+-Version\s+[''"]0\.1\.9[''"]'
+$releaseCommandPattern = '(?i)build-release\.ps1[''"`\s\\\r\n]+-Version\s+[''"]0\.1\.10[''"]'
 if ($readme -notmatch $releaseCommandPattern) {
-    throw 'README must pin local release builds to version 0.1.9.'
+    throw 'README must pin local release builds to version 0.1.10.'
 }
 $englishReadme = [regex]::Match($readme, '(?ms)^## English\s*(?<content>.*)$').Groups['content'].Value
 if (
@@ -313,7 +313,7 @@ try {
         throw 'ZIP inventory accepted a file not present in the portable directory.'
     }
 
-    $installer = Join-Path $installerOutput 'Crystalfly-0.1.9-win-x64-setup.exe'
+    $installer = Join-Path $installerOutput 'Crystalfly-0.1.10-win-x64-setup.exe'
     Set-Content -LiteralPath $installer -Value 'installer'
     $checksums = Join-Path $artifacts 'SHA256SUMS.txt'
     Write-ArtifactChecksums -Paths $zip, $installer -ArtifactsPath $artifacts -OutputPath $checksums
@@ -321,7 +321,7 @@ try {
     if (-not ($checksumLines -match '\*portable\.zip$')) {
         throw 'Checksums must address the portable archive from the artifacts root.'
     }
-    if (-not ($checksumLines -match '\*installer/Crystalfly-0\.1\.9-win-x64-setup\.exe$')) {
+    if (-not ($checksumLines -match '\*installer/Crystalfly-0\.1\.10-win-x64-setup\.exe$')) {
         throw 'Checksums must address the installer relative to the artifacts root.'
     }
 }
