@@ -28,10 +28,17 @@ Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 
 [InstallDelete]
 Type: files; Name: "{app}\Avalonia.Themes.Fluent.dll"
+Type: files; Name: "{app}\portable.flag"
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\Crystalfly.App.exe"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\Crystalfly.App.exe"; Tasks: desktopicon
+
+[Registry]
+Root: HKCR; Subkey: "crystalfly"; ValueType: string; ValueName: ""; ValueData: "URL:Crystalfly Protocol"; Flags: uninsdeletekey
+Root: HKCR; Subkey: "crystalfly"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKCR; Subkey: "crystalfly\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\Crystalfly.App.exe,0"
+Root: HKCR; Subkey: "crystalfly\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\Crystalfly.App.exe"" ""%1"""
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"

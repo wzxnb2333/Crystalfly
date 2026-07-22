@@ -1,15 +1,45 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.Views;
 using MarkView.Avalonia;
-using System.Diagnostics;
 
 namespace Crystalfly.App;
 
 public partial class App : Application
 {
+    private static readonly ConcurrentQueue<string> PendingExternalMessages = new();
+
+    internal static void EnqueueExternalMessage(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+        PendingExternalMessages.Enqueue(message);
+        Dispatcher.UIThread.Post(DrainExternalMessages);
+    }
+
+    internal static void DrainExternalMessages()
+    {
+        if (Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime
+            {
+                MainWindow: MainWindow window
+            }
+            || !window.IsExternalCommandReady)
+        {
+            return;
+        }
+        while (PendingExternalMessages.TryDequeue(out var message))
+        {
+            window.EnqueueExternalMessage(message);
+        }
+    }
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);

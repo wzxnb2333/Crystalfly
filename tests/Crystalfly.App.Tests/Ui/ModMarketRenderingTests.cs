@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reflection;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -409,13 +410,9 @@ public sealed class ModMarketRenderingTests
             Assert.True(viewModel.PrepareMarketInstallTargetsCommand.IsRunning);
 
             viewModel.SelectedMarketMod = selectAnotherMod ? second : null;
-            for (var attempt = 0;
-                 attempt < 100 && viewModel.PrepareMarketInstallTargetsCommand.IsRunning;
-                 attempt++)
-            {
-                Dispatcher.UIThread.RunJobs();
-                await Task.Delay(10);
-            }
+            await WaitForConditionAsync(
+                () => !viewModel.PrepareMarketInstallTargetsCommand.IsRunning,
+                TimeSpan.FromSeconds(10));
             Dispatcher.UIThread.RunJobs();
 
             Assert.False(viewModel.PrepareMarketInstallTargetsCommand.IsRunning);
@@ -486,6 +483,20 @@ public sealed class ModMarketRenderingTests
         finally
         {
             await CloseSlowMarketInstallAsync(context);
+        }
+    }
+
+    private static async Task WaitForConditionAsync(Func<bool> condition, TimeSpan timeout)
+    {
+        var started = Stopwatch.StartNew();
+        while (!condition())
+        {
+            if (started.Elapsed >= timeout)
+            {
+                throw new TimeoutException($"Condition was not satisfied within {timeout}.");
+            }
+            Dispatcher.UIThread.RunJobs();
+            await Task.Delay(10);
         }
     }
 

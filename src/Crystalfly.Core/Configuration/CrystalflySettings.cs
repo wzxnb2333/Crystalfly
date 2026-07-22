@@ -40,6 +40,12 @@ public sealed record CrystalflySettings
 
     public bool OfflineMode { get; init; }
 
+    public bool CheckForUpdates { get; init; } = true;
+
+    public DateTimeOffset? LastUpdateCheckAt { get; init; }
+
+    public string? SkippedUpdateVersion { get; init; }
+
     public IReadOnlyList<ModHealthAcknowledgement> ModHealthAcknowledgements { get; init; } = [];
 
     public IReadOnlyList<CustomCatalogDefinition> CustomCatalogs { get; init; } = [];

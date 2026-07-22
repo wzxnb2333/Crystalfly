@@ -15,6 +15,7 @@
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="Lucide.Avalonia" Version="0.2.13" />
     <PackageVersion Include="MarkView.Avalonia" Version="12.0.3" />
+    <PackageVersion Include="NSec.Cryptography" Version="26.4.0" />
     <PackageVersion Include="QRCoder" Version="1.8.0" />
     <PackageVersion Include="Semi.Avalonia" Version="12.1.0" />
     <PackageVersion Include="SteamKit2" Version="3.4.0" />

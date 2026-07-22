@@ -35,14 +35,26 @@ $absoluteIsccPathPattern = '(?i)-IsccPath\s+[''"]?[A-Z]:[\\/]'
 if ($source -notmatch "\[ValidateSet\('win-x64'\)\]") {
     throw 'Runtime must be restricted to win-x64 before release paths are constructed.'
 }
-if ($source -notmatch '(?m)\[string\]\$Version\s*=\s*''0\.5\.0''') {
-    throw 'Release build must default to version 0.5.0.'
+if ($source -notmatch '(?m)\[string\]\$Version\s*=\s*''0\.6\.0''') {
+    throw 'Release build must default to version 0.6.0.'
 }
-if ($buildProps -notmatch '(?m)<Version>0\.5\.0</Version>') {
-    throw 'Project version must be 0.5.0.'
+if ($buildProps -notmatch '(?m)<Version>0\.6\.0</Version>') {
+    throw 'Project version must be 0.6.0.'
 }
 if ($source -notmatch '(?m)-p:CopyOutputSymbolsToPublishDirectory=false') {
     throw 'Release publish must exclude debug symbols from the publish directory.'
+}
+foreach ($updatePipelinePattern in @(
+    'Crystalfly\.Updater\.csproj',
+    'Crystalfly\.Updater\.exe',
+    'Crystalfly\.ReleaseTool\.csproj',
+    'update-manifest\.v1\.json',
+    '\bsign\b',
+    '--private-env'
+)) {
+    if ($source -notmatch $updatePipelinePattern) {
+        throw "Release build is missing update pipeline step: $updatePipelinePattern"
+    }
 }
 foreach ($requiredDefine in 'PublishDir', 'AppVersion') {
     $guardPattern = "(?ms)#ifndef\s+$requiredDefine\b(?:(?!#endif).)*#error\b(?:(?!#endif).)*#endif"
@@ -56,11 +68,22 @@ if ($installerSource -match '(?m)^\s*#define\s+(?:PublishDir|AppVersion)\b') {
 if ($installerSource -notmatch '(?ms)^\[InstallDelete\].*?Type:\s*files;\s*Name:\s*"\{app\}\\Avalonia\.Themes\.Fluent\.dll"') {
     throw 'Inno Setup upgrades must remove the retired Fluent theme assembly.'
 }
+if ($installerSource -notmatch '(?ms)^\[InstallDelete\].*?Type:\s*files;\s*Name:\s*"\{app\}\\portable\.flag"') {
+    throw 'Inno Setup must remove portable.flag when installing over a portable directory.'
+}
 if ($installerSource -notmatch '(?m)^DefaultDirName=D:\\Program Files\\\{#AppName\}\r?$') {
     throw 'Inno Setup must default to D:\\Program Files\\Crystalfly.'
 }
 if ($installerSource -notmatch '(?m)^PrivilegesRequired=admin\r?$') {
     throw 'The fixed Program Files install must request administrator privileges.'
+}
+foreach ($protocolPattern in @(
+    '(?m)^Root:\s*HKCR;\s*Subkey:\s*"crystalfly";',
+    '(?m)^Root:\s*HKCR;\s*Subkey:\s*"crystalfly\\shell\\open\\command";.*"""\{app\}\\Crystalfly\.App\.exe"" ""%1"""'
+)) {
+    if ($installerSource -notmatch $protocolPattern) {
+        throw 'Inno Setup must register and remove the crystalfly:// protocol.'
+    }
 }
 if ("-IsccPath 'D:\Tools\Inno Setup 6\ISCC.exe'" -notmatch $absoluteIsccPathPattern) {
     throw 'The README absolute ISCC path check does not cover arbitrary drive paths.'
@@ -71,9 +94,9 @@ if ('-IsccPath "Z:/Tools/Inno Setup 6/ISCC.exe"' -notmatch $absoluteIsccPathPatt
 if ($readme -match $absoluteIsccPathPattern) {
     throw 'README must not hard-code a machine-specific Inno Setup path.'
 }
-$releaseCommandPattern = '(?i)build-release\.ps1[''"`\s\\\r\n]+-Version\s+[''"]0\.5\.0[''"]'
+$releaseCommandPattern = '(?i)build-release\.ps1[''"`\s\\\r\n]+-Version\s+[''"]0\.6\.0[''"]'
 if ($readme -notmatch $releaseCommandPattern) {
-    throw 'README must pin local release builds to version 0.5.0.'
+    throw 'README must pin local release builds to version 0.6.0.'
 }
 $englishReadme = [regex]::Match($readme, '(?ms)^## English\s*(?<content>.*)$').Groups['content'].Value
 foreach ($requiredDocumentation in @(
@@ -186,12 +209,14 @@ try {
     Set-Content -LiteralPath (Join-Path $installerOutput 'stale-setup.exe') -Value 'stale'
     Set-Content -LiteralPath (Join-Path $artifacts 'Crystalfly-old-win-x64-portable.zip') -Value 'stale'
     Set-Content -LiteralPath (Join-Path $artifacts 'SHA256SUMS.txt') -Value 'stale'
+    Set-Content -LiteralPath (Join-Path $artifacts 'update-manifest.v1.json') -Value 'stale'
 
     Reset-ReleaseStaging -ArtifactsPath $artifacts -Runtime 'win-x64'
     $staleOutputs = @(
         Get-ChildItem -LiteralPath $publish, $portable, $installerOutput -Recurse -File
         Get-ChildItem -LiteralPath $artifacts -Filter 'Crystalfly-*-portable.zip' -File
         Get-Item -LiteralPath (Join-Path $artifacts 'SHA256SUMS.txt') -ErrorAction SilentlyContinue
+        Get-Item -LiteralPath (Join-Path $artifacts 'update-manifest.v1.json') -ErrorAction SilentlyContinue
     )
     if ($staleOutputs.Count -ne 0) {
         throw "Release staging retained stale outputs: $($staleOutputs.FullName -join ', ')."

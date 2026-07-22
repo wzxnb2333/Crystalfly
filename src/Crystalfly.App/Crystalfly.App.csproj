@@ -9,6 +9,7 @@
   <ItemGroup>
     <Folder Include="Models\" />
     <AvaloniaResource Include="Assets\**" />
+    <EmbeddedResource Include="Updates\stable-1.pub" LogicalName="Crystalfly.App.Updates.stable-1.pub" />
   </ItemGroup>
 
   <ItemGroup>

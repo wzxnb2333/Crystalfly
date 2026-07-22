@@ -63,6 +63,40 @@ public sealed class ThemeRenderingTests
     }
 
     [AvaloniaFact]
+    public void External_protocol_message_restores_a_minimized_window_before_confirmation()
+    {
+        var window = new MainWindow { Width = 900, Height = 600 };
+        window.Show();
+        try
+        {
+            window.WindowState = WindowState.Minimized;
+
+            window.ActivateForExternalCommand();
+
+            Assert.Equal(WindowState.Normal, window.WindowState);
+            Assert.True(window.IsVisible);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void Window_stops_accepting_external_commands_when_shutdown_begins()
+    {
+        var window = new MainWindow { Width = 900, Height = 600 };
+        window.Show();
+        window.ResumeExternalCommands();
+        Assert.True(window.IsExternalCommandReady);
+
+        window.Close();
+        window.ResumeExternalCommands();
+
+        Assert.False(window.IsExternalCommandReady);
+    }
+
+    [AvaloniaFact]
     public async Task Applying_language_refreshes_Semi_and_Ursa_locale_resources()
     {
         var applicationDataRoot = Path.Combine(

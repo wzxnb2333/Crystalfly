@@ -12,6 +12,9 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="NSec.Cryptography" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="Crystalfly.Core.Tests" />
   </ItemGroup>
 </Project>
