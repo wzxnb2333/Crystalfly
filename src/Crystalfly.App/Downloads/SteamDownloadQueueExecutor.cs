@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using Crystalfly.Core.Instances;
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Networking;
 using Crystalfly.Core.Packages;
 using Crystalfly.Core.Serialization;
 using Crystalfly.Steam.Downloads;
@@ -20,7 +21,8 @@ public sealed class SteamDownloadQueueExecutor(
     Func<ulong, string?> resolveBuildId,
     Func<bool>? isLoggedOn = null,
     TimeSpan? loginPollInterval = null,
-    InstanceOperationCoordinator? operationCoordinator = null) : IDownloadQueueExecutor
+    InstanceOperationCoordinator? operationCoordinator = null,
+    INetworkPolicy? networkPolicy = null) : IDownloadQueueExecutor
 {
     private readonly SemaphoreSlim steamDownloadGate = new(1, 1);
     private readonly Func<bool> isLoggedOn = isLoggedOn ?? (static () => true);
@@ -60,27 +62,32 @@ public sealed class SteamDownloadQueueExecutor(
         ArgumentNullException.ThrowIfNull(group);
         ArgumentNullException.ThrowIfNull(progress);
         ArgumentNullException.ThrowIfNull(networkGate);
+        CancellationToken onlineCancellation = networkPolicy?.GetOnlineCancellationToken() ?? default;
+        using var linkedCancellation = onlineCancellation.CanBeCanceled
+            ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, onlineCancellation)
+            : null;
+        CancellationToken transferCancellation = linkedCancellation?.Token ?? cancellationToken;
         ulong? requestedManifest = ParseManifestId(item.PackagePath);
         string staging = SteamDownloadQueueGroupFactory.GetStagingDirectory(group);
         while (!isLoggedOn())
         {
             progress.Report(new PackageTransferProgress(0, 0, 0, "Waiting for Steam login"));
-            await Task.Delay(loginPollInterval, cancellationToken);
+            await Task.Delay(loginPollInterval, transferCancellation);
         }
         var steamGateTaken = false;
         Exception? failure = null;
         try
         {
-            await steamDownloadGate.WaitAsync(cancellationToken);
+            await steamDownloadGate.WaitAsync(transferCancellation);
             steamGateTaken = true;
             while (!isLoggedOn())
             {
                 progress.Report(new PackageTransferProgress(0, 0, 0, "Waiting for Steam login"));
-                await Task.Delay(loginPollInterval, cancellationToken);
+                await Task.Delay(loginPollInterval, transferCancellation);
             }
             DeleteDirectory(staging);
             SteamDownloadResult result;
-            await networkGate.WaitAsync(cancellationToken);
+            await networkGate.WaitAsync(transferCancellation);
             try
             {
                 result = await download(
@@ -90,7 +97,7 @@ public sealed class SteamDownloadQueueExecutor(
                         value.TotalBytes,
                         value.BytesPerSecond,
                         value.CurrentFile)),
-                    cancellationToken);
+                    transferCancellation);
             }
             finally
             {
@@ -104,7 +111,14 @@ public sealed class SteamDownloadQueueExecutor(
                     ManifestId = result.ManifestId,
                     InstanceId = group.TargetInstanceId
                 },
-                cancellationToken);
+                transferCancellation);
+        }
+        catch (OperationCanceledException exception) when (
+            onlineCancellation.IsCancellationRequested
+            && !cancellationToken.IsCancellationRequested)
+        {
+            failure = new OfflineTransitionException(exception, onlineCancellation);
+            throw failure;
         }
         catch (Exception exception)
         {

@@ -117,6 +117,29 @@ public sealed class MainWindowStructureTests
         Assert.Contains(settingsGrid.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", "GitHubMirrorLatency"));
     }
 
+    [Fact]
+    public void Launch_integrity_state_stays_visible_and_offline_mode_is_global()
+    {
+        var document = LoadMainWindow();
+        var launchGrid = FindSectionRoot(document, "IsLaunchPage");
+
+        Assert.Contains(launchGrid.Descendants(Avalonia + "Border"), border =>
+            HasClass(border, "cfp-launch-issue-frame")
+            && HasBinding(border, "IsVisible", "HasLaunchIssues"));
+        Assert.Contains(launchGrid.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "LaunchIssueCountText"));
+        Assert.Contains(launchGrid.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ConfirmLaunch"
+            && HasBinding(button, "IsEnabled", "CanAttemptLaunch"));
+        Assert.Contains(launchGrid.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ShowLaunchIssues");
+
+        var settingsGrid = FindSectionRoot(document, "IsSettingsPage");
+        Assert.Contains(settingsGrid.Descendants(Avalonia + "CheckBox"), checkBox =>
+            HasBinding(checkBox, "IsChecked", "IsOfflineMode")
+            && HasBinding(checkBox, "Content", "OfflineMode"));
+    }
+
     private static XDocument LoadMainWindow() => XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Crystalfly.App", "Views", "MainWindow.axaml"));
 
     private static string FindRepositoryRoot()

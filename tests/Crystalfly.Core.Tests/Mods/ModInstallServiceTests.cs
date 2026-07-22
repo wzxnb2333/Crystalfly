@@ -316,6 +316,7 @@ public sealed class ModInstallServiceTests : IDisposable
             InstallRoot = $"hollow_knight_Data/Managed/Mods/{id}",
             Enabled = enabled,
             IsLocal = isLocal,
+            Ownership = isLocal ? ModOwnership.LocalTakenOver : ModOwnership.Managed,
             Dependencies = [],
             Files = []
         });

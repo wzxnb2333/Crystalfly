@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using System.Runtime.ExceptionServices;
+using Crystalfly.Core.Networking;
 using Crystalfly.Core.Packages;
 using Crystalfly.Core.Serialization;
 
@@ -13,6 +14,7 @@ public sealed class DownloadQueueService : IAsyncDisposable
     private readonly Func<bool> isGameRunning;
     private readonly Func<IReadOnlyList<DownloadQueueGroup>, CancellationToken, Task>? persistOverride;
     private readonly TimeSpan gameExitPollInterval;
+    private readonly INetworkPolicy? networkPolicy;
     private readonly Channel<DownloadQueueGroup> channel = Channel.CreateUnbounded<DownloadQueueGroup>(
         new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
     private readonly SemaphoreSlim networkGate = new(3, 3);
@@ -27,21 +29,26 @@ public sealed class DownloadQueueService : IAsyncDisposable
     private readonly Dictionary<string, CancellationTokenSource> groupCancellations =
         new(StringComparer.Ordinal);
     private readonly HashSet<string> userCanceledGroups = new(StringComparer.Ordinal);
+    private readonly HashSet<string> networkWaitingGroups = new(StringComparer.Ordinal);
+    private readonly object networkStateSync = new();
     private TaskCompletionSource idle = CompletedSource();
     private Task? dispatcher;
     private int pendingGroups;
     private Task? disposeTask;
+    private Task networkStateTask = Task.CompletedTask;
     private Exception? idleFailure;
     private Exception? backgroundFailure;
     private bool initialized;
+    private bool shuttingDown;
     private bool disposed;
 
     public DownloadQueueService(
         string storePath,
         IDownloadQueueExecutor executor,
         Func<bool> isGameRunning,
-        TimeSpan gameExitPollInterval)
-        : this(storePath, executor, isGameRunning, gameExitPollInterval, null)
+        TimeSpan gameExitPollInterval,
+        INetworkPolicy? networkPolicy = null)
+        : this(storePath, executor, isGameRunning, gameExitPollInterval, null, networkPolicy)
     {
     }
 
@@ -50,7 +57,8 @@ public sealed class DownloadQueueService : IAsyncDisposable
         IDownloadQueueExecutor executor,
         Func<bool> isGameRunning,
         TimeSpan gameExitPollInterval,
-        Func<IReadOnlyList<DownloadQueueGroup>, CancellationToken, Task>? persistOverride)
+        Func<IReadOnlyList<DownloadQueueGroup>, CancellationToken, Task>? persistOverride,
+        INetworkPolicy? networkPolicy = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(storePath);
         ArgumentNullException.ThrowIfNull(executor);
@@ -64,6 +72,11 @@ public sealed class DownloadQueueService : IAsyncDisposable
         this.isGameRunning = isGameRunning;
         this.gameExitPollInterval = gameExitPollInterval;
         this.persistOverride = persistOverride;
+        this.networkPolicy = networkPolicy;
+        if (networkPolicy is not null)
+        {
+            networkPolicy.Changed += NetworkPolicyChanged;
+        }
     }
 
     public IReadOnlyList<DownloadQueueGroup> Groups
@@ -98,6 +111,32 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     : [];
             ValidateLoadedGroups(loaded);
             var resumable = loaded.Where(NormalizeLoadedGroup).ToArray();
+            DownloadQueueGroup[] scheduled;
+            lock (sync)
+            {
+                groups.AddRange(loaded);
+                var isOffline = networkPolicy?.IsOffline == true;
+                if (!isOffline && resumable.Length > 0)
+                {
+                    pendingGroups = resumable.Length;
+                    idle = NewSource();
+                }
+                initialized = true;
+                dispatcher = DispatchAsync(lifetime.Token);
+                if (isOffline)
+                {
+                    foreach (var group in resumable)
+                    {
+                        PauseForNetwork(group);
+                        networkWaitingGroups.Add(group.Id);
+                    }
+                    scheduled = [];
+                }
+                else
+                {
+                    scheduled = resumable;
+                }
+            }
             if (loaded.Length > 0)
             {
                 await AtomicJsonStore.WriteAsync(
@@ -105,18 +144,7 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     CreatePersistableSnapshot(loaded),
                     cancellationToken);
             }
-            lock (sync)
-            {
-                groups.AddRange(loaded);
-                if (resumable.Length > 0)
-                {
-                    pendingGroups = resumable.Length;
-                    idle = NewSource();
-                }
-                initialized = true;
-                dispatcher = DispatchAsync(lifetime.Token);
-            }
-            foreach (var group in resumable)
+            foreach (var group in scheduled)
             {
                 lock (sync)
                 {
@@ -164,7 +192,9 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     throw new ArgumentException($"Download group ID '{group.Id}' already exists.", nameof(group));
                 }
                 var duplicate = groups.FirstOrDefault(candidate =>
-                    candidate.State is DownloadQueueGroupState.Pending or DownloadQueueGroupState.Running
+                    candidate.State is DownloadQueueGroupState.Pending
+                        or DownloadQueueGroupState.Running
+                        or DownloadQueueGroupState.WaitingForNetwork
                     && string.Equals(candidate.DeduplicationKey, group.DeduplicationKey,
                         StringComparison.OrdinalIgnoreCase));
                 if (duplicate is not null)
@@ -172,22 +202,38 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     result = new(false, CloneGroup(duplicate));
                     return result;
                 }
-                queued.State = DownloadQueueGroupState.Pending;
+                var waitForNetwork = networkPolicy?.IsOffline == true;
+                queued.State = waitForNetwork
+                    ? DownloadQueueGroupState.WaitingForNetwork
+                    : DownloadQueueGroupState.Pending;
                 queued.CompletedAt = null;
                 queued.Error = null;
-                groups.Add(queued);
-                groupCancellations[queued.Id] = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
-                if (pendingGroups++ == 0)
+                if (waitForNetwork)
                 {
-                    idle = NewSource();
-                    idleFailure = null;
+                    PauseForNetwork(queued);
+                }
+                groups.Add(queued);
+                if (waitForNetwork)
+                {
+                    networkWaitingGroups.Add(queued.Id);
+                }
+                else
+                {
+                    groupCancellations[queued.Id] =
+                        CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+                    if (pendingGroups++ == 0)
+                    {
+                        idle = NewSource();
+                        idleFailure = null;
+                    }
                 }
             }
 
             try
             {
                 await PersistAsync(cancellationToken);
-                if (!channel.Writer.TryWrite(queued))
+                if (queued.State != DownloadQueueGroupState.WaitingForNetwork
+                    && !channel.Writer.TryWrite(queued))
                 {
                     throw new InvalidOperationException("Download queue is closed.");
                 }
@@ -197,9 +243,13 @@ public sealed class DownloadQueueService : IAsyncDisposable
                 lock (sync)
                 {
                     groups.Remove(queued);
+                    networkWaitingGroups.Remove(queued.Id);
                     groupCancellations.Remove(queued.Id, out var source);
                     source?.Dispose();
-                    CompletePendingGroup();
+                    if (queued.State != DownloadQueueGroupState.WaitingForNetwork)
+                    {
+                        CompletePendingGroup();
+                    }
                 }
                 throw;
             }
@@ -238,6 +288,7 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     userCanceledGroups.Add(group.Id);
                 }
                 CancelGroup(group);
+                networkWaitingGroups.Remove(group.Id);
                 notify = true;
             }
         }
@@ -305,7 +356,7 @@ public sealed class DownloadQueueService : IAsyncDisposable
             }
 
             DownloadQueueGroup snapshot;
-            CancellationTokenSource retryCancellation;
+            CancellationTokenSource? retryCancellation;
             lock (sync)
             {
                 group = FindGroup(groupId);
@@ -332,16 +383,27 @@ public sealed class DownloadQueueService : IAsyncDisposable
                         item.CompletedAt = null;
                     }
                 }
-                group.State = DownloadQueueGroupState.Pending;
-                group.Stage = "Pending";
+                var waitForNetwork = networkPolicy?.IsOffline == true;
+                group.State = waitForNetwork
+                    ? DownloadQueueGroupState.WaitingForNetwork
+                    : DownloadQueueGroupState.Pending;
+                group.Stage = waitForNetwork ? "Waiting for network" : "Pending";
                 group.Error = null;
                 group.CompletedAt = null;
                 groupCancellations.Remove(group.Id, out var previous);
                 previous?.Dispose();
-                retryCancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
-                groupCancellations[group.Id] = retryCancellation;
+                if (waitForNetwork)
+                {
+                    retryCancellation = null;
+                    networkWaitingGroups.Add(group.Id);
+                }
+                else
+                {
+                    retryCancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+                    groupCancellations[group.Id] = retryCancellation;
+                }
                 userCanceledGroups.Remove(group.Id);
-                if (pendingGroups++ == 0)
+                if (!waitForNetwork && pendingGroups++ == 0)
                 {
                     idle = NewSource();
                     idleFailure = null;
@@ -350,7 +412,8 @@ public sealed class DownloadQueueService : IAsyncDisposable
             try
             {
                 await PersistAsync(cancellationToken);
-                if (!channel.Writer.TryWrite(group))
+                if (group.State != DownloadQueueGroupState.WaitingForNetwork
+                    && !channel.Writer.TryWrite(group))
                 {
                     throw new InvalidOperationException("Download queue is closed.");
                 }
@@ -369,9 +432,13 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     {
                         groupCancellations.Remove(group.Id);
                     }
-                    CompletePendingGroup();
+                    networkWaitingGroups.Remove(group.Id);
+                    if (group.State != DownloadQueueGroupState.WaitingForNetwork)
+                    {
+                        CompletePendingGroup();
+                    }
                 }
-                retryCancellation.Dispose();
+                retryCancellation?.Dispose();
                 throw;
             }
             notify = true;
@@ -411,6 +478,21 @@ public sealed class DownloadQueueService : IAsyncDisposable
 
     private async Task DisposeCoreAsync()
     {
+        Task pendingNetworkState;
+        lock (sync)
+        {
+            shuttingDown = true;
+        }
+        if (networkPolicy is not null)
+        {
+            networkPolicy.Changed -= NetworkPolicyChanged;
+        }
+        lock (networkStateSync)
+        {
+            pendingNetworkState = networkStateTask;
+        }
+        await pendingNetworkState;
+
         await mutationGate.WaitAsync();
         Task? dispatchTask;
         try
@@ -534,9 +616,26 @@ public sealed class DownloadQueueService : IAsyncDisposable
         {
             groupCancellation = groupCancellations[group.Id];
         }
+        var pausedForNetwork = false;
         try
         {
             await ProcessGroupAsync(group, groupCancellation.Token);
+        }
+        catch (Exception exception) when (exception is OfflineModeException or OfflineTransitionException)
+        {
+            lock (sync)
+            {
+                if (userCanceledGroups.Contains(group.Id))
+                {
+                    CancelGroup(group);
+                }
+                else
+                {
+                    PauseForNetwork(group);
+                    pausedForNetwork = true;
+                }
+            }
+            NotifyChanged();
         }
         catch (OperationCanceledException) when (groupCancellation.IsCancellationRequested)
         {
@@ -594,14 +693,23 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     }
                     userCanceledGroups.Remove(group.Id);
                     CompletePendingGroup(persistenceFailure);
+                    if (pausedForNetwork)
+                    {
+                        networkWaitingGroups.Add(group.Id);
+                    }
                 }
                 completedCancellation?.Dispose();
             }
+        }
+        if (pausedForNetwork && networkPolicy?.IsOffline == false)
+        {
+            ScheduleNetworkStateUpdate();
         }
     }
 
     private async Task ProcessGroupAsync(DownloadQueueGroup group, CancellationToken cancellationToken)
     {
+        _ = networkPolicy?.GetOnlineCancellationToken();
         Update(group, null, () =>
         {
             group.State = DownloadQueueGroupState.Running;
@@ -676,6 +784,7 @@ public sealed class DownloadQueueService : IAsyncDisposable
         {
             try
             {
+                _ = networkPolicy?.GetOnlineCancellationToken();
                 Update(group, item, () =>
                 {
                     item.State = DownloadQueueItemState.Transferring;
@@ -692,6 +801,10 @@ public sealed class DownloadQueueService : IAsyncDisposable
                 return true;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception) when (exception is OfflineModeException or OfflineTransitionException)
             {
                 throw;
             }
@@ -919,6 +1032,126 @@ public sealed class DownloadQueueService : IAsyncDisposable
         group.Error = null;
         group.CompletedAt = null;
         UpdateGroupProgress(group);
+    }
+
+    private static void PauseForNetwork(DownloadQueueGroup group)
+    {
+        ResetInterruptedGroup(group);
+        foreach (var item in group.Items.Where(item => !IsTerminal(item.State)))
+        {
+            item.State = DownloadQueueItemState.WaitingForNetwork;
+            item.Stage = "Waiting for network";
+            item.BytesPerSecond = 0;
+            item.Error = null;
+        }
+        group.State = DownloadQueueGroupState.WaitingForNetwork;
+        group.Stage = "Waiting for network";
+        group.Error = null;
+        group.CompletedAt = null;
+        UpdateGroupProgress(group);
+    }
+
+    private void NetworkPolicyChanged(object? sender, NetworkPolicyChangedEventArgs eventArgs) =>
+        ScheduleNetworkStateUpdate();
+
+    private void ScheduleNetworkStateUpdate()
+    {
+        lock (sync)
+        {
+            if (!initialized || shuttingDown || disposed)
+            {
+                return;
+            }
+        }
+        lock (networkStateSync)
+        {
+            networkStateTask = networkStateTask.ContinueWith(
+                static (_, state) => ((DownloadQueueService)state!).ApplyNetworkStateAsync(),
+                this,
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default).Unwrap();
+        }
+    }
+
+    private async Task ApplyNetworkStateAsync()
+    {
+        var notify = false;
+        var resume = new List<DownloadQueueGroup>();
+        try
+        {
+            await mutationGate.WaitAsync();
+            try
+            {
+                lock (sync)
+                {
+                    if (shuttingDown || disposed || networkPolicy is null)
+                    {
+                        return;
+                    }
+
+                    if (networkPolicy.IsOffline)
+                    {
+                        foreach (var group in groups.Where(group =>
+                                     group.State == DownloadQueueGroupState.Pending))
+                        {
+                            PauseForNetwork(group);
+                            notify = true;
+                        }
+                    }
+                    else
+                    {
+                        foreach (var groupId in networkWaitingGroups.ToArray())
+                        {
+                            var group = FindGroup(groupId);
+                            if (group.State != DownloadQueueGroupState.WaitingForNetwork)
+                            {
+                                networkWaitingGroups.Remove(groupId);
+                                continue;
+                            }
+                            ResetInterruptedGroup(group);
+                            groupCancellations[group.Id] =
+                                CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+                            networkWaitingGroups.Remove(group.Id);
+                            if (pendingGroups++ == 0)
+                            {
+                                idle = NewSource();
+                                idleFailure = null;
+                            }
+                            resume.Add(group);
+                            notify = true;
+                        }
+                    }
+                }
+
+                if (notify)
+                {
+                    foreach (var group in resume)
+                    {
+                        if (!channel.Writer.TryWrite(group))
+                        {
+                            throw new InvalidOperationException("Download queue is closed.");
+                        }
+                    }
+                    await PersistAsync(CancellationToken.None);
+                }
+            }
+            finally
+            {
+                mutationGate.Release();
+            }
+        }
+        catch (Exception exception)
+        {
+            lock (sync)
+            {
+                backgroundFailure ??= exception;
+            }
+        }
+        if (notify)
+        {
+            NotifyChanged();
+        }
     }
 
     private static void ResetRepairItems(DownloadQueueGroup group)

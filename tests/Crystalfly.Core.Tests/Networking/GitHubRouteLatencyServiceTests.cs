@@ -7,6 +7,14 @@ namespace Crystalfly.Core.Tests.Networking;
 public sealed class GitHubRouteLatencyServiceTests
 {
     [Fact]
+    public void Legacy_null_time_provider_constructor_call_is_unambiguous()
+    {
+        using var service = new GitHubRouteLatencyService(
+            new StubHandler((_, _) => Task.FromResult(Success())),
+            null);
+    }
+
+    [Fact]
     public async Task TestAsync_probes_direct_and_mirror_in_parallel()
     {
         var bothStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -130,6 +138,52 @@ public sealed class GitHubRouteLatencyServiceTests
     }
 
     [Fact]
+    public async Task TestAsync_reports_unavailable_offline_without_reaching_transport()
+    {
+        var requests = 0;
+        var handler = new StubHandler((_, _) =>
+        {
+            Interlocked.Increment(ref requests);
+            throw new InvalidOperationException("Transport reached.");
+        });
+        var policy = new NetworkPolicy(isOffline: true);
+        using var service = new GitHubRouteLatencyService(policy, handler);
+
+        GitHubRouteLatencyTestResult result = await service.TestAsync();
+
+        Assert.Equal(GitHubRouteLatencyStatus.Unavailable, result.Direct.Status);
+        Assert.Equal(GitHubRouteLatencyStatus.Unavailable, result.Mirror.Status);
+        Assert.Equal(0, Volatile.Read(ref requests));
+    }
+
+    [Fact]
+    public async Task TestAsync_reports_unavailable_when_offline_mode_interrupts_active_probes()
+    {
+        var bothStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var started = 0;
+        var handler = new StubHandler(async (_, cancellationToken) =>
+        {
+            if (Interlocked.Increment(ref started) == 2)
+            {
+                bothStarted.TrySetResult();
+            }
+
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return Success();
+        });
+        var policy = new NetworkPolicy();
+        using var service = new GitHubRouteLatencyService(policy, handler);
+
+        Task<GitHubRouteLatencyTestResult> test = service.TestAsync();
+        await bothStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        policy.SetOffline(true);
+
+        GitHubRouteLatencyTestResult result = await test.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(GitHubRouteLatencyStatus.Unavailable, result.Direct.Status);
+        Assert.Equal(GitHubRouteLatencyStatus.Unavailable, result.Mirror.Status);
+    }
+
+    [Fact]
     public async Task TestAsync_propagates_caller_cancellation()
     {
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -139,7 +193,8 @@ public sealed class GitHubRouteLatencyServiceTests
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             return Success();
         });
-        using var service = new GitHubRouteLatencyService(handler);
+        var policy = new NetworkPolicy();
+        using var service = new GitHubRouteLatencyService(policy, handler);
         using var cancellation = new CancellationTokenSource();
 
         Task<GitHubRouteLatencyTestResult> test = service.TestAsync(cancellation.Token);

@@ -1,10 +1,83 @@
+using System.Net;
+using System.Text;
 using Crystalfly.Core.Catalog;
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Serialization;
 
 namespace Crystalfly.Core.Tests.Catalog;
 
-public sealed class CustomCatalogSourceTests
+public sealed class CustomCatalogSourceTests : IDisposable
 {
+    private readonly string directory = Path.Combine(
+        Path.GetTempPath(),
+        $"crystalfly-custom-catalog-{Guid.NewGuid():N}");
+
+    [Fact]
+    public async Task LoadWithCache_writes_valid_remote_source_and_namespaces_result()
+    {
+        var source = new GameCatalog { Mods = [Mod("helper")] };
+        using var client = Client(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                CrystalflyJson.Serialize(source),
+                Encoding.UTF8,
+                "application/json")
+        });
+        var cachePath = Path.Combine(directory, "community.json");
+
+        var result = await CustomCatalogSource.LoadWithCacheAsync(
+            "community",
+            new Uri("https://example.invalid/catalog.json"),
+            cachePath,
+            client);
+
+        Assert.Equal(CustomCatalogLoadStatus.Remote, result.Status);
+        Assert.Equal("custom:community:helper", Assert.Single(result.Catalog.Mods).Id);
+        Assert.True(File.Exists(cachePath));
+        var cachedSource = await AtomicJsonStore.ReadAsync<GameCatalog>(cachePath);
+        Assert.Equal("helper", Assert.Single(cachedSource.Mods).Id);
+    }
+
+    [Fact]
+    public async Task LoadWithCache_uses_last_valid_cache_when_remote_fails()
+    {
+        var cachePath = Path.Combine(directory, "fallback.json");
+        await AtomicJsonStore.WriteAsync(cachePath, new GameCatalog { Mods = [Mod("cached")] });
+        using var client = Client(_ => throw new HttpRequestException("offline"));
+
+        var result = await CustomCatalogSource.LoadWithCacheAsync(
+            "community",
+            new Uri("https://example.invalid/catalog.json"),
+            cachePath,
+            client);
+
+        Assert.Equal(CustomCatalogLoadStatus.Cached, result.Status);
+        Assert.Equal("custom:community:cached", Assert.Single(result.Catalog.Mods).Id);
+        Assert.Contains("offline", result.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task LoadWithCache_invalid_remote_does_not_replace_valid_cache()
+    {
+        var cachePath = Path.Combine(directory, "preserved.json");
+        var cached = new GameCatalog { Mods = [Mod("cached")] };
+        await AtomicJsonStore.WriteAsync(cachePath, cached);
+        var before = await File.ReadAllBytesAsync(cachePath);
+        using var client = Client(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{ bad json", Encoding.UTF8, "application/json")
+        });
+
+        var result = await CustomCatalogSource.LoadWithCacheAsync(
+            "community",
+            new Uri("https://example.invalid/catalog.json"),
+            cachePath,
+            client);
+
+        Assert.Equal(CustomCatalogLoadStatus.Cached, result.Status);
+        Assert.Equal(before, await File.ReadAllBytesAsync(cachePath));
+    }
+
     [Fact]
     public void Namespace_allows_mods_without_granting_official_catalog_authority()
     {
@@ -100,4 +173,23 @@ public sealed class CustomCatalogSourceTests
         ExecutableSha256 = new string('A', 64),
         GlobalGameManagersSha256 = new string('B', 64)
     };
+
+    private static HttpClient Client(Func<HttpRequestMessage, HttpResponseMessage> respond) =>
+        new(new StubHandler(respond));
+
+    public void Dispose()
+    {
+        if (Directory.Exists(directory))
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> respond)
+        : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken) => Task.FromResult(respond(request));
+    }
 }

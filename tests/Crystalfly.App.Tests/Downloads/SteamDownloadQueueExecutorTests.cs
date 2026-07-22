@@ -3,6 +3,7 @@ using System.Text.Json;
 using Crystalfly.App.Downloads;
 using Crystalfly.Core.Instances;
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Networking;
 using Crystalfly.Core.Packages;
 using Crystalfly.Steam.Downloads;
 
@@ -313,6 +314,67 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
 
         loggedOn = true;
         await transfer.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task Offline_transition_cancels_active_Steam_download_with_distinct_exception()
+    {
+        Directory.CreateDirectory(root);
+        var policy = new NetworkPolicy();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var executor = new SteamDownloadQueueExecutor(
+            new RejectingFallbackExecutor(),
+            async (request, _, cancellationToken) =>
+            {
+                started.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                throw new InvalidOperationException("Unreachable");
+            },
+            _ => null,
+            networkPolicy: policy);
+        DownloadQueueGroup group = SteamDownloadQueueGroupFactory.Create(
+            "public", "Steam public", null, root, "offline-transition");
+        Task transfer = executor.TransferAsync(
+            group,
+            Assert.Single(group.Items),
+            new ProgressCapture(_ => { }),
+            networkGate,
+            CancellationToken.None);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        policy.SetOffline(true);
+
+        await Assert.ThrowsAsync<OfflineTransitionException>(() =>
+            transfer.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.False(Directory.Exists(SteamDownloadQueueGroupFactory.GetStagingDirectory(group)));
+    }
+
+    [Fact]
+    public async Task Offline_mode_blocks_Steam_download_before_invoking_adapter()
+    {
+        Directory.CreateDirectory(root);
+        var policy = new NetworkPolicy(isOffline: true);
+        var calls = 0;
+        var executor = new SteamDownloadQueueExecutor(
+            new RejectingFallbackExecutor(),
+            (_, _, _) =>
+            {
+                Interlocked.Increment(ref calls);
+                throw new InvalidOperationException("Steam downloader was called.");
+            },
+            _ => null,
+            networkPolicy: policy);
+        DownloadQueueGroup group = SteamDownloadQueueGroupFactory.Create(
+            "public", "Steam public", null, root, "offline");
+
+        await Assert.ThrowsAsync<OfflineModeException>(() => executor.TransferAsync(
+            group,
+            Assert.Single(group.Items),
+            new ProgressCapture(_ => { }),
+            networkGate,
+            CancellationToken.None));
+
+        Assert.Equal(0, Volatile.Read(ref calls));
     }
 
     [Fact]

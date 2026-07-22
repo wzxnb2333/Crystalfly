@@ -1,4 +1,5 @@
 using Crystalfly.Core.Configuration;
+using Crystalfly.Core.Runtime;
 
 namespace Crystalfly.Core.Tests.Configuration;
 
@@ -14,6 +15,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         Assert.Equal(UiLanguage.FollowSystem, defaults.Language);
         Assert.Equal(UiTheme.System, defaults.Theme);
         Assert.Equal(GitHubDownloadRoute.Direct, defaults.GitHubDownloadRoute);
+        Assert.False(defaults.OfflineMode);
 
         var expected = defaults with
         {
@@ -22,6 +24,11 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
             Language = UiLanguage.SimplifiedChinese,
             Theme = UiTheme.Dark,
             GitHubDownloadRoute = GitHubDownloadRoute.Mirror,
+            OfflineMode = true,
+            ModHealthAcknowledgements =
+            [
+                new ModHealthAcknowledgement { Fingerprint = new string('A', 64) }
+            ],
             CustomCatalogs =
             [
                 new CustomCatalogDefinition
@@ -34,8 +41,11 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         await CrystalflySettingsStore.SaveAsync(path, expected);
 
         var actual = await CrystalflySettingsStore.LoadAsync(path);
-        Assert.Equal(expected with { CustomCatalogs = [] }, actual with { CustomCatalogs = [] });
+        Assert.Equal(
+            expected with { CustomCatalogs = [], ModHealthAcknowledgements = [] },
+            actual with { CustomCatalogs = [], ModHealthAcknowledgements = [] });
         Assert.Equal(expected.CustomCatalogs, actual.CustomCatalogs);
+        Assert.Equal(expected.ModHealthAcknowledgements, actual.ModHealthAcknowledgements);
     }
     [Fact]
     public async Task Load_legacy_settings_without_route_uses_direct_GitHub()
@@ -51,6 +61,8 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         var settings = await CrystalflySettingsStore.LoadAsync(path);
 
         Assert.Equal(GitHubDownloadRoute.Direct, settings.GitHubDownloadRoute);
+        Assert.False(settings.OfflineMode);
+        Assert.Empty(settings.ModHealthAcknowledgements);
     }
 
 

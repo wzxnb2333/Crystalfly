@@ -25,17 +25,22 @@ public partial class MainViewModel
     public bool IsDownloadQueueSection => CurrentDownloadSection == "DownloadQueue";
 
     public int ActiveDownloadCount => DownloadQueueGroups.Count(group => group.State is
-        DownloadQueueGroupState.Pending or DownloadQueueGroupState.Running);
+        DownloadQueueGroupState.Pending
+            or DownloadQueueGroupState.Running
+            or DownloadQueueGroupState.WaitingForNetwork);
 
     public bool HasActiveDownloads => ActiveDownloadCount > 0;
 
     public bool HasUnfinishedDownloads => DownloadQueueGroups.Any(group =>
         group.State is DownloadQueueGroupState.Pending
             or DownloadQueueGroupState.Running
+            or DownloadQueueGroupState.WaitingForNetwork
             or DownloadQueueGroupState.Failed);
 
     public string ActiveDownloadSummary => DownloadQueueGroups.FirstOrDefault(group => group.State is
-        DownloadQueueGroupState.Pending or DownloadQueueGroupState.Running) is { } group
+        DownloadQueueGroupState.Pending
+            or DownloadQueueGroupState.Running
+            or DownloadQueueGroupState.WaitingForNetwork) is { } group
         ? $"{group.Name} · {group.StageText}"
         : string.Empty;
 
@@ -47,7 +52,8 @@ public partial class MainViewModel
             () => catalog,
             packageHttpClient,
             instanceOperationCoordinator,
-            static () => new SystemHollowKnightProcessProbe().IsRunning());
+            static () => new SystemHollowKnightProcessProbe().IsRunning(),
+            networkPolicy: networkPolicy);
         var executor = new SteamDownloadQueueExecutor(
             packageExecutor,
             async (request, report, cancellationToken) =>
@@ -67,12 +73,14 @@ public partial class MainViewModel
                     manifestId.ToString(CultureInfo.InvariantCulture),
                     StringComparison.Ordinal))?.Id,
             IsSteamSessionLoggedOn,
-            operationCoordinator: instanceOperationCoordinator);
+            operationCoordinator: instanceOperationCoordinator,
+            networkPolicy: networkPolicy);
         return new DownloadQueueService(
             Path.Combine(paths.ApplicationDataRoot, "download-queue.json"),
             executor,
             static () => new SystemHollowKnightProcessProbe().IsRunning(),
-            TimeSpan.FromMilliseconds(500));
+            TimeSpan.FromMilliseconds(500),
+            networkPolicy);
     }
 
     private async Task InitializeDownloadQueueAsync()
@@ -91,7 +99,9 @@ public partial class MainViewModel
         lock (downloadQueueProjectionSync)
         {
             foreach (var group in groups.Where(group => group.State is
-                         DownloadQueueGroupState.Pending or DownloadQueueGroupState.Running))
+                         DownloadQueueGroupState.Pending
+                             or DownloadQueueGroupState.Running
+                             or DownloadQueueGroupState.WaitingForNetwork))
             {
                 refreshedTerminalQueueGroups.Remove(group.Id);
             }

@@ -2,11 +2,27 @@ using Crystalfly.Core.Configuration;
 
 namespace Crystalfly.Core.Networking;
 
-public sealed class GitHubDownloadRouteHandler(
-    Func<GitHubDownloadRoute> route,
-    HttpMessageHandler innerHandler) : DelegatingHandler(innerHandler)
+public sealed class GitHubDownloadRouteHandler : DelegatingHandler
 {
     public const string MirrorPrefix = "https://gh-proxy.com/";
+
+    private readonly Func<GitHubDownloadRoute> route;
+
+    public GitHubDownloadRouteHandler(
+        Func<GitHubDownloadRoute> route,
+        HttpMessageHandler innerHandler)
+        : base(innerHandler)
+    {
+        this.route = route ?? throw new ArgumentNullException(nameof(route));
+    }
+
+    public GitHubDownloadRouteHandler(
+        Func<GitHubDownloadRoute> route,
+        INetworkPolicy networkPolicy,
+        HttpMessageHandler innerHandler)
+        : this(route, new NetworkPolicyHandler(networkPolicy, innerHandler))
+    {
+    }
 
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,

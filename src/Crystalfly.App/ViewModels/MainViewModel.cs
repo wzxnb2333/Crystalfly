@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -8,6 +10,7 @@ using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Crystalfly.App.Downloads;
+using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.Core.Catalog;
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Instances;
@@ -33,8 +36,9 @@ namespace Crystalfly.App.ViewModels;
 public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 {
     private readonly HttpClient metadataHttpClient;
-    private readonly HttpClient directMetadataHttpClient = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private readonly HttpClient directMetadataHttpClient;
     private readonly HttpClient packageHttpClient;
+    private readonly NetworkPolicy networkPolicy;
     private readonly CrystalflyPaths paths;
     private readonly string settingsPath;
     private GameCatalog catalog;
@@ -59,6 +63,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly GitHubRouteLatencyService githubLatencyService;
     private CrystalflySettings settings = new();
     private Task settingsSaveQueue = Task.CompletedTask;
+    private Task steamOfflineTransitionTask = Task.CompletedTask;
     private Task? initializationTask;
     private Task? disposeTask;
     private SteamAuthenticationSession? steamSession;
@@ -115,13 +120,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         tokenStore = new DpapiRefreshTokenStore(Path.Combine(paths.ApplicationDataRoot, "steam-token.dat"));
         catalog = EmbeddedCatalog.Load();
         modTranslations = EmbeddedModTranslationCatalog.Load();
+        networkPolicy = new NetworkPolicy();
         metadataHttpClient = new HttpClient(new GitHubDownloadRouteHandler(
             () => settings.GitHubDownloadRoute,
+            networkPolicy,
+            new HttpClientHandler())) { Timeout = TimeSpan.FromSeconds(15) };
+        directMetadataHttpClient = new HttpClient(new NetworkPolicyHandler(
+            networkPolicy,
             new HttpClientHandler())) { Timeout = TimeSpan.FromSeconds(15) };
         packageHttpClient = new HttpClient(new GitHubDownloadRouteHandler(
             () => settings.GitHubDownloadRoute,
+            networkPolicy,
             new HttpClientHandler())) { Timeout = TimeSpan.FromMinutes(30) };
-        githubLatencyService = new GitHubRouteLatencyService(new HttpClientHandler());
+        githubLatencyService = new GitHubRouteLatencyService(networkPolicy, new HttpClientHandler());
         Loc = new LocalizationViewModel();
         downloadQueue = downloadQueueOverride ?? CreateDownloadQueue();
         downloadQueue.QueueChanged += OnDownloadQueueChanged;
@@ -168,6 +179,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public ObservableCollection<InstalledModItemViewModel> VisibleInstalledMods { get; } = [];
 
+    public ObservableCollection<string> UnusedDependencySuggestions { get; } = [];
+
     public ObservableCollection<SettingOption<ModStatusFilter>> ModStatusOptions { get; } = [];
 
     public ObservableCollection<InstanceLogFile> InstanceLogs { get; } = [];
@@ -194,7 +207,28 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public bool HasModDependencyProblems => InstalledMods.Count > 0 && !LaunchPreflight.DependenciesReady;
 
+    public bool HasUnusedDependencySuggestions => UnusedDependencySuggestions.Count > 0;
+
+    public string UnusedDependencySummary => string.Format(
+        CultureInfo.CurrentUICulture,
+        Loc["UnusedDependencyCountFormat"],
+        UnusedDependencySuggestions.Count);
+
+    public bool HasLaunchIssues => LaunchPreflight.Issues.Count > 0;
+
+    public int LaunchIssueCount => LaunchPreflight.Issues.Count;
+
+    public string LaunchIssueCountText => string.Format(
+        CultureInfo.CurrentUICulture,
+        Loc["LaunchIssueCountFormat"],
+        LaunchIssueCount);
+
     public bool CanLaunch => HasInstance && CanNavigate && LaunchPreflight.IsReady;
+
+    public bool CanAttemptLaunch => HasInstance
+        && CanNavigate
+        && !IsLoadingInstanceDetails
+        && LaunchPreflight.CanAttemptLaunch;
 
     public string GameFilesStatus => LaunchPreflight.GameFilesReady ? Loc["Complete"] : Loc["Missing"];
 
@@ -322,9 +356,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(CanNavigate))]
     [NotifyPropertyChangedFor(nameof(CanCloneInstance))]
     [NotifyPropertyChangedFor(nameof(CanLaunch))]
+    [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
     public partial bool IsLoadingInstanceDetails { get; set; }
 
     [ObservableProperty]
@@ -352,6 +388,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(CanNavigate))]
     [NotifyPropertyChangedFor(nameof(CanCloneInstance))]
     [NotifyPropertyChangedFor(nameof(CanLaunch))]
+    [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
     public partial bool IsGameRunning { get; set; }
 
     [ObservableProperty]
@@ -382,10 +419,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanLaunch))]
+    [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
     [NotifyPropertyChangedFor(nameof(GameFilesStatus))]
     [NotifyPropertyChangedFor(nameof(LoaderPreflightStatus))]
     [NotifyPropertyChangedFor(nameof(ModDependencyStatus))]
     [NotifyPropertyChangedFor(nameof(HasModDependencyProblems))]
+    [NotifyPropertyChangedFor(nameof(HasLaunchIssues))]
+    [NotifyPropertyChangedFor(nameof(LaunchIssueCount))]
+    [NotifyPropertyChangedFor(nameof(LaunchIssueCountText))]
     [NotifyPropertyChangedFor(nameof(SaveIsolationStatus))]
     [NotifyPropertyChangedFor(nameof(LaunchReadinessTitle))]
     [NotifyPropertyChangedFor(nameof(LaunchReadinessHint))]
@@ -421,6 +462,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasInstance))]
     [NotifyPropertyChangedFor(nameof(CanLaunch))]
+    [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
     [NotifyPropertyChangedFor(nameof(LaunchReadinessTitle))]
     [NotifyPropertyChangedFor(nameof(LaunchReadinessHint))]
     public partial InstanceItemViewModel? SelectedInstance { get; set; }
@@ -442,6 +484,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     public partial string GitHubMirrorLatency { get; set; } = "-";
 
+    [ObservableProperty]
+    public partial bool IsOfflineMode { get; set; }
+
 
     public Task InitializeAsync()
     {
@@ -456,6 +501,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private async Task InitializeCoreAsync()
     {
         settings = await CrystalflySettingsStore.LoadAsync(settingsPath);
+        IsOfflineMode = settings.OfflineMode;
         ApplyLanguage(settings.Language);
         ApplyTheme(settings.Theme);
         catalog = await LoadCatalogAsync(lifetimeCancellation.Token);
@@ -480,7 +526,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 ulong.Parse(build.ManifestId, System.Globalization.CultureInfo.InvariantCulture)));
         }
         SelectedDownloadBuild = DownloadBuilds[0];
-        await TryReconnectSteamAsync();
+        if (!IsOfflineMode)
+        {
+            await TryReconnectSteamAsync();
+        }
 
         if (Directory.Exists(VersionRoot))
         {
@@ -820,10 +869,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                         StringComparer.OrdinalIgnoreCase))
                     {
                         var loaderManager = CreateLoaderManager(record);
-                        var loaderState = await loaderManager.GetStateAsync(cancellationToken);
+                        var loaderInspection = await loaderManager.InspectAsync(cancellationToken);
+                        var loaderState = loaderInspection.State;
                         var loaderReceipt = await loaderManager.GetReceiptAsync(cancellationToken);
-                        var modCount = (await CreateModManager(record)
-                            .GetInstalledAsync(cancellationToken)).Count;
+                        var modCount = (await CreateModManager(record).DiscoverAsync(
+                            loaderInspection.PackageId ?? loaderState.ToString(),
+                            cancellationToken)).Mods.Count;
                         discovered.Add((record, loaderState, loaderReceipt, modCount));
                     }
                 },
@@ -1031,9 +1082,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     [RelayCommand]
-    private async Task LaunchGameAsync()
+    private Task LaunchGameAsync() => LaunchGameCoreAsync(force: false);
+
+    [RelayCommand]
+    private Task ForceLaunchGameAsync() => LaunchGameCoreAsync(force: true);
+
+    private async Task LaunchGameCoreAsync(bool force)
     {
-        if (launchOverride is not null)
+        if (launchOverride is not null && SelectedInstance is null)
         {
             await launchOverride();
             return;
@@ -1045,9 +1101,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ErrorMessage = Loc["NoInstance"];
             return;
         }
-        if (!CanLaunch)
+        await ReloadSelectedInstanceDetailsAsync();
+        if (force ? !LaunchPreflight.CanForceLaunch : !LaunchPreflight.CanLaunchNormally)
         {
             ErrorMessage = Loc["LaunchBlocked"];
+            return;
+        }
+        if (launchOverride is not null)
+        {
+            await launchOverride();
             return;
         }
         if (Process.GetProcessesByName("hollow_knight").Length > 0)
@@ -1129,11 +1191,36 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
+    private async Task ReloadSelectedInstanceDetailsAsync()
+    {
+        var selected = SelectedInstance;
+        if (selected is null || !Directory.Exists(VersionRoot))
+        {
+            return;
+        }
+        long generation = Interlocked.Increment(ref detailsLoadGeneration);
+        var previousCancellation = Interlocked.Exchange(ref detailsLoadCancellation, null);
+        previousCancellation?.Cancel();
+        previousCancellation?.Dispose();
+        var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation.Token);
+        detailsLoadCancellation = cancellation;
+        IsLoadingInstanceDetails = true;
+        detailsLoadTask = LoadInstanceDetailsAsync(selected.Record, generation, cancellation.Token);
+        await detailsLoadTask;
+    }
+
     [RelayCommand]
     private async Task SignInWithQrAsync()
     {
         if (lifetimeCancellation.IsCancellationRequested)
         {
+            return;
+        }
+        if (IsOfflineMode)
+        {
+            IsSteamLoggedIn = false;
+            SteamStatus = Loc["OfflineMode"];
+            ErrorMessage = Loc["OfflineModeHint"];
             return;
         }
 
@@ -1171,9 +1258,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception exception)
         {
-            ErrorMessage = $"Steam: {exception.Message}";
+            ErrorMessage = IsOfflineMode ? null : $"Steam: {exception.Message}";
             IsSteamLoggedIn = false;
-            SteamStatus = "Not signed in";
+            SteamStatus = IsOfflineMode ? Loc["OfflineMode"] : "Not signed in";
             QrCodeImage = null;
             if (gateTaken)
             {
@@ -1204,7 +1291,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private async Task TryReconnectSteamAsync()
     {
-        if (!File.Exists(Path.Combine(paths.ApplicationDataRoot, "steam-token.dat")))
+        if (IsOfflineMode
+            || !File.Exists(Path.Combine(paths.ApplicationDataRoot, "steam-token.dat")))
         {
             return;
         }
@@ -1505,8 +1593,133 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ErrorMessage = Loc["SelectMod"];
             return;
         }
+        if (!SelectedInstalledMod.CanUninstall)
+        {
+            ErrorMessage = SelectedInstalledMod.IsPinned
+                ? Loc["UnpinBeforeUninstall"]
+                : Loc["ExternalModReadOnly"];
+            return;
+        }
         var modId = SelectedInstalledMod.Id;
-        await RunInstanceMutationAsync(record => CreateModManager(record).UninstallIgnoringDependentsAsync(modId));
+        IReadOnlyList<InstalledModReceipt> unused = [];
+        await RunInstanceMutationAsync(async record =>
+        {
+            var manager = CreateModManager(record);
+            var before = await manager.GetInstalledAsync();
+            var removed = before.Single(mod => string.Equals(mod.Id, modId, StringComparison.OrdinalIgnoreCase));
+            await manager.UninstallIgnoringDependentsAsync(modId);
+            var remaining = await manager.GetInstalledAsync();
+            unused = InstalledModDependencyGraph.FindUnusedDependencies([removed], remaining);
+        });
+        SetUnusedDependencySuggestions(unused);
+    }
+
+    [RelayCommand]
+    private async Task TakeOverSelectedModAsync()
+    {
+        if (SelectedInstalledMod is not { CanTakeOver: true } selected)
+        {
+            return;
+        }
+        await RunInstanceMutationAsync(record =>
+            CreateModManager(record).TakeOverAsync(selected.Id, selected.Discovery));
+    }
+
+    [RelayCommand]
+    private async Task ToggleSelectedModPinnedAsync()
+    {
+        if (SelectedInstalledMod is not { CanPin: true, Receipt: { } receipt })
+        {
+            return;
+        }
+        await RunInstanceMutationAsync(record =>
+            CreateModManager(record).SetPinnedAsync(receipt.Id, !receipt.Pinned));
+    }
+
+    [RelayCommand]
+    private async Task RepairSelectedModAsync()
+    {
+        if (SelectedInstalledMod is not { CanRepair: true, CatalogManifest: { } manifest } selected)
+        {
+            return;
+        }
+        await RunInstanceMutationAsync(async record =>
+        {
+            var manager = CreateModManager(record);
+            var plan = await manager.GetRepairPlanAsync(selected.Id, catalog.Mods);
+            switch (plan.Action)
+            {
+                case ModRepairAction.Repair when plan.Manifest is not null:
+                    await manager.RepairFromUriAsync(plan.Manifest);
+                    break;
+                case ModRepairAction.Update when plan.Manifest is not null:
+                    await CreateModInstallService(record).UpdateAsync(plan.Manifest.Id);
+                    break;
+                default:
+                    throw new InvalidOperationException(plan.Reason);
+            }
+        });
+    }
+
+    [RelayCommand]
+    private async Task AcceptSelectedLocalModFilesAsync()
+    {
+        if (SelectedInstalledMod is not { CanAcceptCurrent: true } selected)
+        {
+            return;
+        }
+        await RunInstanceMutationAsync(record =>
+            CreateModManager(record).AcceptCurrentLocalFilesAsync(selected.Id));
+    }
+
+    [RelayCommand]
+    private async Task ReimportSelectedLocalModAsync()
+    {
+        if (SelectedInstalledMod is not { CanReimport: true } selected || !File.Exists(LocalModPath))
+        {
+            ErrorMessage = Loc["LocalModPathRequired"];
+            return;
+        }
+        await RunInstanceMutationAsync(record =>
+        {
+            var manager = CreateModManager(record);
+            return string.Equals(Path.GetExtension(LocalModPath), ".dll", StringComparison.OrdinalIgnoreCase)
+                ? manager.ReimportLocalDllAsync(selected.Id, LocalModPath)
+                : manager.ReimportLocalZipAsync(selected.Id, LocalModPath);
+        });
+    }
+
+    [RelayCommand]
+    private async Task AcknowledgeLaunchWarningsAsync()
+    {
+        if (SelectedInstance is null)
+        {
+            return;
+        }
+        var acknowledgements = settings.ModHealthAcknowledgements.ToList();
+        var knownFingerprints = acknowledgements
+            .Select(item => item.Fingerprint)
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (var issue in LaunchPreflight.Issues.Where(issue =>
+                     issue.Severity == LaunchIssueSeverity.Warning
+                     && !issue.IsAcknowledged
+                     && !string.IsNullOrWhiteSpace(issue.SubjectModId)))
+        {
+            var acknowledgement = ModHealthAcknowledgement.Create(SelectedInstance.Id, issue);
+            if (knownFingerprints.Add(acknowledgement.Fingerprint))
+            {
+                acknowledgements.Add(acknowledgement);
+            }
+        }
+        settings = settings with { ModHealthAcknowledgements = acknowledgements };
+        LaunchPreflight = LaunchPreflight with
+        {
+            Issues = LaunchPreflight.Issues.Select(issue =>
+                issue.Severity == LaunchIssueSeverity.Warning
+                    ? issue with { IsAcknowledged = true }
+                    : issue).ToArray()
+        };
+        await QueueSettingsSave();
     }
 
     [RelayCommand]
@@ -1517,7 +1730,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             return;
         }
-        var installed = InstalledMods.Select(mod => mod.Receipt).ToArray();
+        var installed = GetManagedModReceipts();
         var selectedIds = selected.Select(mod => mod.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var disabledExternalDependencies = selected
             .SelectMany(mod => mod.Dependencies)
@@ -1550,7 +1763,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             return;
         }
-        var installed = InstalledMods.Select(mod => mod.Receipt).ToArray();
+        var installed = GetManagedModReceipts();
         var selectedIds = selected.Select(mod => mod.Id).ToArray();
         var order = InstalledModDependencyGraph.OrderDependentsFirst(installed, selectedIds);
         await RunInstanceMutationAsync(async record =>
@@ -1589,17 +1802,24 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             return;
         }
-        var installed = InstalledMods.Select(mod => mod.Receipt).ToArray();
         var selectedIds = selected.Select(mod => mod.Id).ToArray();
-        var order = InstalledModDependencyGraph.OrderDependentsFirst(installed, selectedIds);
+        ModBatchUninstallResult? result = null;
         await RunInstanceMutationAsync(async record =>
         {
-            var manager = CreateModManager(record);
-            foreach (var mod in order)
-            {
-                await manager.UninstallIgnoringDependentsAsync(mod.Id);
-            }
+            result = await CreateModManager(record).UninstallBatchAsync(selectedIds);
         });
+        SetUnusedDependencySuggestions(result?.UnusedDependencies ?? []);
+    }
+
+    private void SetUnusedDependencySuggestions(IReadOnlyList<InstalledModReceipt> suggestions)
+    {
+        UnusedDependencySuggestions.Clear();
+        foreach (var suggestion in suggestions)
+        {
+            UnusedDependencySuggestions.Add(suggestion.Name);
+        }
+        OnPropertyChanged(nameof(HasUnusedDependencySuggestions));
+        OnPropertyChanged(nameof(UnusedDependencySummary));
     }
 
 
@@ -1613,7 +1833,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             throw new InvalidOperationException(Loc["SelectMod"]);
         }
         return InstalledModDependencyGraph.CreateRemovalPlan(
-            InstalledMods.Select(mod => mod.Receipt).ToArray(),
+            GetManagedModReceipts(),
             selectedIds);
     }
 
@@ -1623,7 +1843,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             throw new InvalidOperationException(Loc["NoInstance"]);
         }
-        var installed = InstalledMods.Select(mod => mod.Receipt).ToArray();
+        var installed = GetManagedModReceipts();
         var loaderIds = installed
             .Select(mod => mod.LoaderId)
             .Where(id => !string.IsNullOrWhiteSpace(id))
@@ -1657,7 +1877,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ? InstalledMods.Where(mod => mod.IsSelected).Select(mod => mod.Id).ToArray()
             : SelectedInstalledMod is null ? [] : [SelectedInstalledMod.Id];
         return InstalledModDependencyGraph.FindExternalDependents(
-                InstalledMods.Select(mod => mod.Receipt).ToArray(),
+                GetManagedModReceipts(),
                 selectedIds)
             .Select(mod => mod.Name)
             .ToArray();
@@ -1670,8 +1890,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             : SelectedInstalledMod is null ? [] : [SelectedInstalledMod.Name]);
 
     private IReadOnlyList<InstalledModReceipt> GetSelectedModReceipts() => InstalledMods
-        .Where(mod => mod.IsSelected)
+        .Where(mod => mod.IsSelected && mod.Receipt is not null)
         .Select(mod => mod.Receipt)
+        .OfType<InstalledModReceipt>()
+        .ToArray();
+
+    private IReadOnlyList<InstalledModReceipt> GetManagedModReceipts() => InstalledMods
+        .Select(mod => mod.Receipt)
+        .OfType<InstalledModReceipt>()
         .ToArray();
 
     [RelayCommand]
@@ -1903,6 +2129,50 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     partial void OnSelectedMarketTagOptionChanged(SettingOption<string>? value) => ApplyMarketFilters();
 
     partial void OnSelectedModStatusChanged(ModStatusFilter value) => ApplyModFilters();
+
+    partial void OnIsOfflineModeChanged(bool value)
+    {
+        networkPolicy.SetOffline(value);
+        if (value)
+        {
+            Volatile.Read(ref steamSignInCancellation)?.Cancel();
+            steamOfflineTransitionTask = DisconnectSteamForOfflineAsync();
+        }
+        if (value == settings.OfflineMode)
+        {
+            return;
+        }
+        settings = settings with { OfflineMode = value };
+        _ = QueueSettingsSave();
+    }
+
+    private async Task DisconnectSteamForOfflineAsync()
+    {
+        var gateTaken = false;
+        try
+        {
+            await steamConnectionGate.WaitAsync(lifetimeCancellation.Token);
+            gateTaken = true;
+            await DisposeCurrentSteamSessionAsync();
+            IsSteamLoggedIn = false;
+            SteamStatus = Loc["OfflineMode"];
+            QrCodeImage = null;
+        }
+        catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            ErrorMessage = $"Steam: {exception.Message}";
+        }
+        finally
+        {
+            if (gateTaken)
+            {
+                steamConnectionGate.Release();
+            }
+        }
+    }
 
     partial void OnSelectedModStatusOptionChanged(SettingOption<ModStatusFilter>? value)
     {
@@ -2137,19 +2407,24 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             .Select(mod => mod.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var focusedId = SelectedInstalledMod?.Id;
-        var receipts = InstalledMods.Select(mod => mod.Receipt).ToArray();
+        var items = InstalledMods.ToArray();
         InstalledMods.Clear();
-        foreach (var receipt in receipts)
+        foreach (var item in items)
         {
+            var receipt = item.Receipt;
             var manifest = catalog.Mods.FirstOrDefault(candidate =>
-                string.Equals(candidate.Id, receipt.Id, StringComparison.OrdinalIgnoreCase));
+                string.Equals(candidate.Id, item.Id, StringComparison.OrdinalIgnoreCase));
             InstalledMods.Add(new InstalledModItemViewModel(
+                item.Discovery,
                 receipt,
+                item.HealthReport,
                 manifest,
                 OnModSelectionChanged,
-                manifest is null ? null : ProjectMarketMod(manifest))
+                manifest is null ? null : ProjectMarketMod(manifest),
+                ModOwnershipDisplay(item.Ownership),
+                ModHealthDisplay(item.HealthStatus))
             {
-                IsSelected = selectedIds.Contains(receipt.Id)
+                IsSelected = selectedIds.Contains(item.Id)
             });
         }
         SelectedInstalledMod = focusedId is null
@@ -2270,8 +2545,30 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ModStatusOptions.Add(new(ModStatusFilter.Disabled, Loc["Disabled"]));
         ModStatusOptions.Add(new(ModStatusFilter.Local, Loc["Local"]));
         ModStatusOptions.Add(new(ModStatusFilter.Updates, Loc["Updates"]));
+        ModStatusOptions.Add(new(ModStatusFilter.External, Loc["External"]));
+        ModStatusOptions.Add(new(ModStatusFilter.Pinned, Loc["Pinned"]));
+        ModStatusOptions.Add(new(ModStatusFilter.NeedsAttention, Loc["NeedsAttentionFilter"]));
         SelectedModStatusOption = ModStatusOptions.First(option => option.Value == SelectedModStatus);
     }
+
+    private string ModOwnershipDisplay(ModOwnership ownership) => ownership switch
+    {
+        ModOwnership.Managed => Loc["Installed"],
+        ModOwnership.External => Loc["External"],
+        ModOwnership.LocalTakenOver => Loc["Local"],
+        _ => ownership.ToString()
+    };
+
+    private string ModHealthDisplay(ModHealthStatus status) => Loc[status switch
+    {
+        ModHealthStatus.Healthy => "ModHealthHealthy",
+        ModHealthStatus.CriticalFileMissing => "ModHealthCriticalFileMissing",
+        ModHealthStatus.ModifiedFile => "ModHealthModifiedFile",
+        ModHealthStatus.ExtraFile => "ModHealthExtraFile",
+        ModHealthStatus.UnmanagedExternal => "ModHealthUnmanagedExternal",
+        ModHealthStatus.Indeterminate => "ModHealthIndeterminate",
+        _ => "ModHealthIndeterminate"
+    }];
 
     private void NotifyPreflightLabels()
     {
@@ -2281,7 +2578,33 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         OnPropertyChanged(nameof(SaveIsolationStatus));
         OnPropertyChanged(nameof(LaunchReadinessTitle));
         OnPropertyChanged(nameof(LaunchReadinessHint));
+        OnPropertyChanged(nameof(LaunchIssueCountText));
     }
+
+    public IReadOnlyList<LaunchIssueItemViewModel> CreateLaunchIssueItems() =>
+        LaunchPreflight.Issues.Select(issue => new LaunchIssueItemViewModel(
+            Loc[LaunchIssueLocalizationKey(issue.Code)],
+            issue.Arguments.Count == 0 ? string.Empty : string.Join(" · ", issue.Arguments),
+            issue.Severity)).ToArray();
+
+    private static string LaunchIssueLocalizationKey(LaunchIssueCode code) => code switch
+    {
+        LaunchIssueCode.ExecutableMissing => "LaunchIssueExecutableMissing",
+        LaunchIssueCode.GameAlreadyRunning => "LaunchIssueGameAlreadyRunning",
+        LaunchIssueCode.LoaderConflict => "LaunchIssueLoaderConflict",
+        LaunchIssueCode.LoaderDrifted => "LaunchIssueLoaderDrifted",
+        LaunchIssueCode.UnsupportedBuildLoaderCombination => "LaunchIssueUnknownBuild",
+        LaunchIssueCode.TransactionUnhealthy => "LaunchIssueTransactionNeedsAttention",
+        LaunchIssueCode.LocalLowNotReady => "LaunchIssueLocalLowNotReady",
+        LaunchIssueCode.MissingDependency => "LaunchIssueMissingDependency",
+        LaunchIssueCode.DisabledDependency => "LaunchIssueDisabledDependency",
+        LaunchIssueCode.ModCriticalFileMissing => "LaunchIssueModCriticalFileMissing",
+        LaunchIssueCode.ModModifiedFile => "LaunchIssueModModifiedFile",
+        LaunchIssueCode.ModExtraFile => "LaunchIssueModExtraFile",
+        LaunchIssueCode.UnmanagedExternalMod => "LaunchIssueExternalMod",
+        LaunchIssueCode.ModHealthIndeterminate => "LaunchIssueModIndeterminate",
+        _ => "LaunchIssues"
+    };
 
     private void OnModSelectionChanged()
     {
@@ -2499,6 +2822,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             };
             InstalledPackageReceipt? loaderReceipt = null;
             IReadOnlyList<InstalledModReceipt> installed = [];
+            ModDiscoveryResult discovery = new();
+            IReadOnlyList<ModHealthReport> modHealthReports = [];
             IReadOnlyList<TransactionJournal> recoveries = [];
             var stateLoaded = false;
             await instanceOperationCoordinator.RunAsync(record.Id, async cancellationToken =>
@@ -2515,7 +2840,22 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 loaderInspection = await loaderManager.InspectAsync(cancellationToken);
                 loaderState = loaderInspection.State;
                 loaderReceipt = await loaderManager.GetReceiptAsync(cancellationToken);
-                installed = await CreateModManager(record).GetInstalledAsync(cancellationToken);
+                var modManager = CreateModManager(record);
+                discovery = await modManager.DiscoverAsync(
+                    loaderInspection.PackageId ?? loaderState.ToString(),
+                    cancellationToken);
+                installed = discovery.InstalledReceipts;
+                var healthService = new ModHealthService(record.RootPath);
+                var reports = new List<ModHealthReport>(discovery.Mods.Count);
+                foreach (var mod in discovery.Mods)
+                {
+                    var receipt = installed.FirstOrDefault(candidate =>
+                        string.Equals(candidate.Id, mod.Id, StringComparison.OrdinalIgnoreCase));
+                    reports.Add(receipt is null
+                        ? await healthService.AssessExternalAsync(mod, cancellationToken)
+                        : await healthService.AssessAsync(receipt, installed, cancellationToken));
+                }
+                modHealthReports = reports;
                 stateLoaded = true;
             }, cancellationToken);
             if (!stateLoaded
@@ -2537,6 +2877,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 installed,
                 recoveries.All(recovery => recovery.State != TransactionState.NeedsAttention),
                 Directory.Exists(isolation.GetInstanceLocalLowPath(record.Id)),
+                record.Id,
+                modHealthReports,
+                settings.ModHealthAcknowledgements,
                 new SystemHollowKnightProcessProbe().IsRunning());
 
             if (generation != Volatile.Read(ref detailsLoadGeneration)
@@ -2558,15 +2901,23 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     ? Loc["VerifiedCatalogLoader"]
                     : Loc["UnverifiedLocalLoader"];
             InstalledMods.Clear();
-            foreach (var mod in installed)
+            foreach (var mod in discovery.Mods)
             {
+                var receipt = installed.FirstOrDefault(candidate =>
+                    string.Equals(candidate.Id, mod.Id, StringComparison.OrdinalIgnoreCase));
+                var healthReport = modHealthReports.First(report =>
+                    string.Equals(report.ModId, mod.Id, StringComparison.OrdinalIgnoreCase));
                 var catalogManifest = catalog.Mods.FirstOrDefault(candidate =>
                     string.Equals(candidate.Id, mod.Id, StringComparison.OrdinalIgnoreCase));
                 InstalledMods.Add(new InstalledModItemViewModel(
                     mod,
+                    receipt,
+                    healthReport,
                     catalogManifest,
                     OnModSelectionChanged,
-                    catalogManifest is null ? null : ProjectMarketMod(catalogManifest)));
+                    catalogManifest is null ? null : ProjectMarketMod(catalogManifest),
+                    ModOwnershipDisplay(mod.Ownership),
+                    ModHealthDisplay(healthReport.Status)));
             }
             OnModSelectionChanged();
             ApplyModFilters();
@@ -2838,11 +3189,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             try
             {
-                customCatalogs.Add(await CustomCatalogSource.LoadAsync(
+                var customResult = await CustomCatalogSource.LoadWithCacheAsync(
                     definition.Namespace,
                     new Uri(definition.Url),
+                    GetCustomCatalogCachePath(definition),
                     directMetadataHttpClient,
-                    cancellationToken));
+                    cancellationToken);
+                customCatalogs.Add(customResult.Catalog);
+                if (customResult.Status == CustomCatalogLoadStatus.Cached)
+                {
+                    customCatalogErrors.Add(
+                        $"{definition.Namespace}: cached catalog used ({customResult.Reason})");
+                }
             }
             catch (Exception exception) when (exception is HttpRequestException
                 or InvalidDataException
@@ -2861,6 +3219,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ErrorMessage = string.Join(Environment.NewLine, customCatalogErrors);
         }
         return customMerge.Catalog;
+    }
+
+    private string GetCustomCatalogCachePath(CustomCatalogDefinition definition)
+    {
+        var identity = $"{definition.Namespace}\n{definition.Url}";
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)))
+            .ToLowerInvariant();
+        return Path.Combine(
+            paths.ApplicationDataRoot,
+            "catalog",
+            "custom",
+            $"{hash}.json");
     }
 
     private string UniqueInstanceName(string version)
@@ -2954,11 +3324,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 await Task.WhenAll(
                     initializationTask ?? Task.CompletedTask,
                     LaunchGameCommand.ExecutionTask ?? Task.CompletedTask,
+                    ForceLaunchGameCommand.ExecutionTask ?? Task.CompletedTask,
                     SignInWithQrCommand.ExecutionTask ?? Task.CompletedTask,
                     DownloadBuildCommand.ExecutionTask ?? Task.CompletedTask,
                     PrepareMarketInstallTargetsCommand.ExecutionTask ?? Task.CompletedTask,
                     InstallMarketModCommand.ExecutionTask ?? Task.CompletedTask,
                     TestGitHubLatencyCommand.ExecutionTask ?? Task.CompletedTask,
+                    steamOfflineTransitionTask,
                     pendingDetailsLoad);
             }
             catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
@@ -3006,6 +3378,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 directMetadataHttpClient.Dispose();
                 packageHttpClient.Dispose();
                 githubLatencyService.Dispose();
+                networkPolicy.Dispose();
                 lifetimeCancellation.Dispose();
             }
         }

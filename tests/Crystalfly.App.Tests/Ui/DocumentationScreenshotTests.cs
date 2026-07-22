@@ -14,6 +14,7 @@ using Crystalfly.App.Views;
 using Crystalfly.Core.Catalog;
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Runtime;
 using Ursa.Controls;
 
 namespace Crystalfly.App.Tests.Ui;
@@ -24,12 +25,15 @@ public sealed class DocumentationScreenshotTests
     [
         new("crystalfly-900x600-zh.jpg", 900, 600, 1d, ScreenshotState.GameVersions),
         new("crystalfly-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.Launch),
+        new("crystalfly-launch-issues-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.LaunchIssues),
+        new("crystalfly-launch-issues-overlay-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.LaunchIssuesOverlay),
         new("crystalfly-1920x1080-zh.jpg", 1920, 1080, 1.5d, ScreenshotState.Settings),
         new("crystalfly-2560x1440-zh.jpg", 2560, 1440, 2d, ScreenshotState.Launch),
         new("crystalfly-mod-market-list-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.MarketList),
         new("crystalfly-mod-market-detail-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.MarketDetail),
         new("crystalfly-mod-install-overlay-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.MarketInstall),
-        new("crystalfly-instance-detail-900x600-zh.jpg", 900, 600, 1d, ScreenshotState.InstanceDetail)
+        new("crystalfly-instance-detail-900x600-zh.jpg", 900, 600, 1d, ScreenshotState.InstanceDetail),
+        new("crystalfly-installed-mod-health-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.InstalledModHealth)
     ];
 
     [AvaloniaFact]
@@ -55,6 +59,14 @@ public sealed class DocumentationScreenshotTests
             if (capture.State == ScreenshotState.MarketInstall)
             {
                 await fixture.OpenMarketInstallAsync();
+            }
+            else if (capture.State == ScreenshotState.LaunchIssuesOverlay)
+            {
+                await fixture.OpenLaunchIssuesAsync();
+            }
+            else if (capture.State == ScreenshotState.InstalledModHealth)
+            {
+                fixture.FocusExternalMod();
             }
 
             Dispatcher.UIThread.RunJobs();
@@ -201,8 +213,25 @@ public sealed class DocumentationScreenshotTests
                 Assert.Contains(fixture.Instance.Name, visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["Ready"], visibleText);
                 break;
+            case ScreenshotState.LaunchIssues:
+                Assert.True(fixture.ViewModel.HasLaunchIssues);
+                Assert.Contains(fixture.ViewModel.LaunchIssueCountText, visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["NeedsAttention"], visibleText);
+                Assert.Contains(fixture.Window.GetVisualDescendants().OfType<Border>(), border =>
+                    border.IsEffectivelyVisible && border.Classes.Contains("cfp-launch-issue-frame"));
+                break;
+            case ScreenshotState.LaunchIssuesOverlay:
+                Assert.True(fixture.ViewModel.HasLaunchIssues);
+                Assert.Single(fixture.Window.GetVisualDescendants().OfType<CustomDialogControl>());
+                Assert.Contains(fixture.ViewModel.Loc["LaunchWarningTitle"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["ForceLaunch"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["DoNotRemindLaunchWarnings"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["LaunchIssueMissingDependency"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["LaunchIssueModModifiedFile"], visibleText);
+                break;
             case ScreenshotState.Settings:
                 Assert.Contains(fixture.ViewModel.Loc["VersionRoot"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["OfflineMode"], visibleText);
                 break;
             case ScreenshotState.MarketList:
                 Assert.Contains(fixture.ViewModel.Loc["MarketTitle"], visibleText);
@@ -226,6 +255,19 @@ public sealed class DocumentationScreenshotTests
             case ScreenshotState.InstanceDetail:
                 Assert.Contains(fixture.ViewModel.Loc["Overview"], visibleText);
                 Assert.Contains(fixture.Instance.DisplayVersion, visibleText);
+                break;
+            case ScreenshotState.InstalledModHealth:
+                Assert.Contains(fixture.ViewModel.Loc["InstalledMods"], visibleText);
+                Assert.Contains("调试模组", visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["ModHealthModifiedFile"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["Pinned"], visibleText);
+                Assert.Contains("External Helper", visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["ModHealthUnmanagedExternal"], visibleText);
+                Assert.Contains(fixture.Window.GetVisualDescendants().OfType<Button>(), button =>
+                    button.IsEffectivelyVisible
+                    && AutomationProperties.GetName(button) == fixture.ViewModel.Loc["TakeOverMod"]);
+                Assert.Contains(fixture.Window.GetVisualDescendants().OfType<StackPanel>(), panel =>
+                    panel.Classes.Contains("cfp-installed-mod-actions") && panel.Opacity == 1d);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(state), state, null);
@@ -283,7 +325,7 @@ public sealed class DocumentationScreenshotTests
                 ScreenshotState.GameVersions => "Downloads",
                 ScreenshotState.Settings => "Settings",
                 ScreenshotState.MarketList or ScreenshotState.MarketDetail or ScreenshotState.MarketInstall => "Downloads",
-                ScreenshotState.InstanceDetail => "Manage",
+                ScreenshotState.InstanceDetail or ScreenshotState.InstalledModHealth => "Manage",
                 _ => "Launch"
             };
 
@@ -293,7 +335,11 @@ public sealed class DocumentationScreenshotTests
                 ViewModel.SelectedMarketMod = state == ScreenshotState.MarketList ? null : Mod;
             }
 
-            if (state is ScreenshotState.Launch or ScreenshotState.InstanceDetail)
+            if (state is ScreenshotState.Launch
+                or ScreenshotState.LaunchIssues
+                or ScreenshotState.LaunchIssuesOverlay
+                or ScreenshotState.InstanceDetail
+                or ScreenshotState.InstalledModHealth)
             {
                 ViewModel.SelectedInstance = Instance;
                 for (var attempt = 0; attempt < 100 && ViewModel.IsLoadingInstanceDetails; attempt++)
@@ -304,6 +350,47 @@ public sealed class DocumentationScreenshotTests
                 ViewModel.CurrentLoaderState = LoaderState.ModdingApi;
                 ViewModel.LaunchPreflight = new(true, true, true, true);
                 ViewModel.StatusMessage = ViewModel.Loc["Ready"];
+            }
+
+            if (state is ScreenshotState.LaunchIssues or ScreenshotState.LaunchIssuesOverlay)
+            {
+                ViewModel.LaunchPreflight = new LaunchPreflightResult(
+                    true,
+                    true,
+                    false,
+                    true,
+                    [
+                        new LaunchPreflightIssue
+                        {
+                            Code = LaunchIssueCode.MissingDependency,
+                            Severity = LaunchIssueSeverity.Forceable,
+                            SubjectModId = Mod.Id,
+                            Arguments = [Mod.Id, "hkmod:Satchel"]
+                        },
+                        new LaunchPreflightIssue
+                        {
+                            Code = LaunchIssueCode.ModModifiedFile,
+                            Severity = LaunchIssueSeverity.Warning,
+                            SubjectModId = Mod.Id,
+                            RelativeFilePath = "hollow_knight_Data/Managed/Mods/DebugMod/DebugMod.dll",
+                            CurrentFileSha256 = new string('A', 64),
+                            Arguments = [Mod.Id, "DebugMod.dll"]
+                        },
+                        new LaunchPreflightIssue
+                        {
+                            Code = LaunchIssueCode.UnmanagedExternalMod,
+                            Severity = LaunchIssueSeverity.Warning,
+                            SubjectModId = "external-helper",
+                            Arguments = ["external-helper"]
+                        }
+                    ]);
+                ViewModel.StatusMessage = ViewModel.Loc["NeedsAttention"];
+            }
+
+            if (state == ScreenshotState.InstalledModHealth)
+            {
+                ViewModel.CurrentManageTab = "Mods";
+                PrepareInstalledModHealth();
             }
         }
 
@@ -321,6 +408,108 @@ public sealed class DocumentationScreenshotTests
                 Dispatcher.UIThread.RunJobs();
                 await Task.Delay(10);
             }
+        }
+
+        public async Task OpenLaunchIssuesAsync()
+        {
+            var showIssues = Window.GetVisualDescendants()
+                .OfType<Button>()
+                .Single(button => button.IsEffectivelyVisible
+                    && AutomationProperties.GetName(button) == ViewModel.Loc["LaunchIssues"]);
+            showIssues.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            for (var attempt = 0;
+                 attempt < 100 && !Window.GetVisualDescendants().OfType<CustomDialogControl>().Any();
+                 attempt++)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Delay(10);
+            }
+        }
+
+        public void FocusExternalMod()
+        {
+            var externalItem = Window.GetVisualDescendants()
+                .OfType<ListBoxItem>()
+                .Single(item => item.DataContext is InstalledModItemViewModel { IsExternal: true });
+            externalItem.Focus();
+            Dispatcher.UIThread.RunJobs();
+        }
+
+        private void PrepareInstalledModHealth()
+        {
+            ViewModel.InstalledMods.Clear();
+            ViewModel.VisibleInstalledMods.Clear();
+
+            var managedReceipt = new InstalledModReceipt
+            {
+                Id = Mod.Id,
+                Name = Mod.Name,
+                Version = Mod.Version,
+                LoaderId = Mod.LoaderId,
+                InstallRoot = "hollow_knight_Data/Managed/Mods/DebugMod",
+                Enabled = true,
+                Ownership = ModOwnership.Managed,
+                Pinned = true,
+                EntryFiles = ["hollow_knight_Data/Managed/Mods/DebugMod/DebugMod.dll"]
+            };
+            var managedDiscovery = new ModDiscoveryEntry
+            {
+                Id = managedReceipt.Id,
+                Name = managedReceipt.Name,
+                LoaderId = managedReceipt.LoaderId,
+                InstallRoot = managedReceipt.InstallRoot,
+                Enabled = true,
+                Ownership = ModOwnership.Managed,
+                EntryFiles = managedReceipt.EntryFiles,
+                Files = managedReceipt.EntryFiles
+            };
+            var managed = new InstalledModItemViewModel(
+                managedDiscovery,
+                managedReceipt,
+                new ModHealthReport
+                {
+                    ModId = managedReceipt.Id,
+                    Status = ModHealthStatus.ModifiedFile,
+                    ModifiedFiles = managedReceipt.EntryFiles
+                },
+                Mod,
+                static () => { },
+                ViewModel.ProjectMarketMod(Mod),
+                ViewModel.Loc["Installed"],
+                ViewModel.Loc["ModHealthModifiedFile"])
+            {
+                IsSelected = true
+            };
+
+            var externalDiscovery = new ModDiscoveryEntry
+            {
+                Id = "external-helper",
+                Name = "External Helper",
+                LoaderId = Mod.LoaderId,
+                InstallRoot = "hollow_knight_Data/Managed/Mods/ExternalHelper",
+                Enabled = true,
+                Ownership = ModOwnership.External,
+                EntryFiles = ["hollow_knight_Data/Managed/Mods/ExternalHelper/ExternalHelper.dll"],
+                Files = ["hollow_knight_Data/Managed/Mods/ExternalHelper/ExternalHelper.dll"]
+            };
+            var external = new InstalledModItemViewModel(
+                externalDiscovery,
+                null,
+                new ModHealthReport
+                {
+                    ModId = externalDiscovery.Id,
+                    Status = ModHealthStatus.UnmanagedExternal
+                },
+                null,
+                static () => { },
+                ownershipDisplayName: ViewModel.Loc["External"],
+                healthDisplayName: ViewModel.Loc["ModHealthUnmanagedExternal"]);
+
+            ViewModel.InstalledMods.Add(managed);
+            ViewModel.InstalledMods.Add(external);
+            ViewModel.VisibleInstalledMods.Add(managed);
+            ViewModel.VisibleInstalledMods.Add(external);
+            ViewModel.SelectedInstalledMod = external;
         }
 
         public async ValueTask DisposeAsync()
@@ -357,10 +546,13 @@ public sealed class DocumentationScreenshotTests
     {
         GameVersions,
         Launch,
+        LaunchIssues,
+        LaunchIssuesOverlay,
         Settings,
         MarketList,
         MarketDetail,
         MarketInstall,
-        InstanceDetail
+        InstanceDetail,
+        InstalledModHealth
     }
 }

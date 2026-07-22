@@ -33,16 +33,10 @@ public sealed class ModManager
     public async Task<IReadOnlyList<InstalledModReceipt>> GetInstalledAsync(
         CancellationToken cancellationToken = default)
     {
-        if (!Directory.Exists(_receiptsRoot))
-        {
-            return [];
-        }
-        var receipts = new List<InstalledModReceipt>();
-        foreach (var path in Directory.EnumerateFiles(_receiptsRoot, "*.json", SearchOption.TopDirectoryOnly))
-        {
-            receipts.Add(await AtomicJsonStore.ReadAsync<InstalledModReceipt>(path, cancellationToken));
-        }
-        return receipts.OrderBy(receipt => receipt.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+        return await InstalledModReceiptStore.ReadAllAsync(
+            _instanceRoot,
+            _receiptsRoot,
+            cancellationToken);
     }
 
     public Task<IReadOnlyList<TransactionJournal>> RecoverPendingAsync(
@@ -100,6 +94,97 @@ public sealed class ModManager
         IProgress<PackageTransferProgress>? progress,
         CancellationToken cancellationToken = default) =>
         await UpdatePackageAsync(manifest, null, new Uri(manifest.DownloadUrl), progress, cancellationToken);
+
+    public async Task<ModRepairPlan> GetRepairPlanAsync(
+        string id,
+        IEnumerable<ModManifest> catalog,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentNullException.ThrowIfNull(catalog);
+        var current = Find(await GetInstalledAsync(cancellationToken), id);
+        if (current.Ownership != ModOwnership.Managed || current.IsLocal)
+        {
+            return new ModRepairPlan
+            {
+                ModId = current.Id,
+                InstalledVersion = current.Version,
+                Action = ModRepairAction.Unavailable,
+                Reason = "Only official managed mods can be repaired from the catalog."
+            };
+        }
+        if (current.Pinned)
+        {
+            return new ModRepairPlan
+            {
+                ModId = current.Id,
+                InstalledVersion = current.Version,
+                Action = ModRepairAction.Unavailable,
+                Reason = "Pinned mods must be unpinned before repair."
+            };
+        }
+
+        var manifests = catalog.Where(manifest =>
+                string.Equals(manifest.Id, current.Id, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(manifest.LoaderId, current.LoaderId, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var exact = manifests.FirstOrDefault(manifest =>
+            string.Equals(manifest.Version, current.Version, StringComparison.OrdinalIgnoreCase));
+        if (exact is not null)
+        {
+            return new ModRepairPlan
+            {
+                ModId = current.Id,
+                InstalledVersion = current.Version,
+                Action = ModRepairAction.Repair,
+                TargetVersion = exact.Version,
+                Manifest = exact,
+                Reason = "The exact installed catalog version is available for repair."
+            };
+        }
+        var update = manifests
+            .Where(manifest => CompareVersions(manifest.Version, current.Version) > 0)
+            .Aggregate(
+                (ModManifest?)null,
+                (best, candidate) => best is null
+                    || CompareVersions(candidate.Version, best.Version) > 0
+                        ? candidate
+                        : best);
+        return update is null
+            ? new ModRepairPlan
+            {
+                ModId = current.Id,
+                InstalledVersion = current.Version,
+                Action = ModRepairAction.Unavailable,
+                Reason = "The catalog does not contain a compatible package."
+            }
+            : new ModRepairPlan
+            {
+                ModId = current.Id,
+                InstalledVersion = current.Version,
+                Action = ModRepairAction.Update,
+                TargetVersion = update.Version,
+                Manifest = update,
+                Reason = "The catalog contains a different version; this operation is an update."
+            };
+    }
+
+    public async Task<InstalledModReceipt> RepairFromFileAsync(
+        ModManifest manifest,
+        string packagePath,
+        CancellationToken cancellationToken = default) =>
+        await RepairPackageAsync(manifest, packagePath, null, progress: null, cancellationToken);
+
+    public async Task<InstalledModReceipt> RepairFromUriAsync(
+        ModManifest manifest,
+        CancellationToken cancellationToken = default) =>
+        await RepairFromUriAsync(manifest, progress: null, cancellationToken);
+
+    public async Task<InstalledModReceipt> RepairFromUriAsync(
+        ModManifest manifest,
+        IProgress<PackageTransferProgress>? progress,
+        CancellationToken cancellationToken = default) =>
+        await RepairPackageAsync(manifest, null, new Uri(manifest.DownloadUrl), progress, cancellationToken);
 
     public async Task<IReadOnlyList<InstalledModReceipt>> InstallWithDependenciesFromFilesAsync(
         IEnumerable<ModManifest> catalog,
@@ -191,6 +276,299 @@ public sealed class ModManager
             layout, activeRoot, staging, installed, cancellationToken);
     }
 
+    public async Task<InstalledModReceipt> ReimportLocalZipAsync(
+        string id,
+        string packagePath,
+        CancellationToken cancellationToken = default)
+    {
+        var current = Find(await GetInstalledAsync(cancellationToken), id);
+        EnsureLocal(current);
+        var package = new FileInfo(Path.GetFullPath(packagePath));
+        if (!package.Exists)
+        {
+            throw new FileNotFoundException("Local mod package was not found.", packagePath);
+        }
+        var manifest = new ModManifest
+        {
+            Id = current.Id,
+            Name = current.Name,
+            Version = "local",
+            DownloadUrl = "https://local.invalid/package.zip",
+            SizeBytes = package.Length,
+            Sha256 = await HashFileAsync(package.FullName, cancellationToken),
+            LoaderId = current.LoaderId,
+            Dependencies = current.Dependencies,
+            FlatFiles = GetLayout(current.LoaderId) == ModLayout.Flat
+                ? LocalFlatFiles(package.FullName)
+                : []
+        };
+        return await ReplacePackageAsync(
+            current,
+            manifest,
+            package.FullName,
+            packageUri: null,
+            ModOwnership.LocalTakenOver,
+            isLocal: true,
+            operation: "reimport-local-mod",
+            progress: null,
+            cancellationToken);
+    }
+
+    public async Task<InstalledModReceipt> ReimportLocalDllAsync(
+        string id,
+        string dllPath,
+        CancellationToken cancellationToken = default)
+    {
+        var current = Find(await GetInstalledAsync(cancellationToken), id);
+        EnsureLocal(current);
+        var source = Path.GetFullPath(dllPath);
+        if (!File.Exists(source)
+            || !string.Equals(Path.GetExtension(source), ".dll", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException("Local DLL re-import requires an existing .dll file.");
+        }
+        using var workspace = new TemporaryDirectory(_transactionRoot, ".mod-local-dll-");
+        var staging = workspace.CreateDirectory("staging");
+        var targetRelativePath = Normalize(Path.Combine(current.InstallRoot, Path.GetFileName(source)));
+        CopyFile(source, ResolveUnderRoot(staging, targetRelativePath));
+        var files = await ReceiptsFromStagingAsync(staging, cancellationToken);
+        var updated = current with
+        {
+            Version = "local",
+            IsLocal = true,
+            Ownership = ModOwnership.LocalTakenOver,
+            Files = files,
+            EntryFiles = EntryFiles(files)
+        };
+        EnsureUpdateTargetsAvailable(staging, current);
+        await ApplyModStateAsync(
+            staging,
+            current.Files.Select(file => file.RelativePath),
+            updated,
+            receiptIdToRemove: null,
+            "reimport-local-dll",
+            cancellationToken);
+        return updated;
+    }
+
+    public async Task<ModDiscoveryResult> DiscoverAsync(
+        string loaderId,
+        CancellationToken cancellationToken = default)
+    {
+        var installed = await GetInstalledAsync(cancellationToken);
+        return new ModDiscoveryService(_instanceRoot, _receiptsRoot).Discover(loaderId, installed);
+    }
+
+    public async Task<InstalledModReceipt> TakeOverAsync(
+        string id,
+        ModDiscoveryEntry external,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentNullException.ThrowIfNull(external);
+        if (external.Ownership != ModOwnership.External || external.Files.Count == 0)
+        {
+            throw new InvalidDataException("Only a discovered external mod with files can be taken over.");
+        }
+
+        var installed = await GetInstalledAsync(cancellationToken);
+        EnsureCanInstall(id, [], installed);
+        var pathPolicy = new ModPathPolicy(_instanceRoot);
+        var installRoot = pathPolicy.ResolveRecognized(external.InstallRoot);
+        pathPolicy.EnsureNoReparsePoints(installRoot.FullPath);
+
+        var resolvedFiles = external.Files
+            .Select(path => pathPolicy.ResolveUnderInstallRoot(path, installRoot))
+            .ToArray();
+        var placements = resolvedFiles.Select(pathPolicy.GetEnabledPlacement).Distinct().ToArray();
+        if (placements.Length != 1 || placements[0] != external.Enabled)
+        {
+            throw new InvalidDataException("External mod files use inconsistent enabled or disabled placement.");
+        }
+        var normalizedFiles = resolvedFiles.Select(path => path.RelativePath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var alreadyOwned = GetOwnedPathsByOtherMods(pathPolicy, installed, currentId: null);
+        if (normalizedFiles.Any(alreadyOwned.Contains))
+        {
+            throw new InvalidOperationException("One or more external mod files already belong to another receipt.");
+        }
+
+        var files = new List<InstalledFileReceipt>(normalizedFiles.Length);
+        foreach (var resolvedFile in resolvedFiles)
+        {
+            pathPolicy.EnsureNoReparsePoints(resolvedFile.FullPath);
+            if (!File.Exists(resolvedFile.FullPath))
+            {
+                throw new FileNotFoundException("External mod file was not found.", resolvedFile.FullPath);
+            }
+            files.Add(new InstalledFileReceipt
+            {
+                RelativePath = resolvedFile.RelativePath,
+                Sha256 = await HashFileAsync(resolvedFile.FullPath, cancellationToken)
+            });
+        }
+        var fileSet = normalizedFiles.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var entryFiles = external.EntryFiles
+            .Select(path => pathPolicy.ResolveUnderInstallRoot(path, installRoot).RelativePath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (entryFiles.Any(path => !fileSet.Contains(path)))
+        {
+            throw new InvalidDataException("External mod entry files must belong to the takeover file set.");
+        }
+        if (entryFiles.Length == 0)
+        {
+            entryFiles = EntryFiles(files);
+        }
+        var receipt = new InstalledModReceipt
+        {
+            Id = id,
+            Name = external.Name,
+            Version = "local",
+            LoaderId = external.LoaderId,
+            InstallRoot = installRoot.RelativePath,
+            Enabled = external.Enabled,
+            IsLocal = true,
+            Ownership = ModOwnership.LocalTakenOver,
+            Files = files.OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase).ToArray(),
+            EntryFiles = entryFiles
+        };
+        await AtomicJsonStore.WriteAsync(ReceiptPath(id), receipt, cancellationToken);
+        return receipt;
+    }
+
+    public async Task<InstalledModReceipt> SetPinnedAsync(
+        string id,
+        bool pinned,
+        CancellationToken cancellationToken = default)
+    {
+        var receipt = Find(await GetInstalledAsync(cancellationToken), id);
+        if (receipt.Pinned == pinned)
+        {
+            return receipt;
+        }
+        var updated = receipt with { Pinned = pinned };
+        await AtomicJsonStore.WriteAsync(ReceiptPath(receipt.Id), updated, cancellationToken);
+        return updated;
+    }
+
+    public async Task<InstalledModReceipt> AcceptCurrentLocalFilesAsync(
+        string id,
+        IEnumerable<string>? additionalRelativePaths = null,
+        CancellationToken cancellationToken = default)
+    {
+        var installed = await GetInstalledAsync(cancellationToken);
+        var current = Find(installed, id);
+        EnsureLocal(current);
+        var pathPolicy = new ModPathPolicy(_instanceRoot);
+        var installRoot = pathPolicy.ResolveRecognized(current.InstallRoot);
+        pathPolicy.EnsureNoReparsePoints(installRoot.FullPath);
+        var sharedRoot = pathPolicy.IsSharedRoot(installRoot)
+            || installed.Any(receipt =>
+                !string.Equals(receipt.Id, current.Id, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(receipt.InstallRoot, current.InstallRoot, StringComparison.OrdinalIgnoreCase));
+        IEnumerable<string> currentPaths;
+        if (sharedRoot)
+        {
+            currentPaths = current.Files.Select(file => file.RelativePath);
+        }
+        else
+        {
+            currentPaths = pathPolicy.EnumerateFilesSafely(
+                    installRoot.FullPath,
+                    rejectReparsePoints: true)
+                .Select(pathPolicy.ToRelativePath);
+        }
+        var paths = currentPaths.Concat(additionalRelativePaths ?? [])
+            .Select(path => pathPolicy.ResolveUnderInstallRoot(path, installRoot))
+            .DistinctBy(path => path.RelativePath, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (paths.Length == 0)
+        {
+            throw new InvalidOperationException($"Local mod '{current.Id}' does not have files to accept.");
+        }
+
+        var files = new List<InstalledFileReceipt>(paths.Length);
+        var ownedByOtherMods = GetOwnedPathsByOtherMods(pathPolicy, installed, current.Id);
+        foreach (var resolvedPath in paths)
+        {
+            if (ownedByOtherMods.Contains(resolvedPath.RelativePath))
+            {
+                throw new InvalidDataException(
+                    $"Accepted local mod file belongs to another receipt: '{resolvedPath.RelativePath}'.");
+            }
+            pathPolicy.EnsureNoReparsePoints(resolvedPath.FullPath);
+            if (!File.Exists(resolvedPath.FullPath))
+            {
+                continue;
+            }
+            files.Add(new InstalledFileReceipt
+            {
+                RelativePath = resolvedPath.RelativePath,
+                Sha256 = await HashFileAsync(resolvedPath.FullPath, cancellationToken)
+            });
+        }
+        if (files.Count == 0)
+        {
+            throw new InvalidOperationException($"Local mod '{current.Id}' does not have files to accept.");
+        }
+        var updated = current with
+        {
+            SchemaVersion = InstalledModReceipt.CurrentSchemaVersion,
+            IsLocal = true,
+            Ownership = ModOwnership.LocalTakenOver,
+            Files = files.OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase).ToArray(),
+            EntryFiles = EntryFiles(files)
+        };
+        await AtomicJsonStore.WriteAsync(ReceiptPath(current.Id), updated, cancellationToken);
+        return updated;
+    }
+
+    public async Task RemoveLocalAsync(
+        string id,
+        CancellationToken cancellationToken = default)
+    {
+        var installed = await GetInstalledAsync(cancellationToken);
+        var receipt = Find(installed, id);
+        EnsureLocal(receipt);
+        if (receipt.Pinned)
+        {
+            throw new InvalidOperationException($"Pinned mod '{receipt.Id}' must be unpinned before uninstalling.");
+        }
+        EnsureNoDependents(installed, id);
+
+        var pathPolicy = new ModPathPolicy(_instanceRoot);
+        var installRoot = pathPolicy.ResolveRecognized(receipt.InstallRoot);
+        pathPolicy.EnsureNoReparsePoints(installRoot.FullPath);
+        var ownedByOtherMods = GetOwnedPathsByOtherMods(pathPolicy, installed, receipt.Id);
+        var existingPaths = new List<string>();
+        foreach (var file in receipt.Files)
+        {
+            var resolved = pathPolicy.ResolveUnderInstallRoot(file.RelativePath, installRoot);
+            if (ownedByOtherMods.Contains(resolved.RelativePath))
+            {
+                throw new InvalidDataException(
+                    $"Local mod file belongs to another receipt: '{resolved.RelativePath}'.");
+            }
+            pathPolicy.EnsureNoReparsePoints(resolved.FullPath);
+            if (File.Exists(resolved.FullPath))
+            {
+                existingPaths.Add(resolved.RelativePath);
+            }
+        }
+
+        using var workspace = new TemporaryDirectory(_transactionRoot, ".mod-local-remove-");
+        await ApplyModStateAsync(
+            workspace.CreateDirectory("staging"),
+            existingPaths,
+            receipt: null,
+            receipt.Id,
+            "remove-local-mod",
+            cancellationToken);
+        RemoveEmptyParentDirectories(receipt.InstallRoot);
+    }
+
     public async Task<InstalledModReceipt> SetEnabledAsync(
         string id,
         bool enabled,
@@ -236,11 +614,13 @@ public sealed class ModManager
                 ResolveUnderRoot(staging, Normalize(Path.Combine(newRoot, relativeInsideMod))));
         }
         EnsureTargetsAbsent(staging);
+        var movedFiles = await ReceiptsFromStagingAsync(staging, cancellationToken);
         var updated = receipt with
         {
             Enabled = enabled,
             InstallRoot = newRoot,
-            Files = await ReceiptsFromStagingAsync(staging, cancellationToken)
+            Files = movedFiles,
+            EntryFiles = EntryFiles(movedFiles)
         };
         await ApplyModStateAsync(
             staging,
@@ -261,6 +641,57 @@ public sealed class ModManager
         CancellationToken cancellationToken = default) =>
         await UninstallCoreAsync(id, ignoreDependents: true, cancellationToken);
 
+    public async Task<ModUninstallResult> UninstallWithSuggestionsAsync(
+        string id,
+        CancellationToken cancellationToken = default)
+    {
+        var before = await GetInstalledAsync(cancellationToken);
+        var removed = Find(before, id);
+        await UninstallCoreAsync(id, ignoreDependents: false, cancellationToken);
+        var remaining = await GetInstalledAsync(cancellationToken);
+        return new ModUninstallResult
+        {
+            RemovedModId = removed.Id,
+            UnusedDependencies = InstalledModDependencyGraph.FindUnusedDependencies([removed], remaining)
+        };
+    }
+
+    public async Task<ModBatchUninstallResult> UninstallBatchAsync(
+        IEnumerable<string> ids,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        var installed = await GetInstalledAsync(cancellationToken);
+        var selected = ids.Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(id => Find(installed, id))
+            .ToArray();
+        var skipped = selected.Where(receipt => receipt.Pinned).ToArray();
+        var targets = selected.Where(receipt => !receipt.Pinned).ToArray();
+        var externalDependents = InstalledModDependencyGraph.FindExternalDependents(
+            installed,
+            targets.Select(receipt => receipt.Id));
+        if (externalDependents.Count != 0)
+        {
+            throw new InvalidOperationException(
+                $"Selected mods are required by: {string.Join(", ", externalDependents.Select(mod => mod.Id))}.");
+        }
+
+        var ordered = InstalledModDependencyGraph.OrderDependentsFirst(
+            installed,
+            targets.Select(receipt => receipt.Id));
+        foreach (var receipt in ordered)
+        {
+            await UninstallCoreAsync(receipt.Id, ignoreDependents: true, cancellationToken);
+        }
+        var remaining = await GetInstalledAsync(cancellationToken);
+        return new ModBatchUninstallResult
+        {
+            RemovedModIds = ordered.Select(receipt => receipt.Id).ToArray(),
+            SkippedPinnedModIds = skipped.Select(receipt => receipt.Id).ToArray(),
+            UnusedDependencies = InstalledModDependencyGraph.FindUnusedDependencies(ordered, remaining)
+        };
+    }
+
     private async Task UninstallCoreAsync(
         string id,
         bool ignoreDependents,
@@ -268,9 +699,18 @@ public sealed class ModManager
     {
         var installed = await GetInstalledAsync(cancellationToken);
         var receipt = Find(installed, id);
+        if (receipt.Pinned)
+        {
+            throw new InvalidOperationException($"Pinned mod '{receipt.Id}' must be unpinned before uninstalling.");
+        }
         if (!ignoreDependents)
         {
             EnsureNoDependents(installed, id);
+        }
+        if (receipt.IsLocal && receipt.Ownership == ModOwnership.LocalTakenOver)
+        {
+            await RemoveLocalAsync(id, cancellationToken);
+            return;
         }
         await VerifyFilesAsync(receipt, cancellationToken);
         using var workspace = new TemporaryDirectory(_transactionRoot, ".mod-uninstall-");
@@ -320,9 +760,13 @@ public sealed class ModManager
     {
         var installed = await GetInstalledAsync(cancellationToken);
         var current = Find(installed, manifest.Id);
-        if (current.IsLocal)
+        if (current.IsLocal || current.Ownership != ModOwnership.Managed)
         {
             throw new InvalidOperationException($"Local mod '{manifest.Id}' cannot be updated automatically.");
+        }
+        if (current.Pinned)
+        {
+            throw new InvalidOperationException($"Pinned mod '{current.Id}' cannot be updated until it is unpinned.");
         }
         if (!string.Equals(current.LoaderId, manifest.LoaderId, StringComparison.OrdinalIgnoreCase))
         {
@@ -337,6 +781,7 @@ public sealed class ModManager
         EnsureUpdateTargetsAvailable(staging, current);
         EnsureInstallRootAvailable(manifest.Id, installRoot, layout, installed);
 
+        var updatedFiles = await ReceiptsFromStagingAsync(staging, cancellationToken);
         var updated = new InstalledModReceipt
         {
             Id = current.Id,
@@ -346,8 +791,11 @@ public sealed class ModManager
             InstallRoot = installRoot,
             Enabled = current.Enabled,
             IsLocal = false,
+            Ownership = ModOwnership.Managed,
+            Pinned = current.Pinned,
             Dependencies = manifest.Dependencies,
-            Files = await ReceiptsFromStagingAsync(staging, cancellationToken)
+            Files = updatedFiles,
+            EntryFiles = EntryFiles(updatedFiles)
         };
         await ApplyModStateAsync(
             staging,
@@ -363,6 +811,90 @@ public sealed class ModManager
         return updated;
     }
 
+    private async Task<InstalledModReceipt> RepairPackageAsync(
+        ModManifest manifest,
+        string? packagePath,
+        Uri? packageUri,
+        IProgress<PackageTransferProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        var current = Find(await GetInstalledAsync(cancellationToken), manifest.Id);
+        if (current.Ownership != ModOwnership.Managed || current.IsLocal)
+        {
+            throw new InvalidOperationException($"Mod '{current.Id}' is not an official managed mod.");
+        }
+        if (current.Pinned)
+        {
+            throw new InvalidOperationException(
+                $"Pinned mod '{current.Id}' cannot be repaired until it is unpinned.");
+        }
+        if (!string.Equals(current.Version, manifest.Version, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(current.LoaderId, manifest.LoaderId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Repair requires exact catalog version '{current.Version}' for mod '{current.Id}'.");
+        }
+        EnsureDependenciesInstalled(manifest.Dependencies, await GetInstalledAsync(cancellationToken));
+        return await ReplacePackageAsync(
+            current,
+            manifest,
+            packagePath,
+            packageUri,
+            ModOwnership.Managed,
+            isLocal: false,
+            operation: "repair-mod",
+            progress,
+            cancellationToken);
+    }
+
+    private async Task<InstalledModReceipt> ReplacePackageAsync(
+        InstalledModReceipt current,
+        ModManifest manifest,
+        string? packagePath,
+        Uri? packageUri,
+        ModOwnership ownership,
+        bool isLocal,
+        string operation,
+        IProgress<PackageTransferProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        using var workspace = new TemporaryDirectory(_transactionRoot, ".mod-replace-");
+        var (layout, installRoot, staging) = await PreparePackageAsync(
+            manifest,
+            packagePath,
+            packageUri,
+            current.Enabled,
+            workspace,
+            progress,
+            cancellationToken,
+            installRootOverride: current.InstallRoot);
+        EnsureUpdateTargetsAvailable(staging, current);
+        var installed = await GetInstalledAsync(cancellationToken);
+        EnsureInstallRootAvailable(current.Id, installRoot, layout, installed);
+        var files = await ReceiptsFromStagingAsync(staging, cancellationToken);
+        var updated = current with
+        {
+            Name = manifest.Name,
+            Version = manifest.Version,
+            LoaderId = manifest.LoaderId,
+            InstallRoot = installRoot,
+            IsLocal = isLocal,
+            Ownership = ownership,
+            Dependencies = manifest.Dependencies,
+            Files = files,
+            EntryFiles = EntryFiles(files)
+        };
+        await ApplyModStateAsync(
+            staging,
+            current.Files.Select(file => file.RelativePath),
+            updated,
+            receiptIdToRemove: null,
+            operation,
+            cancellationToken);
+        return updated;
+    }
+
     private async Task<(ModLayout Layout, string InstallRoot, string Staging)> PreparePackageAsync(
         ModManifest manifest,
         string? packagePath,
@@ -370,10 +902,13 @@ public sealed class ModManager
         bool enabled,
         TemporaryDirectory workspace,
         IProgress<PackageTransferProgress>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? installRootOverride = null)
     {
         var layout = GetLayout(manifest.LoaderId);
-        var installRoot = GetInstallRoot(layout, SafeName(manifest.Name), enabled);
+        var installRoot = installRootOverride is null
+            ? GetInstallRoot(layout, SafeName(manifest.Name), enabled)
+            : Normalize(installRootOverride);
         var extracted = workspace.CreateDirectory("extracted");
         var packageTransactions = workspace.CreateDirectory("package-transactions");
         if (packagePath is not null)
@@ -473,6 +1008,7 @@ public sealed class ModManager
     {
         EnsureTargetsAbsent(staging);
         EnsureInstallRootAvailable(id, installRoot, layout, installed);
+        var installedFiles = await ReceiptsFromStagingAsync(staging, cancellationToken);
         var receipt = new InstalledModReceipt
         {
             Id = id,
@@ -482,8 +1018,10 @@ public sealed class ModManager
             InstallRoot = installRoot,
             Enabled = true,
             IsLocal = isLocal,
+            Ownership = isLocal ? ModOwnership.LocalTakenOver : ModOwnership.Managed,
             Dependencies = dependencies,
-            Files = await ReceiptsFromStagingAsync(staging, cancellationToken)
+            Files = installedFiles,
+            EntryFiles = EntryFiles(installedFiles)
         };
         await ApplyModStateAsync(
             staging,
@@ -569,6 +1107,12 @@ public sealed class ModManager
         }
         return receipts.OrderBy(receipt => receipt.RelativePath, StringComparer.OrdinalIgnoreCase).ToArray();
     }
+
+    private static string[] EntryFiles(IEnumerable<InstalledFileReceipt> files) =>
+        files.Where(file => string.Equals(
+                Path.GetExtension(file.RelativePath), ".dll", StringComparison.OrdinalIgnoreCase))
+            .Select(file => file.RelativePath)
+            .ToArray();
 
     private async Task<InstalledModReceipt> VerifyMatchingInstalledAsync(
         InstalledModReceipt current,
@@ -705,6 +1249,41 @@ public sealed class ModManager
     private static InstalledModReceipt Find(IEnumerable<InstalledModReceipt> installed, string id) =>
         installed.FirstOrDefault(receipt => string.Equals(receipt.Id, id, StringComparison.OrdinalIgnoreCase))
         ?? throw new KeyNotFoundException($"Mod '{id}' is not installed.");
+
+    private static void EnsureLocal(InstalledModReceipt receipt)
+    {
+        if (!receipt.IsLocal || receipt.Ownership != ModOwnership.LocalTakenOver)
+        {
+            throw new InvalidOperationException($"Mod '{receipt.Id}' is not a local managed mod.");
+        }
+    }
+
+    private static HashSet<string> GetOwnedPathsByOtherMods(
+        ModPathPolicy pathPolicy,
+        IEnumerable<InstalledModReceipt> installed,
+        string? currentId)
+    {
+        var owned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var receipt in installed.Where(receipt => currentId is null
+                     || !string.Equals(receipt.Id, currentId, StringComparison.OrdinalIgnoreCase)))
+        {
+            foreach (var file in receipt.Files)
+            {
+                owned.Add(pathPolicy.ResolveUnderInstance(file.RelativePath).RelativePath);
+            }
+        }
+        return owned;
+    }
+
+    private static int CompareVersions(string left, string right)
+    {
+        var leftCore = left.TrimStart('v', 'V').Split(['-', '+'], 2)[0];
+        var rightCore = right.TrimStart('v', 'V').Split(['-', '+'], 2)[0];
+        return Version.TryParse(leftCore, out var leftVersion)
+            && Version.TryParse(rightCore, out var rightVersion)
+                ? leftVersion.CompareTo(rightVersion)
+                : StringComparer.OrdinalIgnoreCase.Compare(left, right);
+    }
 
     private static ModLayout GetLayout(string loaderId)
     {
