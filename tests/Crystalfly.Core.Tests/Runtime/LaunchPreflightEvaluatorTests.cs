@@ -1,4 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Mods;
 using Crystalfly.Core.Runtime;
 
 namespace Crystalfly.Core.Tests.Runtime;
@@ -172,7 +175,7 @@ public sealed class LaunchPreflightEvaluatorTests
     }
 
     [Fact]
-    public void Enabled_mod_missing_files_are_forceable_but_disabled_mod_health_is_ignored()
+    public void Only_enabled_mod_missing_files_are_forceable()
     {
         var enabled = Receipt("enabled", enabled: true);
         var disabled = Receipt("disabled", enabled: false);
@@ -191,6 +194,31 @@ public sealed class LaunchPreflightEvaluatorTests
         Assert.True(result.CanAttemptLaunch);
         Assert.False(result.CanLaunchNormally);
         Assert.True(result.CanForceLaunch);
+    }
+
+    [Theory]
+    [InlineData(ModHealthStatus.ModifiedFile, LaunchIssueCode.ModModifiedFile)]
+    [InlineData(ModHealthStatus.ExtraFile, LaunchIssueCode.ModExtraFile)]
+    [InlineData(ModHealthStatus.Indeterminate, LaunchIssueCode.ModHealthIndeterminate)]
+    public void Disabled_mod_noncritical_health_still_produces_warning(
+        ModHealthStatus status,
+        LaunchIssueCode expectedCode)
+    {
+        var disabled = Receipt("disabled", enabled: false);
+        var report = status switch
+        {
+            ModHealthStatus.ModifiedFile => Health(
+                "disabled", status, modified: ["Mods/disabled/main.dll"]),
+            ModHealthStatus.ExtraFile => Health(
+                "disabled", status, extra: ["Mods/disabled/extra.dll"]),
+            _ => Health("disabled", status)
+        };
+
+        var issue = Assert.Single(EvaluateWithHealth([disabled], [report]).Issues);
+
+        Assert.Equal(expectedCode, issue.Code);
+        Assert.Equal(LaunchIssueSeverity.Warning, issue.Severity);
+        Assert.Equal("disabled", issue.SubjectModId);
     }
 
     [Theory]
@@ -240,6 +268,66 @@ public sealed class LaunchPreflightEvaluatorTests
         Assert.False(acknowledged.IsClean);
         Assert.True(acknowledged.CanLaunchNormally);
         Assert.True(acknowledged.IsReady);
+    }
+
+    [Theory]
+    [InlineData(ModHealthStatus.ModifiedFile)]
+    [InlineData(ModHealthStatus.ExtraFile)]
+    public async Task Current_file_hash_change_invalidates_acknowledgement_through_health_evaluator_chain(
+        ModHealthStatus status)
+    {
+        string instanceRoot = Path.Combine(
+            Path.GetTempPath(),
+            "Crystalfly.Tests",
+            Guid.NewGuid().ToString("N"));
+        string ownedRelativePath = "Mods/health-mod/main.dll";
+        string warningRelativePath = status == ModHealthStatus.ModifiedFile
+            ? ownedRelativePath
+            : "Mods/health-mod/extra.dll";
+        string ownedPath = Path.Combine(instanceRoot, ownedRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        string warningPath = Path.Combine(instanceRoot, warningRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(ownedPath)!);
+        try
+        {
+            await File.WriteAllTextAsync(ownedPath, "original");
+            var receipt = Receipt("health-mod", enabled: true) with
+            {
+                InstallRoot = "Mods/health-mod",
+                EntryFiles = [ownedRelativePath],
+                Files =
+                [
+                    new InstalledFileReceipt
+                    {
+                        RelativePath = ownedRelativePath,
+                        Sha256 = Sha256("original")
+                    }
+                ]
+            };
+            await File.WriteAllTextAsync(warningPath, "first-change");
+            var service = new ModHealthService(instanceRoot);
+            ModHealthReport firstReport = await service.AssessAsync(receipt, [receipt]);
+            Assert.Equal(status, firstReport.Status);
+            var first = EvaluateWithHealth([receipt], [firstReport]);
+            LaunchPreflightIssue firstIssue = Assert.Single(first.Issues);
+            Assert.Equal(Sha256("first-change"), firstIssue.CurrentFileSha256);
+            var acknowledgement = ModHealthAcknowledgement.Create("instance-1", firstIssue);
+
+            await File.WriteAllTextAsync(warningPath, "second-change");
+            ModHealthReport changedReport = await service.AssessAsync(receipt, [receipt]);
+            var changed = EvaluateWithHealth([receipt], [changedReport], [acknowledgement]);
+
+            LaunchPreflightIssue changedIssue = Assert.Single(changed.Issues);
+            Assert.Equal(Sha256("second-change"), changedIssue.CurrentFileSha256);
+            Assert.False(changedIssue.IsAcknowledged);
+            Assert.False(changed.CanLaunchNormally);
+        }
+        finally
+        {
+            if (Directory.Exists(instanceRoot))
+            {
+                Directory.Delete(instanceRoot, recursive: true);
+            }
+        }
     }
 
     [Fact]
@@ -338,6 +426,9 @@ public sealed class LaunchPreflightEvaluatorTests
             CurrentFileSha256 = currentFileSha256,
             Arguments = [modId, relativePath]
         };
+
+    private static string Sha256(string value) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 
     private static InstalledModReceipt Receipt(
         string id,

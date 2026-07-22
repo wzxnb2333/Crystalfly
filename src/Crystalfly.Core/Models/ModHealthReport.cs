@@ -22,5 +22,8 @@ public sealed record ModHealthReport
 
     public IReadOnlyList<string> ExtraFiles { get; init; } = [];
 
+    public IReadOnlyDictionary<string, string> CurrentFileSha256ByPath { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
     public string? Detail { get; init; }
 }

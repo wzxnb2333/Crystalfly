@@ -201,23 +201,20 @@ public static class LaunchPreflightEvaluator
     {
         foreach (ModHealthReport report in modHealthReports)
         {
-            bool hasReceipt = installedById.TryGetValue(report.ModId, out InstalledModReceipt? receipt);
-            if (hasReceipt && !receipt!.Enabled)
-            {
-                continue;
-            }
+            _ = installedById.TryGetValue(report.ModId, out InstalledModReceipt? receipt);
 
             switch (report.Status)
             {
                 case ModHealthStatus.Healthy:
                     break;
-                case ModHealthStatus.CriticalFileMissing when hasReceipt:
+                case ModHealthStatus.CriticalFileMissing when receipt is { Enabled: true }:
                     AddFileIssues(
                         issues,
                         LaunchIssueCode.ModCriticalFileMissing,
                         LaunchIssueSeverity.Forceable,
                         report.ModId,
-                        report.MissingFiles);
+                        report.MissingFiles,
+                        report.CurrentFileSha256ByPath);
                     break;
                 case ModHealthStatus.ModifiedFile:
                     AddFileIssues(
@@ -225,7 +222,8 @@ public static class LaunchPreflightEvaluator
                         LaunchIssueCode.ModModifiedFile,
                         LaunchIssueSeverity.Warning,
                         report.ModId,
-                        report.ModifiedFiles);
+                        report.ModifiedFiles,
+                        report.CurrentFileSha256ByPath);
                     break;
                 case ModHealthStatus.ExtraFile:
                     AddFileIssues(
@@ -233,7 +231,8 @@ public static class LaunchPreflightEvaluator
                         LaunchIssueCode.ModExtraFile,
                         LaunchIssueSeverity.Warning,
                         report.ModId,
-                        report.ExtraFiles);
+                        report.ExtraFiles,
+                        report.CurrentFileSha256ByPath);
                     break;
                 case ModHealthStatus.UnmanagedExternal:
                     issues.Add(ModIssue(
@@ -258,7 +257,8 @@ public static class LaunchPreflightEvaluator
         LaunchIssueCode code,
         LaunchIssueSeverity severity,
         string modId,
-        IReadOnlyList<string> relativePaths)
+        IReadOnlyList<string> relativePaths,
+        IReadOnlyDictionary<string, string> currentFileSha256ByPath)
     {
         if (relativePaths.Count == 0)
         {
@@ -273,8 +273,27 @@ public static class LaunchPreflightEvaluator
                 severity,
                 modId,
                 relativePath,
-                [modId, relativePath]));
+                [modId, relativePath],
+                FindCurrentFileSha256(currentFileSha256ByPath, relativePath)));
         }
+    }
+
+    private static string? FindCurrentFileSha256(
+        IReadOnlyDictionary<string, string> currentFileSha256ByPath,
+        string relativePath)
+    {
+        string normalizedPath = relativePath.Replace('\\', '/');
+        foreach ((string path, string sha256) in currentFileSha256ByPath)
+        {
+            if (string.Equals(
+                path.Replace('\\', '/'),
+                normalizedPath,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return sha256;
+            }
+        }
+        return null;
     }
 
     private static LaunchPreflightIssue Blocking(LaunchIssueCode code) => new()
@@ -288,12 +307,14 @@ public static class LaunchPreflightEvaluator
         LaunchIssueSeverity severity,
         string modId,
         string? relativeFilePath = null,
-        IReadOnlyList<string>? arguments = null) => new()
+        IReadOnlyList<string>? arguments = null,
+        string? currentFileSha256 = null) => new()
         {
             Code = code,
             Severity = severity,
             SubjectModId = modId,
             RelativeFilePath = relativeFilePath,
+            CurrentFileSha256 = currentFileSha256,
             Arguments = arguments ?? []
         };
 }
