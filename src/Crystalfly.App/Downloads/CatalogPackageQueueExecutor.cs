@@ -104,11 +104,11 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
             package.SizeBytes,
             package.Sha256,
             paths.PackageRoot,
+            networkPolicy,
             httpClient,
             progress,
             cancellationToken,
-            networkGate,
-            networkPolicy);
+            networkGate);
     }
 
     private async Task<bool> IsStillSatisfiedAsync(

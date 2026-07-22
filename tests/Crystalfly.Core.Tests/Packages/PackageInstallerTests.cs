@@ -10,6 +10,25 @@ namespace Crystalfly.Core.Tests.Packages;
 public sealed class PackageInstallerTests
 {
     [Fact]
+    public void Legacy_uri_method_signatures_are_preserved()
+    {
+        Assert.NotNull(typeof(PackageInstaller).GetMethod(
+            nameof(PackageInstaller.AcquireVerifiedFileFromUriAsync),
+            [
+                typeof(Uri), typeof(string), typeof(long?), typeof(string), typeof(string),
+                typeof(HttpClient), typeof(IProgress<PackageTransferProgress>),
+                typeof(CancellationToken), typeof(SemaphoreSlim)
+            ]));
+        Assert.NotNull(typeof(PackageInstaller).GetMethod(
+            nameof(PackageInstaller.InstallFromUriAsync),
+            [
+                typeof(Uri), typeof(string), typeof(string), typeof(long?), typeof(string),
+                typeof(string), typeof(HttpClient), typeof(IProgress<PackageTransferProgress>),
+                typeof(CancellationToken)
+            ]));
+    }
+
+    [Fact]
     public async Task InstallFromFile_verifies_and_replaces_package_files()
     {
         using var test = new TestDirectory();
@@ -179,7 +198,7 @@ public sealed class PackageInstallerTests
             bytes.Length,
             hash,
             cache,
-            offlineClient,
+            httpClient: offlineClient,
             networkPolicy: policy);
 
         Assert.Equal(bytes, await File.ReadAllBytesAsync(acquired));
@@ -201,7 +220,7 @@ public sealed class PackageInstallerTests
                 1,
                 new string('A', 64),
                 test.CreateDirectory("cache"),
-                client,
+                httpClient: client,
                 networkPolicy: policy));
 
         Assert.Equal(0, handler.RequestCount);

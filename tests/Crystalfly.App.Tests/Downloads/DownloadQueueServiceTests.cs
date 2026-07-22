@@ -420,6 +420,43 @@ public sealed class DownloadQueueServiceTests : IDisposable
         Assert.Equal(1, secondExecutor.StartedTransfers);
     }
 
+    [Fact]
+    public async Task Offline_restart_persists_waiting_state_and_online_restart_resumes()
+    {
+        var interrupted = Group("offline-restart", "feature") with
+        {
+            State = DownloadQueueGroupState.Running,
+            Stage = "Downloading"
+        };
+        interrupted.Items[0].State = DownloadQueueItemState.Transferring;
+        interrupted.Items[0].Stage = "Downloading";
+        await WriteStoredGroupsAsync([interrupted], CancellationToken.None);
+        var offlinePolicy = new NetworkPolicy(isOffline: true);
+
+        await using (var offlineQueue = CreateQueue(
+                         new ControlledExecutor(),
+                         networkPolicy: offlinePolicy))
+        {
+            await offlineQueue.InitializeAsync();
+
+            var waiting = Assert.Single(await ReadStoredGroupsAsync());
+            Assert.Equal(DownloadQueueGroupState.WaitingForNetwork, waiting.State);
+            Assert.Equal(
+                DownloadQueueItemState.WaitingForNetwork,
+                Assert.Single(waiting.Items).State);
+        }
+
+        var onlineExecutor = new ControlledExecutor();
+        await using var onlineQueue = CreateQueue(
+            onlineExecutor,
+            networkPolicy: new NetworkPolicy());
+        await onlineQueue.InitializeAsync();
+        await onlineQueue.WaitForIdleAsync();
+
+        Assert.Equal(DownloadQueueGroupState.Completed, Assert.Single(onlineQueue.Groups).State);
+        Assert.Equal(1, onlineExecutor.StartedTransfers);
+    }
+
     [Theory]
     [InlineData(DownloadQueueGroupKind.ModDependencyRepair, 1)]
     [InlineData(DownloadQueueGroupKind.ModInstall, 0)]

@@ -45,7 +45,7 @@ public static class PackageInstaller
         }, cancellationToken);
     }
 
-    public static async Task<string> AcquireVerifiedFileFromUriAsync(
+    public static Task<string> AcquireVerifiedFileFromUriAsync(
         Uri packageUri,
         string transactionRoot,
         long? expectedSize,
@@ -54,8 +54,29 @@ public static class PackageInstaller
         HttpClient? httpClient = null,
         IProgress<PackageTransferProgress>? progress = null,
         CancellationToken cancellationToken = default,
-        SemaphoreSlim? networkGate = null,
-        INetworkPolicy? networkPolicy = null)
+        SemaphoreSlim? networkGate = null) => AcquireVerifiedFileFromUriAsync(
+            packageUri,
+            transactionRoot,
+            expectedSize,
+            expectedSha256,
+            cacheRoot,
+            null,
+            httpClient,
+            progress,
+            cancellationToken,
+            networkGate);
+
+    public static async Task<string> AcquireVerifiedFileFromUriAsync(
+        Uri packageUri,
+        string transactionRoot,
+        long? expectedSize,
+        string expectedSha256,
+        string cacheRoot,
+        INetworkPolicy? networkPolicy,
+        HttpClient? httpClient = null,
+        IProgress<PackageTransferProgress>? progress = null,
+        CancellationToken cancellationToken = default,
+        SemaphoreSlim? networkGate = null)
     {
         if (!packageUri.IsAbsoluteUri || packageUri.Scheme != Uri.UriSchemeHttps)
         {
@@ -132,7 +153,7 @@ public static class PackageInstaller
         }, cancellationToken);
     }
 
-    public static async Task<TransactionJournal> InstallFromUriAsync(
+    public static Task<TransactionJournal> InstallFromUriAsync(
         Uri packageUri,
         string targetRoot,
         string transactionRoot,
@@ -141,8 +162,29 @@ public static class PackageInstaller
         string? cacheRoot = null,
         HttpClient? httpClient = null,
         IProgress<PackageTransferProgress>? progress = null,
-        CancellationToken cancellationToken = default,
-        INetworkPolicy? networkPolicy = null)
+        CancellationToken cancellationToken = default) => InstallFromUriAsync(
+            packageUri,
+            targetRoot,
+            transactionRoot,
+            expectedSize,
+            expectedSha256,
+            null,
+            cacheRoot,
+            httpClient,
+            progress,
+            cancellationToken);
+
+    public static async Task<TransactionJournal> InstallFromUriAsync(
+        Uri packageUri,
+        string targetRoot,
+        string transactionRoot,
+        long? expectedSize,
+        string expectedSha256,
+        INetworkPolicy? networkPolicy,
+        string? cacheRoot = null,
+        HttpClient? httpClient = null,
+        IProgress<PackageTransferProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         if (!packageUri.IsAbsoluteUri || packageUri.Scheme != Uri.UriSchemeHttps)
         {
@@ -159,10 +201,11 @@ public static class PackageInstaller
                 expectedSize,
                 normalizedHash,
                 cacheRoot,
+                networkPolicy,
                 httpClient,
                 progress,
                 cancellationToken,
-                networkPolicy: networkPolicy);
+                networkGate: null);
             var cachedSize = new FileInfo(cachePath).Length;
             var cachedWorkspace = CreateWorkspace(transactionRoot);
             try

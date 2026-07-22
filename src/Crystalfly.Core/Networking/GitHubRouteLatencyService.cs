@@ -46,8 +46,8 @@ public sealed class GitHubRouteLatencyService : IDisposable
     }
 
     public GitHubRouteLatencyService(
-        HttpMessageHandler handler,
         INetworkPolicy networkPolicy,
+        HttpMessageHandler handler,
         TimeProvider? timeProvider = null,
         TimeSpan? timeout = null)
         : this(new NetworkPolicyHandler(networkPolicy, handler), timeProvider, timeout)
@@ -103,6 +103,10 @@ public sealed class GitHubRouteLatencyService : IDisposable
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (OfflineTransitionException)
+        {
+            return new GitHubRouteLatencyResult(route, GitHubRouteLatencyStatus.Unavailable, null);
         }
         catch (OperationCanceledException) when (timeoutCancellation.IsCancellationRequested)
         {

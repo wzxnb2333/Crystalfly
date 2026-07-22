@@ -111,13 +111,6 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     : [];
             ValidateLoadedGroups(loaded);
             var resumable = loaded.Where(NormalizeLoadedGroup).ToArray();
-            if (loaded.Length > 0)
-            {
-                await AtomicJsonStore.WriteAsync(
-                    storePath,
-                    CreatePersistableSnapshot(loaded),
-                    cancellationToken);
-            }
             DownloadQueueGroup[] scheduled;
             lock (sync)
             {
@@ -143,6 +136,13 @@ public sealed class DownloadQueueService : IAsyncDisposable
                 {
                     scheduled = resumable;
                 }
+            }
+            if (loaded.Length > 0)
+            {
+                await AtomicJsonStore.WriteAsync(
+                    storePath,
+                    CreatePersistableSnapshot(loaded),
+                    cancellationToken);
             }
             foreach (var group in scheduled)
             {
