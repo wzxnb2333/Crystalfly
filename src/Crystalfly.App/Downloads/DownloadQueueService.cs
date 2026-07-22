@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Threading.Channels;
 using System.Runtime.ExceptionServices;
 using Crystalfly.Core.Networking;
@@ -15,11 +16,14 @@ public sealed class DownloadQueueService : IAsyncDisposable
     private readonly Func<IReadOnlyList<DownloadQueueGroup>, CancellationToken, Task>? persistOverride;
     private readonly TimeSpan gameExitPollInterval;
     private readonly INetworkPolicy? networkPolicy;
+    private readonly InstanceOperationCoordinator? operationCoordinator;
     private readonly Channel<DownloadQueueGroup> channel = Channel.CreateUnbounded<DownloadQueueGroup>(
         new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
     private readonly SemaphoreSlim networkGate = new(3, 3);
     private readonly SemaphoreSlim persistenceGate = new(1, 1);
     private readonly SemaphoreSlim mutationGate = new(1, 1);
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> presetInstanceGates =
+        new(StringComparer.Ordinal);
     private readonly CancellationTokenSource lifetime = new();
     private readonly object disposeSync = new();
     private readonly Lock sync = new();
@@ -47,8 +51,16 @@ public sealed class DownloadQueueService : IAsyncDisposable
         IDownloadQueueExecutor executor,
         Func<bool> isGameRunning,
         TimeSpan gameExitPollInterval,
-        INetworkPolicy? networkPolicy = null)
-        : this(storePath, executor, isGameRunning, gameExitPollInterval, null, networkPolicy)
+        INetworkPolicy? networkPolicy = null,
+        InstanceOperationCoordinator? operationCoordinator = null)
+        : this(
+            storePath,
+            executor,
+            isGameRunning,
+            gameExitPollInterval,
+            null,
+            networkPolicy,
+            operationCoordinator)
     {
     }
 
@@ -58,7 +70,8 @@ public sealed class DownloadQueueService : IAsyncDisposable
         Func<bool> isGameRunning,
         TimeSpan gameExitPollInterval,
         Func<IReadOnlyList<DownloadQueueGroup>, CancellationToken, Task>? persistOverride,
-        INetworkPolicy? networkPolicy = null)
+        INetworkPolicy? networkPolicy = null,
+        InstanceOperationCoordinator? operationCoordinator = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(storePath);
         ArgumentNullException.ThrowIfNull(executor);
@@ -73,6 +86,7 @@ public sealed class DownloadQueueService : IAsyncDisposable
         this.gameExitPollInterval = gameExitPollInterval;
         this.persistOverride = persistOverride;
         this.networkPolicy = networkPolicy;
+        this.operationCoordinator = operationCoordinator;
         if (networkPolicy is not null)
         {
             networkPolicy.Changed += NetworkPolicyChanged;
@@ -177,6 +191,7 @@ public sealed class DownloadQueueService : IAsyncDisposable
                 "A queue group needs an ID, a deduplication key, and at least one item.",
                 nameof(group));
         }
+        ValidatePresetGroupStructure(group, persisted: false);
 
         DownloadQueueEnqueueResult result;
         var notify = false;
@@ -372,6 +387,7 @@ public sealed class DownloadQueueService : IAsyncDisposable
                 }
                 else
                 {
+                    ResetPresetPreparationIfNoChangesApplied(group);
                     foreach (var item in group.Items.Where(item => item.State is
                         DownloadQueueItemState.Failed or DownloadQueueItemState.Blocked))
                     {
@@ -567,6 +583,11 @@ public sealed class DownloadQueueService : IAsyncDisposable
             networkGate.Dispose();
             persistenceGate.Dispose();
             mutationGate.Dispose();
+            foreach (var gate in presetInstanceGates.Values)
+            {
+                gate.Dispose();
+            }
+            presetInstanceGates.Clear();
         }
         if (shutdownFailure is not null)
         {
@@ -617,9 +638,30 @@ public sealed class DownloadQueueService : IAsyncDisposable
             groupCancellation = groupCancellations[group.Id];
         }
         var pausedForNetwork = false;
+        SemaphoreSlim? presetInstanceGate = null;
+        var presetInstanceGateHeld = false;
         try
         {
-            await ProcessGroupAsync(group, groupCancellation.Token);
+            if (group.Kind == DownloadQueueGroupKind.ModPresetApply
+                && operationCoordinator is not null)
+            {
+                await operationCoordinator.RunAsync(
+                    group.TargetInstanceId,
+                    token => ProcessGroupAsync(group, token),
+                    groupCancellation.Token);
+            }
+            else
+            {
+                if (group.Kind == DownloadQueueGroupKind.ModPresetApply)
+                {
+                    presetInstanceGate = presetInstanceGates.GetOrAdd(
+                        group.TargetInstanceId,
+                        static _ => new SemaphoreSlim(1, 1));
+                    await presetInstanceGate.WaitAsync(groupCancellation.Token);
+                    presetInstanceGateHeld = true;
+                }
+                await ProcessGroupAsync(group, groupCancellation.Token);
+            }
         }
         catch (Exception exception) when (exception is OfflineModeException or OfflineTransitionException)
         {
@@ -699,6 +741,10 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     }
                 }
                 completedCancellation?.Dispose();
+                if (presetInstanceGateHeld)
+                {
+                    presetInstanceGate!.Release();
+                }
             }
         }
         if (pausedForNetwork && networkPolicy?.IsOffline == false)
@@ -963,6 +1009,8 @@ public sealed class DownloadQueueService : IAsyncDisposable
             return true;
         }
 
+        ResetPresetPreparationIfNoChangesApplied(group);
+
         for (var index = 0; index < group.Items.Count; index++)
         {
             var item = group.Items[index];
@@ -1008,7 +1056,47 @@ public sealed class DownloadQueueService : IAsyncDisposable
             {
                 throw new InvalidDataException("The persisted download queue contains an empty or duplicate group ID.");
             }
+            ValidatePresetGroupStructure(group, persisted: true);
         }
+    }
+
+    private static void ValidatePresetGroupStructure(DownloadQueueGroup group, bool persisted)
+    {
+        if (group.Kind != DownloadQueueGroupKind.ModPresetApply)
+        {
+            return;
+        }
+
+        var itemIds = new HashSet<string>(StringComparer.Ordinal);
+        var packageIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var valid = !string.IsNullOrWhiteSpace(group.TargetInstanceId)
+            && !string.IsNullOrWhiteSpace(group.ExpectedBuildId)
+            && !string.IsNullOrWhiteSpace(group.ExpectedLoaderId)
+            && group.Items.Count >= 2
+            && group.Items[0].Kind == DownloadQueueItemKind.PresetPrepare
+            && group.Items.Count(item => item.Kind == DownloadQueueItemKind.PresetPrepare) == 1
+            && group.Items.All(item =>
+                !string.IsNullOrWhiteSpace(item.Id)
+                && itemIds.Add(item.Id)
+                && !string.IsNullOrWhiteSpace(item.PackageId)
+                && !string.IsNullOrWhiteSpace(item.LoaderId)
+                && string.Equals(item.LoaderId, group.ExpectedLoaderId, StringComparison.OrdinalIgnoreCase))
+            && group.Items.Skip(1).All(item =>
+                item.Kind is DownloadQueueItemKind.PresetInstall
+                    or DownloadQueueItemKind.PresetEnable
+                    or DownloadQueueItemKind.PresetDisable
+                && packageIds.Add(item.PackageId));
+        if (valid)
+        {
+            return;
+        }
+
+        const string message = "A preset queue group must start with exactly one prepare item and contain consistent, unique change items.";
+        if (persisted)
+        {
+            throw new InvalidDataException(message);
+        }
+        throw new ArgumentException(message, nameof(group));
     }
 
     private static void ResetInterruptedGroup(DownloadQueueGroup group)
@@ -1019,6 +1107,7 @@ public sealed class DownloadQueueService : IAsyncDisposable
         }
         else
         {
+            ResetPresetPreparationIfNoChangesApplied(group);
             foreach (var item in group.Items.Where(item => !IsTerminal(item.State)))
             {
                 item.State = DownloadQueueItemState.Pending;
@@ -1032,6 +1121,25 @@ public sealed class DownloadQueueService : IAsyncDisposable
         group.Error = null;
         group.CompletedAt = null;
         UpdateGroupProgress(group);
+    }
+
+    private static void ResetPresetPreparationIfNoChangesApplied(DownloadQueueGroup group)
+    {
+        if (group.Kind != DownloadQueueGroupKind.ModPresetApply
+            || group.Items.FirstOrDefault()?.Kind != DownloadQueueItemKind.PresetPrepare
+            || group.Items[0].State != DownloadQueueItemState.Completed
+            || group.Items.Skip(1).Any(item => item.State is
+                DownloadQueueItemState.Completed or DownloadQueueItemState.Installing))
+        {
+            return;
+        }
+        var prepare = group.Items[0];
+        prepare.State = DownloadQueueItemState.Pending;
+        prepare.Stage = "Pending";
+        prepare.CompletedBytes = 0;
+        prepare.BytesPerSecond = 0;
+        prepare.Error = null;
+        prepare.CompletedAt = null;
     }
 
     private static void PauseForNetwork(DownloadQueueGroup group)

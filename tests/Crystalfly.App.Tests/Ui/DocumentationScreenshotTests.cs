@@ -33,7 +33,8 @@ public sealed class DocumentationScreenshotTests
         new("crystalfly-mod-market-detail-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.MarketDetail),
         new("crystalfly-mod-install-overlay-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.MarketInstall),
         new("crystalfly-instance-detail-900x600-zh.jpg", 900, 600, 1d, ScreenshotState.InstanceDetail),
-        new("crystalfly-installed-mod-health-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.InstalledModHealth)
+        new("crystalfly-installed-mod-health-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.InstalledModHealth),
+        new("crystalfly-mod-presets-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.ModPresets)
     ];
 
     [AvaloniaFact]
@@ -284,6 +285,15 @@ public sealed class DocumentationScreenshotTests
                 Assert.Contains(fixture.Window.GetVisualDescendants().OfType<StackPanel>(), panel =>
                     panel.Classes.Contains("cfp-installed-mod-actions") && panel.Opacity == 1d);
                 break;
+            case ScreenshotState.ModPresets:
+                Assert.Contains(fixture.ViewModel.Loc["ModPresets"], visibleText);
+                Assert.Contains("日常练习 · 全量 Mod", visibleText);
+                Assert.Contains("DebugMod", visibleText);
+                Assert.Contains("ScreenShakeModifier", visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["ApplyPreset"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["SharePreset"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["ImportSharedPreset"], visibleText);
+                break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(state), state, null);
         }
@@ -340,7 +350,7 @@ public sealed class DocumentationScreenshotTests
                 ScreenshotState.GameVersions => "Downloads",
                 ScreenshotState.Settings => "Settings",
                 ScreenshotState.MarketList or ScreenshotState.MarketDetail or ScreenshotState.MarketInstall => "Downloads",
-                ScreenshotState.InstanceDetail or ScreenshotState.InstalledModHealth => "Manage",
+                ScreenshotState.InstanceDetail or ScreenshotState.InstalledModHealth or ScreenshotState.ModPresets => "Manage",
                 _ => "Launch"
             };
 
@@ -354,7 +364,8 @@ public sealed class DocumentationScreenshotTests
                 or ScreenshotState.LaunchIssues
                 or ScreenshotState.LaunchIssuesOverlay
                 or ScreenshotState.InstanceDetail
-                or ScreenshotState.InstalledModHealth)
+                or ScreenshotState.InstalledModHealth
+                or ScreenshotState.ModPresets)
             {
                 ViewModel.SelectedInstance = Instance;
                 for (var attempt = 0; attempt < 100 && ViewModel.IsLoadingInstanceDetails; attempt++)
@@ -406,6 +417,12 @@ public sealed class DocumentationScreenshotTests
             {
                 ViewModel.CurrentManageTab = "Mods";
                 PrepareInstalledModHealth();
+            }
+
+            if (state == ScreenshotState.ModPresets)
+            {
+                ViewModel.CurrentManageTab = "Presets";
+                PrepareModPresets();
             }
         }
 
@@ -527,6 +544,58 @@ public sealed class DocumentationScreenshotTests
             ViewModel.SelectedInstalledMod = external;
         }
 
+        private void PrepareModPresets()
+        {
+            var exactPreset = new ModPreset
+            {
+                Id = "fixture-preset-exact",
+                Name = "日常练习 · 全量 Mod",
+                GameBuildId = Instance.Record.BuildId,
+                LoaderId = Mod.LoaderId,
+                ApplyMode = ModPresetApplyMode.Exact,
+                Entries =
+                [
+                    new ModPresetEntry
+                    {
+                        Id = Mod.Id,
+                        Name = Mod.Name,
+                        Version = Mod.Version
+                    },
+                    new ModPresetEntry
+                    {
+                        Id = "screenshake-modifier",
+                        Name = "ScreenShakeModifier",
+                        Version = "1.3.0"
+                    },
+                    new ModPresetEntry
+                    {
+                        Id = "additional-timelines",
+                        Name = "Additional Timelines and Practice Utilities",
+                        Version = "2.1.4"
+                    }
+                ]
+            };
+            var speedrunPreset = exactPreset with
+            {
+                Id = "fixture-preset-speedrun",
+                Name = "速通练习 · 计时工具",
+                ApplyMode = ModPresetApplyMode.Append,
+                Entries = exactPreset.Entries.Skip(1).ToArray()
+            };
+
+            ViewModel.PresetModeOptions.Clear();
+            ViewModel.PresetModeOptions.Add(new(ModPresetApplyMode.Append, ViewModel.Loc["PresetModeAppend"]));
+            ViewModel.PresetModeOptions.Add(new(ModPresetApplyMode.Exact, ViewModel.Loc["PresetModeExact"]));
+            ViewModel.ModPresets.Clear();
+            ViewModel.ModPresets.Add(exactPreset);
+            ViewModel.ModPresets.Add(speedrunPreset);
+            ViewModel.SelectedPreset = exactPreset;
+            ViewModel.SelectedPresetModeOption = ViewModel.PresetModeOptions.Single(option =>
+                option.Value == ModPresetApplyMode.Exact);
+            ViewModel.HasPresetRestorePoint = true;
+            ViewModel.LastPresetShareCode = "fixture-7F4D2A";
+        }
+
         public async ValueTask DisposeAsync()
         {
             ViewModel.IsBusy = false;
@@ -568,6 +637,7 @@ public sealed class DocumentationScreenshotTests
         MarketDetail,
         MarketInstall,
         InstanceDetail,
-        InstalledModHealth
+        InstalledModHealth,
+        ModPresets
     }
 }

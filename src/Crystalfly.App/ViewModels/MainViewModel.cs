@@ -2417,6 +2417,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         VisibleAvailableMods.Clear();
         InstalledMods.Clear();
         VisibleInstalledMods.Clear();
+        ModPresets.Clear();
+        SelectedPreset = null;
+        HasPresetRestorePoint = false;
         UpdateSelectedMarketInstallationState();
         currentLoaderInspection = new LoaderInspection
         {
@@ -2732,6 +2735,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         GitHubRouteOptions.Add(new(GitHubDownloadRoute.Direct, Loc["GitHubDirect"]));
         GitHubRouteOptions.Add(new(GitHubDownloadRoute.Mirror, Loc["GitHubMirror"]));
         SelectedGitHubRoute = GitHubRouteOptions.First(option => option.Value == settings.GitHubDownloadRoute);
+        RebuildPresetModeOptions();
     }
 
     private void RebuildCustomModLinksOptions()
@@ -3231,6 +3235,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 return;
             }
             var snapshots = await CreateSnapshotService().ListAsync(record.Id, cancellationToken);
+            var presetService = CreateModPresetService(record);
+            var presets = await presetService.GetAllAsync(cancellationToken);
+            var hasPresetRestorePoint = await presetService.HasRestorePointAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             var logs = InstanceLogService.Discover(record.RootPath, GetSharedLocalLowPath());
             var isolation = new LocalLowIsolationService(
@@ -3293,6 +3300,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             {
                 Snapshots.Add(snapshot);
             }
+            var selectedPresetId = SelectedPreset?.Id;
+            ModPresets.Clear();
+            foreach (var preset in presets)
+            {
+                ModPresets.Add(preset);
+            }
+            SelectedPreset = selectedPresetId is null
+                ? ModPresets.FirstOrDefault()
+                : ModPresets.FirstOrDefault(preset => preset.Id == selectedPresetId)
+                    ?? ModPresets.FirstOrDefault();
+            HasPresetRestorePoint = hasPresetRestorePoint;
             InstanceLogs.Clear();
             foreach (var log in logs)
             {

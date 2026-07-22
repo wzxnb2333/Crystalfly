@@ -17,6 +17,10 @@ speedrun environments on Windows 10/11 x64.
     downloads/
     instances/<instance-id>/
       local-low/
+      mods/
+      presets/
+        <preset-id>.json
+        .state/last-apply.json
       snapshots/<snapshot-id>/
         snapshot.json
         data/
@@ -122,6 +126,36 @@ receipt's enabled state. Global settings resolve to
 `<LocalLow>/<ModType>.GlobalSettings.json` in the selected instance copy, or the
 active shared LocalLow while Hollow Knight is running. Deletion includes the
 `.bak` file and uses the normal recoverable file transaction.
+
+## Mod presets
+
+Mod presets bind to one game build and exact Loader package. Managed entries
+store Mod ID and version; local or external entries store only a display name
+and SHA-256 hashes. Append plans only install or enable entries. Exact plans also
+disable unlisted, unpinned Mods, while preserving enabled pinned Mods and their
+transitive dependencies.
+
+Preset work uses the persistent download queue. A preparation item runs after
+the game exits and immediately before the first instance mutation, capturing the
+actual affected Mod state. Preset groups targeting the same instance are
+serialized; groups for different instances may still use separate network slots.
+Restore removes Mods that were absent before application, then restores enabled
+states in dependency order. The shared instance-operation coordinator holds the
+whole preset group, so direct changes, restore, and other queue installs cannot
+interleave between its items. Restore preflights pinned entries, missing receipts,
+and file health before its first write. Queue interruption before a definitely
+unstarted mutation resets the preparation item; an `Installing` item preserves the
+original restore point because its commit outcome is uncertain.
+
+Preset JSON uses the same 128 KiB, 1,000-entry and field-length limits in local
+imports, the desktop client, and the hosted service. File size is checked before a
+local document is read into memory.
+
+The optional `services/preset-share` Vercel service stores validated preset JSON
+in Upstash Redis for 180 days. Successful reads renew the TTL. A random 12-character
+code retrieves a preset; deletion requires the one-time returned token, whose
+SHA-256 hash is the only token material stored. Hosted sharing is disabled by the
+global offline policy, while local JSON import and export remain available.
 
 ## LocalLow isolation
 

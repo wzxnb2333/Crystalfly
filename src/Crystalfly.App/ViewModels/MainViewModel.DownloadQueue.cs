@@ -80,7 +80,8 @@ public partial class MainViewModel
             executor,
             static () => new SystemHollowKnightProcessProbe().IsRunning(),
             TimeSpan.FromMilliseconds(500),
-            networkPolicy);
+            networkPolicy,
+            instanceOperationCoordinator);
     }
 
     private async Task InitializeDownloadQueueAsync()

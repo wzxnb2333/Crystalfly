@@ -41,7 +41,9 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
 
     public bool RequiresGameExit(DownloadQueueItem item) => item.Kind is
         DownloadQueueItemKind.Loader or DownloadQueueItemKind.Dependency
-        or DownloadQueueItemKind.DependencyReEnable or DownloadQueueItemKind.Mod;
+        or DownloadQueueItemKind.DependencyReEnable or DownloadQueueItemKind.Mod
+        or DownloadQueueItemKind.PresetInstall or DownloadQueueItemKind.PresetEnable
+        or DownloadQueueItemKind.PresetDisable or DownloadQueueItemKind.PresetPrepare;
 
     public bool IsTransient(Exception exception)
     {
@@ -69,6 +71,26 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
     {
         ArgumentNullException.ThrowIfNull(progress);
         ArgumentNullException.ThrowIfNull(networkGate);
+        if (group.Kind == DownloadQueueGroupKind.ModPresetApply)
+        {
+            PresetContext preset = null!;
+            await coordinator.RunAsync(
+                group.TargetInstanceId,
+                async token => preset = await InspectPresetAsync(group, item, token),
+                cancellationToken);
+            if (item.Kind is DownloadQueueItemKind.PresetPrepare
+                or DownloadQueueItemKind.PresetEnable
+                or DownloadQueueItemKind.PresetDisable
+                || preset.Receipt is not null)
+            {
+                progress.Report(new PackageTransferProgress(
+                    item.TotalBytes,
+                    item.TotalBytes,
+                    0,
+                    "Satisfied"));
+                return;
+            }
+        }
         if (group.Kind == DownloadQueueGroupKind.ModDependencyRepair)
         {
             RepairContext repair = null!;
@@ -212,6 +234,36 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
                 await InspectRepairAsync(group, item, cancellationToken),
                 item,
                 cancellationToken);
+            return;
+        }
+        if (group.Kind == DownloadQueueGroupKind.ModPresetApply)
+        {
+            var context = await InspectPresetAsync(group, item, cancellationToken);
+            if (item.Kind == DownloadQueueItemKind.PresetPrepare)
+            {
+                var affectedIds = group.Items
+                    .Where(candidate => candidate.Kind != DownloadQueueItemKind.PresetPrepare)
+                    .Select(candidate => candidate.PackageId)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                var presetLoaderManager = new LoaderManager(
+                    paths.InstanceRoot,
+                    paths.TransactionRoot,
+                    Path.Combine(paths.StateRoot, "loader.json"),
+                    paths.PackageRoot,
+                    httpClient);
+                await new ModPresetService(
+                        instance,
+                        getCatalog().Mods,
+                        presetLoaderManager,
+                        context.ModManager,
+                        Path.Combine(paths.StateRoot, "presets"))
+                    .CaptureRestorePointAsync(item.PackageId, affectedIds, cancellationToken);
+            }
+            else
+            {
+                await InstallPresetAsync(context, item, cancellationToken);
+            }
             return;
         }
 
@@ -485,10 +537,119 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
             cancellationToken);
     }
 
+    private async Task<PresetContext> InspectPresetAsync(
+        DownloadQueueGroup group,
+        DownloadQueueItem item,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(group.ExpectedBuildId)
+            || string.IsNullOrWhiteSpace(group.ExpectedLoaderId)
+            || item.Kind is not (DownloadQueueItemKind.PresetPrepare
+                or DownloadQueueItemKind.PresetInstall
+                or DownloadQueueItemKind.PresetEnable
+                or DownloadQueueItemKind.PresetDisable)
+            || !string.Equals(item.LoaderId, group.ExpectedLoaderId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException("The preset queue item is invalid.");
+        }
+        var paths = GetPaths(group);
+        var instance = await InstanceSidecar.LoadAsync(paths.InstanceRoot, cancellationToken);
+        if (!string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal)
+            || !string.Equals(instance.BuildId, group.ExpectedBuildId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("The preset target instance or build has changed.");
+        }
+        if (instance.Purpose == InstancePurpose.OfficialSpeedrun)
+        {
+            throw new InvalidOperationException("Official speedrun instances cannot be modified.");
+        }
+        var loaderManager = new LoaderManager(
+            paths.InstanceRoot,
+            paths.TransactionRoot,
+            Path.Combine(paths.StateRoot, "loader.json"),
+            paths.PackageRoot,
+            httpClient);
+        var loader = await loaderManager.InspectAsync(cancellationToken);
+        if (loader.State is not (LoaderState.ModdingApi or LoaderState.BepInEx)
+            || !string.Equals(loader.PackageId, group.ExpectedLoaderId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("The preset target loader has changed.");
+        }
+        var modManager = new ModManager(
+            paths.InstanceRoot,
+            paths.TransactionRoot,
+            Path.Combine(paths.StateRoot, "mods"),
+            paths.PackageRoot,
+            httpClient);
+        var receipt = (await modManager.GetInstalledAsync(cancellationToken)).SingleOrDefault(candidate =>
+            string.Equals(candidate.Id, item.PackageId, StringComparison.OrdinalIgnoreCase));
+        if (receipt is not null
+            && (!string.Equals(receipt.Version, item.Version, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(receipt.LoaderId, item.LoaderId, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException(
+                $"Installed mod '{item.PackageId}' no longer matches the preset plan.");
+        }
+        if (item.Kind is DownloadQueueItemKind.PresetEnable or DownloadQueueItemKind.PresetDisable
+            && receipt is null)
+        {
+            throw new KeyNotFoundException(
+                $"Installed mod '{item.PackageId}' is missing from the preset target instance.");
+        }
+        if (item.Kind == DownloadQueueItemKind.PresetDisable && receipt!.Pinned)
+        {
+            throw new InvalidOperationException(
+                $"Pinned mod '{item.PackageId}' cannot be disabled by a preset.");
+        }
+        ModManifest? manifest = null;
+        if (item.Kind == DownloadQueueItemKind.PresetInstall && receipt is null)
+        {
+            manifest = ResolveMod(getCatalog(), item).Mod!;
+            if (!manifest.SupportedBuildIds.Contains(group.ExpectedBuildId, StringComparer.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Preset mod '{item.PackageId}' is not compatible with build '{group.ExpectedBuildId}'.");
+            }
+        }
+        return new PresetContext(paths, modManager, receipt, manifest);
+    }
+
+    private static async Task InstallPresetAsync(
+        PresetContext context,
+        DownloadQueueItem item,
+        CancellationToken cancellationToken)
+    {
+        if (item.Kind == DownloadQueueItemKind.PresetDisable)
+        {
+            if (context.Receipt!.Enabled)
+            {
+                await context.ModManager.DisableIgnoringDependentsAsync(item.PackageId, cancellationToken);
+            }
+            return;
+        }
+        if (context.Receipt is not null)
+        {
+            if (!context.Receipt.Enabled)
+            {
+                await context.ModManager.SetEnabledAsync(item.PackageId, enabled: true, cancellationToken);
+            }
+            return;
+        }
+        if (item.Kind != DownloadQueueItemKind.PresetInstall || context.Manifest is null)
+        {
+            throw new InvalidDataException("The preset package is unavailable.");
+        }
+        await context.ModManager.InstallFromFileAsync(
+            context.Manifest,
+            CachePath(context.Paths.PackageRoot, context.Manifest.Sha256),
+            cancellationToken);
+    }
+
     private static ResolvedPackage ResolvePackage(GameCatalog catalog, DownloadQueueItem item) => item.Kind switch
     {
         DownloadQueueItemKind.Loader => ResolveLoader(catalog, item),
-        DownloadQueueItemKind.Dependency or DownloadQueueItemKind.Mod => ResolveMod(catalog, item),
+        DownloadQueueItemKind.Dependency or DownloadQueueItemKind.Mod
+            or DownloadQueueItemKind.PresetInstall => ResolveMod(catalog, item),
         _ => throw new NotSupportedException($"Package kind '{item.Kind}' is not supported by this executor.")
     };
 
@@ -546,6 +707,12 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
         string PackageRoot);
 
     private sealed record RepairContext(
+        ExecutorPaths Paths,
+        ModManager ModManager,
+        InstalledModReceipt? Receipt,
+        ModManifest? Manifest);
+
+    private sealed record PresetContext(
         ExecutorPaths Paths,
         ModManager ModManager,
         InstalledModReceipt? Receipt,
