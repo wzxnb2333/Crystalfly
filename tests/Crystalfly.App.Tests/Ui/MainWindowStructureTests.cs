@@ -115,6 +115,14 @@ public sealed class MainWindowStructureTests
         Assert.Contains(settingsGrid.Descendants(Avalonia + "Button"), button => HasBinding(button, "Command", "TestGitHubLatencyCommand"));
         Assert.Contains(settingsGrid.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", "GitHubDirectLatency"));
         Assert.Contains(settingsGrid.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", "GitHubMirrorLatency"));
+        Assert.Contains(settingsGrid.Descendants(Avalonia + "TextBox"), textBox =>
+            HasBinding(textBox, "Text", "CustomModLinksUrl"));
+        Assert.Contains(settingsGrid.Descendants(Avalonia + "ComboBox"), comboBox =>
+            HasBinding(comboBox, "ItemsSource", "CustomModLinksBuildOptions"));
+        Assert.Contains(settingsGrid.Descendants(Avalonia + "ComboBox"), comboBox =>
+            HasBinding(comboBox, "ItemsSource", "CustomModLinksLoaderOptions"));
+        Assert.Contains(settingsGrid.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "SaveCustomModLinksCommand"));
     }
 
     [Fact]
@@ -138,6 +146,37 @@ public sealed class MainWindowStructureTests
         Assert.Contains(settingsGrid.Descendants(Avalonia + "CheckBox"), checkBox =>
             HasBinding(checkBox, "IsChecked", "IsOfflineMode")
             && HasBinding(checkBox, "Content", "OfflineMode"));
+    }
+
+    [Fact]
+    public void Mod_detail_uses_sanitized_markdown_viewers_for_cached_repository_content()
+    {
+        var app = XDocument.Load(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "App.axaml"));
+        Assert.Contains(app.Descendants(Avalonia + "StyleInclude"), style =>
+            string.Equals(
+                (string?)style.Attribute("Source"),
+                "avares://MarkView.Avalonia/Themes/MarkdownTheme.axaml",
+                StringComparison.Ordinal));
+
+        var document = LoadMainWindow();
+        var viewers = document.Descendants().Where(element =>
+            string.Equals(element.Name.LocalName, "MarkdownViewer", StringComparison.Ordinal)).ToArray();
+
+        Assert.Equal(2, viewers.Length);
+        Assert.Contains(viewers, viewer => HasBinding(viewer, "Markdown", "SelectedModReadmeMarkdown"));
+        Assert.Contains(viewers, viewer => HasBinding(viewer, "Markdown", "SelectedModReleaseNotesMarkdown"));
+        Assert.Contains(document.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "SelectedModContentError"));
+        Assert.Contains(document.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "RepairSelectedMarketModCommand"));
+        Assert.Contains(document.Descendants(Avalonia + "Button"), button =>
+            string.Equals((string?)button.Attribute("Click"), "OpenSelectedMarketModFolder", StringComparison.Ordinal));
+        Assert.Contains(document.Descendants(Avalonia + "Button"), button =>
+            string.Equals((string?)button.Attribute("Click"), "ConfirmDeleteSelectedModGlobalSettings", StringComparison.Ordinal));
     }
 
     private static XDocument LoadMainWindow() => XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Crystalfly.App", "Views", "MainWindow.axaml"));

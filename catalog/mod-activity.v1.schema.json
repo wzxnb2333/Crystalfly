@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/wzxnb2333/Crystalfly/main/catalog/mod-activity.v1.schema.json",
+  "title": "Crystalfly Mod Activity Catalog v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "sourceRevision", "entries"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "sourceRevision": { "type": "string", "minLength": 7, "maxLength": 64 },
+    "entries": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "addedAt", "updatedAt"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^hkmod:.+", "maxLength": 256 },
+          "addedAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}

@@ -43,6 +43,8 @@ public sealed record CrystalflySettings
     public IReadOnlyList<ModHealthAcknowledgement> ModHealthAcknowledgements { get; init; } = [];
 
     public IReadOnlyList<CustomCatalogDefinition> CustomCatalogs { get; init; } = [];
+
+    public CustomModLinksDefinition? CustomModLinks { get; init; }
 }
 
 public sealed record CustomCatalogDefinition
@@ -50,4 +52,13 @@ public sealed record CustomCatalogDefinition
     public required string Namespace { get; init; }
 
     public required string Url { get; init; }
+}
+
+public sealed record CustomModLinksDefinition
+{
+    public required string Url { get; init; }
+
+    public required string BuildId { get; init; }
+
+    public required string LoaderId { get; init; }
 }

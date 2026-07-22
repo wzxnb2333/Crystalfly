@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using System.Xml;
 using Crystalfly.Core.Models;
 
 namespace Crystalfly.Core.Catalog;
@@ -10,7 +11,7 @@ public static class OfficialXmlCatalogParser
         string loaderId,
         string buildId)
     {
-        var document = XDocument.Parse(xml, LoadOptions.None);
+        var document = ParseDocument(xml);
         var root = document.Root ?? throw new InvalidDataException("ModLinks XML has no root element.");
         var ns = root.Name.Namespace;
         return root.Elements(ns + "Manifest")
@@ -20,7 +21,7 @@ public static class OfficialXmlCatalogParser
 
     public static LoaderManifest ParseApi(string xml, string buildId)
     {
-        var document = XDocument.Parse(xml, LoadOptions.None);
+        var document = ParseDocument(xml);
         var root = document.Root ?? throw new InvalidDataException("ApiLinks XML has no root element.");
         var ns = root.Name.Namespace;
         var manifest = root.Element(ns + "Manifest")
@@ -45,6 +46,19 @@ public static class OfficialXmlCatalogParser
     }
 
     private static string OfficialModId(string name) => $"hkmod:{name.Trim()}";
+
+    private static XDocument ParseDocument(string xml)
+    {
+        ArgumentNullException.ThrowIfNull(xml);
+        using var text = new StringReader(xml);
+        using var reader = XmlReader.Create(text, new XmlReaderSettings
+        {
+            DtdProcessing = DtdProcessing.Prohibit,
+            XmlResolver = null,
+            MaxCharactersInDocument = 4 * 1024 * 1024
+        });
+        return XDocument.Load(reader, LoadOptions.None);
+    }
 
     private static ModManifest ParseMod(XElement manifest, XNamespace ns, string loaderId, string buildId)
     {

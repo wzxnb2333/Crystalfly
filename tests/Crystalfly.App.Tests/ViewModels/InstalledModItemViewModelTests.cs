@@ -194,6 +194,22 @@ public sealed class InstalledModItemViewModelTests
         Assert.Equal(expected, item.CanRepair);
     }
 
+    [Fact]
+    public void Healthy_official_managed_mod_can_be_reinstalled_without_claiming_a_repair()
+    {
+        var receipt = Receipt("debugmod", "1.0.0", enabled: false) with
+        {
+            Ownership = ModOwnership.Managed
+        };
+        var item = new InstalledModItemViewModel(
+            receipt,
+            Manifest("debugmod", "1.0.0"),
+            static () => { });
+
+        Assert.False(item.CanRepair);
+        Assert.True(item.CanReinstall);
+    }
+
     [Theory]
     [InlineData("debug", ModStatusFilter.All, true)]
     [InlineData("missing", ModStatusFilter.All, false)]

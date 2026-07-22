@@ -144,6 +144,14 @@ public partial class InstalledModItemViewModel : ViewModelBase
         && HealthStatus is ModHealthStatus.CriticalFileMissing or ModHealthStatus.ModifiedFile
         && CatalogManifest is not null;
 
+    public bool CanReinstall => Receipt is not null
+        && Ownership == ModOwnership.Managed
+        && !IsLocal
+        && !IsPinned
+        && CatalogManifest is not null
+        && string.Equals(Version, CatalogManifest.Version, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(LoaderId, CatalogManifest.LoaderId, StringComparison.OrdinalIgnoreCase);
+
     public bool CanAcceptCurrent => IsLocal && HasHealthIssue;
 
     public bool CanReimport => IsLocal;

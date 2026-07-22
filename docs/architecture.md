@@ -103,6 +103,26 @@ Official `ModLinks.xml` and `ApiLinks.xml` entries are merged below Crystalfly's
 official IDs. Custom sources are forced into their own namespace and are never
 allowed to contribute builds, loaders, channels, or verified speedrun data.
 
+Mod activity metadata is generated from valid revisions in the official
+`hk-modding/modlinks` history. The client loads the remote v1 catalog, then its
+last valid atomic cache, then the embedded baseline. README and latest release
+notes are fetched only for HTTPS GitHub repositories, sanitized before display,
+and cached with ETags; remote images, HTML, scripts, and non-HTTPS links are
+removed before Markdown rendering.
+
+An optional custom `ModLinks.xml` is a full replacement for the official ModLinks
+feed, not an overlay. Its configuration is bound to one exact build ID and one
+exact Modding API package ID. The URL and every Windows package must use HTTPS
+and every package must have a valid SHA-256. Its cache includes the same identity
+triple, so data from another build or Loader is never reused. These entries remain
+unverified and cannot affect build fingerprints or speedrun trust.
+
+Official Mod repair uses the exact installed catalog version and preserves the
+receipt's enabled state. Global settings resolve to
+`<LocalLow>/<ModType>.GlobalSettings.json` in the selected instance copy, or the
+active shared LocalLow while Hollow Knight is running. Deletion includes the
+`.bak` file and uses the normal recoverable file transaction.
+
 ## LocalLow isolation
 
 Before first takeover, Crystalfly copies the complete shared Hollow Knight

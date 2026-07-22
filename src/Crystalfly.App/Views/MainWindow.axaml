@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Crystalfly.App.ViewModels"
         xmlns:models="using:Crystalfly.Core.Models"
+        xmlns:mv="using:MarkView.Avalonia"
         xmlns:converters="using:Avalonia.Data.Converters"
         xmlns:u="https://irihi.tech/ursa"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -1045,7 +1046,8 @@
                                                 </StackPanel>
                                             </Button>
                                         </StackPanel>
-                                        <ProgressBar Minimum="0"
+                                        <ProgressBar x:Name="SteamDownloadProgress"
+                                                     Minimum="0"
                                                      Maximum="1"
                                                      Value="{Binding DownloadProgress}"
                                                      IsVisible="{Binding IsDownloading}" />
@@ -1109,7 +1111,7 @@
                                          Text="{Binding MarketSearchText, Mode=TwoWay}"
                                          PlaceholderText="{Binding Loc[MarketSearch]}"
                                          AutomationProperties.Name="{Binding Loc[MarketSearch]}" />
-                                <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+                                <Grid ColumnDefinitions="*,*,*,*,*" ColumnSpacing="8">
                                     <ComboBox Grid.Column="0" Classes="cfp-input" HorizontalAlignment="Stretch"
                                               ItemsSource="{Binding MarketBuildOptions}"
                                               SelectedItem="{Binding SelectedMarketBuildOption, Mode=TwoWay}"
@@ -1132,6 +1134,12 @@
                                               ItemsSource="{Binding MarketTagOptions}"
                                               SelectedItem="{Binding SelectedMarketTagOption, Mode=TwoWay}"
                                               AutomationProperties.Name="{Binding Loc[MarketTag]}">
+                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <ComboBox Grid.Column="4" Classes="cfp-input" HorizontalAlignment="Stretch"
+                                              ItemsSource="{Binding MarketActivityOptions}"
+                                              SelectedItem="{Binding SelectedMarketActivityOption, Mode=TwoWay}"
+                                              AutomationProperties.Name="{Binding Loc[ActivityAll]}">
                                         <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
                                     </ComboBox>
                                 </Grid>
@@ -1235,6 +1243,59 @@
                                     </Button>
                                 </Grid>
 
+                                <WrapPanel Classes="cfp-mod-detail-actions"
+                                           Orientation="Horizontal"
+                                           IsVisible="{Binding HasSelectedMarketModInstallation}">
+                                    <Button Classes="cfp-secondary"
+                                            Margin="0,0,8,8"
+                                            Command="{Binding RepairSelectedMarketModCommand}"
+                                            IsVisible="{Binding CanReinstallSelectedMarketMod}"
+                                            AutomationProperties.Name="{Binding Loc[ReinstallMod]}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <LucideIcon Kind="RefreshCw" Size="15" />
+                                            <TextBlock Text="{Binding Loc[ReinstallMod]}" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Classes="cfp-secondary"
+                                            Margin="0,0,8,8"
+                                            Click="OpenSelectedMarketModFolder"
+                                            AutomationProperties.Name="{Binding Loc[OpenFolder]}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <LucideIcon Kind="FolderOpen" Size="15" />
+                                            <TextBlock Text="{Binding Loc[OpenFolder]}" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Classes="cfp-secondary"
+                                            Margin="0,0,8,8"
+                                            Command="{Binding OpenSelectedModLogsCommand}"
+                                            AutomationProperties.Name="{Binding Loc[OpenLogs]}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <LucideIcon Kind="FileText" Size="15" />
+                                            <TextBlock Text="{Binding Loc[OpenLogs]}" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Classes="cfp-secondary"
+                                            Margin="0,0,8,8"
+                                            Click="OpenSelectedModGlobalSettings"
+                                            IsVisible="{Binding CanAccessSelectedModGlobalSettings}"
+                                            AutomationProperties.Name="{Binding Loc[GlobalSettings]}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <LucideIcon Kind="Settings2" Size="15" />
+                                            <TextBlock Text="{Binding Loc[GlobalSettings]}" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Classes="cfp-danger"
+                                            Margin="0,0,8,8"
+                                            Click="ConfirmDeleteSelectedModGlobalSettings"
+                                            IsVisible="{Binding HasSelectedModGlobalSettings}"
+                                            AutomationProperties.Name="{Binding Loc[DeleteGlobalSettings]}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <LucideIcon Kind="Trash2" Size="15" />
+                                            <TextBlock Text="{Binding Loc[DeleteGlobalSettings]}" />
+                                        </StackPanel>
+                                    </Button>
+                                </WrapPanel>
+
                                 <Border Classes="cfp-card" IsVisible="{Binding SelectedMarketModDisplay.HasPrimaryDescription}">
                                     <StackPanel Spacing="10">
                                         <TextBlock Text="{Binding SelectedMarketModDisplay.PrimaryDescription}" TextWrapping="Wrap" />
@@ -1244,6 +1305,36 @@
                                                        Text="{Binding SelectedMarketModDisplay.SecondaryDescription}"
                                                        TextWrapping="Wrap" />
                                         </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="cfp-card cfp-mod-content-card">
+                                    <StackPanel Spacing="12">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                            <TextBlock Classes="cfp-section-title"
+                                                       Text="{Binding Loc[Readme]}" />
+                                            <TextBlock Grid.Column="1"
+                                                       Classes="cfp-caption"
+                                                       Text="{Binding SelectedModContentStatusText}" />
+                                        </Grid>
+                                        <ProgressBar IsIndeterminate="True"
+                                                     IsVisible="{Binding IsLoadingSelectedModContent}" />
+                                        <TextBlock Classes="cfp-caption"
+                                                   Foreground="{DynamicResource CfErrorBrush}"
+                                                   Text="{Binding SelectedModContentError}"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding HasSelectedModContentError}" />
+                                        <mv:MarkdownViewer Markdown="{Binding SelectedModReadmeMarkdown}"
+                                                           IsVisible="{Binding HasSelectedModReadme}" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="cfp-card cfp-mod-content-card"
+                                        IsVisible="{Binding HasSelectedModReleaseNotes}">
+                                    <StackPanel Spacing="12">
+                                        <TextBlock Classes="cfp-section-title"
+                                                   Text="{Binding Loc[LatestReleaseNotes]}" />
+                                        <mv:MarkdownViewer Markdown="{Binding SelectedModReleaseNotesMarkdown}" />
                                     </StackPanel>
                                 </Border>
 
@@ -1536,6 +1627,42 @@
                                             Foreground="{DynamicResource CfErrorBrush}"
                                             TextWrapping="Wrap"
                                            IsVisible="{Binding OfficialModCatalogError, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="cfp-card">
+                            <StackPanel Spacing="12">
+                                <TextBlock Classes="cfp-section-title" Text="{Binding Loc[CustomModLinks]}" />
+                                <TextBlock Classes="cfp-caption"
+                                           Text="{Binding Loc[CustomModLinksHint]}"
+                                           TextWrapping="Wrap" />
+                                <TextBox Classes="cfp-input"
+                                         Text="{Binding CustomModLinksUrl, Mode=TwoWay}"
+                                         PlaceholderText="https://example.invalid/ModLinks.xml"
+                                         AutomationProperties.Name="{Binding Loc[CustomModLinks]}" />
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                    <ComboBox Classes="cfp-input"
+                                              ItemsSource="{Binding CustomModLinksBuildOptions}"
+                                              SelectedItem="{Binding SelectedCustomModLinksBuild, Mode=TwoWay}"
+                                              AutomationProperties.Name="{Binding Loc[MarketBuild]}">
+                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <ComboBox Grid.Column="1"
+                                              Classes="cfp-input"
+                                              ItemsSource="{Binding CustomModLinksLoaderOptions}"
+                                              SelectedItem="{Binding SelectedCustomModLinksLoader, Mode=TwoWay}"
+                                              AutomationProperties.Name="{Binding Loc[MarketLoader]}">
+                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </Grid>
+                                <Button Classes="cfp-accent"
+                                        Command="{Binding SaveCustomModLinksCommand}"
+                                        HorizontalAlignment="Right">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <LucideIcon Kind="Save" Size="16" />
+                                        <TextBlock Text="{Binding Loc[Save]}" />
+                                    </StackPanel>
+                                </Button>
                             </StackPanel>
                         </Border>
 

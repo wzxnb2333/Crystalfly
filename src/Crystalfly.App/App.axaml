@@ -11,6 +11,7 @@
     <Application.Styles>
         <semi:SemiTheme />
         <semi:UrsaSemiTheme />
+        <StyleInclude Source="avares://MarkView.Avalonia/Themes/MarkdownTheme.axaml" />
         <StyleInclude Source="avares://Crystalfly.App/Styles/CrystalflyTheme.axaml" />
     </Application.Styles>
 </Application>
