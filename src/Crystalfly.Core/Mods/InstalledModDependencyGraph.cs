@@ -110,6 +110,55 @@ public static class InstalledModDependencyGraph
         }
     }
 
+    public static IReadOnlyList<InstalledModReceipt> FindUnusedDependencies(
+        IReadOnlyList<InstalledModReceipt> removed,
+        IReadOnlyList<InstalledModReceipt> remaining)
+    {
+        ArgumentNullException.ThrowIfNull(removed);
+        ArgumentNullException.ThrowIfNull(remaining);
+        var remainingById = remaining.ToDictionary(mod => mod.Id, StringComparer.OrdinalIgnoreCase);
+        var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var pending = new Queue<string>(removed.SelectMany(mod => mod.Dependencies));
+        while (pending.TryDequeue(out var id))
+        {
+            if (!candidates.Add(id) || !remainingById.TryGetValue(id, out var dependency))
+            {
+                continue;
+            }
+            foreach (var transitiveDependency in dependency.Dependencies)
+            {
+                pending.Enqueue(transitiveDependency);
+            }
+        }
+
+        var unused = candidates
+            .Where(id => remainingById.TryGetValue(id, out var mod)
+                && mod.Ownership == ModOwnership.Managed
+                && !mod.IsLocal
+                && !mod.Pinned)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        bool changed;
+        do
+        {
+            changed = false;
+            foreach (var id in unused.ToArray())
+            {
+                if (remaining.Any(mod =>
+                    !unused.Contains(mod.Id)
+                    && mod.Dependencies.Contains(id, StringComparer.OrdinalIgnoreCase)))
+                {
+                    unused.Remove(id);
+                    changed = true;
+                }
+            }
+        }
+        while (changed);
+
+        return remaining.Where(mod => unused.Contains(mod.Id))
+            .OrderBy(mod => mod.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     private static ModRemovalImpactNode ToNode(
         InstalledModReceipt mod,
         ModRemovalImpactKind kind,
