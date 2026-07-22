@@ -45,6 +45,15 @@ public sealed class GitHubRouteLatencyService : IDisposable
         this.timeProvider = timeProvider ?? TimeProvider.System;
     }
 
+    public GitHubRouteLatencyService(
+        HttpMessageHandler handler,
+        INetworkPolicy networkPolicy,
+        TimeProvider? timeProvider = null,
+        TimeSpan? timeout = null)
+        : this(new NetworkPolicyHandler(networkPolicy, handler), timeProvider, timeout)
+    {
+    }
+
     public async Task<GitHubRouteLatencyTestResult> TestAsync(
         CancellationToken cancellationToken = default)
     {

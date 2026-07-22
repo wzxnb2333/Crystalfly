@@ -14,6 +14,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         Assert.Equal(UiLanguage.FollowSystem, defaults.Language);
         Assert.Equal(UiTheme.System, defaults.Theme);
         Assert.Equal(GitHubDownloadRoute.Direct, defaults.GitHubDownloadRoute);
+        Assert.False(defaults.OfflineMode);
 
         var expected = defaults with
         {
@@ -22,6 +23,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
             Language = UiLanguage.SimplifiedChinese,
             Theme = UiTheme.Dark,
             GitHubDownloadRoute = GitHubDownloadRoute.Mirror,
+            OfflineMode = true,
             CustomCatalogs =
             [
                 new CustomCatalogDefinition
@@ -51,6 +53,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         var settings = await CrystalflySettingsStore.LoadAsync(path);
 
         Assert.Equal(GitHubDownloadRoute.Direct, settings.GitHubDownloadRoute);
+        Assert.False(settings.OfflineMode);
     }
 
 

@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using Crystalfly.Core.Networking;
 using Crystalfly.Core.Packages;
 
 namespace Crystalfly.Core.Tests.Packages;
@@ -149,6 +150,61 @@ public sealed class PackageInstallerTests
         Assert.Equal(first, second);
         Assert.Equal(1, handler.RequestCount);
         Assert.Equal(bytes, await File.ReadAllBytesAsync(second));
+    }
+
+    [Fact]
+    public async Task AcquireVerifiedFileFromUri_uses_valid_cache_while_offline()
+    {
+        using var test = new TestDirectory();
+        var source = Path.Combine(test.CreateDirectory("source"), "tool.dll");
+        await File.WriteAllTextAsync(source, "cached-tool");
+        var bytes = await File.ReadAllBytesAsync(source);
+        var hash = FileSha256(source);
+        var cache = test.CreateDirectory("cache");
+        using var onlineClient = new HttpClient(new StubHandler(_ => Response(bytes)));
+        await PackageInstaller.AcquireVerifiedFileFromUriAsync(
+            new Uri("https://example.invalid/tool.dll"),
+            test.CreateDirectory("online-transactions"),
+            bytes.Length,
+            hash,
+            cache,
+            onlineClient);
+        var offlineHandler = new StubHandler(_ => throw new InvalidOperationException("Network used."));
+        using var offlineClient = new HttpClient(offlineHandler);
+        var policy = new NetworkPolicy(isOffline: true);
+
+        var acquired = await PackageInstaller.AcquireVerifiedFileFromUriAsync(
+            new Uri("https://example.invalid/tool.dll"),
+            test.CreateDirectory("offline-transactions"),
+            bytes.Length,
+            hash,
+            cache,
+            offlineClient,
+            networkPolicy: policy);
+
+        Assert.Equal(bytes, await File.ReadAllBytesAsync(acquired));
+        Assert.Equal(0, offlineHandler.RequestCount);
+    }
+
+    [Fact]
+    public async Task AcquireVerifiedFileFromUri_blocks_uncached_download_while_offline()
+    {
+        using var test = new TestDirectory();
+        var handler = new StubHandler(_ => throw new InvalidOperationException("Network used."));
+        using var client = new HttpClient(handler);
+        var policy = new NetworkPolicy(isOffline: true);
+
+        await Assert.ThrowsAsync<OfflineModeException>(() =>
+            PackageInstaller.AcquireVerifiedFileFromUriAsync(
+                new Uri("https://example.invalid/tool.dll"),
+                test.CreateDirectory("transactions"),
+                1,
+                new string('A', 64),
+                test.CreateDirectory("cache"),
+                client,
+                networkPolicy: policy));
+
+        Assert.Equal(0, handler.RequestCount);
     }
 
     [Fact]

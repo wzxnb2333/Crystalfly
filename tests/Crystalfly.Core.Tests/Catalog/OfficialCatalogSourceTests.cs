@@ -1,6 +1,7 @@
 using System.Net;
 using Crystalfly.Core.Catalog;
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Networking;
 using Crystalfly.Core.Serialization;
 
 namespace Crystalfly.Core.Tests.Catalog;
@@ -55,6 +56,23 @@ public sealed class OfficialCatalogSourceTests : IDisposable
         Assert.Equal(1, result.ModCount);
         Assert.False(string.IsNullOrEmpty(result.Reason));
         Assert.Equal("Cached Mod", Assert.Single(result.Catalog.Mods).Name);
+    }
+
+    [Fact]
+    public async Task Load_returns_cached_status_while_offline_without_reaching_transport()
+    {
+        var cachePath = Path.Combine(directory, "official.json");
+        await AtomicJsonStore.WriteAsync(cachePath, CachedCatalog("80", "Cached Mod"));
+        var transport = new StubHandler((_, _) =>
+            throw new InvalidOperationException("Transport reached."));
+        var policy = new NetworkPolicy(isOffline: true);
+        using var client = new HttpClient(new NetworkPolicyHandler(policy, transport));
+
+        var result = await OfficialCatalogSource.LoadAsync(client, cachePath);
+
+        Assert.Equal(OfficialCatalogLoadStatus.Cached, result.Status);
+        Assert.Equal("Cached Mod", Assert.Single(result.Catalog.Mods).Name);
+        Assert.Equal(0, transport.RequestCount);
     }
 
     [Fact]
@@ -212,9 +230,14 @@ public sealed class OfficialCatalogSourceTests : IDisposable
     private sealed class StubHandler(
         Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> responseFactory) : HttpMessageHandler
     {
+        public int RequestCount { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
-            CancellationToken cancellationToken) =>
-            responseFactory(request, cancellationToken);
+            CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            return responseFactory(request, cancellationToken);
+        }
     }
 }

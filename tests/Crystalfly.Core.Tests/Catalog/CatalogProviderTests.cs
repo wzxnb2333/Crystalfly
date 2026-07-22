@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using Crystalfly.Core.Catalog;
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Networking;
 using Crystalfly.Core.Serialization;
 
 namespace Crystalfly.Core.Tests.Catalog;
@@ -97,6 +98,27 @@ public sealed class CatalogProviderTests : IDisposable
             client);
 
         Assert.Contains(result.Builds, build => build.Id == "1.2.2.1");
+    }
+
+    [Fact]
+    public async Task Load_uses_cache_while_offline_without_reaching_transport()
+    {
+        var cachePath = Path.Combine(directory, "catalog.json");
+        await AtomicJsonStore.WriteAsync(cachePath, new GameCatalog
+        {
+            Channels = [new GameChannel { Name = "offline-cache", BuildId = "1.2.2.1" }]
+        });
+        var transport = new StubHandler(_ => throw new InvalidOperationException("Transport reached."));
+        var policy = new NetworkPolicy(isOffline: true);
+        using var client = new HttpClient(new NetworkPolicyHandler(policy, transport));
+
+        var result = await CatalogProvider.LoadAsync(
+            new Uri("https://example.invalid/catalog.json"),
+            cachePath,
+            client);
+
+        Assert.Contains(result.Channels, channel => channel.Name == "offline-cache");
+        Assert.Equal(0, transport.RequestCount);
     }
 
     [Fact]
@@ -374,10 +396,15 @@ public sealed class CatalogProviderTests : IDisposable
 
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responseFactory) : HttpMessageHandler
     {
+        public int RequestCount { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(responseFactory(request));
+            CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            return Task.FromResult(responseFactory(request));
+        }
     }
 
     private sealed class AsyncStubHandler(

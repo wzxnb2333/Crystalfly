@@ -1,6 +1,7 @@
 using System.Net;
 using Crystalfly.Core.Catalog;
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Networking;
 using Crystalfly.Core.Serialization;
 
 namespace Crystalfly.Core.Tests.Catalog;
@@ -47,6 +48,27 @@ public sealed class ModTranslationSourceTests : IDisposable
         Assert.Equal(ModTranslationLoadStatus.Cached, result.Status);
         Assert.Equal("缓存名称", Assert.Single(result.Catalog.Mods).DisplayName);
         Assert.Contains("503", result.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Load_uses_cached_catalog_while_offline_without_reaching_transport()
+    {
+        var cachePath = Path.Combine(directory, "mod-translations.json");
+        await AtomicJsonStore.WriteAsync(cachePath, Catalog("缓存名称", "缓存说明"));
+        var transport = new StubHandler((_, _) =>
+            throw new InvalidOperationException("Transport reached."));
+        var policy = new NetworkPolicy(isOffline: true);
+        using var client = new HttpClient(new NetworkPolicyHandler(policy, transport));
+
+        var result = await ModTranslationSource.LoadAsync(
+            client,
+            cachePath,
+            Catalog("内置名称", "内置说明"),
+            new Uri("https://example.test/translations.json"));
+
+        Assert.Equal(ModTranslationLoadStatus.Cached, result.Status);
+        Assert.Equal("缓存名称", Assert.Single(result.Catalog.Mods).DisplayName);
+        Assert.Equal(0, transport.RequestCount);
     }
 
     [Fact]
@@ -188,9 +210,14 @@ public sealed class ModTranslationSourceTests : IDisposable
     private sealed class StubHandler(
         Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> responseFactory) : HttpMessageHandler
     {
+        public int RequestCount { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
-            CancellationToken cancellationToken) =>
-            responseFactory(request, cancellationToken);
+            CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            return responseFactory(request, cancellationToken);
+        }
     }
 }

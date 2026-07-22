@@ -4,6 +4,7 @@ using Crystalfly.Core.Instances;
 using Crystalfly.Core.Loaders;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Mods;
+using Crystalfly.Core.Networking;
 using Crystalfly.Core.Packages;
 using Crystalfly.Core.Transactions;
 
@@ -16,19 +17,22 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
     private readonly InstanceOperationCoordinator coordinator;
     private readonly Func<bool> isGameRunning;
     private readonly TimeSpan gameExitPollInterval;
+    private readonly INetworkPolicy? networkPolicy;
 
     public CatalogPackageQueueExecutor(
         Func<GameCatalog> getCatalog,
         HttpClient httpClient,
         InstanceOperationCoordinator coordinator,
         Func<bool>? isGameRunning = null,
-        TimeSpan? gameExitPollInterval = null)
+        TimeSpan? gameExitPollInterval = null,
+        INetworkPolicy? networkPolicy = null)
     {
         this.getCatalog = getCatalog ?? throw new ArgumentNullException(nameof(getCatalog));
         this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         this.coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
         this.isGameRunning = isGameRunning ?? (static () => false);
         this.gameExitPollInterval = gameExitPollInterval ?? TimeSpan.FromMilliseconds(500);
+        this.networkPolicy = networkPolicy;
         if (this.gameExitPollInterval <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(nameof(gameExitPollInterval));
@@ -103,7 +107,8 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
             httpClient,
             progress,
             cancellationToken,
-            networkGate);
+            networkGate,
+            networkPolicy);
     }
 
     private async Task<bool> IsStillSatisfiedAsync(

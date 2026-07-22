@@ -16,7 +16,8 @@ public enum DownloadQueueGroupState
     Running,
     Completed,
     Failed,
-    Canceled
+    Canceled,
+    WaitingForNetwork
 }
 
 public enum DownloadQueueItemKind
@@ -37,7 +38,8 @@ public enum DownloadQueueItemState
     Completed,
     Failed,
     Blocked,
-    Canceled
+    Canceled,
+    WaitingForNetwork
 }
 
 public sealed record DownloadQueueGroup

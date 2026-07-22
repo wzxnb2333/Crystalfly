@@ -36,6 +36,8 @@ public sealed record CrystalflySettings
 
     public GitHubDownloadRoute GitHubDownloadRoute { get; init; } = GitHubDownloadRoute.Direct;
 
+    public bool OfflineMode { get; init; }
+
     public IReadOnlyList<CustomCatalogDefinition> CustomCatalogs { get; init; } = [];
 }
 

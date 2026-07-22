@@ -130,6 +130,25 @@ public sealed class GitHubRouteLatencyServiceTests
     }
 
     [Fact]
+    public async Task TestAsync_reports_unavailable_offline_without_reaching_transport()
+    {
+        var requests = 0;
+        var handler = new StubHandler((_, _) =>
+        {
+            Interlocked.Increment(ref requests);
+            throw new InvalidOperationException("Transport reached.");
+        });
+        var policy = new NetworkPolicy(isOffline: true);
+        using var service = new GitHubRouteLatencyService(handler, policy);
+
+        GitHubRouteLatencyTestResult result = await service.TestAsync();
+
+        Assert.Equal(GitHubRouteLatencyStatus.Unavailable, result.Direct.Status);
+        Assert.Equal(GitHubRouteLatencyStatus.Unavailable, result.Mirror.Status);
+        Assert.Equal(0, Volatile.Read(ref requests));
+    }
+
+    [Fact]
     public async Task TestAsync_propagates_caller_cancellation()
     {
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

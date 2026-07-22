@@ -43,6 +43,22 @@ public sealed class GitHubDownloadRouteHandlerTests
             capture.Requests[1]);
     }
 
+    [Fact]
+    public async Task Handler_with_network_policy_blocks_offline_requests_before_transport()
+    {
+        var policy = new NetworkPolicy(isOffline: true);
+        var capture = new CaptureHandler();
+        using var client = new HttpClient(new GitHubDownloadRouteHandler(
+            () => GitHubDownloadRoute.Direct,
+            policy,
+            capture));
+
+        await Assert.ThrowsAsync<OfflineModeException>(() =>
+            client.GetAsync("https://github.com/owner/repo/releases/download/v1/package.zip"));
+
+        Assert.Empty(capture.Requests);
+    }
+
     private sealed class CaptureHandler : HttpMessageHandler
     {
         public List<string> Requests { get; } = [];

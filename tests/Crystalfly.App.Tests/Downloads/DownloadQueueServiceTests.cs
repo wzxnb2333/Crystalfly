@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Net;
 using Crystalfly.App.Downloads;
+using Crystalfly.Core.Networking;
 using Crystalfly.Core.Packages;
 
 namespace Crystalfly.App.Tests.Downloads;
@@ -645,6 +646,73 @@ public sealed class DownloadQueueServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Enqueue_while_offline_waits_without_starting_network_work_then_resumes_online()
+    {
+        var policy = new NetworkPolicy(isOffline: true);
+        var executor = new ControlledExecutor();
+        await using var queue = CreateQueue(executor, networkPolicy: policy);
+        await queue.InitializeAsync();
+
+        await queue.EnqueueAsync(Group("offline-enqueue", "feature"));
+
+        var waiting = Assert.Single(queue.Groups);
+        Assert.Equal(DownloadQueueGroupState.WaitingForNetwork, waiting.State);
+        Assert.Equal(DownloadQueueItemState.WaitingForNetwork, Assert.Single(waiting.Items).State);
+        Assert.Equal(0, executor.StartedTransfers);
+
+        policy.SetOffline(false);
+        await queue.WaitForIdleAsync().WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(DownloadQueueGroupState.Completed, Assert.Single(queue.Groups).State);
+        Assert.Equal(1, executor.StartedTransfers);
+    }
+
+    [Fact]
+    public async Task Offline_transition_retains_active_group_as_waiting_and_resumes_it_online()
+    {
+        var policy = new NetworkPolicy();
+        var executor = new PolicyAwareExecutor(policy);
+        await using var queue = CreateQueue(executor, networkPolicy: policy);
+        await queue.InitializeAsync();
+        await queue.EnqueueAsync(Group("offline-transition", "feature"));
+        await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        policy.SetOffline(true);
+        await queue.WaitForIdleAsync().WaitAsync(TimeSpan.FromSeconds(5));
+
+        var waiting = Assert.Single(queue.Groups);
+        Assert.Equal(DownloadQueueGroupState.WaitingForNetwork, waiting.State);
+        Assert.Equal(DownloadQueueItemState.WaitingForNetwork, Assert.Single(waiting.Items).State);
+        Assert.Null(waiting.CompletedAt);
+        Assert.Equal(1, executor.StartedTransfers);
+
+        policy.SetOffline(false);
+        await queue.WaitForIdleAsync().WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(DownloadQueueGroupState.Completed, Assert.Single(queue.Groups).State);
+        Assert.Equal(2, executor.StartedTransfers);
+    }
+
+    [Fact]
+    public async Task User_cancel_of_offline_waiting_group_is_not_resumed_by_queued_dispatch()
+    {
+        var policy = new NetworkPolicy();
+        var executor = new DelayedOfflineExecutor(policy);
+        await using var queue = CreateQueue(executor, networkPolicy: policy);
+        await queue.InitializeAsync();
+        await queue.EnqueueAsync(Group("cancel-offline", "feature"));
+        await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        policy.SetOffline(true);
+        await executor.OfflineObserved.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await queue.CancelAsync("cancel-offline");
+        executor.Release.TrySetResult();
+        await queue.WaitForIdleAsync().WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(DownloadQueueGroupState.Canceled, Assert.Single(queue.Groups).State);
+    }
+
+    [Fact]
     public async Task Final_persistence_failure_faults_idle_and_shutdown()
     {
         var emptyWrites = 0;
@@ -669,12 +737,14 @@ public sealed class DownloadQueueServiceTests : IDisposable
     private DownloadQueueService CreateQueue(
         IDownloadQueueExecutor executor,
         Func<bool>? isGameRunning = null,
-        Func<IReadOnlyList<DownloadQueueGroup>, CancellationToken, Task>? persistOverride = null) => new(
+        Func<IReadOnlyList<DownloadQueueGroup>, CancellationToken, Task>? persistOverride = null,
+        INetworkPolicy? networkPolicy = null) => new(
         Path.Combine(root, "download-queue.json"),
         executor,
         isGameRunning ?? (static () => false),
         gameExitPollInterval: TimeSpan.FromMilliseconds(10),
-        persistOverride);
+        persistOverride,
+        networkPolicy);
 
     private Task WriteStoredGroupsAsync(
         IReadOnlyList<DownloadQueueGroup> groups,
@@ -838,6 +908,96 @@ public sealed class DownloadQueueServiceTests : IDisposable
 
         public Task WaitForCancellationRegistrationAsync() =>
             cancellationRegistered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    private sealed class PolicyAwareExecutor(INetworkPolicy policy) : IDownloadQueueExecutor
+    {
+        private int startedTransfers;
+
+        public TaskCompletionSource Started { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public int StartedTransfers => Volatile.Read(ref startedTransfers);
+
+        public bool RequiresGameExit(DownloadQueueItem item) => false;
+
+        public bool IsTransient(Exception exception) => false;
+
+        public async Task TransferAsync(
+            DownloadQueueGroup group,
+            DownloadQueueItem item,
+            IProgress<PackageTransferProgress> progress,
+            SemaphoreSlim networkGate,
+            CancellationToken cancellationToken)
+        {
+            CancellationToken onlineCancellation = policy.GetOnlineCancellationToken();
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                onlineCancellation);
+            int attempt = Interlocked.Increment(ref startedTransfers);
+            Started.TrySetResult();
+            if (attempt > 1)
+            {
+                return;
+            }
+
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, linked.Token);
+            }
+            catch (OperationCanceledException exception) when (
+                onlineCancellation.IsCancellationRequested
+                && !cancellationToken.IsCancellationRequested)
+            {
+                throw new OfflineTransitionException(exception, onlineCancellation);
+            }
+        }
+
+        public Task InstallAsync(
+            DownloadQueueGroup group,
+            DownloadQueueItem item,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class DelayedOfflineExecutor(INetworkPolicy policy) : IDownloadQueueExecutor
+    {
+        public TaskCompletionSource Started { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource OfflineObserved { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Release { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public bool RequiresGameExit(DownloadQueueItem item) => false;
+
+        public bool IsTransient(Exception exception) => false;
+
+        public async Task TransferAsync(
+            DownloadQueueGroup group,
+            DownloadQueueItem item,
+            IProgress<PackageTransferProgress> progress,
+            SemaphoreSlim networkGate,
+            CancellationToken cancellationToken)
+        {
+            CancellationToken onlineCancellation = policy.GetOnlineCancellationToken();
+            using var registration = onlineCancellation.Register(() =>
+            {
+                OfflineObserved.TrySetResult();
+            });
+            Started.TrySetResult();
+            await OfflineObserved.Task;
+            await Release.Task;
+            throw new OfflineTransitionException(
+                new OperationCanceledException(onlineCancellation),
+                onlineCancellation);
+        }
+
+        public Task InstallAsync(
+            DownloadQueueGroup group,
+            DownloadQueueItem item,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private static class InterlockedExtensions

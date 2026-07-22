@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Diagnostics;
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Networking;
 using Crystalfly.Core.Transactions;
 
 namespace Crystalfly.Core.Packages;
@@ -53,7 +54,8 @@ public static class PackageInstaller
         HttpClient? httpClient = null,
         IProgress<PackageTransferProgress>? progress = null,
         CancellationToken cancellationToken = default,
-        SemaphoreSlim? networkGate = null)
+        SemaphoreSlim? networkGate = null,
+        INetworkPolicy? networkPolicy = null)
     {
         if (!packageUri.IsAbsoluteUri || packageUri.Scheme != Uri.UriSchemeHttps)
         {
@@ -77,28 +79,47 @@ public static class PackageInstaller
             try
             {
                 long downloadSize;
-                if (networkGate is not null)
-                {
-                    await networkGate.WaitAsync(cancellationToken);
-                }
+                using var networkCancellation = NetworkCancellation.Create(
+                    networkPolicy,
+                    cancellationToken);
+                var networkGateTaken = false;
                 try
                 {
+                    if (networkGate is not null)
+                    {
+                        await networkGate.WaitAsync(networkCancellation.Token);
+                        networkGateTaken = true;
+                    }
                     using var response = await (httpClient ?? SharedHttpClient).GetAsync(
-                        packageUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                        packageUri,
+                        HttpCompletionOption.ResponseHeadersRead,
+                        networkCancellation.Token);
                     response.EnsureSuccessStatusCode();
                     downloadSize = ResolveRemoteSize(response.Content.Headers.ContentLength, expectedSize);
-                    await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
+                    await using (var source = await response.Content.ReadAsStreamAsync(networkCancellation.Token))
                     await using (var destination = new FileStream(
                         downloadPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920,
                         FileOptions.Asynchronous | FileOptions.WriteThrough))
                     {
                         await CopyWithSizeLimitAsync(
-                            source, destination, downloadSize, "Downloading", progress, cancellationToken);
+                            source,
+                            destination,
+                            downloadSize,
+                            "Downloading",
+                            progress,
+                            networkCancellation.Token);
                     }
+                }
+                catch (OperationCanceledException exception) when (networkCancellation.IsOfflineTransition)
+                {
+                    throw new OfflineTransitionException(exception, networkCancellation.OnlineToken);
                 }
                 finally
                 {
-                    networkGate?.Release();
+                    if (networkGateTaken)
+                    {
+                        networkGate!.Release();
+                    }
                 }
                 await VerifyPackageAsync(downloadPath, downloadSize, normalizedHash, cancellationToken);
                 await WriteCacheAsync(downloadPath, cachePath, downloadSize, cancellationToken);
@@ -120,7 +141,8 @@ public static class PackageInstaller
         string? cacheRoot = null,
         HttpClient? httpClient = null,
         IProgress<PackageTransferProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        INetworkPolicy? networkPolicy = null)
     {
         if (!packageUri.IsAbsoluteUri || packageUri.Scheme != Uri.UriSchemeHttps)
         {
@@ -139,7 +161,8 @@ public static class PackageInstaller
                 cacheRoot,
                 httpClient,
                 progress,
-                cancellationToken);
+                cancellationToken,
+                networkPolicy: networkPolicy);
             var cachedSize = new FileInfo(cachePath).Length;
             var cachedWorkspace = CreateWorkspace(transactionRoot);
             try
@@ -158,17 +181,33 @@ public static class PackageInstaller
         var packagePath = Path.Combine(workspace, "package.zip");
         try
         {
-            using var response = await (httpClient ?? SharedHttpClient).GetAsync(
-                packageUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            response.EnsureSuccessStatusCode();
-            var downloadSize = ResolveRemoteSize(response.Content.Headers.ContentLength, expectedSize);
-            await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
-            await using (var destination = new FileStream(
-                packagePath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920,
-                FileOptions.Asynchronous | FileOptions.WriteThrough))
+            long downloadSize;
+            using (var networkCancellation = NetworkCancellation.Create(networkPolicy, cancellationToken))
             {
-                await CopyWithSizeLimitAsync(
-                    source, destination, downloadSize, "Downloading", progress, cancellationToken);
+                try
+                {
+                    using var response = await (httpClient ?? SharedHttpClient).GetAsync(
+                        packageUri,
+                        HttpCompletionOption.ResponseHeadersRead,
+                        networkCancellation.Token);
+                    response.EnsureSuccessStatusCode();
+                    downloadSize = ResolveRemoteSize(response.Content.Headers.ContentLength, expectedSize);
+                    await using var source = await response.Content.ReadAsStreamAsync(networkCancellation.Token);
+                    await using var destination = new FileStream(
+                        packagePath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920,
+                        FileOptions.Asynchronous | FileOptions.WriteThrough);
+                    await CopyWithSizeLimitAsync(
+                        source,
+                        destination,
+                        downloadSize,
+                        "Downloading",
+                        progress,
+                        networkCancellation.Token);
+                }
+                catch (OperationCanceledException exception) when (networkCancellation.IsOfflineTransition)
+                {
+                    throw new OfflineTransitionException(exception, networkCancellation.OnlineToken);
+                }
             }
 
             await VerifyPackageAsync(packagePath, downloadSize, normalizedHash, cancellationToken);
@@ -590,4 +629,47 @@ public static class PackageInstaller
     }
 
     private sealed record ArchiveEntryPlan(ZipArchiveEntry Entry, string RelativePath, bool IsDirectory);
+
+    private sealed class NetworkCancellation : IDisposable
+    {
+        private readonly CancellationToken callerToken;
+        private readonly CancellationTokenSource? linkedSource;
+
+        private NetworkCancellation(
+            CancellationToken callerToken,
+            CancellationToken onlineToken,
+            CancellationTokenSource? linkedSource)
+        {
+            this.callerToken = callerToken;
+            OnlineToken = onlineToken;
+            this.linkedSource = linkedSource;
+            Token = linkedSource?.Token ?? callerToken;
+        }
+
+        public CancellationToken Token { get; }
+
+        public CancellationToken OnlineToken { get; }
+
+        public bool IsOfflineTransition =>
+            OnlineToken.CanBeCanceled
+            && OnlineToken.IsCancellationRequested
+            && !callerToken.IsCancellationRequested;
+
+        public static NetworkCancellation Create(
+            INetworkPolicy? networkPolicy,
+            CancellationToken callerToken)
+        {
+            if (networkPolicy is null)
+            {
+                return new NetworkCancellation(callerToken, default, null);
+            }
+            CancellationToken onlineToken = networkPolicy.GetOnlineCancellationToken();
+            return new NetworkCancellation(
+                callerToken,
+                onlineToken,
+                CancellationTokenSource.CreateLinkedTokenSource(callerToken, onlineToken));
+        }
+
+        public void Dispose() => linkedSource?.Dispose();
+    }
 }
