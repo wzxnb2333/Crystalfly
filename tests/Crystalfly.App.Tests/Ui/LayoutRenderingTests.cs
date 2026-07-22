@@ -46,9 +46,10 @@ public sealed class LayoutRenderingTests
                 foreach (var english in new[] { false, true })
                 {
                     data.Add(900, 600, darkTheme, english, "Manage", "Mods");
+                    data.Add(900, 600, darkTheme, english, "Manage", "Presets");
                     data.Add(900, 600, darkTheme, english, "Manage", "Logs");
                     data.Add(900, 600, darkTheme, english, "Downloads", null);
-                    foreach (var tab in new[] { "Overview", "Loader", "Mods", "Snapshots", "Logs" })
+                    foreach (var tab in new[] { "Overview", "Loader", "Mods", "Presets", "Snapshots", "Logs" })
                     {
                         data.Add(1280, 720, darkTheme, english, "Manage", tab);
                     }
@@ -489,6 +490,7 @@ public sealed class LayoutRenderingTests
                 data.Add(scaling, "Settings", null);
                 data.Add(scaling, "Downloads", null);
                 data.Add(scaling, "Manage", "Mods");
+                data.Add(scaling, "Manage", "Presets");
             }
 
             return data;

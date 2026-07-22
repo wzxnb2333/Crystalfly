@@ -89,6 +89,45 @@ public sealed class MainWindowCodeBehindTests : IDisposable
         Assert.Equal(viewModel.Loc["Unresolved"], GetNodeLabel(nodes[2], "UnresolvedLabel"));
     }
 
+    [Fact]
+    public async Task Preset_apply_nodes_show_projected_steps_and_unresolved_state()
+    {
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"));
+        viewModel.Loc.Apply(UiLanguage.SimplifiedChinese);
+        viewModel.PresetApplySteps.Add(new PresetApplyStepItemViewModel(
+            new PresetApplyStep
+            {
+                Kind = PresetApplyStepKind.Install,
+                State = PresetApplyStepState.Pending,
+                ModId = "hkmod:benchmark",
+                Version = "2.4.0",
+                LoaderId = "modding-api-77",
+                Reason = "将加入下载队列。"
+            },
+            "安装",
+            "将更改"));
+        viewModel.PresetApplySteps.Add(new PresetApplyStepItemViewModel(
+            new PresetApplyStep
+            {
+                Kind = PresetApplyStepKind.Unresolved,
+                State = PresetApplyStepState.Unresolved,
+                ModId = "LocalOnly",
+                Reason = "需要本地文件。"
+            },
+            "未解决",
+            "需要本地文件"));
+
+        var nodes = BuildPresetApplyNodes(viewModel);
+
+        Assert.Equal(["安装", "未解决"], nodes.Select(node => node.PrimaryName));
+        Assert.Equal(["将更改", "需要本地文件"], nodes.Select(node => node.Status));
+        Assert.Contains("2.4.0", nodes[0].SecondaryName, StringComparison.Ordinal);
+        Assert.Contains("modding-api-77", nodes[0].SecondaryName, StringComparison.Ordinal);
+        Assert.False(nodes[0].IsUnresolved);
+        Assert.True(nodes[1].IsUnresolved);
+        Assert.Equal(viewModel.Loc["PresetStateUnresolved"], nodes[1].UnresolvedLabel);
+    }
+
     private static string ResolveSafeInstanceFolder(string root, string relativePath)
     {
         var method = typeof(MainWindow).GetMethod(
@@ -115,6 +154,16 @@ public sealed class MainWindowCodeBehindTests : IDisposable
         Assert.NotNull(method);
         return Assert.IsAssignableFrom<IReadOnlyList<DependencyPlanNodeViewModel>>(
             method.Invoke(null, [viewModel, plan]));
+    }
+
+    private static IReadOnlyList<DependencyPlanNodeViewModel> BuildPresetApplyNodes(MainViewModel viewModel)
+    {
+        var method = typeof(MainWindow).GetMethod(
+            "BuildPresetApplyNodes",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        return Assert.IsAssignableFrom<IReadOnlyList<DependencyPlanNodeViewModel>>(
+            method.Invoke(null, [viewModel]));
     }
 
     private static string GetNodeLabel(DependencyPlanNodeViewModel node, string propertyName)

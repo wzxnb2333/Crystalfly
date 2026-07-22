@@ -104,6 +104,145 @@ public sealed class DownloadQueueServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Preset_groups_for_one_instance_run_serially()
+    {
+        var executor = new ControlledExecutor(blockTransfers: true);
+        await using var queue = CreateQueue(executor);
+        await queue.InitializeAsync();
+        var first = ValidPresetGroup(
+            "preset-one",
+            Item("one", DownloadQueueItemKind.PresetPrepare),
+            Item("one-change", DownloadQueueItemKind.PresetDisable));
+        var second = ValidPresetGroup(
+            "preset-two",
+            Item("two", DownloadQueueItemKind.PresetPrepare),
+            Item("two-change", DownloadQueueItemKind.PresetDisable));
+
+        await queue.EnqueueAsync(first);
+        await queue.EnqueueAsync(second);
+        await executor.WaitForStartedAsync(1);
+        await Task.Delay(100);
+
+        Assert.Equal(1, executor.StartedTransfers);
+
+        executor.ReleaseTransfers();
+        await queue.WaitForIdleAsync();
+        Assert.Equal(4, executor.StartedTransfers);
+    }
+
+    [Fact]
+    public async Task Preset_group_holds_the_shared_instance_operation_gate_until_completion()
+    {
+        var coordinator = new InstanceOperationCoordinator();
+        var executor = new ControlledExecutor(blockTransfers: true);
+        await using var queue = CreateQueue(executor, operationCoordinator: coordinator);
+        await queue.InitializeAsync();
+        var group = ValidPresetGroup(
+            "preset-exclusive",
+            Item("preset", DownloadQueueItemKind.PresetPrepare),
+            Item("feature", DownloadQueueItemKind.PresetDisable));
+
+        await queue.EnqueueAsync(group);
+        await executor.WaitForStartedAsync(1);
+        var directEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var direct = coordinator.RunAsync("instance", _ =>
+        {
+            directEntered.TrySetResult();
+            return Task.CompletedTask;
+        });
+        await Task.Delay(100);
+
+        Assert.False(directEntered.Task.IsCompleted);
+        executor.ReleaseTransfers();
+        await queue.WaitForIdleAsync();
+        await direct.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task Restart_recaptures_preset_state_when_no_change_item_completed()
+    {
+        var executor = new ControlledExecutor(blockTransfers: true);
+        var prepare = Item("preset", DownloadQueueItemKind.PresetPrepare) with
+        {
+            State = DownloadQueueItemState.Completed,
+            Stage = "Completed"
+        };
+        var change = Item("feature", DownloadQueueItemKind.PresetDisable);
+        var stored = ValidPresetGroup("preset-restart", prepare, change) with
+        {
+            State = DownloadQueueGroupState.Running,
+            Stage = "Installing"
+        };
+        await WriteStoredGroupsAsync([stored], CancellationToken.None);
+        await using var queue = CreateQueue(executor);
+
+        await queue.InitializeAsync();
+        await executor.WaitForStartedAsync(1);
+
+        Assert.Equal("transfer:preset", Assert.Single(executor.Events));
+
+        executor.ReleaseTransfers();
+        await queue.WaitForIdleAsync();
+    }
+
+    [Fact]
+    public async Task Restart_preserves_preset_prepare_when_a_change_may_have_been_applied()
+    {
+        var executor = new ControlledExecutor(blockTransfers: true);
+        var prepare = Item("preset", DownloadQueueItemKind.PresetPrepare) with
+        {
+            State = DownloadQueueItemState.Completed,
+            Stage = "Completed"
+        };
+        var change = Item("feature", DownloadQueueItemKind.PresetDisable) with
+        {
+            State = DownloadQueueItemState.Installing,
+            Stage = "Installing"
+        };
+        var stored = ValidPresetGroup("preset-uncertain", prepare, change) with
+        {
+            State = DownloadQueueGroupState.Running,
+            Stage = "Installing"
+        };
+        await WriteStoredGroupsAsync([stored], CancellationToken.None);
+        await using var queue = CreateQueue(executor);
+
+        await queue.InitializeAsync();
+        await executor.WaitForStartedAsync(1);
+
+        Assert.Equal("transfer:feature", Assert.Single(executor.Events));
+
+        executor.ReleaseTransfers();
+        await queue.WaitForIdleAsync();
+    }
+
+    [Fact]
+    public async Task Enqueue_rejects_preset_group_without_a_leading_prepare_item()
+    {
+        await using var queue = CreateQueue(new ControlledExecutor());
+        await queue.InitializeAsync();
+        var invalid = ValidPresetGroup(
+            "preset-invalid",
+            Item("feature", DownloadQueueItemKind.PresetDisable));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => queue.EnqueueAsync(invalid));
+    }
+
+    [Fact]
+    public async Task Initialize_rejects_preset_group_with_duplicate_prepare_items()
+    {
+        var invalid = ValidPresetGroup(
+            "preset-invalid-stored",
+            Item("preset", DownloadQueueItemKind.PresetPrepare),
+            Item("preset-copy", DownloadQueueItemKind.PresetPrepare),
+            Item("feature", DownloadQueueItemKind.PresetDisable));
+        await WriteStoredGroupsAsync([invalid], CancellationToken.None);
+        await using var queue = CreateQueue(new ControlledExecutor());
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => queue.InitializeAsync());
+    }
+
+    [Fact]
     public async Task Duplicate_instance_and_mod_request_reuses_existing_group()
     {
         var executor = new ControlledExecutor(blockTransfers: true);
@@ -775,13 +914,15 @@ public sealed class DownloadQueueServiceTests : IDisposable
         IDownloadQueueExecutor executor,
         Func<bool>? isGameRunning = null,
         Func<IReadOnlyList<DownloadQueueGroup>, CancellationToken, Task>? persistOverride = null,
-        INetworkPolicy? networkPolicy = null) => new(
+        INetworkPolicy? networkPolicy = null,
+        InstanceOperationCoordinator? operationCoordinator = null) => new(
         Path.Combine(root, "download-queue.json"),
         executor,
         isGameRunning ?? (static () => false),
         gameExitPollInterval: TimeSpan.FromMilliseconds(10),
         persistOverride,
-        networkPolicy);
+        networkPolicy,
+        operationCoordinator);
 
     private Task WriteStoredGroupsAsync(
         IReadOnlyList<DownloadQueueGroup> groups,
@@ -818,6 +959,16 @@ public sealed class DownloadQueueServiceTests : IDisposable
             TargetInstanceRoot = "C:\\game",
             CreatedAt = DateTimeOffset.UtcNow,
             Items = items.Length == 0 ? [Item(modId, DownloadQueueItemKind.Mod)] : items
+        };
+
+    private static DownloadQueueGroup ValidPresetGroup(
+        string id,
+        params DownloadQueueItem[] items) => Group(id, "preset", items) with
+        {
+            Kind = DownloadQueueGroupKind.ModPresetApply,
+            DeduplicationKey = $"instance:preset:{id}",
+            ExpectedBuildId = "test",
+            ExpectedLoaderId = "modding-api-77"
         };
 
     private static DownloadQueueItem Item(string id, DownloadQueueItemKind kind) => new()

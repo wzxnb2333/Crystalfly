@@ -59,4 +59,22 @@ public sealed class InstanceOperationCoordinatorTests
         await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(secondEntered.Task.IsCompleted);
     }
+
+    [Fact]
+    public async Task Nested_operation_for_the_held_instance_is_reentrant()
+    {
+        var coordinator = new InstanceOperationCoordinator();
+        var nestedEntered = false;
+
+        await coordinator.RunAsync("instance", async cancellationToken =>
+        {
+            await coordinator.RunAsync("instance", _ =>
+            {
+                nestedEntered = true;
+                return Task.CompletedTask;
+            }, cancellationToken);
+        }).WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.True(nestedEntered);
+    }
 }

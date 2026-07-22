@@ -179,6 +179,41 @@ public sealed class MainWindowStructureTests
             string.Equals((string?)button.Attribute("Click"), "ConfirmDeleteSelectedModGlobalSettings", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void Preset_page_exposes_confirmed_file_and_share_interactions()
+    {
+        var document = LoadMainWindow();
+        var presets = document.Descendants(Avalonia + "StackPanel").Single(panel =>
+            ((string?)panel.Attribute("IsVisible"))?.Contains("ConverterParameter=Presets", StringComparison.Ordinal) == true);
+
+        Assert.Contains(presets.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ConfirmApplyPreset");
+        Assert.Contains(presets.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ConfirmDeletePreset");
+        Assert.Contains(presets.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ImportPresetFile");
+        Assert.Contains(presets.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ExportSelectedPreset");
+        Assert.Contains(presets.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "CopyPresetShareLink"
+                && HasBinding(button, "IsVisible", "HasLastPresetShare") == false);
+
+        var code = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Views",
+            "MainWindow.axaml.cs"));
+        Assert.Contains("private async void ConfirmApplyPreset", code, StringComparison.Ordinal);
+        Assert.Contains("private async void ConfirmDeletePreset", code, StringComparison.Ordinal);
+        Assert.Contains("private async void ImportPresetFile", code, StringComparison.Ordinal);
+        Assert.Contains("private async void ExportSelectedPreset", code, StringComparison.Ordinal);
+        Assert.Contains("private async void CopyPresetShareLink", code, StringComparison.Ordinal);
+        Assert.Contains("PresetApplySteps", code, StringComparison.Ordinal);
+        Assert.Contains("FilePickerSaveOptions", code, StringComparison.Ordinal);
+        Assert.Contains("Clipboard.SetTextAsync", code, StringComparison.Ordinal);
+    }
+
     private static XDocument LoadMainWindow() => XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Crystalfly.App", "Views", "MainWindow.axaml"));
 
     private static string FindRepositoryRoot()

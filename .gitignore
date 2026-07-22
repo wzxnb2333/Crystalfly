@@ -4,6 +4,8 @@ publish/
 artifacts/
 dist/
 build/
+node_modules/
+.vercel/
 .cache/
 .temp/
 /logs/
@@ -15,6 +17,7 @@ build/
 *.log
 .env
 .env.*
+!services/preset-share/.env.example
 /Data/
 portable.flag
 .superpowers/

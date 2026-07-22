@@ -423,6 +423,135 @@ public sealed class CatalogPackageQueueExecutorTests : IDisposable
     }
 
     [Fact]
+    public async Task Preset_group_installs_missing_mods_in_plan_order()
+    {
+        using var fixture = await CreateFixtureAsync();
+        var loader = fixture.Group.Items[0];
+        await fixture.Executor.TransferAsync(
+            fixture.Group, loader, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+        await fixture.Executor.InstallAsync(fixture.Group, loader, CancellationToken.None);
+        var instance = await InstanceSidecar.LoadAsync(fixture.InstanceRoot);
+        var preset = Preset(instance, ModPresetApplyMode.Append);
+        var plan = new PresetApplyPlan
+        {
+            Preset = preset,
+            PreApplyStates = [],
+            Steps =
+            [
+                PresetStep(PresetApplyStepKind.Install, "library"),
+                PresetStep(PresetApplyStepKind.Install, "bridge"),
+                PresetStep(PresetApplyStepKind.Install, "feature")
+            ]
+        };
+        var group = ModPresetQueueGroupFactory.Create(plan, fixture.Catalog, instance);
+
+        foreach (var item in group.Items)
+        {
+            await fixture.Executor.TransferAsync(
+                group, item, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+            await fixture.Executor.InstallAsync(group, item, CancellationToken.None);
+        }
+
+        Assert.Equal(["bridge", "feature", "library"],
+            (await ModManager(fixture).GetInstalledAsync()).Select(receipt => receipt.Id));
+    }
+
+    [Fact]
+    public async Task Preset_group_toggles_mod_without_network_and_rechecks_pinned_state()
+    {
+        using var fixture = await CreateFixtureAsync();
+        foreach (var item in fixture.Group.Items)
+        {
+            await fixture.Executor.TransferAsync(
+                fixture.Group, item, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+            await fixture.Executor.InstallAsync(fixture.Group, item, CancellationToken.None);
+        }
+        var manager = ModManager(fixture);
+        var instance = await InstanceSidecar.LoadAsync(fixture.InstanceRoot);
+        var preset = Preset(instance, ModPresetApplyMode.Exact);
+        var plan = new PresetApplyPlan
+        {
+            Preset = preset,
+            PreApplyStates = [],
+            Steps = [PresetStep(PresetApplyStepKind.Disable, "feature")]
+        };
+        var group = ModPresetQueueGroupFactory.Create(plan, fixture.Catalog, instance);
+        var prepareItem = group.Items.Single(item => item.Kind == DownloadQueueItemKind.PresetPrepare);
+        var presetItem = group.Items.Single(item => item.Kind == DownloadQueueItemKind.PresetDisable);
+        var requestCount = fixture.Handler.RequestCount;
+
+        await fixture.Executor.TransferAsync(
+            group, prepareItem, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+        await fixture.Executor.InstallAsync(group, prepareItem, CancellationToken.None);
+        await fixture.Executor.TransferAsync(
+            group, presetItem, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+        await fixture.Executor.InstallAsync(group, presetItem, CancellationToken.None);
+
+        Assert.Equal(requestCount, fixture.Handler.RequestCount);
+        Assert.False((await manager.GetInstalledAsync()).Single(receipt => receipt.Id == "feature").Enabled);
+
+        await manager.SetEnabledAsync("feature", enabled: true);
+        await manager.SetPinnedAsync("feature", pinned: true);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            fixture.Executor.InstallAsync(group, presetItem, CancellationToken.None));
+        Assert.True((await manager.GetInstalledAsync()).Single(receipt => receipt.Id == "feature").Enabled);
+    }
+
+    [Fact]
+    public async Task Preset_prepare_captures_state_when_execution_starts_instead_of_plan_creation()
+    {
+        using var fixture = await CreateFixtureAsync();
+        foreach (var item in fixture.Group.Items)
+        {
+            await fixture.Executor.TransferAsync(
+                fixture.Group, item, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+            await fixture.Executor.InstallAsync(fixture.Group, item, CancellationToken.None);
+        }
+        var manager = ModManager(fixture);
+        await manager.SetEnabledAsync("feature", enabled: false);
+        var instance = await InstanceSidecar.LoadAsync(fixture.InstanceRoot);
+        var plan = new PresetApplyPlan
+        {
+            Preset = Preset(instance, ModPresetApplyMode.Exact),
+            PreApplyStates =
+            [
+                new PresetModState
+                {
+                    ModId = "feature",
+                    WasInstalled = true,
+                    Enabled = false
+                }
+            ],
+            Steps = [PresetStep(PresetApplyStepKind.Disable, "feature")]
+        };
+        var group = ModPresetQueueGroupFactory.Create(plan, fixture.Catalog, instance);
+        await manager.SetEnabledAsync("feature", enabled: true);
+        var prepare = group.Items.Single(item => item.Kind == DownloadQueueItemKind.PresetPrepare);
+
+        await fixture.Executor.TransferAsync(
+            group, prepare, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+        await fixture.Executor.InstallAsync(group, prepare, CancellationToken.None);
+        await manager.DisableIgnoringDependentsAsync("feature");
+
+        var dataRoot = Path.Combine(fixture.VersionRoot, ".crystalfly");
+        var stateRoot = Path.Combine(dataRoot, "instances", "practice");
+        var service = new ModPresetService(
+            instance,
+            fixture.Catalog.Mods,
+            new LoaderManager(
+                fixture.InstanceRoot,
+                Path.Combine(dataRoot, "transactions"),
+                Path.Combine(stateRoot, "loader.json"),
+                Path.Combine(dataRoot, "packages"),
+                fixture.Client),
+            manager,
+            Path.Combine(stateRoot, "presets"));
+        await service.RestoreLastAsync();
+
+        Assert.True((await manager.GetInstalledAsync()).Single(receipt => receipt.Id == "feature").Enabled);
+    }
+
+    [Fact]
     public async Task Concurrent_instances_share_one_cache_transfer_for_the_same_sha()
     {
         using var fixture = await CreateFixtureAsync();
@@ -550,6 +679,7 @@ public sealed class CatalogPackageQueueExecutorTests : IDisposable
         Assert.True(executor.RequiresGameExit(Item("loader", DownloadQueueItemKind.Loader, LoaderId)));
         Assert.True(executor.RequiresGameExit(Item("library", DownloadQueueItemKind.Dependency, LoaderId)));
         Assert.True(executor.RequiresGameExit(Item("feature", DownloadQueueItemKind.Mod, LoaderId)));
+        Assert.True(executor.RequiresGameExit(Item("preset", DownloadQueueItemKind.PresetPrepare, LoaderId)));
         Assert.False(executor.RequiresGameExit(Item("asset", DownloadQueueItemKind.Asset, string.Empty)));
         Assert.True(executor.IsTransient(new HttpRequestException("network")));
         Assert.True(executor.IsTransient(new TimeoutException()));
@@ -662,6 +792,25 @@ public sealed class CatalogPackageQueueExecutorTests : IDisposable
         ExpectedLoaderId = LoaderId,
         CreatedAt = DateTimeOffset.UtcNow,
         Items = items
+    };
+
+    private static ModPreset Preset(InstanceRecord instance, ModPresetApplyMode mode) => new()
+    {
+        Id = "preset",
+        Name = "Preset",
+        GameBuildId = instance.BuildId,
+        LoaderId = LoaderId,
+        ApplyMode = mode
+    };
+
+    private static PresetApplyStep PresetStep(PresetApplyStepKind kind, string id) => new()
+    {
+        Kind = kind,
+        State = PresetApplyStepState.Pending,
+        ModId = id,
+        Version = "1.0.0",
+        LoaderId = LoaderId,
+        Reason = kind.ToString()
     };
 
     private static ModManager ModManager(Fixture fixture)
