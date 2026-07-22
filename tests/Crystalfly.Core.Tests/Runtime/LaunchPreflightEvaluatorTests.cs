@@ -251,6 +251,79 @@ public sealed class LaunchPreflightEvaluatorTests
     }
 
     [Fact]
+    public void Combined_health_report_emits_every_detected_problem()
+    {
+        var receipt = Receipt("combined", enabled: true);
+        var report = new ModHealthReport
+        {
+            ModId = receipt.Id,
+            Status = ModHealthStatus.CriticalFileMissing,
+            MissingFiles = ["Mods/combined/missing.dll"],
+            ModifiedFiles = ["Mods/combined/modified.dll"],
+            ExtraFiles = ["Mods/combined/extra.txt"],
+            CurrentFileSha256ByPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Mods/combined/modified.dll"] = new string('A', 64),
+                ["Mods/combined/extra.txt"] = new string('B', 64)
+            }
+        };
+
+        var result = EvaluateWithHealth([receipt], [report]);
+
+        Assert.Equal(3, result.Issues.Count);
+        Assert.Contains(result.Issues, issue => issue.Code == LaunchIssueCode.ModCriticalFileMissing);
+        Assert.Contains(result.Issues, issue => issue.Code == LaunchIssueCode.ModModifiedFile);
+        Assert.Contains(result.Issues, issue => issue.Code == LaunchIssueCode.ModExtraFile);
+    }
+
+    [Fact]
+    public void External_file_hash_change_invalidates_acknowledgement()
+    {
+        var firstReport = new ModHealthReport
+        {
+            ModId = "external",
+            Status = ModHealthStatus.UnmanagedExternal,
+            CurrentFileSha256ByPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Mods/External/External.dll"] = new string('A', 64)
+            }
+        };
+        var first = EvaluateWithHealth([], [firstReport]);
+        var acknowledgement = ModHealthAcknowledgement.Create("instance-1", Assert.Single(first.Issues));
+        var changedReport = firstReport with
+        {
+            CurrentFileSha256ByPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Mods/External/External.dll"] = new string('B', 64)
+            }
+        };
+
+        var changed = EvaluateWithHealth([], [changedReport], [acknowledgement]);
+
+        Assert.False(Assert.Single(changed.Issues).IsAcknowledged);
+    }
+
+    [Fact]
+    public void Indeterminate_detail_change_invalidates_acknowledgement()
+    {
+        var firstReport = new ModHealthReport
+        {
+            ModId = "broken",
+            Status = ModHealthStatus.Indeterminate,
+            Detail = "first reason"
+        };
+        var first = EvaluateWithHealth([], [firstReport]);
+        var acknowledgement = ModHealthAcknowledgement.Create("instance-1", Assert.Single(first.Issues));
+
+        var changed = EvaluateWithHealth(
+            [],
+            [firstReport with { Detail = "second reason" }],
+            [acknowledgement]);
+
+        Assert.False(Assert.Single(changed.Issues).IsAcknowledged);
+    }
+
+    [Fact]
     public void Exact_warning_acknowledgement_allows_normal_launch_without_removing_issue()
     {
         var receipt = Receipt("health-mod", enabled: true);
@@ -361,6 +434,11 @@ public sealed class LaunchPreflightEvaluatorTests
             ModHealthAcknowledgement.Create(
                 "instance-1",
                 original with { CurrentFileSha256 = "BBBBBBBB" }).Fingerprint);
+        Assert.NotEqual(
+            originalFingerprint,
+            ModHealthAcknowledgement.Create(
+                "instance-1",
+                original with { Arguments = ["changed"] }).Fingerprint);
     }
 
     [Fact]

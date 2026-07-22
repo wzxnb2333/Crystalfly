@@ -157,10 +157,41 @@ public sealed class InstalledModItemViewModelTests
         Assert.True(item.HasHealthIssue);
         Assert.Equal(ModHealthStatus.ModifiedFile, item.HealthStatus);
         Assert.True(item.CanToggle);
-        Assert.True(item.CanRepair);
+        Assert.False(item.CanRepair);
         Assert.False(item.CanUninstall);
         Assert.True(item.Matches(string.Empty, ModStatusFilter.Pinned));
         Assert.True(item.Matches("ModifiedFile", ModStatusFilter.NeedsAttention));
+    }
+
+    [Theory]
+    [InlineData(ModHealthStatus.CriticalFileMissing, true)]
+    [InlineData(ModHealthStatus.ModifiedFile, true)]
+    [InlineData(ModHealthStatus.ExtraFile, false)]
+    [InlineData(ModHealthStatus.Indeterminate, false)]
+    public void Repair_action_is_only_available_for_exact_package_restorable_health_states(
+        ModHealthStatus status,
+        bool expected)
+    {
+        var receipt = Receipt("debugmod", "1.0.0", enabled: true);
+        var discovery = new ModDiscoveryEntry
+        {
+            Id = receipt.Id,
+            Name = receipt.Name,
+            LoaderId = receipt.LoaderId,
+            InstallRoot = receipt.InstallRoot,
+            Enabled = receipt.Enabled,
+            Ownership = receipt.Ownership,
+            Files = receipt.Files.Select(file => file.RelativePath).ToArray(),
+            EntryFiles = receipt.EntryFiles
+        };
+        var item = new InstalledModItemViewModel(
+            discovery,
+            receipt,
+            new ModHealthReport { ModId = receipt.Id, Status = status },
+            Manifest("debugmod", "1.0.0"),
+            static () => { });
+
+        Assert.Equal(expected, item.CanRepair);
     }
 
     [Theory]

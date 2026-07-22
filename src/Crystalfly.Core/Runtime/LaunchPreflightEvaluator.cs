@@ -202,52 +202,57 @@ public static class LaunchPreflightEvaluator
         foreach (ModHealthReport report in modHealthReports)
         {
             _ = installedById.TryGetValue(report.ModId, out InstalledModReceipt? receipt);
-
-            switch (report.Status)
+            if (receipt is { Enabled: true }
+                && (report.Status == ModHealthStatus.CriticalFileMissing
+                    || report.MissingFiles.Count != 0))
             {
-                case ModHealthStatus.Healthy:
-                    break;
-                case ModHealthStatus.CriticalFileMissing when receipt is { Enabled: true }:
-                    AddFileIssues(
-                        issues,
-                        LaunchIssueCode.ModCriticalFileMissing,
-                        LaunchIssueSeverity.Forceable,
-                        report.ModId,
-                        report.MissingFiles,
-                        report.CurrentFileSha256ByPath);
-                    break;
-                case ModHealthStatus.ModifiedFile:
-                    AddFileIssues(
-                        issues,
-                        LaunchIssueCode.ModModifiedFile,
-                        LaunchIssueSeverity.Warning,
-                        report.ModId,
-                        report.ModifiedFiles,
-                        report.CurrentFileSha256ByPath);
-                    break;
-                case ModHealthStatus.ExtraFile:
-                    AddFileIssues(
-                        issues,
-                        LaunchIssueCode.ModExtraFile,
-                        LaunchIssueSeverity.Warning,
-                        report.ModId,
-                        report.ExtraFiles,
-                        report.CurrentFileSha256ByPath);
-                    break;
-                case ModHealthStatus.UnmanagedExternal:
-                    issues.Add(ModIssue(
-                        LaunchIssueCode.UnmanagedExternalMod,
-                        LaunchIssueSeverity.Warning,
-                        report.ModId,
-                        arguments: [report.ModId]));
-                    break;
-                case ModHealthStatus.Indeterminate:
-                    issues.Add(ModIssue(
-                        LaunchIssueCode.ModHealthIndeterminate,
-                        LaunchIssueSeverity.Warning,
-                        report.ModId,
-                        arguments: [report.ModId]));
-                    break;
+                AddFileIssues(
+                    issues,
+                    LaunchIssueCode.ModCriticalFileMissing,
+                    LaunchIssueSeverity.Forceable,
+                    report.ModId,
+                    report.MissingFiles,
+                    report.CurrentFileSha256ByPath);
+            }
+            if (report.Status == ModHealthStatus.ModifiedFile || report.ModifiedFiles.Count != 0)
+            {
+                AddFileIssues(
+                    issues,
+                    LaunchIssueCode.ModModifiedFile,
+                    LaunchIssueSeverity.Warning,
+                    report.ModId,
+                    report.ModifiedFiles,
+                    report.CurrentFileSha256ByPath);
+            }
+            if (report.Status == ModHealthStatus.ExtraFile || report.ExtraFiles.Count != 0)
+            {
+                AddFileIssues(
+                    issues,
+                    LaunchIssueCode.ModExtraFile,
+                    LaunchIssueSeverity.Warning,
+                    report.ModId,
+                    report.ExtraFiles,
+                    report.CurrentFileSha256ByPath);
+            }
+            if (report.Status == ModHealthStatus.UnmanagedExternal)
+            {
+                AddFileIssues(
+                    issues,
+                    LaunchIssueCode.UnmanagedExternalMod,
+                    LaunchIssueSeverity.Warning,
+                    report.ModId,
+                    report.CurrentFileSha256ByPath.Keys
+                        .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                        .ToArray(),
+                    report.CurrentFileSha256ByPath);
+            }
+            else if (report.Status == ModHealthStatus.Indeterminate)
+            {
+                issues.Add(ModIssue(
+                    LaunchIssueCode.ModHealthIndeterminate,
+                    LaunchIssueSeverity.Warning,
+                    report.ModId,
+                    arguments: [report.ModId, report.Detail ?? string.Empty]));
             }
         }
     }

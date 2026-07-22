@@ -141,6 +141,67 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Offline_mode_prevents_manual_Steam_sign_in()
+    {
+        var signInCalled = false;
+        await using var viewModel = new MainViewModel(
+            applicationData.CreateDirectory("offline-sign-in"),
+            launchOverride: null,
+            downloadOverride: null,
+            disposeSteamOverride: null,
+            qrSignInOverride: _ =>
+            {
+                signInCalled = true;
+                return Task.FromResult(new RefreshTokenCredential("unused", "unused"));
+            })
+        {
+            IsOfflineMode = true
+        };
+
+        await viewModel.SignInWithQrCommand.ExecuteAsync(null);
+
+        Assert.False(signInCalled);
+        Assert.False(viewModel.IsSteamLoggedIn);
+        Assert.Equal(viewModel.Loc["OfflineMode"], viewModel.SteamStatus);
+        Assert.Equal(viewModel.Loc["OfflineModeHint"], viewModel.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Enabling_offline_mode_cancels_running_Steam_sign_in()
+    {
+        var signInStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var signInCancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var viewModel = new MainViewModel(
+            applicationData.CreateDirectory("offline-cancels-sign-in"),
+            launchOverride: null,
+            downloadOverride: null,
+            disposeSteamOverride: null,
+            qrSignInOverride: async cancellationToken =>
+            {
+                signInStarted.SetResult();
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                    return new RefreshTokenCredential("unused", "unused");
+                }
+                finally
+                {
+                    signInCancelled.SetResult();
+                }
+            });
+
+        var signIn = viewModel.SignInWithQrCommand.ExecuteAsync(null);
+        await signInStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        viewModel.IsOfflineMode = true;
+
+        await signInCancelled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await signIn.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(viewModel.IsSteamLoggedIn);
+        Assert.Equal(viewModel.Loc["OfflineMode"], viewModel.SteamStatus);
+    }
+
+    [Fact]
     public async Task GitHub_latency_test_reports_both_routes_without_switching_selection()
     {
         var tested = false;
@@ -1049,7 +1110,24 @@ public sealed class MainViewModelStateTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(dataRoot, "globalgamemanagers"), string.Empty);
         var record = Instance("practice", instanceRoot);
         await InstanceSidecar.SaveAsync(record);
-        var receipt = Receipt("debugmod", "1.0.0", enabled: true) with { LoaderId = "modding-api-77" };
+        var modRelativePath = "hollow_knight_Data/Managed/Mods/DebugMod/DebugMod.dll";
+        var modPath = Path.Combine(instanceRoot, modRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(modPath)!);
+        await File.WriteAllTextAsync(modPath, "installed");
+        var receipt = Receipt("debugmod", "1.0.0", enabled: true) with
+        {
+            LoaderId = "modding-api-77",
+            InstallRoot = "hollow_knight_Data/Managed/Mods/DebugMod",
+            Files =
+            [
+                new InstalledFileReceipt
+                {
+                    RelativePath = modRelativePath,
+                    Sha256 = FileSha256(modPath)
+                }
+            ],
+            EntryFiles = [modRelativePath]
+        };
         var receiptPath = Path.Combine(test.CreateDirectory(
             "versions", ".crystalfly", "instances", "practice", "mods"), "debugmod.json");
         await AtomicJsonStore.WriteAsync(receiptPath, receipt);
@@ -2001,7 +2079,8 @@ public sealed class MainViewModelStateTests : IDisposable
         LoaderId = "modding-api",
         InstallRoot = $"Mods/{id}",
         Enabled = enabled,
-        IsLocal = isLocal
+        IsLocal = isLocal,
+        Ownership = isLocal ? ModOwnership.LocalTakenOver : ModOwnership.Managed
     };
 
     private static InstalledModItemViewModel Installed(string id) => new(

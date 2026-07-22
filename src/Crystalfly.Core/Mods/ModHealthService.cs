@@ -49,23 +49,6 @@ public sealed class ModHealthService
                     }
                 }
             }
-            if (missing.Count != 0)
-            {
-                return Report(
-                    receipt.Id,
-                    ModHealthStatus.CriticalFileMissing,
-                    missing: missing,
-                    currentFileSha256ByPath: currentFileSha256ByPath);
-            }
-            if (modified.Count != 0)
-            {
-                return Report(
-                    receipt.Id,
-                    ModHealthStatus.ModifiedFile,
-                    modified: modified,
-                    currentFileSha256ByPath: currentFileSha256ByPath);
-            }
-
             var owned = installed.SelectMany(mod => mod.Files)
                 .Select(file => Normalize(file.RelativePath))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -88,16 +71,20 @@ public sealed class ModHealthService
                     extraPath.FullPath,
                     cancellationToken);
             }
-            return extra.Length == 0
-                ? Report(
-                    receipt.Id,
-                    ModHealthStatus.Healthy,
-                    currentFileSha256ByPath: currentFileSha256ByPath)
-                : Report(
-                    receipt.Id,
-                    ModHealthStatus.ExtraFile,
-                    extra: extra,
-                    currentFileSha256ByPath: currentFileSha256ByPath);
+            var status = missing.Count != 0
+                ? ModHealthStatus.CriticalFileMissing
+                : modified.Count != 0
+                    ? ModHealthStatus.ModifiedFile
+                    : extra.Length != 0
+                        ? ModHealthStatus.ExtraFile
+                        : ModHealthStatus.Healthy;
+            return Report(
+                receipt.Id,
+                status,
+                missing,
+                modified,
+                extra,
+                currentFileSha256ByPath);
         }
         catch (Exception exception) when (exception is IOException
             or UnauthorizedAccessException
@@ -107,14 +94,60 @@ public sealed class ModHealthService
         }
     }
 
-    public ModHealthReport AssessExternal(ModDiscoveryEntry external)
+    public async Task<ModHealthReport> AssessExternalAsync(
+        ModDiscoveryEntry external,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(external);
-        return Report(
-            external.Id,
-            external.Ownership == ModOwnership.External
-                ? ModHealthStatus.UnmanagedExternal
-                : ModHealthStatus.Indeterminate);
+        if (external.Ownership != ModOwnership.External)
+        {
+            return Report(
+                external.Id,
+                ModHealthStatus.Indeterminate,
+                detail: "Discovery entry is not externally owned.");
+        }
+        if (external.Files.Count == 0)
+        {
+            return Report(
+                external.Id,
+                ModHealthStatus.Indeterminate,
+                detail: "External discovery does not list files.");
+        }
+
+        try
+        {
+            var installRoot = pathPolicy.ResolveRecognized(external.InstallRoot);
+            pathPolicy.EnsureNoReparsePoints(installRoot.FullPath);
+            var currentFileSha256ByPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var relativePath in external.Files.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+            {
+                var path = pathPolicy.ResolveUnderOwnedRoot(relativePath, installRoot);
+                pathPolicy.EnsureNoReparsePoints(path.FullPath);
+                if (!File.Exists(path.FullPath))
+                {
+                    return Report(
+                        external.Id,
+                        ModHealthStatus.Indeterminate,
+                        detail: $"External file disappeared: {relativePath}");
+                }
+                currentFileSha256ByPath[path.RelativePath] = await HashFileAsync(
+                    path.FullPath,
+                    cancellationToken);
+            }
+            return Report(
+                external.Id,
+                ModHealthStatus.UnmanagedExternal,
+                currentFileSha256ByPath: currentFileSha256ByPath);
+        }
+        catch (Exception exception) when (exception is IOException
+            or UnauthorizedAccessException
+            or InvalidDataException)
+        {
+            return Report(
+                external.Id,
+                ModHealthStatus.Indeterminate,
+                detail: exception.Message);
+        }
     }
 
     private static ModHealthReport Report(

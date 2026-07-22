@@ -140,7 +140,8 @@ public partial class InstalledModItemViewModel : ViewModelBase
     public bool CanRepair => Receipt is not null
         && !IsReadOnly
         && !IsLocal
-        && HasHealthIssue
+        && !IsPinned
+        && HealthStatus is ModHealthStatus.CriticalFileMissing or ModHealthStatus.ModifiedFile
         && CatalogManifest is not null;
 
     public bool CanAcceptCurrent => IsLocal && HasHealthIssue;

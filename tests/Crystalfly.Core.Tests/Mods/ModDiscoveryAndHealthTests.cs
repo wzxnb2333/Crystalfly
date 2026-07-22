@@ -48,6 +48,25 @@ public sealed class ModDiscoveryAndHealthTests : IDisposable
     }
 
     [Fact]
+    public async Task Discovery_groups_flat_files_with_the_same_base_name_into_one_mod()
+    {
+        var instanceRoot = Path.Combine(root, "instance-flat-group");
+        var receiptsRoot = Path.Combine(root, "state-flat-group", "mods");
+        await WriteAsync(instanceRoot, "hollow_knight_Data/Managed/Mods/Foo.dll", "assembly");
+        await WriteAsync(instanceRoot, "hollow_knight_Data/Managed/Mods/Foo.pdb", "symbols");
+        await WriteAsync(instanceRoot, "hollow_knight_Data/Managed/Mods/Foo.xml", "docs");
+
+        var result = await new ModDiscoveryService(instanceRoot, receiptsRoot)
+            .DiscoverAsync("modding-api-60");
+
+        var external = Assert.Single(result.ExternalMods);
+        Assert.Equal("Foo", external.Name);
+        Assert.Equal(3, external.Files.Count);
+        Assert.Single(external.EntryFiles);
+        Assert.Equal(result.Mods.Count, result.Mods.Select(mod => mod.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+    }
+
+    [Fact]
     public async Task Takeover_hashes_external_files_preserves_disabled_placement_and_blocks_automatic_update()
     {
         var instanceRoot = Path.Combine(root, "instance");
@@ -173,6 +192,10 @@ public sealed class ModDiscoveryAndHealthTests : IDisposable
             instanceRoot, "hollow_knight_Data/Managed/Mods/Test/extra.txt", "extra");
         Assert.Equal(ModHealthStatus.ExtraFile, (await service.AssessAsync(receipt, [receipt])).Status);
 
+        await WriteAsync(
+            instanceRoot,
+            "hollow_knight_Data/Managed/Mods/External/External.dll",
+            "external");
         var external = new ModDiscoveryEntry
         {
             Id = "external",
@@ -184,10 +207,51 @@ public sealed class ModDiscoveryAndHealthTests : IDisposable
             Files = ["hollow_knight_Data/Managed/Mods/External/External.dll"],
             EntryFiles = ["hollow_knight_Data/Managed/Mods/External/External.dll"]
         };
-        Assert.Equal(ModHealthStatus.UnmanagedExternal, service.AssessExternal(external).Status);
+        var externalHealth = await service.AssessExternalAsync(external);
+        Assert.Equal(ModHealthStatus.UnmanagedExternal, externalHealth.Status);
+        Assert.Single(externalHealth.CurrentFileSha256ByPath);
 
         var empty = receipt with { Id = "empty", Files = [], EntryFiles = [] };
         Assert.Equal(ModHealthStatus.Indeterminate, (await service.AssessAsync(empty, [empty])).Status);
+    }
+
+    [Fact]
+    public async Task Health_collects_missing_modified_and_extra_files_in_one_scan()
+    {
+        var instanceRoot = Path.Combine(root, "instance-combined-health");
+        var installRoot = "hollow_knight_Data/Managed/Mods/Test";
+        var modifiedPath = await WriteAsync(instanceRoot, $"{installRoot}/Modified.dll", "current");
+        var receipt = new InstalledModReceipt
+        {
+            Id = "combined",
+            Name = "Combined",
+            Version = "1",
+            LoaderId = "modding-api-77",
+            InstallRoot = installRoot,
+            Files =
+            [
+                new InstalledFileReceipt
+                {
+                    RelativePath = $"{installRoot}/Missing.dll",
+                    Sha256 = new string('A', 64)
+                },
+                new InstalledFileReceipt
+                {
+                    RelativePath = $"{installRoot}/Modified.dll",
+                    Sha256 = new string('B', 64)
+                }
+            ],
+            EntryFiles = [$"{installRoot}/Missing.dll", $"{installRoot}/Modified.dll"]
+        };
+        await WriteAsync(instanceRoot, $"{installRoot}/Extra.txt", "extra");
+
+        var report = await new ModHealthService(instanceRoot).AssessAsync(receipt, [receipt]);
+
+        Assert.Equal(ModHealthStatus.CriticalFileMissing, report.Status);
+        Assert.Equal([$"{installRoot}/Missing.dll"], report.MissingFiles);
+        Assert.Equal([$"{installRoot}/Modified.dll"], report.ModifiedFiles);
+        Assert.Equal([$"{installRoot}/Extra.txt"], report.ExtraFiles);
+        Assert.Equal(await HashAsync(modifiedPath), report.CurrentFileSha256ByPath[$"{installRoot}/Modified.dll"]);
     }
 
     [Fact]

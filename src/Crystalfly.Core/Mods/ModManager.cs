@@ -33,7 +33,10 @@ public sealed class ModManager
     public async Task<IReadOnlyList<InstalledModReceipt>> GetInstalledAsync(
         CancellationToken cancellationToken = default)
     {
-        return await InstalledModReceiptStore.ReadAllAsync(_receiptsRoot, cancellationToken);
+        return await InstalledModReceiptStore.ReadAllAsync(
+            _instanceRoot,
+            _receiptsRoot,
+            cancellationToken);
     }
 
     public Task<IReadOnlyList<TransactionJournal>> RecoverPendingAsync(
@@ -108,6 +111,16 @@ public sealed class ModManager
                 InstalledVersion = current.Version,
                 Action = ModRepairAction.Unavailable,
                 Reason = "Only official managed mods can be repaired from the catalog."
+            };
+        }
+        if (current.Pinned)
+        {
+            return new ModRepairPlan
+            {
+                ModId = current.Id,
+                InstalledVersion = current.Version,
+                Action = ModRepairAction.Unavailable,
+                Reason = "Pinned mods must be unpinned before repair."
             };
         }
 
@@ -694,6 +707,11 @@ public sealed class ModManager
         {
             EnsureNoDependents(installed, id);
         }
+        if (receipt.IsLocal && receipt.Ownership == ModOwnership.LocalTakenOver)
+        {
+            await RemoveLocalAsync(id, cancellationToken);
+            return;
+        }
         await VerifyFilesAsync(receipt, cancellationToken);
         using var workspace = new TemporaryDirectory(_transactionRoot, ".mod-uninstall-");
         await ApplyModStateAsync(
@@ -805,6 +823,11 @@ public sealed class ModManager
         if (current.Ownership != ModOwnership.Managed || current.IsLocal)
         {
             throw new InvalidOperationException($"Mod '{current.Id}' is not an official managed mod.");
+        }
+        if (current.Pinned)
+        {
+            throw new InvalidOperationException(
+                $"Pinned mod '{current.Id}' cannot be repaired until it is unpinned.");
         }
         if (!string.Equals(current.Version, manifest.Version, StringComparison.OrdinalIgnoreCase)
             || !string.Equals(current.LoaderId, manifest.LoaderId, StringComparison.OrdinalIgnoreCase))

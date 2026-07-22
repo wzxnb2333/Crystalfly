@@ -21,7 +21,8 @@ public sealed record ModHealthAcknowledgement
             Normalize(issue.SubjectModId),
             issue.Code.ToString(),
             NormalizePath(issue.RelativeFilePath),
-            Normalize(issue.CurrentFileSha256));
+            Normalize(issue.CurrentFileSha256),
+            string.Join('\u001e', issue.Arguments.Select(Normalize)));
         return new ModHealthAcknowledgement
         {
             Fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonicalValue)))

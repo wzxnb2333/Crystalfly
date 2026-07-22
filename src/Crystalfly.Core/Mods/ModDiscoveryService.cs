@@ -21,7 +21,10 @@ public sealed class ModDiscoveryService
         string loaderId,
         CancellationToken cancellationToken = default)
     {
-        var installed = await InstalledModReceiptStore.ReadAllAsync(receiptsRoot, cancellationToken);
+        var installed = await InstalledModReceiptStore.ReadAllAsync(
+            instanceRoot,
+            receiptsRoot,
+            cancellationToken);
         return Discover(loaderId, installed);
     }
 
@@ -40,14 +43,16 @@ public sealed class ModDiscoveryService
         var bepInExLoader = loaderId.StartsWith("bepinex-", StringComparison.OrdinalIgnoreCase)
             ? loaderId
             : "bepinex-external";
+        var usedIds = installed.Select(receipt => receipt.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         ScanRoot(
-            "hollow_knight_Data/Managed/Mods", managedLoader, enabled: true, owned, external,
+            "hollow_knight_Data/Managed/Mods", managedLoader, enabled: true, owned, usedIds, external,
             excludedDirectoryName: "Disabled");
         ScanRoot(
-            "hollow_knight_Data/Managed/Mods/Disabled", managedLoader, enabled: false, owned, external);
-        ScanRoot("BepInEx/plugins", bepInExLoader, enabled: true, owned, external);
-        ScanRoot("BepInEx/Disabled", bepInExLoader, enabled: false, owned, external);
+            "hollow_knight_Data/Managed/Mods/Disabled", managedLoader, enabled: false, owned, usedIds, external);
+        ScanRoot("BepInEx/plugins", bepInExLoader, enabled: true, owned, usedIds, external);
+        ScanRoot("BepInEx/Disabled", bepInExLoader, enabled: false, owned, usedIds, external);
 
         var managedEntries = installed.Select(receipt => new ModDiscoveryEntry
         {
@@ -74,6 +79,7 @@ public sealed class ModDiscoveryService
         string loaderId,
         bool enabled,
         IReadOnlySet<string> owned,
+        ISet<string> usedIds,
         ICollection<ModDiscoveryEntry> results,
         string? excludedDirectoryName = null)
     {
@@ -83,21 +89,33 @@ public sealed class ModDiscoveryService
             return;
         }
 
-        foreach (var file in Directory.EnumerateFiles(fullRoot, "*", SearchOption.TopDirectoryOnly))
+        var flatFiles = Directory.EnumerateFiles(fullRoot, "*", SearchOption.TopDirectoryOnly)
+            .Where(file => (File.GetAttributes(file) & FileAttributes.ReparsePoint) == 0)
+            .Select(file => new
+            {
+                Name = Path.GetFileNameWithoutExtension(file),
+                RelativePath = pathPolicy.ToRelativePath(file)
+            })
+            .Where(file => !owned.Contains(file.RelativePath))
+            .GroupBy(file => file.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase);
+        foreach (var group in flatFiles)
         {
-            if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) != 0)
-            {
-                continue;
-            }
-            var relativePath = pathPolicy.ToRelativePath(file);
-            if (!owned.Contains(relativePath))
-            {
-                results.Add(CreateExternal(
-                    Path.GetFileNameWithoutExtension(file), loaderId, relativeRoot, enabled, [relativePath]));
-            }
+            AddExternal(
+                CreateExternal(
+                    group.Key,
+                    loaderId,
+                    relativeRoot,
+                    enabled,
+                    group.Select(file => file.RelativePath)
+                        .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                        .ToArray()),
+                usedIds,
+                results);
         }
 
-        foreach (var directory in Directory.EnumerateDirectories(fullRoot, "*", SearchOption.TopDirectoryOnly))
+        foreach (var directory in Directory.EnumerateDirectories(fullRoot, "*", SearchOption.TopDirectoryOnly)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
         {
             if (string.Equals(Path.GetFileName(directory), excludedDirectoryName, StringComparison.OrdinalIgnoreCase)
                 || (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
@@ -114,8 +132,24 @@ public sealed class ModDiscoveryService
                 continue;
             }
             var installRoot = pathPolicy.ToRelativePath(directory);
-            results.Add(CreateExternal(Path.GetFileName(directory), loaderId, installRoot, enabled, files));
+            AddExternal(
+                CreateExternal(Path.GetFileName(directory), loaderId, installRoot, enabled, files),
+                usedIds,
+                results);
         }
+    }
+
+    private static void AddExternal(
+        ModDiscoveryEntry entry,
+        ISet<string> usedIds,
+        ICollection<ModDiscoveryEntry> results)
+    {
+        var uniqueId = entry.Id;
+        for (var suffix = 2; !usedIds.Add(uniqueId); suffix++)
+        {
+            uniqueId = $"{entry.Id}-{suffix}";
+        }
+        results.Add(uniqueId == entry.Id ? entry : entry with { Id = uniqueId });
     }
 
     private static ModDiscoveryEntry CreateExternal(

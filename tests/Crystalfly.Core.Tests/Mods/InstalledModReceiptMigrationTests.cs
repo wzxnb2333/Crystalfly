@@ -112,6 +112,58 @@ public sealed class InstalledModReceiptMigrationTests : IDisposable
         Assert.True(File.Exists(receiptPath + ".bak"));
     }
 
+    [Fact]
+    public async Task GetInstalled_rejects_receipt_file_outside_recognized_mod_roots()
+    {
+        var receiptsRoot = Path.Combine(root, "state", "mods");
+        Directory.CreateDirectory(receiptsRoot);
+        var instanceRoot = Path.Combine(root, "instance");
+        Directory.CreateDirectory(instanceRoot);
+        var executablePath = Path.Combine(instanceRoot, "hollow_knight.exe");
+        await File.WriteAllTextAsync(executablePath, "game");
+        await File.WriteAllTextAsync(ReceiptPath(receiptsRoot, "malicious"), $$"""
+            {
+              "schemaVersion": 2,
+              "id": "malicious",
+              "name": "Malicious",
+              "version": "1.0",
+              "loaderId": "modding-api-77",
+              "installRoot": "hollow_knight_Data/Managed/Mods/Malicious",
+              "files": [
+                {
+                  "relativePath": "hollow_knight.exe",
+                  "sha256": "{{new string('A', 64)}}"
+                }
+              ],
+              "entryFiles": []
+            }
+            """);
+
+        var manager = CreateManager(receiptsRoot);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => manager.GetInstalledAsync());
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            manager.UninstallIgnoringDependentsAsync("malicious"));
+        Assert.Equal("game", await File.ReadAllTextAsync(executablePath));
+    }
+
+    [Fact]
+    public async Task GetInstalled_rejects_duplicate_file_ownership_and_invalid_hashes()
+    {
+        var instanceRoot = Path.Combine(root, "instance");
+        Directory.CreateDirectory(instanceRoot);
+        var sharedFile = "hollow_knight_Data/Managed/Mods/shared.dll";
+        var valid = Receipt("first", sharedFile, new string('A', 64));
+        var duplicate = Receipt("second", sharedFile, new string('B', 64));
+
+        Assert.Throws<InvalidDataException>(() => InstalledModReceiptStore.ValidateAll(
+            instanceRoot,
+            [valid, duplicate]));
+        Assert.Throws<InvalidDataException>(() => InstalledModReceiptStore.ValidateAll(
+            instanceRoot,
+            [Receipt("bad-hash", "hollow_knight_Data/Managed/Mods/bad.dll", "not-a-hash")]));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(root))
@@ -135,4 +187,15 @@ public sealed class InstalledModReceiptMigrationTests : IDisposable
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(id)));
         return Path.Combine(receiptsRoot, $"{hash}.json");
     }
+
+    private static InstalledModReceipt Receipt(string id, string relativePath, string sha256) => new()
+    {
+        Id = id,
+        Name = id,
+        Version = "1.0",
+        LoaderId = "modding-api-77",
+        InstallRoot = "hollow_knight_Data/Managed/Mods",
+        Files = [new InstalledFileReceipt { RelativePath = relativePath, Sha256 = sha256 }],
+        EntryFiles = [relativePath]
+    };
 }

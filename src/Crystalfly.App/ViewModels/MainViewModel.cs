@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -61,6 +63,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly GitHubRouteLatencyService githubLatencyService;
     private CrystalflySettings settings = new();
     private Task settingsSaveQueue = Task.CompletedTask;
+    private Task steamOfflineTransitionTask = Task.CompletedTask;
     private Task? initializationTask;
     private Task? disposeTask;
     private SteamAuthenticationSession? steamSession;
@@ -523,7 +526,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 ulong.Parse(build.ManifestId, System.Globalization.CultureInfo.InvariantCulture)));
         }
         SelectedDownloadBuild = DownloadBuilds[0];
-        await TryReconnectSteamAsync();
+        if (!IsOfflineMode)
+        {
+            await TryReconnectSteamAsync();
+        }
 
         if (Directory.Exists(VersionRoot))
         {
@@ -1210,6 +1216,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             return;
         }
+        if (IsOfflineMode)
+        {
+            IsSteamLoggedIn = false;
+            SteamStatus = Loc["OfflineMode"];
+            ErrorMessage = Loc["OfflineModeHint"];
+            return;
+        }
 
         var signInCancellation = CancellationTokenSource.CreateLinkedTokenSource(
             lifetimeCancellation.Token);
@@ -1245,9 +1258,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception exception)
         {
-            ErrorMessage = $"Steam: {exception.Message}";
+            ErrorMessage = IsOfflineMode ? null : $"Steam: {exception.Message}";
             IsSteamLoggedIn = false;
-            SteamStatus = "Not signed in";
+            SteamStatus = IsOfflineMode ? Loc["OfflineMode"] : "Not signed in";
             QrCodeImage = null;
             if (gateTaken)
             {
@@ -1278,7 +1291,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private async Task TryReconnectSteamAsync()
     {
-        if (!File.Exists(Path.Combine(paths.ApplicationDataRoot, "steam-token.dat")))
+        if (IsOfflineMode
+            || !File.Exists(Path.Combine(paths.ApplicationDataRoot, "steam-token.dat")))
         {
             return;
         }
@@ -2119,12 +2133,45 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     partial void OnIsOfflineModeChanged(bool value)
     {
         networkPolicy.SetOffline(value);
+        if (value)
+        {
+            Volatile.Read(ref steamSignInCancellation)?.Cancel();
+            steamOfflineTransitionTask = DisconnectSteamForOfflineAsync();
+        }
         if (value == settings.OfflineMode)
         {
             return;
         }
         settings = settings with { OfflineMode = value };
         _ = QueueSettingsSave();
+    }
+
+    private async Task DisconnectSteamForOfflineAsync()
+    {
+        var gateTaken = false;
+        try
+        {
+            await steamConnectionGate.WaitAsync(lifetimeCancellation.Token);
+            gateTaken = true;
+            await DisposeCurrentSteamSessionAsync();
+            IsSteamLoggedIn = false;
+            SteamStatus = Loc["OfflineMode"];
+            QrCodeImage = null;
+        }
+        catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            ErrorMessage = $"Steam: {exception.Message}";
+        }
+        finally
+        {
+            if (gateTaken)
+            {
+                steamConnectionGate.Release();
+            }
+        }
     }
 
     partial void OnSelectedModStatusOptionChanged(SettingOption<ModStatusFilter>? value)
@@ -2805,7 +2852,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     var receipt = installed.FirstOrDefault(candidate =>
                         string.Equals(candidate.Id, mod.Id, StringComparison.OrdinalIgnoreCase));
                     reports.Add(receipt is null
-                        ? healthService.AssessExternal(mod)
+                        ? await healthService.AssessExternalAsync(mod, cancellationToken)
                         : await healthService.AssessAsync(receipt, installed, cancellationToken));
                 }
                 modHealthReports = reports;
@@ -3142,11 +3189,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             try
             {
-                customCatalogs.Add(await CustomCatalogSource.LoadAsync(
+                var customResult = await CustomCatalogSource.LoadWithCacheAsync(
                     definition.Namespace,
                     new Uri(definition.Url),
+                    GetCustomCatalogCachePath(definition),
                     directMetadataHttpClient,
-                    cancellationToken));
+                    cancellationToken);
+                customCatalogs.Add(customResult.Catalog);
+                if (customResult.Status == CustomCatalogLoadStatus.Cached)
+                {
+                    customCatalogErrors.Add(
+                        $"{definition.Namespace}: cached catalog used ({customResult.Reason})");
+                }
             }
             catch (Exception exception) when (exception is HttpRequestException
                 or InvalidDataException
@@ -3165,6 +3219,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ErrorMessage = string.Join(Environment.NewLine, customCatalogErrors);
         }
         return customMerge.Catalog;
+    }
+
+    private string GetCustomCatalogCachePath(CustomCatalogDefinition definition)
+    {
+        var identity = $"{definition.Namespace}\n{definition.Url}";
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)))
+            .ToLowerInvariant();
+        return Path.Combine(
+            paths.ApplicationDataRoot,
+            "catalog",
+            "custom",
+            $"{hash}.json");
     }
 
     private string UniqueInstanceName(string version)
@@ -3264,6 +3330,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     PrepareMarketInstallTargetsCommand.ExecutionTask ?? Task.CompletedTask,
                     InstallMarketModCommand.ExecutionTask ?? Task.CompletedTask,
                     TestGitHubLatencyCommand.ExecutionTask ?? Task.CompletedTask,
+                    steamOfflineTransitionTask,
                     pendingDetailsLoad);
             }
             catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)

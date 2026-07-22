@@ -48,17 +48,22 @@ public sealed class ModRepairAndLifecycleTests : IDisposable
             IsLocal = true,
             Ownership = ModOwnership.LocalTakenOver
         });
-        await AddReceiptAsync(Receipt("external") with { Ownership = ModOwnership.External });
         await AddReceiptAsync(Receipt("shared"));
         await AddReceiptAsync(Receipt("other", ["shared"]));
         await AddReceiptAsync(Receipt(
-            "application", ["unused", "pinned", "local", "external", "shared"]));
+            "application", ["unused", "pinned", "local", "shared"]));
 
         var result = await manager.UninstallWithSuggestionsAsync("application");
 
         Assert.Equal("application", result.RemovedModId);
         Assert.Equal(["unused"], result.UnusedDependencies.Select(mod => mod.Id));
-        Assert.True(File.Exists(Path.Combine(InstanceRoot, "Mods", "unused", "unused.dll")));
+        Assert.True(File.Exists(Path.Combine(
+            InstanceRoot,
+            "hollow_knight_Data",
+            "Managed",
+            "Mods",
+            "unused",
+            "unused.dll")));
     }
 
     [Fact]
@@ -80,6 +85,10 @@ public sealed class ModRepairAndLifecycleTests : IDisposable
         Assert.Equal(ModRepairAction.Update, update.Action);
         Assert.Equal("2.0", update.TargetVersion);
         Assert.Equal(ModRepairAction.Unavailable, older.Action);
+
+        await manager.SetPinnedAsync("test", pinned: true);
+        var pinned = await manager.GetRepairPlanAsync("test", [exact]);
+        Assert.Equal(ModRepairAction.Unavailable, pinned.Action);
     }
 
     [Fact]
@@ -215,6 +224,27 @@ public sealed class ModRepairAndLifecycleTests : IDisposable
     }
 
     [Fact]
+    public async Task User_confirmed_uninstall_routes_local_receipts_through_drift_tolerant_removal()
+    {
+        var manager = CreateManager();
+        var package = CreateZip(("local.dll", "local"));
+        await manager.ImportLocalZipAsync("local", "Local", "modding-api-77", package);
+        var installedPath = Path.Combine(
+            InstanceRoot,
+            "hollow_knight_Data",
+            "Managed",
+            "Mods",
+            "Local",
+            "local.dll");
+        await File.WriteAllTextAsync(installedPath, "modified");
+
+        await manager.UninstallIgnoringDependentsAsync("local");
+
+        Assert.False(File.Exists(installedPath));
+        Assert.Empty(await manager.GetInstalledAsync());
+    }
+
+    [Fact]
     public async Task RemoveLocal_rejects_dot_segment_receipt_paths_outside_the_owned_root()
     {
         var manager = CreateManager();
@@ -243,7 +273,7 @@ public sealed class ModRepairAndLifecycleTests : IDisposable
         await Assert.ThrowsAsync<InvalidDataException>(() => manager.RemoveLocalAsync("local"));
 
         Assert.True(File.Exists(resolvedOutside));
-        Assert.Single(await manager.GetInstalledAsync());
+        await Assert.ThrowsAsync<InvalidDataException>(() => manager.GetInstalledAsync());
     }
 
     public void Dispose()
@@ -298,18 +328,18 @@ public sealed class ModRepairAndLifecycleTests : IDisposable
             Name = id,
             Version = "1.0",
             LoaderId = "modding-api-77",
-            InstallRoot = $"Mods/{id}",
+            InstallRoot = $"hollow_knight_Data/Managed/Mods/{id}",
             Dependencies = dependencies ?? [],
             Ownership = ModOwnership.Managed,
             Files =
             [
                 new InstalledFileReceipt
                 {
-                    RelativePath = $"Mods/{id}/{id}.dll",
+                    RelativePath = $"hollow_knight_Data/Managed/Mods/{id}/{id}.dll",
                     Sha256 = new string('0', 64)
                 }
             ],
-            EntryFiles = [$"Mods/{id}/{id}.dll"]
+            EntryFiles = [$"hollow_knight_Data/Managed/Mods/{id}/{id}.dll"]
         };
 
     private string CreateZip(params (string Name, string Content)[] entries)

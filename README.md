@@ -32,7 +32,7 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 - 主动扫描受管理与外部 Mod，显示文件缺失、修改、额外文件和未接管状态；外部 Mod 可由用户确认接管，本地接管项不提供自动更新。
 - 启动页持续用红框显示 Mod 完整性和依赖问题。只有 Mod 文件与依赖问题允许用户确认后强制启动；游戏文件、Loader、事务、LocalLow 和进程冲突始终阻止启动。
 - 支持固定 Mod；批量卸载和无用前置建议会跳过固定项，单独卸载前需先取消固定。
-- 全局离线模式使目录、翻译、Mod 和 Steam 下载只使用已验证缓存；网络队列等待恢复在线，不影响本地实例管理。
+- 全局离线模式会断开 Steam 登录会话，使目录、翻译、自定义目录、Mod 和 Steam 下载只使用已验证缓存；网络队列等待恢复在线，不影响本地实例管理。
 - 在实例日志页查看 BepInEx、Modding API 和 `Player.log` 的最新内容及来源路径。
 - 通过 SteamKit2 扫码登录并下载 public 分支历史 manifest；同一文件最多十六路并发下载 Chunk，完成后生成 `steam_appid.txt` 以直接启动对应实例，refresh token 仅以当前 Windows 用户的 DPAPI 加密保存。
 - 设置页可在 GitHub 直连与 GitHub 镜像间切换并分别测试延迟；镜像仅代理官方 GitHub 目录和 GitHub 托管安装包，Steam、自定义目录及其他下载地址保持原线路，包校验规则不变。
@@ -177,7 +177,7 @@ The current stable release is `0.3.0`. GitHub Releases provide a Windows x64 por
 - Validates the game build, exact loader package ID, and full dependency closure so Modding API v37/v60/v77/v78, BepInEx, and cross-build mods cannot be mixed.
 - Discovers managed and external Mods, verifies receipt hashes, supports explicit local takeover, exact-version repair, pinning, and unused-dependency suggestions.
 - Keeps a persistent red launch warning frame. Only Mod file and dependency problems can be force-launched; game files, Loader, transactions, LocalLow, and process conflicts remain absolute blockers.
-- Provides a global offline mode. Catalogs and downloads use verified caches only, while queued network work waits for online mode to return.
+- Provides a global offline mode that disconnects Steam sessions. Catalogs, custom catalogs, and downloads use verified caches only, while queued network work waits for online mode to return.
 - Displays detected BepInEx, Modding API, and `Player.log` files with their source paths and refreshable tail content.
 - Imports local loaders only through a validated Crystalfly manifest and keeps them marked unverified.
 - Uses SteamKit2 for QR authentication and public manifest downloads, with up to sixteen concurrent chunk requests per file. Completed instances receive `steam_appid.txt` for direct launch. Refresh tokens are protected with Windows DPAPI for the current user.
