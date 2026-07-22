@@ -2,7 +2,7 @@
 
 Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。顶部“实例”用于选择和管理可启动目录；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
 
-> 当前状态：首个源码版本。仓库暂不发布 Crystalfly 二进制 Release；可在本地生成便携包和安装包。
+> 当前稳定版：`0.3.0`。GitHub Release 提供 Windows x64 便携包和安装包。
 
 [English](#english)
 
@@ -25,7 +25,10 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 - 在“下载 → Mod 市场”中搜索在线 Mod、查看详情并选择目标实例；在实例的“已安装 Mod”页通过信息、打开目录、启停和卸载快捷操作管理单个 Mod，也可多选后批量处理。
 - 安装前展示 Loader、递归前置与主 Mod；确认后加入后台下载队列，同一依赖链串行，独立安装组最多三路并发。
 - 安装前检查游戏版本、精确 Loader ID 和完整依赖闭包，阻止 Modding API v37/v60/v77/v78、BepInEx 及不同游戏版本的 Mod 混装。
-- 启动前真实检查游戏文件、Loader、Mod 依赖、事务和实例 LocalLow；任一检查失败都会阻止启动。
+- 主动扫描受管理与外部 Mod，显示文件缺失、修改、额外文件和未接管状态；外部 Mod 可由用户确认接管，本地接管项不提供自动更新。
+- 启动页持续用红框显示 Mod 完整性和依赖问题。只有 Mod 文件与依赖问题允许用户确认后强制启动；游戏文件、Loader、事务、LocalLow 和进程冲突始终阻止启动。
+- 支持固定 Mod；批量卸载和无用前置建议会跳过固定项，单独卸载前需先取消固定。
+- 全局离线模式使目录、翻译、Mod 和 Steam 下载只使用已验证缓存；网络队列等待恢复在线，不影响本地实例管理。
 - 在实例日志页查看 BepInEx、Modding API 和 `Player.log` 的最新内容及来源路径。
 - 通过 SteamKit2 扫码登录并下载 public 分支历史 manifest；同一文件最多十六路并发下载 Chunk，完成后生成 `steam_appid.txt` 以直接启动对应实例，refresh token 仅以当前 Windows 用户的 DPAPI 加密保存。
 - 设置页可在 GitHub 直连与 GitHub 镜像间切换并分别测试延迟；镜像仅代理官方 GitHub 目录和 GitHub 托管安装包，Steam、自定义目录及其他下载地址保持原线路，包校验规则不变。
@@ -67,7 +70,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 
 ## 启动预检、Mod 市场与实例详情
 
-选择实例后，启动页会检查游戏可执行文件、是否已有游戏进程、Loader 冲突或漂移、已启用 Mod 的依赖、待恢复事务和实例 LocalLow。全部通过后才能启动；操作执行期间和游戏运行期间会锁定导航及实例修改。
+选择实例后，启动页会检查游戏可执行文件、进程、Loader、Mod 依赖与文件哈希、待恢复事务和实例 LocalLow。Mod 文件或依赖问题可在明确确认后强制启动；游戏文件、Loader、事务、LocalLow 和进程冲突始终阻止启动。问题变化会让“不再提醒”指纹自动失效，红色问题框始终保留。
 
 “下载 → Mod 市场”负责发现在线 Mod：可按关键词、游戏版本、Loader、来源和标签筛选，查看描述、作者、依赖、集成、仓库及精确兼容范围，再选择一个兼容实例安装。Vanilla 实例可在确认后先安装目录指定的精确 Loader，再重新验证并安装 Mod；Loader 冲突、漂移、未知构建和正式速通实例不可作为安装目标。
 
@@ -128,7 +131,7 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.2.1'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.3.0'
 
 # 构建、测试并静默更新固定安装目录（请先关闭 Crystalfly）
 pwsh -NoProfile -File '.\scripts\build-and-install.ps1'
@@ -144,7 +147,7 @@ Crystalfly 使用 [GPL-3.0-only](LICENSE)。第三方游戏、Loader 和 Mod 不
 
 Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The top-level Instances page manages launchable directories; actual game downloads live under Download → Game Versions.
 
-This is the first source release. Crystalfly binary releases are not published yet; the repository builds a local self-contained portable ZIP and an Inno Setup installer.
+The current stable release is `0.3.0`. GitHub Releases provide a Windows x64 portable ZIP and Inno Setup installer.
 
 ![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
 
@@ -164,7 +167,9 @@ This is the first source release. Crystalfly binary releases are not published y
 - Discovers online mods under Download → Mod Market, then installs them to a selected compatible instance. Installed Mods provides information, open-folder, enable/disable, and uninstall shortcuts plus multi-select batch actions.
 - Previews the loader, recursive dependencies, and requested mod before enqueueing background work. Dependency chains stay serial while independent install groups use up to three concurrent network transfers.
 - Validates the game build, exact loader package ID, and full dependency closure so Modding API v37/v60/v77/v78, BepInEx, and cross-build mods cannot be mixed.
-- Runs real launch checks for game files, loader state, mod dependencies, pending transactions, and per-instance LocalLow state; launch stays blocked until every check passes.
+- Discovers managed and external Mods, verifies receipt hashes, supports explicit local takeover, exact-version repair, pinning, and unused-dependency suggestions.
+- Keeps a persistent red launch warning frame. Only Mod file and dependency problems can be force-launched; game files, Loader, transactions, LocalLow, and process conflicts remain absolute blockers.
+- Provides a global offline mode. Catalogs and downloads use verified caches only, while queued network work waits for online mode to return.
 - Displays detected BepInEx, Modding API, and `Player.log` files with their source paths and refreshable tail content.
 - Imports local loaders only through a validated Crystalfly manifest and keeps them marked unverified.
 - Uses SteamKit2 for QR authentication and public manifest downloads, with up to sixteen concurrent chunk requests per file. Completed instances receive `steam_appid.txt` for direct launch. Refresh tokens are protected with Windows DPAPI for the current user.
@@ -176,7 +181,7 @@ The current built-in speedrun templates are intentionally unverified because the
 
 ### Launch checks, Mod Market, and instance details
 
-After an instance is selected, the launch page checks the game executable, running Hollow Knight processes, loader conflicts or drift, enabled mod dependencies, pending transaction recovery, and per-instance LocalLow readiness. Launch is enabled only when every check passes. Navigation and instance mutations are locked while an operation or the game is running.
+After an instance is selected, the launch page checks the executable, running processes, Loader state, Mod dependencies and file hashes, pending transaction recovery, and per-instance LocalLow readiness. Mod-only problems can be force-launched after a detailed confirmation; absolute blockers cannot. A per-instance issue fingerprint can suppress repeated dialogs while the exact issue and file hash remain unchanged, but the red warning frame stays visible.
 
 Download → Mod Market discovers online mods and filters them by keyword, game build, loader, source, and tag. Its detail view shows description, authors, dependencies, integrations, repository, source, and exact compatibility before the user chooses a target instance. A vanilla target can install the catalog's exact required loader after confirmation, then re-evaluates compatibility before installing the mod. Conflicted, drifted, unknown-build, and official speedrun instances remain unavailable.
 
@@ -184,7 +189,7 @@ The target dialog previews the loader, every recursive dependency, and the reque
 
 When the UI is Simplified Chinese, the market also loads the maintained HK ModLinks Chinese translation catalog. It searches translated names, descriptions, and labels alongside official English metadata; missing translations fall back to English. The source data and import command are documented in [docs/mod-translations.zh-CN.md](docs/mod-translations.zh-CN.md).
 
-The Installed Mods page searches the current instance by name, ID, or version and filters installed mods by all, enabled, disabled, local, or update available. Each item exposes information, open-folder, enable/disable, and uninstall shortcuts. Multi-select supports select all, clear selection, and batch enable, disable, update, or uninstall. Uninstall previews a dependency-impact tree; dependency repair lists mods that will be re-enabled or downloaded and installed, and blocks plans that cannot be repaired safely. Local mods do not receive automatic updates.
+The Installed Mods page includes receipt-backed and external Mods and can filter enabled, disabled, local, external, pinned, updateable, or unhealthy entries. External Mods stay read-only until explicit takeover. Managed Mods support health inspection and exact-version repair; local takeovers support re-import or accepting current hashes. Pinning protects entries from batch uninstall and dependency cleanup. Uninstall previews a dependency-impact tree and only suggests unused dependencies instead of deleting them automatically.
 
 Compatibility uses the exact loader package ID rather than treating every Modding API or BepInEx release as interchangeable. Crystalfly-managed loaders can be repaired or removed. A manually installed BepInEx with a verifiable version is detected as externally owned: matching plugins may be installed, but Crystalfly never repairs, removes, overwrites, or takes ownership of the BepInEx installation. Manually installed Modding API remains `Drifted` because no trusted vanilla assembly backup exists.
 
@@ -214,7 +219,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.2.1'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.3.0'
 
 # Build, test, and silently update the fixed install directory after closing Crystalfly.
 pwsh -NoProfile -File '.\scripts\build-and-install.ps1'
