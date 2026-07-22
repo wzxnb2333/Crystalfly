@@ -1,8 +1,8 @@
 # Crystalfly
 
-Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。顶部“实例”用于选择和管理可启动目录；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
+Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。启动页是实例选择与管理的唯一入口；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
 
-> 当前稳定版：`0.3.0`。GitHub Release 提供 Windows x64 便携包和安装包。
+> 当前稳定版：`0.4.0`。GitHub Release 提供 Windows x64 便携包和安装包。
 
 [English](#english)
 
@@ -27,6 +27,9 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 - 事务化安装、切换、修复和卸载 Loader，检测冲突及文件漂移。
 - 支持带 Crystalfly 清单的高级本地 Loader 导入，并永久标记为“未验证”。
 - 在“下载 → Mod 市场”中搜索在线 Mod、查看详情并选择目标实例；在实例的“已安装 Mod”页通过信息、打开目录、启停和卸载快捷操作管理单个 Mod，也可多选后批量处理。
+- Mod 市场支持“最近新增/最近更新”筛选，并按需加载经过清理的 README 与最新发行说明；内容使用 ETag 原子缓存，离线时读取最后有效缓存。
+- 官方受管理 Mod 可从详情页按原启停状态重装或修复，并可定位、事务删除当前实例隔离 LocalLow 中的全局设置。
+- 设置页可使用绑定精确游戏构建与 Modding API Loader 的 HTTPS 自定义 ModLinks 完整替换官方源；自定义内容始终显示为未验证。
 - 安装前展示 Loader、递归前置与主 Mod；确认后加入后台下载队列，同一依赖链串行，独立安装组最多三路并发。
 - 安装前检查游戏版本、精确 Loader ID 和完整依赖闭包，阻止 Modding API v37/v60/v77/v78、BepInEx 及不同游戏版本的 Mod 混装。
 - 主动扫描受管理与外部 Mod，显示文件缺失、修改、额外文件和未接管状态；外部 Mod 可由用户确认接管，本地接管项不提供自动更新。
@@ -135,7 +138,7 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.3.0'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.4.0'
 
 # 构建、测试并静默更新固定安装目录（请先关闭 Crystalfly）
 pwsh -NoProfile -File '.\scripts\build-and-install.ps1'
@@ -149,9 +152,9 @@ Crystalfly 使用 [GPL-3.0-only](LICENSE)。第三方游戏、Loader 和 Mod 不
 
 ## English
 
-Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The top-level Instances page manages launchable directories; actual game downloads live under Download → Game Versions.
+Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The Launch page is the only entry point for selecting and managing launchable instances; actual game downloads live under Download → Game Versions.
 
-The current stable release is `0.3.0`. GitHub Releases provide a Windows x64 portable ZIP and Inno Setup installer.
+The current stable release is `0.4.0`. GitHub Releases provide a Windows x64 portable ZIP and Inno Setup installer.
 
 ![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
 
@@ -173,6 +176,9 @@ The current stable release is `0.3.0`. GitHub Releases provide a Windows x64 por
 - Uses the top instance selector to switch, open settings, clone a full copy, or permanently delete an instance. Deletion first checks running games, queued downloads, and file transactions, then removes both game and instance state directories after confirmation.
 - Installs, switches, repairs, and removes mutually exclusive loaders through recoverable file transactions.
 - Discovers online mods under Download → Mod Market, then installs them to a selected compatible instance. Installed Mods provides information, open-folder, enable/disable, and uninstall shortcuts plus multi-select batch actions.
+- Filters the market by recently added or updated activity, and renders sanitized README and latest release notes with ETag-backed offline cache fallback.
+- Reinstalls or repairs managed official Mods without changing their enabled state, and safely locates or transactionally deletes per-instance global settings.
+- Supports an exact-build, exact-Modding-API HTTPS custom ModLinks replacement that remains visibly unverified.
 - Previews the loader, recursive dependencies, and requested mod before enqueueing background work. Dependency chains stay serial while independent install groups use up to three concurrent network transfers.
 - Validates the game build, exact loader package ID, and full dependency closure so Modding API v37/v60/v77/v78, BepInEx, and cross-build mods cannot be mixed.
 - Discovers managed and external Mods, verifies receipt hashes, supports explicit local takeover, exact-version repair, pinning, and unused-dependency suggestions.
@@ -227,7 +233,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.3.0'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.4.0'
 
 # Build, test, and silently update the fixed install directory after closing Crystalfly.
 pwsh -NoProfile -File '.\scripts\build-and-install.ps1'

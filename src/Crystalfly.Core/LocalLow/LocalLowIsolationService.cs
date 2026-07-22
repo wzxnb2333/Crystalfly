@@ -27,6 +27,10 @@ public sealed class LocalLowIsolationService
 
     public string SharedBackupPath => Path.Combine(localLowStatePath, "shared-backup");
 
+    public string SharedLocalLowPath => sharedPath;
+
+    public string StorageRoot => storagePath;
+
     public string GetInstanceLocalLowPath(string instanceId)
     {
         ValidateSegment(instanceId, nameof(instanceId));

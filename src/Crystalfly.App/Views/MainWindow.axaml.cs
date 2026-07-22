@@ -371,6 +371,68 @@ public partial class MainWindow : Window
         OpenSafeInstanceFolder(instance.RootPath, item.InstallRoot, viewModel);
     }
 
+    private void OpenSelectedMarketModFolder(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel
+            {
+                SelectedInstance: { } instance,
+                SelectedMarketInstalledMod: { } item
+            } viewModel)
+        {
+            return;
+        }
+        OpenSafeInstanceFolder(instance.RootPath, item.InstallRoot, viewModel);
+    }
+
+    private void OpenSelectedModGlobalSettings(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        try
+        {
+            var filePath = viewModel.ResolveSelectedModGlobalSettingsPath();
+            var directory = filePath is null ? null : Path.GetDirectoryName(filePath);
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                return;
+            }
+            Directory.CreateDirectory(directory);
+            Process.Start(new ProcessStartInfo(directory) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is IOException
+            or UnauthorizedAccessException
+            or InvalidOperationException
+            or ArgumentException
+            or Win32Exception)
+        {
+            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+        }
+    }
+
+    private async void ConfirmDeleteSelectedModGlobalSettings(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel
+            {
+                SelectedMarketModDisplay: { } mod,
+                HasSelectedModGlobalSettings: true
+            } viewModel)
+        {
+            return;
+        }
+        if (await ShowConfirmationAsync(
+                viewModel.Loc["DeleteGlobalSettings"],
+                viewModel.Loc["DeleteGlobalSettings"],
+                mod.PrimaryName,
+                viewModel,
+                isDangerous: true))
+        {
+            await viewModel.DeleteSelectedModGlobalSettingsCommand.ExecuteAsync(null);
+        }
+    }
+
     private void OpenInstalledModRoot(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is not MainViewModel { SelectedInstance: { } instance } viewModel)

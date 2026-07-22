@@ -101,8 +101,9 @@ public sealed class ModRepairAndLifecycleTests : IDisposable
         var manager = CreateManager(Path.Combine(root, "cache"), httpClient);
         var manifest = Manifest("test", "Test", package);
         await manager.InstallFromUriAsync(manifest);
+        await manager.SetEnabledAsync("test", enabled: false);
         var installedPath = Path.Combine(
-            InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "Test", "mod.dll");
+            InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "Disabled", "Test", "mod.dll");
         await File.WriteAllTextAsync(installedPath, "drifted");
 
         var repaired = await manager.RepairFromUriAsync(manifest);
@@ -110,6 +111,7 @@ public sealed class ModRepairAndLifecycleTests : IDisposable
         Assert.Equal("official", await File.ReadAllTextAsync(installedPath));
         Assert.Equal(1, handler.RequestCount);
         Assert.Equal(ModOwnership.Managed, repaired.Ownership);
+        Assert.False(repaired.Enabled);
     }
 
     [Fact]

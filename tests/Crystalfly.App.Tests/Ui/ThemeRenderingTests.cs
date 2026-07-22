@@ -254,7 +254,8 @@ public sealed class ThemeRenderingTests
             Assert.Equal("Working", loading.LoadingMessage);
             Assert.True(skeleton.IsLoading);
             Assert.True(skeleton.IsActive);
-            var downloadProgress = Assert.Single(window.GetLogicalDescendants().OfType<ProgressBar>());
+            var downloadProgress = Assert.IsType<ProgressBar>(
+                window.FindControl<ProgressBar>("SteamDownloadProgress"));
             Assert.Equal(0.4, downloadProgress.Value);
         }
         finally

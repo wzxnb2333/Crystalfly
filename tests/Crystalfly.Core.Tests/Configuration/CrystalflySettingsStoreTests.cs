@@ -36,7 +36,13 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
                     Namespace = "community",
                     Url = "https://example.invalid/catalog.json"
                 }
-            ]
+            ],
+            CustomModLinks = new CustomModLinksDefinition
+            {
+                Url = "https://example.invalid/ModLinks.xml",
+                BuildId = "1.5.78.11833",
+                LoaderId = "modding-api-77"
+            }
         };
         await CrystalflySettingsStore.SaveAsync(path, expected);
 
@@ -45,6 +51,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
             expected with { CustomCatalogs = [], ModHealthAcknowledgements = [] },
             actual with { CustomCatalogs = [], ModHealthAcknowledgements = [] });
         Assert.Equal(expected.CustomCatalogs, actual.CustomCatalogs);
+        Assert.Equal(expected.CustomModLinks, actual.CustomModLinks);
         Assert.Equal(expected.ModHealthAcknowledgements, actual.ModHealthAcknowledgements);
     }
     [Fact]

@@ -4,13 +4,22 @@ namespace Crystalfly.App.ViewModels;
 
 public sealed record MarketTagViewModel(string Value, string Name);
 
+public enum MarketActivityFilter
+{
+    All,
+    RecentlyAdded,
+    RecentlyUpdated
+}
+
 public sealed class MarketModItemViewModel
 {
     public MarketModItemViewModel(
         ModManifest manifest,
         ModTranslationEntry? translation,
         IReadOnlyDictionary<string, string> tagNames,
-        bool chinese)
+        bool chinese,
+        ModActivityEntry? activity = null,
+        DateTimeOffset? recentCutoff = null)
     {
         Manifest = manifest;
         Id = manifest.Id;
@@ -24,6 +33,14 @@ public sealed class MarketModItemViewModel
         RepositoryUrl = manifest.RepositoryUrl;
         IssuesUrl = manifest.IssuesUrl;
         CanonicalTags = manifest.Tags;
+        AddedAt = activity?.AddedAt;
+        UpdatedAt = activity?.UpdatedAt;
+        IsRecentlyAdded = activity is not null
+            && recentCutoff is not null
+            && activity.AddedAt >= recentCutoff.Value;
+        IsRecentlyUpdated = activity is not null
+            && recentCutoff is not null
+            && activity.UpdatedAt >= recentCutoff.Value;
 
         var officialName = manifest.DisplayName ?? manifest.Name;
         PrimaryName = chinese && !string.IsNullOrWhiteSpace(translation?.DisplayName)
@@ -123,6 +140,14 @@ public sealed class MarketModItemViewModel
     public bool HasRepositoryUrl => IsHttpsUrl(RepositoryUrl);
 
     public bool HasIssuesUrl => IsHttpsUrl(IssuesUrl);
+
+    public DateTimeOffset? AddedAt { get; }
+
+    public DateTimeOffset? UpdatedAt { get; }
+
+    public bool IsRecentlyAdded { get; }
+
+    public bool IsRecentlyUpdated { get; }
 
     public string SearchText { get; }
 

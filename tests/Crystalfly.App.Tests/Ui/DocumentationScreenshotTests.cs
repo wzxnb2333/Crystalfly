@@ -164,7 +164,21 @@ public sealed class DocumentationScreenshotTests
             CreatedAt = new DateTimeOffset(2026, 7, 19, 12, 0, 0, TimeSpan.Zero)
         };
         var instance = new InstanceItemViewModel(record, "1.5.78.11833", "Modding API v77", 12);
-        var viewModel = new MainViewModel(Path.Combine(root, "app-data"))
+        var viewModel = new MainViewModel(
+            Path.Combine(root, "app-data"),
+            null,
+            null,
+            null,
+            modContentLoadOverride: (manifest, _) => Task.FromResult(new ModContentLoadResult(
+                ModContentLoadStatus.Cached,
+                new ModContentDocument
+                {
+                    RepositoryUrl = manifest.RepositoryUrl!,
+                    ReadmeMarkdown = "## DebugMod\n\n面向练习与路线验证的调试工具。",
+                    ReleaseNotesMarkdown = "### 1.4.10.5-r2\n\n支持 Crystalfly 精确 Loader 安装。",
+                    UpdatedAt = new DateTimeOffset(2026, 7, 22, 0, 0, 0, TimeSpan.Zero)
+                },
+                null)))
         {
             VersionRoot = versionRoot,
             StatusMessage = "就绪",
@@ -245,6 +259,7 @@ public sealed class DocumentationScreenshotTests
                 Assert.Contains("官方英文说明", visibleText);
                 Assert.Contains("TheMulhima", visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["Install"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["Readme"], visibleText);
                 break;
             case ScreenshotState.MarketInstall:
                 Assert.Single(fixture.Window.GetVisualDescendants().OfType<CustomDialogControl>());

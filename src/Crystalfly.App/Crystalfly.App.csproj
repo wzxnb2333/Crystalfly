@@ -19,6 +19,7 @@
     <PackageReference Include="Irihi.Ursa" />
     <PackageReference Include="Irihi.Ursa.Themes.Semi" />
     <PackageReference Include="Lucide.Avalonia" />
+    <PackageReference Include="MarkView.Avalonia" />
     <PackageReference Include="QRCoder" />
     <PackageReference Include="Semi.Avalonia" />
   </ItemGroup>

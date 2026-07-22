@@ -43,6 +43,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly string settingsPath;
     private GameCatalog catalog;
     private ModTranslationCatalog modTranslations;
+    private ModActivityCatalog modActivityCatalog;
     private readonly DpapiRefreshTokenStore tokenStore;
     private readonly SemaphoreSlim settingsSaveLock = new(1, 1);
     private readonly SemaphoreSlim steamConnectionGate = new(1, 1);
@@ -55,6 +56,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly Func<CancellationToken, Task<RefreshTokenCredential>>? qrSignInOverride;
     private readonly Func<bool>? steamLoggedOnOverride;
     private readonly Func<CancellationToken, Task<GitHubRouteLatencyTestResult>>? githubLatencyTestOverride;
+    private readonly Func<ModManifest, CancellationToken, Task<ModContentLoadResult>>? modContentLoadOverride;
     private readonly Func<
         InstanceRecord,
         Func<CancellationToken, ValueTask<InstanceDeletionConditions>>,
@@ -74,8 +76,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private long detailsLoadGeneration;
     private CancellationTokenSource? detailsLoadCancellation;
     private Task detailsLoadTask = Task.CompletedTask;
+    private long selectedModContentLoadGeneration;
+    private CancellationTokenSource? selectedModContentLoadCancellation;
+    private Task selectedModContentLoadTask = Task.CompletedTask;
     private OfficialCatalogLoadResult? officialCatalogResult;
+    private CustomModLinksLoadResult? customModLinksResult;
+    private string? customModLinksError;
     private ModTranslationLoadResult? modTranslationResult;
+    private ModActivityLoadResult? modActivityResult;
     private MarketModItemViewModel? selectedMarketModDisplay;
     private string? installedModSelectionAnchorId;
     private LoaderInspection currentLoaderInspection = new()
@@ -102,7 +110,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             InstanceRecord,
             Func<CancellationToken, ValueTask<InstanceDeletionConditions>>,
             CancellationToken,
-            Task<InstanceDeletionResult>>? instanceDeletionOverride = null)
+            Task<InstanceDeletionResult>>? instanceDeletionOverride = null,
+        Func<ModManifest, CancellationToken, Task<ModContentLoadResult>>? modContentLoadOverride = null)
     {
         this.launchOverride = launchOverride;
         this.downloadOverride = downloadOverride;
@@ -110,6 +119,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         this.qrSignInOverride = qrSignInOverride;
         this.steamLoggedOnOverride = steamLoggedOnOverride;
         this.githubLatencyTestOverride = githubLatencyTestOverride;
+        this.modContentLoadOverride = modContentLoadOverride;
         this.instanceDeletionOverride = instanceDeletionOverride;
         paths = applicationDataRoot is null
             ? CrystalflyPaths.Resolve(
@@ -120,6 +130,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         tokenStore = new DpapiRefreshTokenStore(Path.Combine(paths.ApplicationDataRoot, "steam-token.dat"));
         catalog = EmbeddedCatalog.Load();
         modTranslations = EmbeddedModTranslationCatalog.Load();
+        modActivityCatalog = EmbeddedModActivityCatalog.Load();
         networkPolicy = new NetworkPolicy();
         metadataHttpClient = new HttpClient(new GitHubDownloadRouteHandler(
             () => settings.GitHubDownloadRoute,
@@ -173,6 +184,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public ObservableCollection<SettingOption<string>> MarketTagOptions { get; } = [];
 
+    public ObservableCollection<SettingOption<MarketActivityFilter>> MarketActivityOptions { get; } = [];
+
     public ObservableCollection<MarketInstallTargetViewModel> MarketInstallTargets { get; } = [];
 
     public ObservableCollection<InstalledModItemViewModel> InstalledMods { get; } = [];
@@ -192,6 +205,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public ObservableCollection<SettingOption<UiTheme>> ThemeOptions { get; } = [];
 
     public ObservableCollection<SettingOption<GitHubDownloadRoute>> GitHubRouteOptions { get; } = [];
+
+    public ObservableCollection<SettingOption<string>> CustomModLinksBuildOptions { get; } = [];
+
+    public ObservableCollection<SettingOption<string>> CustomModLinksLoaderOptions { get; } = [];
 
     public ObservableCollection<DownloadBuildOption> DownloadBuilds { get; } = [];
 
@@ -246,18 +263,31 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ? Loc["ChooseRoot"]
         : LaunchPreflight.IsReady ? Loc["ReadyHint"] : Loc["LaunchBlocked"];
 
-    public string OfficialModCatalogStatus => officialCatalogResult?.Status switch
+    public string OfficialModCatalogStatus => settings.CustomModLinks is not null
+        ? customModLinksResult?.Status switch
+        {
+            CustomModLinksLoadStatus.Remote => Loc["CustomModLinksRemote"],
+            CustomModLinksLoadStatus.Cached => Loc["CustomModLinksCached"],
+            _ => Loc["CustomModLinksFailed"]
+        }
+        : officialCatalogResult?.Status switch
     {
         OfficialCatalogLoadStatus.Remote => Loc["CatalogRemote"],
         OfficialCatalogLoadStatus.Cached => Loc["CatalogCached"],
         _ => Loc["CatalogFailed"]
     };
 
-    public string OfficialModCatalogSummary => officialCatalogResult is null
-        ? string.Empty
-        : $"API v{officialCatalogResult.ApiVersion ?? "?"} · {officialCatalogResult.ModCount} Mods";
+    public string OfficialModCatalogSummary => settings.CustomModLinks is not null
+        ? customModLinksResult is null
+            ? Loc["UnverifiedSource"]
+            : $"{settings.CustomModLinks.LoaderId} · {customModLinksResult.Catalog.Mods.Count} Mods · {Loc["UnverifiedSource"]}"
+        : officialCatalogResult is null
+            ? string.Empty
+            : $"API v{officialCatalogResult.ApiVersion ?? "?"} · {officialCatalogResult.ModCount} Mods";
 
-    public string OfficialModCatalogError => officialCatalogResult?.Reason ?? string.Empty;
+    public string OfficialModCatalogError => settings.CustomModLinks is not null
+        ? customModLinksError ?? customModLinksResult?.Reason ?? string.Empty
+        : officialCatalogResult?.Reason ?? string.Empty;
 
     public bool IsLaunchPage => CurrentPage == "Launch";
 
@@ -280,6 +310,29 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public bool IsMarketDetail => SelectedMarketMod is not null;
 
     public MarketModItemViewModel? SelectedMarketModDisplay => selectedMarketModDisplay;
+
+    public bool HasSelectedModReadme => !string.IsNullOrWhiteSpace(SelectedModReadmeMarkdown);
+
+    public bool HasSelectedModReleaseNotes => !string.IsNullOrWhiteSpace(SelectedModReleaseNotesMarkdown);
+
+    public bool HasSelectedModContentError => !string.IsNullOrWhiteSpace(SelectedModContentError);
+
+    public bool HasSelectedMarketModInstallation => SelectedMarketInstalledMod is not null;
+
+    public bool CanReinstallSelectedMarketMod => SelectedMarketInstalledMod?.CanReinstall == true;
+
+    public bool CanAccessSelectedModGlobalSettings => SelectedMarketInstalledMod is not null
+        && SelectedMarketMod is { SourceName: "HK ModLinks" } manifest
+        && manifest.Id.StartsWith("hkmod:", StringComparison.OrdinalIgnoreCase);
+
+    public bool HasSelectedModGlobalSettings => SelectedModGlobalSettingsFile is not null;
+
+    public string SelectedModContentStatusText => SelectedModContentStatus switch
+    {
+        ModContentLoadStatus.Remote => Loc["ContentRemote"],
+        ModContentLoadStatus.Cached => Loc["ContentCached"],
+        _ => Loc["ContentUnavailable"]
+    };
 
     public Bitmap? QrCodeImage
     {
@@ -335,6 +388,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial SettingOption<string>? SelectedMarketTagOption { get; set; }
+
+    [ObservableProperty]
+    public partial SettingOption<MarketActivityFilter>? SelectedMarketActivityOption { get; set; }
 
     [ObservableProperty]
     public partial ModStatusFilter SelectedModStatus { get; set; } = ModStatusFilter.All;
@@ -406,10 +462,39 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public partial ModManifest? SelectedMarketMod { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedModReadme))]
+    public partial string SelectedModReadmeMarkdown { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedModReleaseNotes))]
+    public partial string SelectedModReleaseNotesMarkdown { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedModContentError))]
+    public partial string SelectedModContentError { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedModContentStatusText))]
+    public partial ModContentLoadStatus SelectedModContentStatus { get; set; } = ModContentLoadStatus.Unavailable;
+
+    [ObservableProperty]
+    public partial bool IsLoadingSelectedModContent { get; set; }
+
+    [ObservableProperty]
     public partial MarketInstallTargetViewModel? SelectedMarketInstallTarget { get; set; }
 
     [ObservableProperty]
     public partial InstalledModItemViewModel? SelectedInstalledMod { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedMarketModInstallation))]
+    [NotifyPropertyChangedFor(nameof(CanReinstallSelectedMarketMod))]
+    [NotifyPropertyChangedFor(nameof(CanAccessSelectedModGlobalSettings))]
+    public partial InstalledModItemViewModel? SelectedMarketInstalledMod { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedModGlobalSettings))]
+    public partial GlobalModSettingsFile? SelectedModGlobalSettingsFile { get; set; }
 
     [ObservableProperty]
     public partial InstanceLogFile? SelectedLogFile { get; set; }
@@ -487,6 +572,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     public partial bool IsOfflineMode { get; set; }
 
+    [ObservableProperty]
+    public partial string CustomModLinksUrl { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial SettingOption<string>? SelectedCustomModLinksBuild { get; set; }
+
+    [ObservableProperty]
+    public partial SettingOption<string>? SelectedCustomModLinksLoader { get; set; }
+
 
     public Task InitializeAsync()
     {
@@ -509,7 +603,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         CustomSourcesText = string.Join(
             Environment.NewLine,
             settings.CustomCatalogs.Select(source => $"{source.Namespace}={source.Url}"));
+        CustomModLinksUrl = settings.CustomModLinks?.Url ?? string.Empty;
         RebuildSettingOptions();
+        RebuildCustomModLinksOptions();
         RebuildModStatusOptions();
         RebuildMarketCatalog();
         foreach (var template in catalog.SpeedrunTemplates)
@@ -1662,6 +1758,76 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     [RelayCommand]
+    private async Task RepairSelectedMarketModAsync()
+    {
+        if (SelectedMarketInstalledMod is not { CanReinstall: true, CatalogManifest: { } manifest })
+        {
+            return;
+        }
+
+        await RunInstanceMutationAsync(record =>
+            CreateModManager(record).RepairFromUriAsync(manifest));
+    }
+
+    [RelayCommand]
+    private void OpenSelectedModLogs()
+    {
+        if (SelectedInstance is null || SelectedMarketInstalledMod is null)
+        {
+            return;
+        }
+        CurrentPage = "Manage";
+        CurrentManageTab = "Logs";
+    }
+
+    [RelayCommand]
+    private async Task DeleteSelectedModGlobalSettingsAsync()
+    {
+        if (SelectedInstance is null
+            || SelectedMarketMod is not { } manifest
+            || !CanAccessSelectedModGlobalSettings)
+        {
+            return;
+        }
+
+        var instance = SelectedInstance.Record;
+        try
+        {
+            await instanceOperationCoordinator.RunAsync(instance.Id, async cancellationToken =>
+            {
+                var deleted = await CreateGlobalModSettingsService().DeleteAsync(
+                    instance.Id,
+                    [manifest],
+                    cancellationToken);
+                if (deleted == 0)
+                {
+                    throw new FileNotFoundException("The selected Mod does not have global settings.");
+                }
+            }, lifetimeCancellation.Token);
+            UpdateSelectedMarketInstallationState();
+            NotifyOperationCompleted();
+        }
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or UnauthorizedAccessException
+            or InvalidOperationException)
+        {
+            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+        }
+    }
+
+    internal string? ResolveSelectedModGlobalSettingsPath()
+    {
+        if (SelectedInstance is null
+            || SelectedMarketMod is not { } manifest
+            || !CanAccessSelectedModGlobalSettings)
+        {
+            return null;
+        }
+        return CreateGlobalModSettingsService().ResolveFile(SelectedInstance.Id, manifest).FilePath;
+    }
+
+    [RelayCommand]
     private async Task AcceptSelectedLocalModFilesAsync()
     {
         if (SelectedInstalledMod is not { CanAcceptCurrent: true } selected)
@@ -2114,6 +2280,50 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
+    [RelayCommand]
+    private async Task SaveCustomModLinksAsync()
+    {
+        try
+        {
+            CustomModLinksDefinition? definition = null;
+            if (!string.IsNullOrWhiteSpace(CustomModLinksUrl))
+            {
+                if (!Uri.TryCreate(CustomModLinksUrl.Trim(), UriKind.Absolute, out var uri)
+                    || uri.Scheme != Uri.UriSchemeHttps
+                    || SelectedCustomModLinksBuild is null
+                    || SelectedCustomModLinksLoader is null)
+                {
+                    throw new FormatException(Loc["CustomModLinksInvalid"]);
+                }
+                definition = new CustomModLinksDefinition
+                {
+                    Url = uri.AbsoluteUri,
+                    BuildId = SelectedCustomModLinksBuild.Value,
+                    LoaderId = SelectedCustomModLinksLoader.Value
+                };
+            }
+
+            settings = settings with { CustomModLinks = definition };
+            CustomModLinksUrl = definition?.Url ?? string.Empty;
+            await QueueSettingsSave();
+            catalog = await LoadCatalogAsync(lifetimeCancellation.Token);
+            RebuildCustomModLinksOptions();
+            RebuildMarketCatalog();
+            if (Directory.Exists(VersionRoot))
+            {
+                await RefreshAsync();
+            }
+            NotifyOperationCompleted();
+        }
+        catch (Exception exception) when (exception is FormatException
+            or ArgumentException
+            or IOException
+            or InvalidDataException)
+        {
+            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+        }
+    }
+
     partial void OnSearchTextChanged(string value) => ApplyInstanceFilter();
 
     partial void OnModSearchTextChanged(string value) => ApplyModFilters();
@@ -2127,6 +2337,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     partial void OnSelectedMarketSourceOptionChanged(SettingOption<string>? value) => ApplyMarketFilters();
 
     partial void OnSelectedMarketTagOptionChanged(SettingOption<string>? value) => ApplyMarketFilters();
+
+    partial void OnSelectedMarketActivityOptionChanged(SettingOption<MarketActivityFilter>? value) =>
+        ApplyMarketFilters();
 
     partial void OnSelectedModStatusChanged(ModStatusFilter value) => ApplyModFilters();
 
@@ -2204,6 +2417,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         VisibleAvailableMods.Clear();
         InstalledMods.Clear();
         VisibleInstalledMods.Clear();
+        UpdateSelectedMarketInstallationState();
         currentLoaderInspection = new LoaderInspection
         {
             State = LoaderState.Vanilla,
@@ -2257,6 +2471,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         settings = settings with { Language = value.Value };
         ApplyLanguage(value.Value);
         RebuildSettingOptions();
+        RebuildCustomModLinksOptions();
         RebuildModStatusOptions();
         RebuildMarketCatalog();
         RebuildInstalledModCatalogProjection();
@@ -2329,7 +2544,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             && (string.IsNullOrEmpty(SelectedMarketSourceOption?.Value)
                 || string.Equals(item.SourceName, SelectedMarketSourceOption.Value, StringComparison.OrdinalIgnoreCase))
             && (string.IsNullOrEmpty(SelectedMarketTagOption?.Value)
-                || item.CanonicalTags.Contains(SelectedMarketTagOption.Value, StringComparer.OrdinalIgnoreCase))))
+                || item.CanonicalTags.Contains(SelectedMarketTagOption.Value, StringComparer.OrdinalIgnoreCase))
+            && SelectedMarketActivityOption?.Value switch
+            {
+                MarketActivityFilter.RecentlyAdded => item.IsRecentlyAdded,
+                MarketActivityFilter.RecentlyUpdated => item.IsRecentlyUpdated,
+                _ => true
+            }))
         {
             VisibleMarketDisplayMods.Add(item);
             VisibleMarketMods.Add(item.Manifest);
@@ -2343,6 +2564,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var selectedLoader = SelectedMarketLoaderOption?.Value;
         var selectedSource = SelectedMarketSourceOption?.Value;
         var selectedTag = SelectedMarketTagOption?.Value;
+        var selectedActivity = SelectedMarketActivityOption?.Value ?? MarketActivityFilter.All;
         var chinese = Loc.Culture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
         MarketMods.Clear();
         MarketDisplayMods.Clear();
@@ -2382,6 +2604,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             MarketDisplayMods.SelectMany(mod => mod.CanonicalTags),
             DisplayMarketTag,
             selectedTag);
+        RebuildMarketActivityOptions(selectedActivity);
         ApplyMarketFilters();
         selectedMarketModDisplay = selectedModId is null
             ? null
@@ -2399,6 +2622,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         if (InstalledMods.Count == 0)
         {
+            UpdateSelectedMarketInstallationState();
             return;
         }
 
@@ -2427,6 +2651,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 IsSelected = selectedIds.Contains(item.Id)
             });
         }
+        UpdateSelectedMarketInstallationState();
         SelectedInstalledMod = focusedId is null
             ? null
             : InstalledMods.FirstOrDefault(mod =>
@@ -2458,13 +2683,25 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         else SelectedMarketTagOption = selected;
     }
 
+    private void RebuildMarketActivityOptions(MarketActivityFilter selected)
+    {
+        MarketActivityOptions.Clear();
+        MarketActivityOptions.Add(new(MarketActivityFilter.All, Loc["ActivityAll"]));
+        MarketActivityOptions.Add(new(MarketActivityFilter.RecentlyAdded, Loc["RecentlyAdded"]));
+        MarketActivityOptions.Add(new(MarketActivityFilter.RecentlyUpdated, Loc["RecentlyUpdated"]));
+        SelectedMarketActivityOption = MarketActivityOptions.First(option => option.Value == selected);
+    }
+
     internal MarketModItemViewModel ProjectMarketMod(ModManifest manifest, bool? chinese = null) =>
         new(
             manifest,
             modTranslations.Mods.FirstOrDefault(translation =>
                 string.Equals(translation.Id, manifest.Id, StringComparison.OrdinalIgnoreCase)),
             modTranslations.TagNames,
-            chinese ?? Loc.Culture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase));
+            chinese ?? Loc.Culture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase),
+            modActivityCatalog.Entries.FirstOrDefault(entry =>
+                string.Equals(entry.Id, manifest.Id, StringComparison.OrdinalIgnoreCase)),
+            modActivityCatalog.GeneratedAt.AddDays(-30));
 
     internal MarketModItemViewModel? ProjectMarketMod(string id) =>
         catalog.Mods.FirstOrDefault(manifest =>
@@ -2497,12 +2734,35 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         SelectedGitHubRoute = GitHubRouteOptions.First(option => option.Value == settings.GitHubDownloadRoute);
     }
 
+    private void RebuildCustomModLinksOptions()
+    {
+        var selectedBuild = settings.CustomModLinks?.BuildId;
+        var selectedLoader = settings.CustomModLinks?.LoaderId;
+        CustomModLinksBuildOptions.Clear();
+        foreach (var build in catalog.Builds.OrderBy(build => build.DisplayVersion, StringComparer.OrdinalIgnoreCase))
+        {
+            CustomModLinksBuildOptions.Add(new(build.Id, build.DisplayVersion));
+        }
+        CustomModLinksLoaderOptions.Clear();
+        foreach (var loader in catalog.Loaders
+                     .Where(loader => loader.Id.StartsWith("modding-api-", StringComparison.OrdinalIgnoreCase))
+                     .OrderBy(loader => loader.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            CustomModLinksLoaderOptions.Add(new(loader.Id, $"{loader.Name} {loader.Version}"));
+        }
+        SelectedCustomModLinksBuild = CustomModLinksBuildOptions.FirstOrDefault(option =>
+            string.Equals(option.Value, selectedBuild, StringComparison.OrdinalIgnoreCase));
+        SelectedCustomModLinksLoader = CustomModLinksLoaderOptions.FirstOrDefault(option =>
+            string.Equals(option.Value, selectedLoader, StringComparison.OrdinalIgnoreCase));
+    }
+
     private void ApplyLanguage(UiLanguage language)
     {
         var localization = new LocalizationViewModel();
         localization.Apply(language);
         Loc = localization;
         OnPropertyChanged(nameof(Loc));
+        OnPropertyChanged(nameof(SelectedModContentStatusText));
         NotifyOfficialCatalogLabels();
         if (DownloadQueueGroups.Count > 0)
         {
@@ -2522,6 +2782,112 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ? null
             : ProjectMarketMod(value);
         OnPropertyChanged(nameof(SelectedMarketModDisplay));
+        UpdateSelectedMarketInstallationState();
+        BeginSelectedModContentLoad(value);
+    }
+
+    private void UpdateSelectedMarketInstallationState()
+    {
+        SelectedMarketInstalledMod = SelectedMarketMod is null
+            ? null
+            : InstalledMods.FirstOrDefault(item =>
+                string.Equals(item.Id, SelectedMarketMod.Id, StringComparison.OrdinalIgnoreCase));
+        SelectedModGlobalSettingsFile = null;
+        if (SelectedInstance is null
+            || SelectedMarketMod is not { } manifest
+            || SelectedMarketInstalledMod is null
+            || !CanAccessSelectedModGlobalSettings)
+        {
+            return;
+        }
+
+        try
+        {
+            SelectedModGlobalSettingsFile = CreateGlobalModSettingsService()
+                .ListFiles(SelectedInstance.Id, [manifest])
+                .FirstOrDefault();
+        }
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or UnauthorizedAccessException
+            or ArgumentException)
+        {
+            SelectedModContentError = exception.Message;
+        }
+    }
+
+    private void BeginSelectedModContentLoad(ModManifest? manifest)
+    {
+        var generation = Interlocked.Increment(ref selectedModContentLoadGeneration);
+        var previous = Interlocked.Exchange(ref selectedModContentLoadCancellation, null);
+        previous?.Cancel();
+        previous?.Dispose();
+
+        SelectedModReadmeMarkdown = string.Empty;
+        SelectedModReleaseNotesMarkdown = string.Empty;
+        SelectedModContentError = string.Empty;
+        SelectedModContentStatus = ModContentLoadStatus.Unavailable;
+        IsLoadingSelectedModContent = manifest is not null;
+        if (manifest is null)
+        {
+            selectedModContentLoadTask = Task.CompletedTask;
+            return;
+        }
+
+        var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation.Token);
+        selectedModContentLoadCancellation = cancellation;
+        selectedModContentLoadTask = LoadSelectedModContentAsync(
+            manifest,
+            generation,
+            cancellation.Token);
+    }
+
+    private async Task LoadSelectedModContentAsync(
+        ModManifest manifest,
+        long generation,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = modContentLoadOverride is null
+                ? await new ModContentSource(
+                    metadataHttpClient,
+                    Path.Combine(paths.ApplicationDataRoot, "content", "mods"))
+                    .LoadAsync(manifest, cancellationToken)
+                : await modContentLoadOverride(manifest, cancellationToken);
+            if (generation != Volatile.Read(ref selectedModContentLoadGeneration)
+                || !ReferenceEquals(SelectedMarketMod, manifest))
+            {
+                return;
+            }
+
+            SelectedModContentStatus = result.Status;
+            SelectedModReadmeMarkdown = result.Document?.ReadmeMarkdown ?? string.Empty;
+            SelectedModReleaseNotesMarkdown = result.Document?.ReleaseNotesMarkdown ?? string.Empty;
+            SelectedModContentError = result.Reason ?? string.Empty;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception) when (exception is HttpRequestException
+            or IOException
+            or InvalidDataException
+            or UnauthorizedAccessException
+            or System.Text.Json.JsonException)
+        {
+            if (generation == Volatile.Read(ref selectedModContentLoadGeneration))
+            {
+                SelectedModContentStatus = ModContentLoadStatus.Unavailable;
+                SelectedModContentError = exception.Message;
+            }
+        }
+        finally
+        {
+            if (generation == Volatile.Read(ref selectedModContentLoadGeneration))
+            {
+                IsLoadingSelectedModContent = false;
+            }
+        }
     }
 
     private void NotifyOperationCompleted()
@@ -2919,6 +3285,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     ModOwnershipDisplay(mod.Ownership),
                     ModHealthDisplay(healthReport.Status)));
             }
+            UpdateSelectedMarketInstallationState();
             OnModSelectionChanged();
             ApplyModFilters();
             Snapshots.Clear();
@@ -3159,19 +3526,50 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             Path.Combine(paths.ApplicationDataRoot, "catalog", "catalog.v1.json"),
             metadataHttpClient,
             cancellationToken: cancellationToken);
-        officialCatalogResult = await OfficialCatalogSource.LoadAsync(
-            metadataHttpClient,
-            Path.Combine(paths.ApplicationDataRoot, "catalog", "hk-modlinks.v77.json"),
-            cancellationToken);
-        if (officialCatalogResult.Status != OfficialCatalogLoadStatus.Failed)
+        officialCatalogResult = null;
+        customModLinksResult = null;
+        customModLinksError = null;
+        if (settings.CustomModLinks is { } customModLinks)
         {
-            result = CatalogMerger.Merge(result, null, null, [officialCatalogResult.Catalog]);
+            try
+            {
+                customModLinksResult = await CustomModLinksSource.LoadAsync(
+                    customModLinks,
+                    directMetadataHttpClient,
+                    Path.Combine(paths.ApplicationDataRoot, "catalog", "custom-modlinks.json"),
+                    cancellationToken);
+                result = CatalogMerger.Merge(result, null, null, [customModLinksResult.Catalog]);
+            }
+            catch (Exception exception) when (exception is HttpRequestException
+                or IOException
+                or InvalidDataException
+                or UnauthorizedAccessException
+                or ArgumentException)
+            {
+                customModLinksError = exception.Message;
+            }
+        }
+        else
+        {
+            officialCatalogResult = await OfficialCatalogSource.LoadAsync(
+                metadataHttpClient,
+                Path.Combine(paths.ApplicationDataRoot, "catalog", "hk-modlinks.v77.json"),
+                cancellationToken);
+            if (officialCatalogResult.Status != OfficialCatalogLoadStatus.Failed)
+            {
+                result = CatalogMerger.Merge(result, null, null, [officialCatalogResult.Catalog]);
+            }
         }
         modTranslationResult = await ModTranslationSource.LoadAsync(
             metadataHttpClient,
             Path.Combine(paths.ApplicationDataRoot, "catalog", "mod-translations.zh-CN.v1.json"),
             cancellationToken);
         modTranslations = modTranslationResult.Catalog;
+        modActivityResult = await ModActivitySource.LoadAsync(
+            metadataHttpClient,
+            Path.Combine(paths.ApplicationDataRoot, "catalog", "mod-activity.v1.json"),
+            cancellationToken);
+        modActivityCatalog = modActivityResult.Catalog;
         ApplicationLog.Write(
             Path.Combine(paths.ApplicationDataRoot, "logs", "crystalfly.log"),
             "mod-translation-catalog",
@@ -3179,6 +3577,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 + (string.IsNullOrWhiteSpace(modTranslationResult.Reason)
                     ? string.Empty
                     : $" reason={modTranslationResult.Reason}"));
+        ApplicationLog.Write(
+            Path.Combine(paths.ApplicationDataRoot, "logs", "crystalfly.log"),
+            "mod-activity-catalog",
+            $"source={modActivityResult.Status} count={modActivityResult.Catalog.Entries.Count}"
+                + (string.IsNullOrWhiteSpace(modActivityResult.Reason)
+                    ? string.Empty
+                    : $" reason={modActivityResult.Reason}"));
         OnPropertyChanged(nameof(OfficialModCatalogStatus));
         OnPropertyChanged(nameof(OfficialModCatalogSummary));
         OnPropertyChanged(nameof(OfficialModCatalogError));
@@ -3290,6 +3695,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private NamedSnapshotService CreateSnapshotService() => new(
         paths.GetVersionDataRoot(VersionRoot));
 
+    private GlobalModSettingsService CreateGlobalModSettingsService() => new(
+        new LocalLowIsolationService(
+            GetSharedLocalLowPath(),
+            paths.GetVersionDataRoot(VersionRoot)));
+
     private string GetInstanceStateRoot(string instanceId) =>
         Path.Combine(paths.GetVersionDataRoot(VersionRoot), "instances", instanceId);
 
@@ -3314,6 +3724,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var detailsCancellation = Interlocked.Exchange(ref detailsLoadCancellation, null);
         detailsCancellation?.Cancel();
         var pendingDetailsLoad = detailsLoadTask;
+        var contentCancellation = Interlocked.Exchange(ref selectedModContentLoadCancellation, null);
+        contentCancellation?.Cancel();
+        var pendingContentLoad = selectedModContentLoadTask;
         var signInCancellation = Interlocked.Exchange(ref steamSignInCancellation, null);
         signInCancellation?.Cancel();
         downloadCancellation?.Cancel();
@@ -3331,7 +3744,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     InstallMarketModCommand.ExecutionTask ?? Task.CompletedTask,
                     TestGitHubLatencyCommand.ExecutionTask ?? Task.CompletedTask,
                     steamOfflineTransitionTask,
-                    pendingDetailsLoad);
+                    pendingDetailsLoad,
+                    pendingContentLoad);
             }
             catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
             {
@@ -3358,6 +3772,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         finally
         {
             detailsCancellation?.Dispose();
+            contentCancellation?.Dispose();
             signInCancellation?.Dispose();
             try
             {

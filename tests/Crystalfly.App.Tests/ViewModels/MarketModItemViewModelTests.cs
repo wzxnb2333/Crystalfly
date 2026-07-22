@@ -57,6 +57,27 @@ public sealed class MarketModItemViewModelTests
         Assert.False(item.HasIssuesUrl);
     }
 
+    [Fact]
+    public void Activity_projection_marks_recent_additions_and_updates_against_catalog_cutoff()
+    {
+        var item = new MarketModItemViewModel(
+            Manifest(),
+            null,
+            new Dictionary<string, string>(),
+            chinese: false,
+            activity: new ModActivityEntry
+            {
+                Id = "hkmod:Example",
+                AddedAt = DateTimeOffset.Parse("2026-07-20T00:00:00Z"),
+                UpdatedAt = DateTimeOffset.Parse("2026-07-21T00:00:00Z")
+            },
+            recentCutoff: DateTimeOffset.Parse("2026-06-22T00:00:00Z"));
+
+        Assert.True(item.IsRecentlyAdded);
+        Assert.True(item.IsRecentlyUpdated);
+        Assert.Equal(DateTimeOffset.Parse("2026-07-21T00:00:00Z"), item.UpdatedAt);
+    }
+
     private static ModManifest Manifest() => new()
     {
         Id = "hkmod:Example",

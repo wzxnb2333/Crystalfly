@@ -1,6 +1,7 @@
 using Crystalfly.App.Downloads;
 using Crystalfly.App.ViewModels;
 using Crystalfly.Core.Configuration;
+using Crystalfly.Core.Catalog;
 using Crystalfly.Core.Instances;
 using Crystalfly.Core.Loaders;
 using Crystalfly.Core.Models;
@@ -22,6 +23,41 @@ namespace Crystalfly.App.Tests.ViewModels;
 public sealed class MainViewModelStateTests : IDisposable
 {
     private readonly TestDirectory applicationData = new();
+
+    [Fact]
+    public async Task Selecting_market_mod_loads_content_without_blocking_and_ignores_stale_result()
+    {
+        using var test = new TestDirectory();
+        var firstCompletion = new TaskCompletionSource<ModContentLoadResult>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var first = MarketManifest("hkmod:First", "First");
+        var second = MarketManifest("hkmod:Second", "Second");
+        await using var viewModel = new MainViewModel(
+            test.CreateDirectory("app-data"),
+            null,
+            null,
+            null,
+            modContentLoadOverride: (manifest, _) =>
+                string.Equals(manifest.Id, first.Id, StringComparison.OrdinalIgnoreCase)
+                    ? firstCompletion.Task
+                    : Task.FromResult(ContentResult(manifest, "# Second README")));
+
+        viewModel.SelectedMarketMod = first;
+        Assert.True(viewModel.IsLoadingSelectedModContent);
+        viewModel.SelectedMarketMod = second;
+
+        await WaitUntilAsync(() => !viewModel.IsLoadingSelectedModContent);
+        Assert.Equal("# Second README", viewModel.SelectedModReadmeMarkdown);
+        Assert.Equal(ModContentLoadStatus.Remote, viewModel.SelectedModContentStatus);
+
+        firstCompletion.SetResult(ContentResult(first, "# Stale README"));
+        await Task.Yield();
+
+        Assert.Equal("# Second README", viewModel.SelectedModReadmeMarkdown);
+        viewModel.SelectedMarketMod = null;
+        Assert.Equal(string.Empty, viewModel.SelectedModReadmeMarkdown);
+        Assert.False(viewModel.HasSelectedModReadme);
+    }
 
     [Theory]
     [InlineData(UiLanguage.SimplifiedChinese, "zh-CN")]
@@ -1220,6 +1256,42 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public void Mod_market_filters_recent_additions_from_activity_catalog()
+    {
+        var viewModel = CreateViewModel();
+        var recent = Manifest("hkmod:Recent", "1.0.0");
+        var older = Manifest("hkmod:Older", "1.0.0");
+        SetCatalog(viewModel, new GameCatalog { Mods = [recent, older] });
+        SetPrivateField(viewModel, "modActivityCatalog", new ModActivityCatalog
+        {
+            GeneratedAt = DateTimeOffset.Parse("2026-07-22T00:00:00Z"),
+            SourceRevision = "1234567",
+            Entries =
+            [
+                new ModActivityEntry
+                {
+                    Id = recent.Id,
+                    AddedAt = DateTimeOffset.Parse("2026-07-20T00:00:00Z"),
+                    UpdatedAt = DateTimeOffset.Parse("2026-07-20T00:00:00Z")
+                },
+                new ModActivityEntry
+                {
+                    Id = older.Id,
+                    AddedAt = DateTimeOffset.Parse("2025-01-01T00:00:00Z"),
+                    UpdatedAt = DateTimeOffset.Parse("2025-01-01T00:00:00Z")
+                }
+            ]
+        });
+        InvokeRebuildMarketCatalog(viewModel);
+
+        viewModel.SelectedMarketActivityOption = new(
+            MarketActivityFilter.RecentlyAdded,
+            "Recently added");
+
+        Assert.Equal(recent.Id, Assert.Single(viewModel.VisibleMarketMods).Id);
+    }
+
+    [Fact]
     public async Task Market_install_target_preparation_discards_results_when_selection_changes()
     {
         using var test = new TestDirectory();
@@ -2097,6 +2169,37 @@ public sealed class MainViewModelStateTests : IDisposable
         Sha256 = new string('A', 64),
         LoaderId = "modding-api"
     };
+
+    private static ModManifest MarketManifest(string id, string name) => new()
+    {
+        Id = id,
+        Name = name,
+        Version = "1.0.0",
+        DownloadUrl = $"https://example.invalid/{name}.zip",
+        Sha256 = new string('A', 64),
+        LoaderId = "modding-api-77",
+        RepositoryUrl = $"https://github.com/example/{name}"
+    };
+
+    private static ModContentLoadResult ContentResult(ModManifest manifest, string readme) => new(
+        ModContentLoadStatus.Remote,
+        new ModContentDocument
+        {
+            RepositoryUrl = manifest.RepositoryUrl!,
+            ReadmeMarkdown = readme,
+            ReleaseNotesMarkdown = "## Release",
+            UpdatedAt = DateTimeOffset.UtcNow
+        },
+        null);
+
+    private static async Task WaitUntilAsync(Func<bool> predicate)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (!predicate())
+        {
+            await Task.Delay(10, timeout.Token);
+        }
+    }
 
     private static LoaderManifest LoaderManifestFor(string id, string packagePath) => new()
     {
