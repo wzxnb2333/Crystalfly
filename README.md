@@ -10,6 +10,10 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 
 ### 界面验收截图
 
+![启动问题红框](docs/screenshots/crystalfly-launch-issues-1280x720-zh.jpg)
+![启动问题确认](docs/screenshots/crystalfly-launch-issues-overlay-1280x720-zh.jpg)
+![已安装 Mod 完整性](docs/screenshots/crystalfly-installed-mod-health-1280x720-zh.jpg)
+![离线模式与下载线路](docs/screenshots/crystalfly-1920x1080-zh.jpg)
 ![Mod 市场列表](docs/screenshots/crystalfly-mod-market-list-1280x720-zh.jpg)
 ![Mod 详情](docs/screenshots/crystalfly-mod-market-detail-1280x720-zh.jpg)
 ![安装目标实例](docs/screenshots/crystalfly-mod-install-overlay-1280x720-zh.jpg)
@@ -153,6 +157,10 @@ The current stable release is `0.3.0`. GitHub Releases provide a Windows x64 por
 
 ### UI acceptance screenshots
 
+![Persistent launch issue frame](docs/screenshots/crystalfly-launch-issues-1280x720-zh.jpg)
+![Launch issue confirmation](docs/screenshots/crystalfly-launch-issues-overlay-1280x720-zh.jpg)
+![Installed Mod integrity](docs/screenshots/crystalfly-installed-mod-health-1280x720-zh.jpg)
+![Offline mode and download routes](docs/screenshots/crystalfly-1920x1080-zh.jpg)
 ![Mod market list](docs/screenshots/crystalfly-mod-market-list-1280x720-zh.jpg)
 ![Mod detail](docs/screenshots/crystalfly-mod-market-detail-1280x720-zh.jpg)
 ![Install target dialog](docs/screenshots/crystalfly-mod-install-overlay-1280x720-zh.jpg)
