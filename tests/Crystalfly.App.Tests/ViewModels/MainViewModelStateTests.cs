@@ -6,6 +6,7 @@ using Crystalfly.Core.Loaders;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Mods;
 using Crystalfly.Core.Networking;
+using Crystalfly.Core.Runtime;
 using Crystalfly.Core.Serialization;
 using Crystalfly.Steam.Downloads;
 using Crystalfly.Steam.Security;
@@ -105,6 +106,38 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Equal(UiTheme.Dark, saved.Theme);
         Assert.Equal(GitHubDownloadRoute.Mirror, saved.GitHubDownloadRoute);
         Assert.Equal("practice", saved.CurrentInstanceId);
+    }
+
+    [Fact]
+    public async Task Initialize_applies_persisted_global_offline_mode()
+    {
+        using var test = new TestDirectory();
+        var applicationDataRoot = test.CreateDirectory("app-data");
+        await CrystalflySettingsStore.SaveAsync(
+            Path.Combine(applicationDataRoot, "settings.json"),
+            new CrystalflySettings { OfflineMode = true });
+
+        await using var viewModel = new MainViewModel(applicationDataRoot);
+        await viewModel.InitializeAsync();
+
+        Assert.True(viewModel.IsOfflineMode);
+    }
+
+    [Fact]
+    public async Task Offline_mode_change_is_persisted_without_clearing_other_settings()
+    {
+        using var test = new TestDirectory();
+        var applicationDataRoot = test.CreateDirectory("app-data");
+        var viewModel = new MainViewModel(applicationDataRoot);
+        await viewModel.InitializeAsync();
+
+        viewModel.IsOfflineMode = true;
+        await viewModel.DisposeAsync();
+
+        var saved = await CrystalflySettingsStore.LoadAsync(
+            Path.Combine(applicationDataRoot, "settings.json"));
+        Assert.True(saved.OfflineMode);
+        Assert.Equal(GitHubDownloadRoute.Direct, saved.GitHubDownloadRoute);
     }
 
     [Fact]
@@ -1713,6 +1746,180 @@ public sealed class MainViewModelStateTests : IDisposable
         await InvokeLoadInstanceDetailsAsync(viewModel, second, 2);
 
         Assert.False(viewModel.IsLoadingInstanceDetails);
+    }
+
+    [Fact]
+    public async Task Instance_details_include_external_mods_and_health_in_launch_preflight()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "practice");
+        var modRoot = Path.Combine(instanceRoot, "hollow_knight_Data", "Managed", "Mods", "ExternalHelper");
+        Directory.CreateDirectory(modRoot);
+        await File.WriteAllTextAsync(Path.Combine(modRoot, "ExternalHelper.dll"), "external");
+        await File.WriteAllTextAsync(Path.Combine(instanceRoot, "hollow_knight.exe"), "game");
+        var record = Instance("practice", instanceRoot);
+        await using var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        SetPrivateField(viewModel, "detailsLoadGeneration", 1L);
+        SetPrivateField(
+            viewModel,
+            "<SelectedInstance>k__BackingField",
+            new InstanceItemViewModel(record, record.BuildId, "Drifted", 0));
+
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+
+        var external = Assert.Single(viewModel.InstalledMods);
+        Assert.True(external.IsExternal);
+        Assert.Null(external.Receipt);
+        Assert.Equal(ModHealthStatus.UnmanagedExternal, external.HealthStatus);
+        Assert.Contains(viewModel.LaunchPreflight.Issues, issue =>
+            issue.Code == LaunchIssueCode.UnmanagedExternalMod
+            && issue.SubjectModId == external.Id);
+        Assert.True(viewModel.HasLaunchIssues);
+        Assert.True(viewModel.LaunchIssueCount > 0);
+    }
+
+    [Fact]
+    public async Task Acknowledging_unchanged_launch_warnings_keeps_red_state_but_allows_normal_launch()
+    {
+        using var test = new TestDirectory();
+        var applicationDataRoot = test.CreateDirectory("app-data");
+        var instanceRoot = test.CreateDirectory("instance");
+        var record = Instance("practice", instanceRoot);
+        var viewModel = new MainViewModel(applicationDataRoot);
+        SetPrivateField(
+            viewModel,
+            "<SelectedInstance>k__BackingField",
+            new InstanceItemViewModel(record, record.BuildId, "Vanilla", 0));
+        viewModel.LaunchPreflight = new LaunchPreflightResult(
+            true,
+            true,
+            true,
+            true,
+            [
+                new LaunchPreflightIssue
+                {
+                    Code = LaunchIssueCode.ModModifiedFile,
+                    Severity = LaunchIssueSeverity.Warning,
+                    SubjectModId = "debugmod",
+                    RelativeFilePath = "Mods/DebugMod.dll",
+                    CurrentFileSha256 = new string('A', 64)
+                }
+            ]);
+
+        Assert.True(viewModel.HasLaunchIssues);
+        Assert.True(viewModel.CanAttemptLaunch);
+        Assert.False(viewModel.CanLaunch);
+
+        await viewModel.AcknowledgeLaunchWarningsCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.HasLaunchIssues);
+        Assert.True(Assert.Single(viewModel.LaunchPreflight.Issues).IsAcknowledged);
+        Assert.True(viewModel.CanLaunch);
+        await viewModel.DisposeAsync();
+        var saved = await CrystalflySettingsStore.LoadAsync(
+            Path.Combine(applicationDataRoot, "settings.json"));
+        Assert.Single(saved.ModHealthAcknowledgements);
+    }
+
+    [Fact]
+    public async Task Absolute_launch_blocker_disables_attempt_and_force_paths()
+    {
+        await using var viewModel = CreateViewModel();
+        SetPrivateField(
+            viewModel,
+            "<SelectedInstance>k__BackingField",
+            new InstanceItemViewModel(
+                Instance("practice", applicationData.CreateDirectory("blocked-instance")),
+                "build-1",
+                "Conflict",
+                0));
+        viewModel.LaunchPreflight = new LaunchPreflightResult(
+            false,
+            false,
+            true,
+            true,
+            [
+                new LaunchPreflightIssue
+                {
+                    Code = LaunchIssueCode.LoaderConflict,
+                    Severity = LaunchIssueSeverity.Blocking
+                }
+            ]);
+
+        Assert.False(viewModel.CanAttemptLaunch);
+        Assert.False(viewModel.CanLaunch);
+        Assert.False(viewModel.LaunchPreflight.CanForceLaunch);
+    }
+
+    [Fact]
+    public async Task Force_launch_bypasses_mod_file_issue_but_normal_launch_does_not()
+    {
+        using var test = new TestDirectory();
+        var applicationDataRoot = test.CreateDirectory("app-data");
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "practice");
+        await File.WriteAllTextAsync(Path.Combine(instanceRoot, "hollow_knight.exe"), "game");
+        var record = Instance("practice", instanceRoot);
+        Directory.CreateDirectory(Path.Combine(
+            versionRoot,
+            ".crystalfly",
+            "instances",
+            record.Id,
+            "local-low"));
+        var receiptsRoot = test.CreateDirectory(
+            "versions",
+            ".crystalfly",
+            "instances",
+            record.Id,
+            "mods");
+        await AtomicJsonStore.WriteAsync(
+            Path.Combine(receiptsRoot, "debugmod.json"),
+            new InstalledModReceipt
+            {
+                Id = "debugmod",
+                Name = "Debug Mod",
+                Version = "1.0.0",
+                LoaderId = "modding-api-77",
+                InstallRoot = "hollow_knight_Data/Managed/Mods/DebugMod",
+                EntryFiles = ["hollow_knight_Data/Managed/Mods/DebugMod/DebugMod.dll"],
+                Files =
+                [
+                    new InstalledFileReceipt
+                    {
+                        RelativePath = "hollow_knight_Data/Managed/Mods/DebugMod/DebugMod.dll",
+                        Sha256 = new string('A', 64)
+                    }
+                ]
+            });
+        var launched = 0;
+        var viewModel = new MainViewModel(
+            applicationDataRoot,
+            () =>
+            {
+                launched++;
+                return Task.CompletedTask;
+            },
+            null,
+            null)
+        {
+            VersionRoot = versionRoot
+        };
+        SetPrivateField(
+            viewModel,
+            "<SelectedInstance>k__BackingField",
+            new InstanceItemViewModel(record, record.BuildId, "Vanilla", 1));
+
+        await viewModel.LaunchGameCommand.ExecuteAsync(null);
+        Assert.Equal(0, launched);
+
+        await viewModel.ForceLaunchGameCommand.ExecuteAsync(null);
+        Assert.Equal(1, launched);
+        Assert.Contains(viewModel.LaunchPreflight.Issues, issue =>
+            issue.Code == LaunchIssueCode.ModCriticalFileMissing
+            && issue.Severity == LaunchIssueSeverity.Forceable);
+        await viewModel.DisposeAsync();
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using Crystalfly.Core.Configuration;
+using Crystalfly.Core.Runtime;
 
 namespace Crystalfly.Core.Tests.Configuration;
 
@@ -24,6 +25,10 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
             Theme = UiTheme.Dark,
             GitHubDownloadRoute = GitHubDownloadRoute.Mirror,
             OfflineMode = true,
+            ModHealthAcknowledgements =
+            [
+                new ModHealthAcknowledgement { Fingerprint = new string('A', 64) }
+            ],
             CustomCatalogs =
             [
                 new CustomCatalogDefinition
@@ -36,8 +41,11 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         await CrystalflySettingsStore.SaveAsync(path, expected);
 
         var actual = await CrystalflySettingsStore.LoadAsync(path);
-        Assert.Equal(expected with { CustomCatalogs = [] }, actual with { CustomCatalogs = [] });
+        Assert.Equal(
+            expected with { CustomCatalogs = [], ModHealthAcknowledgements = [] },
+            actual with { CustomCatalogs = [], ModHealthAcknowledgements = [] });
         Assert.Equal(expected.CustomCatalogs, actual.CustomCatalogs);
+        Assert.Equal(expected.ModHealthAcknowledgements, actual.ModHealthAcknowledgements);
     }
     [Fact]
     public async Task Load_legacy_settings_without_route_uses_direct_GitHub()
@@ -54,6 +62,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
 
         Assert.Equal(GitHubDownloadRoute.Direct, settings.GitHubDownloadRoute);
         Assert.False(settings.OfflineMode);
+        Assert.Empty(settings.ModHealthAcknowledgements);
     }
 
 

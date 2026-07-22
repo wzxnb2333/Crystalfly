@@ -1,4 +1,5 @@
 using Crystalfly.App.ViewModels.Dialogs;
+using Crystalfly.Core.Runtime;
 
 namespace Crystalfly.App.Tests.ViewModels;
 
@@ -99,5 +100,53 @@ public sealed class DialogViewModelTests
         dialog.Close();
 
         Assert.Equal([true, false], results);
+    }
+
+    [Fact]
+    public void Launch_issue_dialog_returns_force_choice_and_warning_acknowledgement()
+    {
+        var dialog = new LaunchIssuesDialogViewModel(
+            "Launch warnings",
+            "Review these issues before launching.",
+            [new LaunchIssueItemViewModel("Modified file", "DebugMod.dll", LaunchIssueSeverity.Warning)],
+            "Force launch",
+            "Cancel",
+            "Do not remind for unchanged warnings",
+            canForceLaunch: true)
+        {
+            DoNotRemind = true
+        };
+        object? result = null;
+        dialog.RequestClose += (_, value) => result = value;
+
+        dialog.ForceLaunchCommand.Execute(null);
+
+        var launchResult = Assert.IsType<LaunchIssuesDialogResult>(result);
+        Assert.True(launchResult.ForceLaunch);
+        Assert.True(launchResult.DoNotRemind);
+    }
+
+    [Fact]
+    public void Launch_issue_dialog_never_forces_absolute_blockers()
+    {
+        var dialog = new LaunchIssuesDialogViewModel(
+            "Launch blocked",
+            "Resolve blocking issues first.",
+            [new LaunchIssueItemViewModel("Loader conflict", string.Empty, LaunchIssueSeverity.Blocking)],
+            "Force launch",
+            "Close",
+            "Do not remind",
+            canForceLaunch: false);
+        object? result = "unchanged";
+        dialog.RequestClose += (_, value) => result = value;
+
+        Assert.False(dialog.ForceLaunchCommand.CanExecute(null));
+        dialog.ForceLaunchCommand.Execute(null);
+        Assert.Equal("unchanged", result);
+
+        dialog.Close();
+        var closeResult = Assert.IsType<LaunchIssuesDialogResult>(result);
+        Assert.False(closeResult.ForceLaunch);
+        Assert.False(closeResult.DoNotRemind);
     }
 }

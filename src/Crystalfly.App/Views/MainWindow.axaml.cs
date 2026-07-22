@@ -26,6 +26,7 @@ public partial class MainWindow : Window
     private Task? disposeBeforeCloseTask;
     private Task? closeConfirmationTask;
     private Task<bool>? marketInstallDialogTask;
+    private Task<LaunchIssuesDialogResult?>? launchIssuesDialogTask;
     private int marketInstallDialogOpening;
     private readonly WindowToastManager toastManager;
     private Action<string>? toastRequestedHandler;
@@ -419,6 +420,112 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void ToggleHoveredModPinned(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel viewModel
+            && sender is Control { DataContext: InstalledModItemViewModel item })
+        {
+            viewModel.SelectedInstalledMod = item;
+            await viewModel.ToggleSelectedModPinnedCommand.ExecuteAsync(null);
+        }
+    }
+
+    private async void TakeOverHoveredInstalledMod(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || sender is not Control { DataContext: InstalledModItemViewModel item })
+        {
+            return;
+        }
+        viewModel.SelectedInstalledMod = item;
+        if (await ShowConfirmationAsync(
+                viewModel.Loc["TakeOverMod"],
+                viewModel.Loc["ExternalModReadOnly"],
+                item.Name,
+                viewModel))
+        {
+            await viewModel.TakeOverSelectedModCommand.ExecuteAsync(null);
+        }
+    }
+
+    private async void RepairHoveredInstalledMod(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel viewModel
+            && sender is Control { DataContext: InstalledModItemViewModel item })
+        {
+            viewModel.SelectedInstalledMod = item;
+            await viewModel.RepairSelectedModCommand.ExecuteAsync(null);
+        }
+    }
+
+    private async void AcceptHoveredLocalModFiles(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || sender is not Control { DataContext: InstalledModItemViewModel item })
+        {
+            return;
+        }
+        viewModel.SelectedInstalledMod = item;
+        if (await ShowConfirmationAsync(
+                viewModel.Loc["AcceptCurrentFiles"],
+                item.HealthDisplayName,
+                item.Name,
+                viewModel))
+        {
+            await viewModel.AcceptSelectedLocalModFilesCommand.ExecuteAsync(null);
+        }
+    }
+
+    private async void ReimportHoveredLocalMod(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || sender is not Control { DataContext: InstalledModItemViewModel item })
+        {
+            return;
+        }
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = viewModel.Loc["ReimportLocalMod"],
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType(viewModel.Loc["Mods"])
+                {
+                    Patterns = ["*.zip", "*.dll"]
+                }
+            ]
+        });
+        var path = files.FirstOrDefault()?.TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+        viewModel.SelectedInstalledMod = item;
+        viewModel.LocalModPath = path;
+        await viewModel.ReimportSelectedLocalModCommand.ExecuteAsync(null);
+    }
+
+    private async void ShowInstalledModHealth(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || sender is not Control { DataContext: InstalledModItemViewModel item })
+        {
+            return;
+        }
+        var report = item.HealthReport;
+        var paths = report.MissingFiles
+            .Concat(report.ModifiedFiles)
+            .Concat(report.ExtraFiles)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        await ShowConfirmationAsync(
+            item.HealthDisplayName,
+            string.IsNullOrWhiteSpace(report.Detail) ? item.HealthDisplayName : report.Detail,
+            paths.Length == 0 ? item.Name : string.Join(Environment.NewLine, paths),
+            viewModel,
+            canConfirm: false);
+    }
+
     private async void ConfirmHoveredModUninstall(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is MainViewModel viewModel
@@ -810,6 +917,70 @@ public partial class MainWindow : Window
             {
                 viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
             }
+        }
+    }
+
+    private async void ConfirmLaunch(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel || !viewModel.CanAttemptLaunch)
+        {
+            return;
+        }
+        if (viewModel.LaunchPreflight.CanLaunchNormally)
+        {
+            await viewModel.LaunchGameCommand.ExecuteAsync(null);
+            return;
+        }
+        await ShowLaunchIssuesAsync(viewModel);
+    }
+
+    private async void ShowLaunchIssues(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel viewModel && viewModel.HasLaunchIssues)
+        {
+            await ShowLaunchIssuesAsync(viewModel);
+        }
+    }
+
+    private async Task ShowLaunchIssuesAsync(MainViewModel viewModel)
+    {
+        if (launchIssuesDialogTask is not null)
+        {
+            await launchIssuesDialogTask;
+            return;
+        }
+        var canForce = viewModel.LaunchPreflight.CanForceLaunch;
+        var dialogViewModel = new LaunchIssuesDialogViewModel(
+            canForce ? viewModel.Loc["LaunchWarningTitle"] : viewModel.Loc["LaunchBlockedTitle"],
+            canForce ? viewModel.Loc["LaunchWarningMessage"] : viewModel.Loc["LaunchBlocked"],
+            viewModel.CreateLaunchIssueItems(),
+            viewModel.Loc["ForceLaunch"],
+            viewModel.Loc["Cancel"],
+            viewModel.Loc["DoNotRemindLaunchWarnings"],
+            canForce);
+        try
+        {
+            launchIssuesDialogTask = OverlayDialog.ShowCustomAsync<
+                LaunchIssuesDialogView,
+                LaunchIssuesDialogViewModel,
+                LaunchIssuesDialogResult>(
+                dialogViewModel,
+                OverlayHostId,
+                CreateOverlayOptions());
+            var result = await launchIssuesDialogTask;
+            if (result is null || !result.ForceLaunch)
+            {
+                return;
+            }
+            if (result.DoNotRemind)
+            {
+                await viewModel.AcknowledgeLaunchWarningsCommand.ExecuteAsync(null);
+            }
+            await viewModel.ForceLaunchGameCommand.ExecuteAsync(null);
+        }
+        finally
+        {
+            launchIssuesDialogTask = null;
         }
     }
 

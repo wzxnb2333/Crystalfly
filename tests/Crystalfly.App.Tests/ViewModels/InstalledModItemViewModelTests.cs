@@ -87,6 +87,82 @@ public sealed class InstalledModItemViewModelTests
         Assert.True(item.Matches("Local Helper", ModStatusFilter.Local));
     }
 
+    [Fact]
+    public void External_mod_is_read_only_and_can_be_taken_over()
+    {
+        var discovery = new ModDiscoveryEntry
+        {
+            Id = "external-helper",
+            Name = "External Helper",
+            LoaderId = "modding-api-77",
+            InstallRoot = "hollow_knight_Data/Managed/Mods/ExternalHelper",
+            Ownership = ModOwnership.External,
+            Files = ["hollow_knight_Data/Managed/Mods/ExternalHelper/ExternalHelper.dll"],
+            EntryFiles = ["hollow_knight_Data/Managed/Mods/ExternalHelper/ExternalHelper.dll"]
+        };
+        var item = new InstalledModItemViewModel(
+            discovery,
+            null,
+            new ModHealthReport
+            {
+                ModId = discovery.Id,
+                Status = ModHealthStatus.UnmanagedExternal
+            },
+            null,
+            static () => { });
+
+        Assert.Null(item.Receipt);
+        Assert.True(item.IsExternal);
+        Assert.True(item.IsReadOnly);
+        Assert.True(item.CanTakeOver);
+        Assert.False(item.CanToggle);
+        Assert.False(item.CanUpdate);
+        Assert.False(item.CanUninstall);
+        Assert.True(item.Matches("External Helper", ModStatusFilter.External));
+        Assert.True(item.Matches("UnmanagedExternal", ModStatusFilter.NeedsAttention));
+    }
+
+    [Fact]
+    public void Pinned_managed_mod_exposes_health_and_blocks_uninstall()
+    {
+        var receipt = Receipt("debugmod", "1.0.0", enabled: true) with
+        {
+            Pinned = true,
+            Ownership = ModOwnership.Managed
+        };
+        var discovery = new ModDiscoveryEntry
+        {
+            Id = receipt.Id,
+            Name = receipt.Name,
+            LoaderId = receipt.LoaderId,
+            InstallRoot = receipt.InstallRoot,
+            Enabled = receipt.Enabled,
+            Ownership = receipt.Ownership,
+            Files = receipt.Files.Select(file => file.RelativePath).ToArray(),
+            EntryFiles = receipt.EntryFiles
+        };
+        var item = new InstalledModItemViewModel(
+            discovery,
+            receipt,
+            new ModHealthReport
+            {
+                ModId = receipt.Id,
+                Status = ModHealthStatus.ModifiedFile,
+                ModifiedFiles = ["Mods/DebugMod/DebugMod.dll"]
+            },
+            Manifest("debugmod", "1.0.0"),
+            static () => { });
+
+        Assert.True(item.IsPinned);
+        Assert.True(item.HasHealthIssue);
+        Assert.Equal(ModHealthStatus.ModifiedFile, item.HealthStatus);
+        Assert.True(item.CanToggle);
+        Assert.True(item.CanRepair);
+        Assert.False(item.CanUninstall);
+        Assert.True(item.Matches(string.Empty, ModStatusFilter.Pinned));
+        Assert.True(item.Matches("ModifiedFile", ModStatusFilter.NeedsAttention));
+    }
+
     [Theory]
     [InlineData("debug", ModStatusFilter.All, true)]
     [InlineData("missing", ModStatusFilter.All, false)]

@@ -118,6 +118,11 @@
         <Grid>
             <!-- Launch -->
             <Grid IsVisible="{Binding IsLaunchPage}" ColumnDefinitions="224,*">
+                <Border Grid.ColumnSpan="2"
+                        Classes="cfp-launch-issue-frame"
+                        IsHitTestVisible="False"
+                        IsVisible="{Binding HasLaunchIssues}"
+                        ZIndex="100" />
                 <Border Grid.Column="0" Classes="cfp-rail" Padding="16">
                     <Grid RowDefinitions="Auto,*,Auto">
                         <StackPanel Grid.Row="0" Spacing="12" HorizontalAlignment="Stretch">
@@ -153,8 +158,8 @@
                             <Button Classes="cfp-primary"
                                      HorizontalAlignment="Stretch"
                                      HorizontalContentAlignment="Center"
-                                     Command="{Binding LaunchGameCommand}"
-                                     IsEnabled="{Binding CanLaunch}">
+                                     Click="ConfirmLaunch"
+                                     IsEnabled="{Binding CanAttemptLaunch}">
                                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                                     <LucideIcon Kind="Play" Size="16" />
                                     <TextBlock Text="{Binding Loc[LaunchGame]}" />
@@ -196,12 +201,25 @@
                                 <TextBlock Classes="cfp-page-title" Text="{Binding LaunchReadinessTitle}" />
                                 <TextBlock Classes="cfp-meta" Text="{Binding LaunchReadinessHint}" TextWrapping="Wrap" />
                             </StackPanel>
-                            <Border Grid.Column="1" Classes="cfp-badge" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding StatusMessage}"
-                                           Foreground="{DynamicResource CfAccentTextBrush}"
-                                           FontSize="13"
-                                           FontWeight="SemiBold" />
-                            </Border>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <Button Classes="cfp-secondary"
+                                        Click="ShowLaunchIssues"
+                                        IsVisible="{Binding HasLaunchIssues}"
+                                        AutomationProperties.Name="{Binding Loc[LaunchIssues]}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <LucideIcon Kind="TriangleAlert" Size="15" Foreground="{DynamicResource CfErrorBrush}" />
+                                        <TextBlock Text="{Binding LaunchIssueCountText}"
+                                                   Foreground="{DynamicResource CfErrorBrush}"
+                                                   FontWeight="SemiBold" />
+                                    </StackPanel>
+                                </Button>
+                                <Border Classes="cfp-badge">
+                                    <TextBlock Text="{Binding StatusMessage}"
+                                               Foreground="{DynamicResource CfAccentTextBrush}"
+                                               FontSize="13"
+                                               FontWeight="SemiBold" />
+                                </Border>
+                            </StackPanel>
                         </Grid>
 
                         <u:Skeleton IsLoading="{Binding IsLoadingInstanceDetails}"
@@ -213,6 +231,11 @@
                                         <TextBlock Classes="cfp-section-title" Text="{Binding SelectedInstance.Name}" />
                                         <TextBlock Classes="cfp-meta" Text="{Binding SelectedInstance.RootPath}" TextWrapping="Wrap" />
                                     </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Classes="cfp-secondary"
+                                            Click="ShowLaunchIssues"
+                                            IsVisible="{Binding HasLaunchIssues}"
+                                            Content="{Binding Loc[ViewDetails]}" />
                                 </Grid>
 
                                 <WrapPanel Orientation="Horizontal">
@@ -749,12 +772,20 @@
                                 <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
                             </ComboBox>
                         </Grid>
-                        <Border Grid.Row="2" Classes="cfp-error" IsVisible="{Binding HasModDependencyProblems}">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                <TextBlock Text="{Binding Loc[DependencyProblem]}" VerticalAlignment="Center" />
-                                <Button Grid.Column="1" Classes="cfp-secondary" Click="ConfirmRepairDependencies" Content="{Binding Loc[RepairDependencies]}" />
-                            </Grid>
-                        </Border>
+                        <StackPanel Grid.Row="2" Spacing="6">
+                            <Border Classes="cfp-error" IsVisible="{Binding HasModDependencyProblems}">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <TextBlock Text="{Binding Loc[DependencyProblem]}" VerticalAlignment="Center" />
+                                    <Button Grid.Column="1" Classes="cfp-secondary" Click="ConfirmRepairDependencies" Content="{Binding Loc[RepairDependencies]}" />
+                                </Grid>
+                            </Border>
+                            <Border Classes="cfp-card" Padding="10,7" IsVisible="{Binding HasUnusedDependencySuggestions}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <LucideIcon Kind="Info" Size="15" />
+                                    <TextBlock Classes="cfp-meta" Text="{Binding UnusedDependencySummary}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                         <Border Grid.Row="3" Classes="cfp-list-frame">
                             <ListBox x:Name="InstalledModsList" Classes="cfp-list cfp-installed-mod-list" ItemsSource="{Binding VisibleInstalledMods}" SelectedItem="{Binding SelectedInstalledMod, Mode=TwoWay}" KeyDown="OnInstalledModsKeyDown">
                                 <ListBox.ItemTemplate>
@@ -766,13 +797,22 @@
                                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                                     <TextBlock Classes="cfp-meta" Text="{Binding SecondaryName}" IsVisible="{Binding HasSecondaryName}" TextTrimming="CharacterEllipsis" />
                                                     <TextBlock Classes="cfp-meta" Text="{Binding Version}" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Classes="cfp-meta" Text="{Binding OwnershipDisplayName}" />
+                                                    <TextBlock Classes="cfp-meta" Text="{Binding HealthDisplayName}" />
+                                                    <TextBlock Classes="cfp-meta" Text="{Binding #Root.DataContext.Loc[Pinned]}" IsVisible="{Binding IsPinned}" />
                                                 </StackPanel>
                                             </StackPanel>
                                             <StackPanel Grid.Column="2" Classes="cfp-installed-mod-actions" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
                                                 <Button Classes="cfp-icon cfp-mod-action" Click="OpenInstalledModInfo" IsVisible="{Binding HasCatalogManifest}" ToolTip.Tip="{Binding #Root.DataContext.Loc[Information]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[Information]}" Content="{LucideIconContent Info, 15}" />
                                                 <Button Classes="cfp-icon cfp-mod-action" Click="OpenInstalledModFolder" ToolTip.Tip="{Binding #Root.DataContext.Loc[OpenFolder]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[OpenFolder]}" Content="{LucideIconContent FolderOpen, 15}" />
-                                                <Button Classes="cfp-icon cfp-mod-action" Click="ToggleHoveredInstalledMod" ToolTip.Tip="{Binding #Root.DataContext.Loc[EnableDisable]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[EnableDisable]}" Content="{LucideIconContent Power, 15}" />
-                                                <Button Classes="cfp-icon cfp-mod-action danger" Click="ConfirmHoveredModUninstall" ToolTip.Tip="{Binding #Root.DataContext.Loc[Uninstall]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[Uninstall]}" Content="{LucideIconContent Trash2, 15}" />
+                                                <Button Classes="cfp-icon cfp-mod-action" Click="ShowInstalledModHealth" IsVisible="{Binding HasHealthIssue}" ToolTip.Tip="{Binding HealthDisplayName}" AutomationProperties.Name="{Binding HealthDisplayName}" Content="{LucideIconContent ShieldAlert, 15}" />
+                                                <Button Classes="cfp-icon cfp-mod-action" Click="TakeOverHoveredInstalledMod" IsVisible="{Binding CanTakeOver}" ToolTip.Tip="{Binding #Root.DataContext.Loc[TakeOverMod]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[TakeOverMod]}" Content="{LucideIconContent Import, 15}" />
+                                                <Button Classes="cfp-icon cfp-mod-action" Click="RepairHoveredInstalledMod" IsVisible="{Binding CanRepair}" ToolTip.Tip="{Binding #Root.DataContext.Loc[RepairMod]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[RepairMod]}" Content="{LucideIconContent Wrench, 15}" />
+                                                <Button Classes="cfp-icon cfp-mod-action" Click="AcceptHoveredLocalModFiles" IsVisible="{Binding CanAcceptCurrent}" ToolTip.Tip="{Binding #Root.DataContext.Loc[AcceptCurrentFiles]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[AcceptCurrentFiles]}" Content="{LucideIconContent FileCheck, 15}" />
+                                                <Button Classes="cfp-icon cfp-mod-action" Click="ReimportHoveredLocalMod" IsVisible="{Binding CanReimport}" ToolTip.Tip="{Binding #Root.DataContext.Loc[ReimportLocalMod]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[ReimportLocalMod]}" Content="{LucideIconContent PackageOpen, 15}" />
+                                                <Button Classes="cfp-icon cfp-mod-action" Click="ToggleHoveredModPinned" IsVisible="{Binding CanPin}" ToolTip.Tip="{Binding #Root.DataContext.Loc[PinMod]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[PinMod]}" Content="{LucideIconContent Pin, 15}" />
+                                                <Button Classes="cfp-icon cfp-mod-action" Click="ToggleHoveredInstalledMod" IsVisible="{Binding CanToggle}" ToolTip.Tip="{Binding #Root.DataContext.Loc[EnableDisable]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[EnableDisable]}" Content="{LucideIconContent Power, 15}" />
+                                                <Button Classes="cfp-icon cfp-mod-action danger" Click="ConfirmHoveredModUninstall" IsVisible="{Binding CanUninstall}" ToolTip.Tip="{Binding #Root.DataContext.Loc[Uninstall]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[Uninstall]}" Content="{LucideIconContent Trash2, 15}" />
                                             </StackPanel>
                                         </Grid>
                                     </DataTemplate>
@@ -1441,6 +1481,20 @@
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
                                 </StackPanel>
+                            </Grid>
+                        </Border>
+                        <Border Classes="cfp-card">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Classes="cfp-row-title" Text="{Binding Loc[OfflineMode]}" />
+                                    <TextBlock Classes="cfp-caption"
+                                               Text="{Binding Loc[OfflineModeHint]}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <CheckBox Grid.Column="1"
+                                          VerticalAlignment="Center"
+                                          Content="{Binding Loc[OfflineMode]}"
+                                          IsChecked="{Binding IsOfflineMode, Mode=TwoWay}" />
                             </Grid>
                         </Border>
                         <Border Classes="cfp-card cfp-github-route-card">

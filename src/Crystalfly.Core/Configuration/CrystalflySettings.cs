@@ -1,3 +1,5 @@
+using Crystalfly.Core.Runtime;
+
 namespace Crystalfly.Core.Configuration;
 
 public enum UiLanguage
@@ -37,6 +39,8 @@ public sealed record CrystalflySettings
     public GitHubDownloadRoute GitHubDownloadRoute { get; init; } = GitHubDownloadRoute.Direct;
 
     public bool OfflineMode { get; init; }
+
+    public IReadOnlyList<ModHealthAcknowledgement> ModHealthAcknowledgements { get; init; } = [];
 
     public IReadOnlyList<CustomCatalogDefinition> CustomCatalogs { get; init; } = [];
 }

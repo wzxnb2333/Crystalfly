@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Crystalfly.App.ViewModels.Dialogs"
+             xmlns:converters="using:Avalonia.Data.Converters"
+             xmlns:u="https://irihi.tech/ursa"
+             x:Class="Crystalfly.App.Views.Dialogs.LaunchIssuesDialogView"
+             x:DataType="vm:LaunchIssuesDialogViewModel"
+             MinWidth="440"
+             MaxWidth="620">
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+    </UserControl.KeyBindings>
+
+    <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="14">
+        <TextBlock Grid.Row="0"
+                   Classes="cfp-section-title"
+                   Text="{Binding Title}"
+                   TextWrapping="Wrap" />
+        <TextBlock Grid.Row="1"
+                   Text="{Binding Message}"
+                   TextWrapping="Wrap" />
+        <ScrollViewer Grid.Row="2" MaxHeight="320" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Issues}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:LaunchIssueItemViewModel">
+                        <Border Classes="cfp-divider-row" Padding="10,9">
+                            <Grid ColumnDefinitions="20,*" ColumnSpacing="9">
+                                <Grid>
+                                    <LucideIcon Kind="CircleX"
+                                                Size="16"
+                                                Foreground="{DynamicResource CfErrorBrush}"
+                                                IsVisible="{Binding IsBlocking}" />
+                                    <LucideIcon Kind="TriangleAlert"
+                                                Size="16"
+                                                Foreground="{DynamicResource CfErrorBrush}"
+                                                IsVisible="{Binding IsForceable}" />
+                                    <LucideIcon Kind="TriangleAlert"
+                                                Size="16"
+                                                Foreground="{DynamicResource CfAccentBrush}"
+                                                IsVisible="{Binding IsWarning}" />
+                                </Grid>
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock Classes="cfp-row-title" Text="{Binding Title}" TextWrapping="Wrap" />
+                                    <TextBlock Classes="cfp-meta"
+                                               Text="{Binding Detail}"
+                                               TextWrapping="Wrap"
+                                               IsVisible="{Binding Detail, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+        <CheckBox Grid.Row="3"
+                  Content="{Binding DoNotRemindText}"
+                  IsChecked="{Binding DoNotRemind, Mode=TwoWay}"
+                  IsVisible="{Binding ShowDoNotRemind}" />
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Classes="cfp-secondary"
+                    Command="{Binding CancelCommand}"
+                    Content="{Binding CancelText}"
+                    MinWidth="96"
+                    u:FocusHelper.DialogFocusHint="True"
+                    AutomationProperties.Name="{Binding CancelText}" />
+            <Button Classes="cfp-danger"
+                    Command="{Binding ForceLaunchCommand}"
+                    Content="{Binding ForceLaunchText}"
+                    IsVisible="{Binding CanForceLaunch}"
+                    MinWidth="112"
+                    AutomationProperties.Name="{Binding ForceLaunchText}" />
+        </StackPanel>
+    </Grid>
+</UserControl>
