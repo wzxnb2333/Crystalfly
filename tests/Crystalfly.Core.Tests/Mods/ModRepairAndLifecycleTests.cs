@@ -133,6 +133,119 @@ public sealed class ModRepairAndLifecycleTests : IDisposable
         Assert.Empty(await manager.GetInstalledAsync());
     }
 
+    [Fact]
+    public async Task Local_accept_rejects_dot_segment_additions_outside_the_owned_root()
+    {
+        var manager = CreateManager();
+        var package = CreateZip(("local.dll", "local"));
+        await manager.ImportLocalZipAsync("local", "Local", "modding-api-77", package);
+        var outside = Path.Combine(InstanceRoot, "hollow_knight_Data", "Managed", "outside.dll");
+        await File.WriteAllTextAsync(outside, "outside");
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => manager.AcceptCurrentLocalFilesAsync(
+            "local",
+            ["hollow_knight_Data/Managed/Mods/Local/../../outside.dll"]));
+
+        Assert.Equal("outside", await File.ReadAllTextAsync(outside));
+        Assert.Single((await manager.GetInstalledAsync()).Single().Files);
+    }
+
+    [Theory]
+    [InlineData("hollow_knight_Data/Managed/Mods", "modding-api-60", true)]
+    [InlineData("hollow_knight_Data/Managed/Mods/Disabled", "modding-api-60", false)]
+    [InlineData("BepInEx/plugins", "bepinex-5.4.23.4", true)]
+    [InlineData("BepInEx/Disabled", "bepinex-5.4.23.4", false)]
+    public async Task Local_accept_in_shared_roots_uses_only_receipt_and_explicit_additions(
+        string sharedRoot,
+        string loaderId,
+        bool enabled)
+    {
+        var manager = CreateManager();
+        var ownedPath = $"{sharedRoot}/owned.dll";
+        var additionalPath = $"{sharedRoot}/additional.dll";
+        await WriteInstanceFileAsync(ownedPath, "owned");
+        await WriteInstanceFileAsync(additionalPath, "additional");
+        var external = new ModDiscoveryEntry
+        {
+            Id = "owned",
+            Name = "Owned",
+            LoaderId = loaderId,
+            InstallRoot = sharedRoot,
+            Enabled = enabled,
+            Ownership = ModOwnership.External,
+            Files = [ownedPath],
+            EntryFiles = [ownedPath]
+        };
+        await manager.TakeOverAsync("owned", external);
+
+        var accepted = await manager.AcceptCurrentLocalFilesAsync("owned");
+
+        Assert.Equal([ownedPath], accepted.Files.Select(file => file.RelativePath));
+
+        accepted = await manager.AcceptCurrentLocalFilesAsync("owned", [additionalPath]);
+
+        Assert.Equal(
+            [additionalPath, ownedPath],
+            accepted.Files.Select(file => file.RelativePath).Order(StringComparer.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RemoveLocal_tolerates_modified_and_missing_files(bool missing)
+    {
+        var manager = CreateManager();
+        var package = CreateZip(("local.dll", "local"));
+        await manager.ImportLocalZipAsync("local", "Local", "modding-api-77", package);
+        var installedPath = Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "Local", "local.dll");
+        if (missing)
+        {
+            File.Delete(installedPath);
+        }
+        else
+        {
+            await File.WriteAllTextAsync(installedPath, "modified");
+        }
+
+        await manager.RemoveLocalAsync("local");
+
+        Assert.False(File.Exists(installedPath));
+        Assert.Empty(await manager.GetInstalledAsync());
+    }
+
+    [Fact]
+    public async Task RemoveLocal_rejects_dot_segment_receipt_paths_outside_the_owned_root()
+    {
+        var manager = CreateManager();
+        var outsidePath = "hollow_knight_Data/Managed/Mods/Local/../../outside.dll";
+        await AddReceiptAsync(new InstalledModReceipt
+        {
+            Id = "local",
+            Name = "Local",
+            Version = "local",
+            LoaderId = "modding-api-77",
+            InstallRoot = "hollow_knight_Data/Managed/Mods/Local",
+            IsLocal = true,
+            Ownership = ModOwnership.LocalTakenOver,
+            Files =
+            [
+                new InstalledFileReceipt
+                {
+                    RelativePath = outsidePath,
+                    Sha256 = new string('0', 64)
+                }
+            ]
+        });
+        var resolvedOutside = Path.Combine(
+            InstanceRoot, "hollow_knight_Data", "Managed", "outside.dll");
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => manager.RemoveLocalAsync("local"));
+
+        Assert.True(File.Exists(resolvedOutside));
+        Assert.Single(await manager.GetInstalledAsync());
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(root))
@@ -168,6 +281,13 @@ public sealed class ModRepairAndLifecycleTests : IDisposable
         Directory.CreateDirectory(receiptsRoot);
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(receipt.Id)));
         await AtomicJsonStore.WriteAsync(Path.Combine(receiptsRoot, $"{hash}.json"), completed);
+    }
+
+    private async Task WriteInstanceFileAsync(string relativePath, string content)
+    {
+        var path = Path.Combine(InstanceRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllTextAsync(path, content);
     }
 
     private static InstalledModReceipt Receipt(

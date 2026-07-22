@@ -5,11 +5,11 @@ namespace Crystalfly.Core.Mods;
 
 public sealed class ModHealthService
 {
-    private readonly string instanceRoot;
+    private readonly ModPathPolicy pathPolicy;
 
     public ModHealthService(string instanceRoot)
     {
-        this.instanceRoot = Path.GetFullPath(instanceRoot);
+        pathPolicy = new ModPathPolicy(instanceRoot);
     }
 
     public async Task<ModHealthReport> AssessAsync(
@@ -26,46 +26,78 @@ public sealed class ModHealthService
 
         try
         {
+            var installRoot = pathPolicy.ResolveUnderInstance(receipt.InstallRoot);
+            pathPolicy.EnsureNoReparsePoints(installRoot.FullPath);
             var missing = new List<string>();
             var modified = new List<string>();
+            var currentFileSha256ByPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var file in receipt.Files)
             {
-                var path = ResolveUnderRoot(file.RelativePath);
-                if (!File.Exists(path))
+                var path = pathPolicy.ResolveUnderOwnedRoot(file.RelativePath, installRoot);
+                pathPolicy.EnsureNoReparsePoints(path.FullPath);
+                if (!File.Exists(path.FullPath))
                 {
                     missing.Add(file.RelativePath);
                 }
-                else if (!string.Equals(
-                    file.Sha256, await HashFileAsync(path, cancellationToken), StringComparison.OrdinalIgnoreCase))
+                else
                 {
-                    modified.Add(file.RelativePath);
+                    string currentSha256 = await HashFileAsync(path.FullPath, cancellationToken);
+                    currentFileSha256ByPath[path.RelativePath] = currentSha256;
+                    if (!string.Equals(file.Sha256, currentSha256, StringComparison.OrdinalIgnoreCase))
+                    {
+                        modified.Add(file.RelativePath);
+                    }
                 }
             }
             if (missing.Count != 0)
             {
-                return Report(receipt.Id, ModHealthStatus.CriticalFileMissing, missing: missing);
+                return Report(
+                    receipt.Id,
+                    ModHealthStatus.CriticalFileMissing,
+                    missing: missing,
+                    currentFileSha256ByPath: currentFileSha256ByPath);
             }
             if (modified.Count != 0)
             {
-                return Report(receipt.Id, ModHealthStatus.ModifiedFile, modified: modified);
+                return Report(
+                    receipt.Id,
+                    ModHealthStatus.ModifiedFile,
+                    modified: modified,
+                    currentFileSha256ByPath: currentFileSha256ByPath);
             }
 
             var owned = installed.SelectMany(mod => mod.Files)
                 .Select(file => Normalize(file.RelativePath))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var normalizedInstallRoot = Normalize(receipt.InstallRoot).TrimEnd('/');
-            var sharedFlatRoot = SharedRoots.Contains(normalizedInstallRoot);
-            var installRoot = ResolveUnderRoot(receipt.InstallRoot);
-            var extra = !sharedFlatRoot && Directory.Exists(installRoot)
-                ? Directory.EnumerateFiles(installRoot, "*", SearchOption.AllDirectories)
-                    .Select(path => Normalize(Path.GetRelativePath(instanceRoot, path)))
+            var extraFiles = !pathPolicy.IsSharedRoot(installRoot) && Directory.Exists(installRoot.FullPath)
+                ? pathPolicy.EnumerateFilesSafely(
+                    installRoot.FullPath,
+                    rejectReparsePoints: true)
+                : [];
+            var extra = extraFiles.Count != 0
+                ? extraFiles
+                    .Select(pathPolicy.ToRelativePath)
                     .Where(path => !owned.Contains(path))
                     .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
                     .ToArray()
                 : [];
+            foreach (string relativePath in extra)
+            {
+                var extraPath = pathPolicy.ResolveUnderOwnedRoot(relativePath, installRoot);
+                currentFileSha256ByPath[relativePath] = await HashFileAsync(
+                    extraPath.FullPath,
+                    cancellationToken);
+            }
             return extra.Length == 0
-                ? Report(receipt.Id, ModHealthStatus.Healthy)
-                : Report(receipt.Id, ModHealthStatus.ExtraFile, extra: extra);
+                ? Report(
+                    receipt.Id,
+                    ModHealthStatus.Healthy,
+                    currentFileSha256ByPath: currentFileSha256ByPath)
+                : Report(
+                    receipt.Id,
+                    ModHealthStatus.ExtraFile,
+                    extra: extra,
+                    currentFileSha256ByPath: currentFileSha256ByPath);
         }
         catch (Exception exception) when (exception is IOException
             or UnauthorizedAccessException
@@ -91,6 +123,7 @@ public sealed class ModHealthService
         IReadOnlyList<string>? missing = null,
         IReadOnlyList<string>? modified = null,
         IReadOnlyList<string>? extra = null,
+        IReadOnlyDictionary<string, string>? currentFileSha256ByPath = null,
         string? detail = null) => new()
         {
             ModId = id,
@@ -98,19 +131,10 @@ public sealed class ModHealthService
             MissingFiles = missing ?? [],
             ModifiedFiles = modified ?? [],
             ExtraFiles = extra ?? [],
+            CurrentFileSha256ByPath = currentFileSha256ByPath
+                ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
             Detail = detail
         };
-
-    private string ResolveUnderRoot(string relativePath)
-    {
-        var path = Path.GetFullPath(Path.Combine(
-            instanceRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
-        if (!path.StartsWith(instanceRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidDataException($"Path escapes the instance root: '{relativePath}'.");
-        }
-        return path;
-    }
 
     private static async Task<string> HashFileAsync(string path, CancellationToken cancellationToken)
     {
@@ -122,12 +146,4 @@ public sealed class ModHealthService
 
     private static string Normalize(string path) => path.Replace('\\', '/');
 
-    private static readonly IReadOnlySet<string> SharedRoots = new HashSet<string>(
-        [
-            "hollow_knight_Data/Managed/Mods",
-            "hollow_knight_Data/Managed/Mods/Disabled",
-            "BepInEx/plugins",
-            "BepInEx/Disabled"
-        ],
-        StringComparer.OrdinalIgnoreCase);
 }

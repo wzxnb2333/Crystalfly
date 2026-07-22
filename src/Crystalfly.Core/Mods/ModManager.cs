@@ -360,53 +360,50 @@ public sealed class ModManager
 
         var installed = await GetInstalledAsync(cancellationToken);
         EnsureCanInstall(id, [], installed);
-        var normalizedRoot = Normalize(external.InstallRoot);
-        if (!IsRecognizedModPath(normalizedRoot))
-        {
-            throw new InvalidDataException($"Mod install root is not recognized: '{external.InstallRoot}'.");
-        }
-        EnsureNoReparsePoints(normalizedRoot);
+        var pathPolicy = new ModPathPolicy(_instanceRoot);
+        var installRoot = pathPolicy.ResolveRecognized(external.InstallRoot);
+        pathPolicy.EnsureNoReparsePoints(installRoot.FullPath);
 
-        var placements = external.Files.Select(GetEnabledPlacement).Distinct().ToArray();
+        var resolvedFiles = external.Files
+            .Select(path => pathPolicy.ResolveUnderInstallRoot(path, installRoot))
+            .ToArray();
+        var placements = resolvedFiles.Select(pathPolicy.GetEnabledPlacement).Distinct().ToArray();
         if (placements.Length != 1 || placements[0] != external.Enabled)
         {
             throw new InvalidDataException("External mod files use inconsistent enabled or disabled placement.");
         }
-        var normalizedFiles = external.Files.Select(Normalize)
+        var normalizedFiles = resolvedFiles.Select(path => path.RelativePath)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        if (normalizedFiles.Any(path =>
-                !IsRecognizedModPath(path) || !IsAtOrUnderRelative(path, normalizedRoot)))
-        {
-            throw new InvalidDataException("External mod files must stay under one recognized install root.");
-        }
-        var alreadyOwned = installed.SelectMany(receipt => receipt.Files)
-            .Select(file => file.RelativePath)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var alreadyOwned = GetOwnedPathsByOtherMods(pathPolicy, installed, currentId: null);
         if (normalizedFiles.Any(alreadyOwned.Contains))
         {
             throw new InvalidOperationException("One or more external mod files already belong to another receipt.");
         }
 
         var files = new List<InstalledFileReceipt>(normalizedFiles.Length);
-        foreach (var relativePath in normalizedFiles)
+        foreach (var resolvedFile in resolvedFiles)
         {
-            EnsureNoReparsePoints(relativePath);
-            var path = ResolveUnderRoot(_instanceRoot, relativePath);
-            if (!File.Exists(path))
+            pathPolicy.EnsureNoReparsePoints(resolvedFile.FullPath);
+            if (!File.Exists(resolvedFile.FullPath))
             {
-                throw new FileNotFoundException("External mod file was not found.", path);
+                throw new FileNotFoundException("External mod file was not found.", resolvedFile.FullPath);
             }
             files.Add(new InstalledFileReceipt
             {
-                RelativePath = relativePath,
-                Sha256 = await HashFileAsync(path, cancellationToken)
+                RelativePath = resolvedFile.RelativePath,
+                Sha256 = await HashFileAsync(resolvedFile.FullPath, cancellationToken)
             });
         }
         var fileSet = normalizedFiles.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var entryFiles = external.EntryFiles.Select(Normalize)
-            .Where(fileSet.Contains)
+        var entryFiles = external.EntryFiles
+            .Select(path => pathPolicy.ResolveUnderInstallRoot(path, installRoot).RelativePath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+        if (entryFiles.Any(path => !fileSet.Contains(path)))
+        {
+            throw new InvalidDataException("External mod entry files must belong to the takeover file set.");
+        }
         if (entryFiles.Length == 0)
         {
             entryFiles = EntryFiles(files);
@@ -417,7 +414,7 @@ public sealed class ModManager
             Name = external.Name,
             Version = "local",
             LoaderId = external.LoaderId,
-            InstallRoot = normalizedRoot,
+            InstallRoot = installRoot.RelativePath,
             Enabled = external.Enabled,
             IsLocal = true,
             Ownership = ModOwnership.LocalTakenOver,
@@ -451,13 +448,13 @@ public sealed class ModManager
         var installed = await GetInstalledAsync(cancellationToken);
         var current = Find(installed, id);
         EnsureLocal(current);
-        var sharedRoot = installed.Any(receipt =>
+        var pathPolicy = new ModPathPolicy(_instanceRoot);
+        var installRoot = pathPolicy.ResolveRecognized(current.InstallRoot);
+        pathPolicy.EnsureNoReparsePoints(installRoot.FullPath);
+        var sharedRoot = pathPolicy.IsSharedRoot(installRoot)
+            || installed.Any(receipt =>
                 !string.Equals(receipt.Id, current.Id, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(receipt.InstallRoot, current.InstallRoot, StringComparison.OrdinalIgnoreCase))
-            || string.Equals(
-                Normalize(current.InstallRoot).TrimEnd('/'),
-                "hollow_knight_Data/Managed/Mods",
-                StringComparison.OrdinalIgnoreCase);
+                && string.Equals(receipt.InstallRoot, current.InstallRoot, StringComparison.OrdinalIgnoreCase));
         IEnumerable<string> currentPaths;
         if (sharedRoot)
         {
@@ -465,15 +462,14 @@ public sealed class ModManager
         }
         else
         {
-            var installRoot = ResolveUnderRoot(_instanceRoot, current.InstallRoot);
-            currentPaths = Directory.Exists(installRoot)
-                ? Directory.EnumerateFiles(installRoot, "*", SearchOption.AllDirectories)
-                    .Select(path => Normalize(Path.GetRelativePath(_instanceRoot, path)))
-                : [];
+            currentPaths = pathPolicy.EnumerateFilesSafely(
+                    installRoot.FullPath,
+                    rejectReparsePoints: true)
+                .Select(pathPolicy.ToRelativePath);
         }
         var paths = currentPaths.Concat(additionalRelativePaths ?? [])
-            .Select(Normalize)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(path => pathPolicy.ResolveUnderInstallRoot(path, installRoot))
+            .DistinctBy(path => path.RelativePath, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         if (paths.Length == 0)
         {
@@ -481,22 +477,23 @@ public sealed class ModManager
         }
 
         var files = new List<InstalledFileReceipt>(paths.Length);
-        foreach (var relativePath in paths)
+        var ownedByOtherMods = GetOwnedPathsByOtherMods(pathPolicy, installed, current.Id);
+        foreach (var resolvedPath in paths)
         {
-            if (!IsAtOrUnderRelative(relativePath, current.InstallRoot))
+            if (ownedByOtherMods.Contains(resolvedPath.RelativePath))
             {
                 throw new InvalidDataException(
-                    $"Accepted local mod file escapes its install root: '{relativePath}'.");
+                    $"Accepted local mod file belongs to another receipt: '{resolvedPath.RelativePath}'.");
             }
-            var path = ResolveUnderRoot(_instanceRoot, relativePath);
-            if (!File.Exists(path))
+            pathPolicy.EnsureNoReparsePoints(resolvedPath.FullPath);
+            if (!File.Exists(resolvedPath.FullPath))
             {
                 continue;
             }
             files.Add(new InstalledFileReceipt
             {
-                RelativePath = relativePath,
-                Sha256 = await HashFileAsync(path, cancellationToken)
+                RelativePath = resolvedPath.RelativePath,
+                Sha256 = await HashFileAsync(resolvedPath.FullPath, cancellationToken)
             });
         }
         if (files.Count == 0)
@@ -519,8 +516,44 @@ public sealed class ModManager
         string id,
         CancellationToken cancellationToken = default)
     {
-        EnsureLocal(Find(await GetInstalledAsync(cancellationToken), id));
-        await UninstallAsync(id, cancellationToken);
+        var installed = await GetInstalledAsync(cancellationToken);
+        var receipt = Find(installed, id);
+        EnsureLocal(receipt);
+        if (receipt.Pinned)
+        {
+            throw new InvalidOperationException($"Pinned mod '{receipt.Id}' must be unpinned before uninstalling.");
+        }
+        EnsureNoDependents(installed, id);
+
+        var pathPolicy = new ModPathPolicy(_instanceRoot);
+        var installRoot = pathPolicy.ResolveRecognized(receipt.InstallRoot);
+        pathPolicy.EnsureNoReparsePoints(installRoot.FullPath);
+        var ownedByOtherMods = GetOwnedPathsByOtherMods(pathPolicy, installed, receipt.Id);
+        var existingPaths = new List<string>();
+        foreach (var file in receipt.Files)
+        {
+            var resolved = pathPolicy.ResolveUnderInstallRoot(file.RelativePath, installRoot);
+            if (ownedByOtherMods.Contains(resolved.RelativePath))
+            {
+                throw new InvalidDataException(
+                    $"Local mod file belongs to another receipt: '{resolved.RelativePath}'.");
+            }
+            pathPolicy.EnsureNoReparsePoints(resolved.FullPath);
+            if (File.Exists(resolved.FullPath))
+            {
+                existingPaths.Add(resolved.RelativePath);
+            }
+        }
+
+        using var workspace = new TemporaryDirectory(_transactionRoot, ".mod-local-remove-");
+        await ApplyModStateAsync(
+            workspace.CreateDirectory("staging"),
+            existingPaths,
+            receipt: null,
+            receipt.Id,
+            "remove-local-mod",
+            cancellationToken);
+        RemoveEmptyParentDirectories(receipt.InstallRoot);
     }
 
     public async Task<InstalledModReceipt> SetEnabledAsync(
@@ -1202,6 +1235,23 @@ public sealed class ModManager
         }
     }
 
+    private static HashSet<string> GetOwnedPathsByOtherMods(
+        ModPathPolicy pathPolicy,
+        IEnumerable<InstalledModReceipt> installed,
+        string? currentId)
+    {
+        var owned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var receipt in installed.Where(receipt => currentId is null
+                     || !string.Equals(receipt.Id, currentId, StringComparison.OrdinalIgnoreCase)))
+        {
+            foreach (var file in receipt.Files)
+            {
+                owned.Add(pathPolicy.ResolveUnderInstance(file.RelativePath).RelativePath);
+            }
+        }
+        return owned;
+    }
+
     private static int CompareVersions(string left, string right)
     {
         var leftCore = left.TrimStart('v', 'V').Split(['-', '+'], 2)[0];
@@ -1210,49 +1260,6 @@ public sealed class ModManager
             && Version.TryParse(rightCore, out var rightVersion)
                 ? leftVersion.CompareTo(rightVersion)
                 : StringComparer.OrdinalIgnoreCase.Compare(left, right);
-    }
-
-    private static bool IsRecognizedModPath(string relativePath) =>
-        IsAtOrUnderRelative(relativePath, "hollow_knight_Data/Managed/Mods")
-        || IsAtOrUnderRelative(relativePath, "BepInEx/plugins")
-        || IsAtOrUnderRelative(relativePath, "BepInEx/Disabled");
-
-    private static bool GetEnabledPlacement(string relativePath)
-    {
-        var normalized = Normalize(relativePath);
-        if (IsAtOrUnderRelative(normalized, "hollow_knight_Data/Managed/Mods/Disabled")
-            || IsAtOrUnderRelative(normalized, "BepInEx/Disabled"))
-        {
-            return false;
-        }
-        if (IsAtOrUnderRelative(normalized, "hollow_knight_Data/Managed/Mods")
-            || IsAtOrUnderRelative(normalized, "BepInEx/plugins"))
-        {
-            return true;
-        }
-        throw new InvalidDataException($"Mod file is not under a recognized mod root: '{relativePath}'.");
-    }
-
-    private static bool IsAtOrUnderRelative(string path, string root)
-    {
-        var normalizedPath = Normalize(path).Trim('/');
-        var normalizedRoot = Normalize(root).Trim('/');
-        return string.Equals(normalizedPath, normalizedRoot, StringComparison.OrdinalIgnoreCase)
-            || normalizedPath.StartsWith(normalizedRoot + '/', StringComparison.OrdinalIgnoreCase);
-    }
-
-    private void EnsureNoReparsePoints(string relativePath)
-    {
-        var current = _instanceRoot;
-        foreach (var segment in Normalize(relativePath).Split('/', StringSplitOptions.RemoveEmptyEntries))
-        {
-            current = Path.Combine(current, segment);
-            if ((File.Exists(current) || Directory.Exists(current))
-                && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
-            {
-                throw new InvalidDataException($"Mod path traverses a reparse point: '{relativePath}'.");
-            }
-        }
     }
 
     private static ModLayout GetLayout(string loaderId)

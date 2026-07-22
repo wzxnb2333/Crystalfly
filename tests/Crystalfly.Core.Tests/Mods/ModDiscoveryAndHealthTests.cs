@@ -94,6 +94,31 @@ public sealed class ModDiscoveryAndHealthTests : IDisposable
     }
 
     [Fact]
+    public async Task Takeover_rejects_dot_segments_that_resolve_outside_recognized_mod_roots()
+    {
+        var instanceRoot = Path.Combine(root, "instance");
+        var receiptsRoot = Path.Combine(root, "state", "mods");
+        await WriteAsync(instanceRoot, "hollow_knight_Data/globalgamemanagers", "game");
+        var external = new ModDiscoveryEntry
+        {
+            Id = "dot-segments",
+            Name = "DotSegments",
+            LoaderId = "modding-api-77",
+            InstallRoot = "hollow_knight_Data/Managed/Mods",
+            Enabled = true,
+            Ownership = ModOwnership.External,
+            Files = ["hollow_knight_Data/Managed/Mods/../../globalgamemanagers"],
+            EntryFiles = []
+        };
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            CreateManager(instanceRoot, receiptsRoot).TakeOverAsync("dot-segments", external));
+        Assert.Empty(Directory.Exists(receiptsRoot)
+            ? Directory.EnumerateFiles(receiptsRoot, "*.json")
+            : []);
+    }
+
+    [Fact]
     public async Task Takeover_rejects_a_recognized_path_that_traverses_a_reparse_point()
     {
         var instanceRoot = Path.Combine(root, "instance");
@@ -203,6 +228,72 @@ public sealed class ModDiscoveryAndHealthTests : IDisposable
         var report = await new ModHealthService(instanceRoot).AssessAsync(receipt, [receipt]);
 
         Assert.Equal(ModHealthStatus.Healthy, report.Status);
+    }
+
+    [Fact]
+    public async Task Discovery_skips_nested_reparse_points()
+    {
+        var instanceRoot = Path.Combine(root, "instance");
+        var receiptsRoot = Path.Combine(root, "state", "mods");
+        var container = Path.Combine(
+            instanceRoot, "hollow_knight_Data", "Managed", "Mods", "Container");
+        Directory.CreateDirectory(container);
+        await File.WriteAllTextAsync(Path.Combine(container, "real.dll"), "real");
+        var outside = Path.Combine(root, "outside-discovery");
+        Directory.CreateDirectory(outside);
+        await File.WriteAllTextAsync(Path.Combine(outside, "linked.dll"), "linked");
+        Directory.CreateSymbolicLink(Path.Combine(container, "Linked"), outside);
+
+        var result = await new ModDiscoveryService(instanceRoot, receiptsRoot)
+            .DiscoverAsync("modding-api-77");
+
+        var external = Assert.Single(result.ExternalMods);
+        Assert.Equal(["hollow_knight_Data/Managed/Mods/Container/real.dll"], external.Files);
+    }
+
+    [Fact]
+    public async Task Health_is_indeterminate_when_owned_root_is_a_reparse_point()
+    {
+        var instanceRoot = Path.Combine(root, "instance");
+        var outside = Path.Combine(root, "outside-health-root");
+        Directory.CreateDirectory(outside);
+        var outsideFile = Path.Combine(outside, "linked.dll");
+        await File.WriteAllTextAsync(outsideFile, "linked");
+        var modsRoot = Path.Combine(instanceRoot, "hollow_knight_Data", "Managed", "Mods");
+        Directory.CreateDirectory(modsRoot);
+        Directory.CreateSymbolicLink(Path.Combine(modsRoot, "Linked"), outside);
+        var receipt = Receipt(
+            "linked", "Linked", "modding-api-77",
+            "hollow_knight_Data/Managed/Mods/Linked",
+            "hollow_knight_Data/Managed/Mods/Linked/linked.dll",
+            await HashAsync(outsideFile));
+
+        var report = await new ModHealthService(instanceRoot).AssessAsync(receipt, [receipt]);
+
+        Assert.Equal(ModHealthStatus.Indeterminate, report.Status);
+    }
+
+    [Fact]
+    public async Task Health_is_indeterminate_when_receipt_file_traverses_a_nested_reparse_point()
+    {
+        var instanceRoot = Path.Combine(root, "instance");
+        var installRoot = Path.Combine(
+            instanceRoot, "hollow_knight_Data", "Managed", "Mods", "Test");
+        Directory.CreateDirectory(installRoot);
+        var outside = Path.Combine(root, "outside-health-file");
+        Directory.CreateDirectory(outside);
+        var outsideFile = Path.Combine(outside, "linked.dll");
+        await File.WriteAllTextAsync(outsideFile, "linked");
+        Directory.CreateSymbolicLink(Path.Combine(installRoot, "Linked"), outside);
+        var receipt = Receipt(
+            "test", "Test", "modding-api-77",
+            "hollow_knight_Data/Managed/Mods/Test",
+            "hollow_knight_Data/Managed/Mods/Test/Linked/linked.dll",
+            await HashAsync(outsideFile));
+
+        var report = await new ModHealthService(instanceRoot).AssessAsync(receipt, [receipt]);
+
+        Assert.Equal(ModHealthStatus.Indeterminate, report.Status);
     }
 
     public void Dispose()

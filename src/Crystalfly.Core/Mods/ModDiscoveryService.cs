@@ -8,11 +8,13 @@ public sealed class ModDiscoveryService
 {
     private readonly string instanceRoot;
     private readonly string receiptsRoot;
+    private readonly ModPathPolicy pathPolicy;
 
     public ModDiscoveryService(string instanceRoot, string receiptsRoot)
     {
         this.instanceRoot = Path.GetFullPath(instanceRoot);
         this.receiptsRoot = Path.GetFullPath(receiptsRoot);
+        pathPolicy = new ModPathPolicy(this.instanceRoot);
     }
 
     public async Task<ModDiscoveryResult> DiscoverAsync(
@@ -75,15 +77,19 @@ public sealed class ModDiscoveryService
         ICollection<ModDiscoveryEntry> results,
         string? excludedDirectoryName = null)
     {
-        var fullRoot = ResolveUnderRoot(relativeRoot);
-        if (!Directory.Exists(fullRoot))
+        var fullRoot = pathPolicy.ResolveRecognized(relativeRoot).FullPath;
+        if (!Directory.Exists(fullRoot) || pathPolicy.HasReparsePoint(fullRoot))
         {
             return;
         }
 
         foreach (var file in Directory.EnumerateFiles(fullRoot, "*", SearchOption.TopDirectoryOnly))
         {
-            var relativePath = Normalize(Path.GetRelativePath(instanceRoot, file));
+            if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) != 0)
+            {
+                continue;
+            }
+            var relativePath = pathPolicy.ToRelativePath(file);
             if (!owned.Contains(relativePath))
             {
                 results.Add(CreateExternal(
@@ -98,8 +104,8 @@ public sealed class ModDiscoveryService
             {
                 continue;
             }
-            var files = Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
-                .Select(path => Normalize(Path.GetRelativePath(instanceRoot, path)))
+            var files = pathPolicy.EnumerateFilesSafely(directory, rejectReparsePoints: false)
+                .Select(pathPolicy.ToRelativePath)
                 .Where(path => !owned.Contains(path))
                 .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
@@ -107,7 +113,7 @@ public sealed class ModDiscoveryService
             {
                 continue;
             }
-            var installRoot = Normalize(Path.GetRelativePath(instanceRoot, directory));
+            var installRoot = pathPolicy.ToRelativePath(directory);
             results.Add(CreateExternal(Path.GetFileName(directory), loaderId, installRoot, enabled, files));
         }
     }
@@ -132,17 +138,6 @@ public sealed class ModDiscoveryService
             Files = files,
             EntryFiles = files.Where(IsEntryFile).ToArray()
         };
-    }
-
-    private string ResolveUnderRoot(string relativePath)
-    {
-        var path = Path.GetFullPath(Path.Combine(
-            instanceRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
-        if (!path.StartsWith(instanceRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidDataException($"Path escapes the instance root: '{relativePath}'.");
-        }
-        return path;
     }
 
     private static bool IsEntryFile(string path) =>
