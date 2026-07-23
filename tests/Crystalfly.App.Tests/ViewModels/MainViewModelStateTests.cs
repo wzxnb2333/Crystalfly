@@ -160,6 +160,152 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Initialize_does_not_wait_for_remote_catalog_refresh()
+    {
+        using var test = new TestDirectory();
+        var catalogStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseCatalog = new TaskCompletionSource<GameCatalog>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"));
+        SetPrivateField(
+            viewModel,
+            "catalogLoader",
+            new Func<CancellationToken, Task<GameCatalog>>(async cancellationToken =>
+            {
+                catalogStarted.TrySetResult();
+                return await releaseCatalog.Task.WaitAsync(cancellationToken);
+            }));
+
+        try
+        {
+            var initialization = viewModel.InitializeAsync();
+            await catalogStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await initialization.WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.False(releaseCatalog.Task.IsCompleted);
+
+            releaseCatalog.TrySetResult(new GameCatalog
+            {
+                Builds =
+                [
+                    new GameBuild
+                    {
+                        Id = "background-build",
+                        DisplayVersion = "Background build",
+                        ManifestId = "42",
+                        ExecutableSha256 = new string('A', 64),
+                        GlobalGameManagersSha256 = new string('B', 64)
+                    }
+                ]
+            });
+            await WaitUntilAsync(() => viewModel.DownloadBuilds.Any(build =>
+                build.BuildId == "background-build"));
+        }
+        finally
+        {
+            releaseCatalog.TrySetResult(new GameCatalog());
+        }
+    }
+
+    [Fact]
+    public async Task Refresh_runs_version_directory_discovery_off_the_calling_thread()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot
+        };
+        var callingThread = Environment.CurrentManagedThreadId;
+        var discoveryThread = 0;
+        var discoveryStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseDiscovery = new TaskCompletionSource<IReadOnlyList<InstanceRecord>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        SetPrivateField(
+            viewModel,
+            "instanceDiscovery",
+            new Func<string, GameCatalog, CancellationToken, Task<IReadOnlyList<InstanceRecord>>>(
+                async (_, _, cancellationToken) =>
+                {
+                    discoveryThread = Environment.CurrentManagedThreadId;
+                    discoveryStarted.TrySetResult();
+                    return await releaseDiscovery.Task.WaitAsync(cancellationToken);
+                }));
+
+        try
+        {
+            var refresh = InvokeRefreshAsync(viewModel);
+            await discoveryStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.NotEqual(callingThread, discoveryThread);
+
+            releaseDiscovery.TrySetResult([]);
+            await refresh.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            releaseDiscovery.TrySetResult([]);
+        }
+    }
+
+    [Fact]
+    public async Task Initialize_starts_version_scan_without_waiting_for_Steam_reconnect()
+    {
+        using var test = new TestDirectory();
+        var applicationDataRoot = test.CreateDirectory("app-data");
+        var versionRoot = test.CreateDirectory("versions");
+        await CrystalflySettingsStore.SaveAsync(
+            Path.Combine(applicationDataRoot, "settings.json"),
+            new CrystalflySettings { VersionRoot = versionRoot });
+        await using var viewModel = new MainViewModel(applicationDataRoot);
+        var reconnectStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseReconnect = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var discoveryStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        SetPrivateField(
+            viewModel,
+            "catalogLoader",
+            new Func<CancellationToken, Task<GameCatalog>>(_ =>
+                Task.FromResult(new GameCatalog())));
+        SetPrivateField(
+            viewModel,
+            "steamReconnect",
+            new Func<Task>(async () =>
+            {
+                reconnectStarted.TrySetResult();
+                await releaseReconnect.Task;
+            }));
+        SetPrivateField(
+            viewModel,
+            "instanceDiscovery",
+            new Func<string, GameCatalog, CancellationToken, Task<IReadOnlyList<InstanceRecord>>>(
+                (_, _, _) =>
+                {
+                    discoveryStarted.TrySetResult();
+                    return Task.FromResult<IReadOnlyList<InstanceRecord>>([]);
+                }));
+
+        try
+        {
+            var initialization = viewModel.InitializeAsync();
+            await Task.WhenAll(
+                reconnectStarted.Task,
+                discoveryStarted.Task).WaitAsync(TimeSpan.FromSeconds(5));
+            await initialization.WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.False(releaseReconnect.Task.IsCompleted);
+        }
+        finally
+        {
+            releaseReconnect.TrySetResult();
+        }
+    }
+
+    [Fact]
     public async Task Offline_mode_change_is_persisted_without_clearing_other_settings()
     {
         using var test = new TestDirectory();

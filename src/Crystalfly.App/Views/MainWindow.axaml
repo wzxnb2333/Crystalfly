@@ -70,20 +70,21 @@
                             <TextBlock Text="{Binding Loc[NavDownloads]}" />
                         </StackPanel>
                     </Button>
+                    <Button Classes="cfp-nav"
+                            Classes.active="{Binding IsSettingsPage}"
+                            Command="{Binding SelectPageCommand}"
+                            CommandParameter="Settings">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <LucideIcon Kind="Settings" Size="16" />
+                            <TextBlock Text="{Binding Loc[NavSettings]}" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2"
                             Orientation="Horizontal"
                             Spacing="4"
                             HorizontalAlignment="Right">
-                    <Button Classes="cfp-nav cfp-icon"
-                            Classes.active="{Binding IsSettingsPage}"
-                            Command="{Binding SelectPageCommand}"
-                            CommandParameter="Settings"
-                            IsEnabled="{Binding CanNavigate}"
-                            ToolTip.Tip="{Binding Loc[NavSettings]}"
-                            AutomationProperties.Name="{Binding Loc[NavSettings]}"
-                            Content="{LucideIconContent Settings, 16}" />
                     <Button Classes="cfp-window-button cfp-window-minimize"
                             Click="OnWindowMinimizeClick"
                             ToolTip.Tip="{Binding Loc[WindowMinimize]}"
@@ -142,7 +143,7 @@
             </u:LoadingContainer.Indicator>
         <Grid>
             <!-- Launch -->
-            <Grid IsVisible="{Binding IsLaunchPage}" ColumnDefinitions="224,*">
+            <Grid Classes="cfp-page" IsVisible="{Binding IsLaunchPage}" ColumnDefinitions="224,*">
                 <Border Grid.ColumnSpan="2"
                         Classes="cfp-launch-issue-frame"
                         IsHitTestVisible="False"
@@ -196,7 +197,7 @@
                                       HorizontalContentAlignment="Center"
                                       Command="{Binding SelectPageCommand}"
                                       CommandParameter="Versions"
-                                      Content="{Binding Loc[NavVersions]}" />
+                                      Content="{Binding Loc[SelectInstance]}" />
                             <Button Classes="cfp-secondary"
                                     MinHeight="40"
                                     HorizontalAlignment="Stretch"
@@ -331,7 +332,7 @@
             </Grid>
 
             <!-- Versions -->
-            <Grid IsVisible="{Binding IsVersionsPage}">
+            <Grid Classes="cfp-page" IsVisible="{Binding IsVersionsPage}">
                 <ScrollViewer HorizontalContentAlignment="Stretch"
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Classes="cfp-workspace"
@@ -341,7 +342,7 @@
                                 HorizontalAlignment="Stretch">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                             <StackPanel Spacing="4">
-                                <TextBlock Classes="cfp-section-title" Text="{Binding Loc[Instances]}" />
+                                <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SelectInstance]}" />
                                 <TextBlock Classes="cfp-meta" Text="{Binding Loc[InstancesHint]}" TextWrapping="Wrap" />
                             </StackPanel>
                             <Button Grid.Column="1" Classes="cfp-secondary" Command="{Binding RefreshCommand}">
@@ -443,7 +444,7 @@
             </Grid>
 
             <!-- Instance management -->
-            <Grid IsVisible="{Binding IsManagePage}">
+            <Grid Classes="cfp-page" IsVisible="{Binding IsManagePage}">
                 <Grid ColumnDefinitions="176,*">
                     <Border Grid.Column="0" Classes="cfp-rail" Padding="12,16">
                         <StackPanel Classes="cfp-manage-nav" Spacing="4" IsEnabled="{Binding CanNavigate}">
@@ -500,6 +501,7 @@
                               MaxWidth="1920"
                               HorizontalAlignment="Stretch">
                             <StackPanel Spacing="16"
+                                        Classes="cfp-tab-panel"
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Overview}">
                                 <StackPanel Spacing="4">
                                     <TextBlock Classes="cfp-page-title" Text="{Binding Loc[Overview]}" />
@@ -521,6 +523,7 @@
                             </StackPanel>
 
                             <StackPanel Spacing="16"
+                                        Classes="cfp-tab-panel"
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Loader}">
                                 <StackPanel Spacing="4">
                                     <TextBlock Classes="cfp-page-title" Text="{Binding Loc[Loader]}" />
@@ -654,6 +657,7 @@
                             </StackPanel>
 
                             <StackPanel Spacing="16"
+                                        Classes="cfp-tab-panel"
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Presets}">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <StackPanel Spacing="4">
@@ -1028,6 +1032,7 @@
                             </StackPanel>
 
                             <StackPanel Spacing="16"
+                                        Classes="cfp-tab-panel"
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Logs}">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <TextBlock Grid.Column="0" Classes="cfp-page-title" Text="{Binding Loc[Logs]}" />
@@ -1217,7 +1222,7 @@
                         </Grid>
                     </ScrollViewer>
                     <Grid Grid.Column="1"
-                          Classes="cfp-mods-workspace"
+                          Classes="cfp-mods-workspace cfp-tab-panel"
                           Margin="24"
                           MaxWidth="1920"
                           HorizontalAlignment="Stretch"
@@ -1308,7 +1313,7 @@
             </Grid>
 
             <!-- Speedrun -->
-            <Grid IsVisible="{Binding IsSpeedrunPage}">
+            <Grid Classes="cfp-page" IsVisible="{Binding IsSpeedrunPage}">
                 <ScrollViewer
                               HorizontalContentAlignment="Stretch"
                               HorizontalScrollBarVisibility="Disabled">
@@ -1407,7 +1412,7 @@
             </Grid>
 
             <!-- Downloads -->
-            <Grid IsVisible="{Binding IsDownloadsPage}">
+            <Grid Classes="cfp-page" IsVisible="{Binding IsDownloadsPage}">
                 <Grid ColumnDefinitions="176,*" x:CompileBindings="False">
                     <Border Grid.Column="0" Classes="cfp-rail cfp-download-rail" Padding="8,16">
                         <StackPanel Classes="cfp-manage-nav" Spacing="4" IsEnabled="{Binding CanNavigate}">
@@ -1978,7 +1983,7 @@
             </Grid>
 
             <!-- Settings -->
-            <Grid IsVisible="{Binding IsSettingsPage}">
+            <Grid Classes="cfp-page" IsVisible="{Binding IsSettingsPage}">
                 <ScrollViewer
                               HorizontalContentAlignment="Stretch"
                               HorizontalScrollBarVisibility="Disabled">
