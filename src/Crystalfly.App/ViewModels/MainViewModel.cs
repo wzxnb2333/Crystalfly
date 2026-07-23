@@ -86,6 +86,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private long detailsLoadGeneration;
     private CancellationTokenSource? detailsLoadCancellation;
     private Task detailsLoadTask = Task.CompletedTask;
+    private Task catalogRefreshTask = Task.CompletedTask;
+    private Task steamReconnectTask = Task.CompletedTask;
     private long selectedModContentLoadGeneration;
     private CancellationTokenSource? selectedModContentLoadCancellation;
     private Task selectedModContentLoadTask = Task.CompletedTask;
@@ -96,6 +98,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private ModActivityLoadResult? modActivityResult;
     private MarketModItemViewModel? selectedMarketModDisplay;
     private string? installedModSelectionAnchorId;
+    private Func<CancellationToken, Task<GameCatalog>> catalogLoader;
+    private Func<Task> steamReconnect;
+    private Func<
+        string,
+        GameCatalog,
+        CancellationToken,
+        Task<IReadOnlyList<InstanceRecord>>> instanceDiscovery;
     private LoaderInspection currentLoaderInspection = new()
     {
         State = LoaderState.Vanilla,
@@ -148,6 +157,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         settingsPath = Path.Combine(paths.ApplicationDataRoot, "settings.json");
         tokenStore = new DpapiRefreshTokenStore(Path.Combine(paths.ApplicationDataRoot, "steam-token.dat"));
         catalog = EmbeddedCatalog.Load();
+        catalogLoader = LoadCatalogAsync;
+        steamReconnect = TryReconnectSteamAsync;
+        instanceDiscovery = InstanceImportService.DiscoverAsync;
         modTranslations = EmbeddedModTranslationCatalog.Load();
         modActivityCatalog = EmbeddedModActivityCatalog.Load();
         networkPolicy = new NetworkPolicy();
@@ -651,7 +663,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ApplyLanguage(settings.Language);
         ApplyTheme(settings.Theme);
         InitializeApplicationUpdateSettings();
-        catalog = await LoadCatalogAsync(lifetimeCancellation.Token);
         VersionRoot = settings.VersionRoot ?? string.Empty;
         CustomSourcesText = string.Join(
             Environment.NewLine,
@@ -661,34 +672,93 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         RebuildCustomModLinksOptions();
         RebuildModStatusOptions();
         RebuildMarketCatalog();
-        foreach (var template in catalog.SpeedrunTemplates)
+        PopulateSpeedrunTemplates();
+        PopulateDownloadBuilds();
+
+        steamReconnectTask = IsOfflineMode
+            ? Task.CompletedTask
+            : steamReconnect();
+
+        var refreshTask = Directory.Exists(VersionRoot)
+            ? RefreshAsync()
+            : Task.CompletedTask;
+        catalogRefreshTask = RefreshCatalogInBackgroundAsync(refreshTask);
+        if (!Directory.Exists(VersionRoot))
         {
-            SpeedrunTemplates.Add(template);
+            StatusMessage = Loc["ChooseRoot"];
         }
-        SelectedSpeedrunTemplate = SpeedrunTemplates.FirstOrDefault();
-        DownloadBuilds.Add(new DownloadBuildOption("public", "Steam public (current)", null));
-        foreach (var build in catalog.Builds.OrderByDescending(build => build.DisplayVersion, StringComparer.OrdinalIgnoreCase))
+        await Task.WhenAll(refreshTask, InitializeDownloadQueueAsync());
+    }
+
+    private void PopulateDownloadBuilds()
+    {
+        var previousBuildId = SelectedDownloadBuild?.BuildId;
+        DownloadBuilds.Clear();
+        DownloadBuilds.Add(new DownloadBuildOption("public", Loc["LatestBuild"], null));
+        var publicBuildId = catalog.Channels
+            .FirstOrDefault(channel => channel.Name == "public")?.BuildId;
+        foreach (var build in catalog.Builds
+                     .Where(build => !string.Equals(
+                         build.Id,
+                         publicBuildId,
+                         StringComparison.OrdinalIgnoreCase))
+                     .OrderByDescending(
+                         build => build.DisplayVersion,
+                         StringComparer.OrdinalIgnoreCase))
         {
             DownloadBuilds.Add(new DownloadBuildOption(
                 build.Id,
                 build.DisplayVersion,
-                ulong.Parse(build.ManifestId, System.Globalization.CultureInfo.InvariantCulture)));
+                ulong.Parse(build.ManifestId, CultureInfo.InvariantCulture)));
         }
-        SelectedDownloadBuild = DownloadBuilds[0];
-        if (!IsOfflineMode)
-        {
-            await TryReconnectSteamAsync();
-        }
+        SelectedDownloadBuild = DownloadBuilds.FirstOrDefault(build => string.Equals(
+                                    build.BuildId,
+                                    previousBuildId,
+                                    StringComparison.OrdinalIgnoreCase))
+                                ?? DownloadBuilds[0];
+    }
 
-        if (Directory.Exists(VersionRoot))
+    private void PopulateSpeedrunTemplates()
+    {
+        var previousTemplateId = SelectedSpeedrunTemplate?.Id;
+        SpeedrunTemplates.Clear();
+        foreach (var template in catalog.SpeedrunTemplates)
         {
-            await RefreshAsync();
+            SpeedrunTemplates.Add(template);
         }
-        else
+        SelectedSpeedrunTemplate = SpeedrunTemplates.FirstOrDefault(template => string.Equals(
+                                       template.Id,
+                                       previousTemplateId,
+                                       StringComparison.OrdinalIgnoreCase))
+                                   ?? SpeedrunTemplates.FirstOrDefault();
+    }
+
+    private async Task RefreshCatalogInBackgroundAsync(Task initialInstanceRefresh)
+    {
+        try
         {
-            StatusMessage = Loc["ChooseRoot"];
+            catalog = await catalogLoader(lifetimeCancellation.Token);
+            RebuildCustomModLinksOptions();
+            RebuildModStatusOptions();
+            RebuildMarketCatalog();
+            PopulateSpeedrunTemplates();
+            PopulateDownloadBuilds();
+            if (Directory.Exists(VersionRoot))
+            {
+                await initialInstanceRefresh;
+                await RefreshAsync();
+            }
         }
-        await InitializeDownloadQueueAsync();
+        catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            ApplicationLog.Write(
+                Path.Combine(paths.ApplicationDataRoot, "logs", "crystalfly.log"),
+                "catalog-background-refresh",
+                $"failed: {exception.Message}");
+        }
     }
 
     [RelayCommand]
@@ -1057,33 +1127,42 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                         throw new InvalidOperationException(Loc["DeleteRecoveryNeedsAttention"]);
                     }
                     await EnsureTransactionsHealthyAsync(cancellationToken);
-                    var records = await InstanceImportService.DiscoverAsync(
-                        VersionRoot,
-                        catalog,
-                        cancellationToken);
-                    var isolation = new LocalLowIsolationService(
-                        GetSharedLocalLowPath(),
-                        paths.GetVersionDataRoot(VersionRoot));
                     bool canCompleteActiveSession = runtimeSession is null
                         && !IsGameRunning
                         && !new SystemHollowKnightProcessProbe().IsRunning();
-                    await isolation.InitializeBaselinesAsync(
-                        records.Select(static record => record.Id),
-                        allowActiveSessionCompletion: canCompleteActiveSession,
-                        cancellationToken);
-                    foreach (var record in records.OrderBy(
-                        instance => instance.Name,
-                        StringComparer.OrdinalIgnoreCase))
+                    var scanCatalog = catalog;
+                    var scanRoot = VersionRoot;
+                    var inspections = await Task.Run(async () =>
                     {
-                        var loaderManager = CreateLoaderManager(record);
-                        var loaderInspection = await loaderManager.InspectAsync(cancellationToken);
-                        var loaderState = loaderInspection.State;
-                        var loaderReceipt = await loaderManager.GetReceiptAsync(cancellationToken);
-                        var modCount = (await CreateModManager(record).DiscoverAsync(
-                            loaderInspection.PackageId ?? loaderState.ToString(),
-                            cancellationToken)).Mods.Count;
-                        discovered.Add((record, loaderState, loaderReceipt, modCount));
-                    }
+                        var records = await instanceDiscovery(
+                            scanRoot,
+                            scanCatalog,
+                            cancellationToken).ConfigureAwait(false);
+                        var isolation = new LocalLowIsolationService(
+                            GetSharedLocalLowPath(),
+                            paths.GetVersionDataRoot(scanRoot));
+                        await isolation.InitializeBaselinesAsync(
+                            records.Select(static record => record.Id),
+                            allowActiveSessionCompletion: canCompleteActiveSession,
+                            cancellationToken).ConfigureAwait(false);
+                        var sortedRecords = records
+                            .OrderBy(instance => instance.Name, StringComparer.OrdinalIgnoreCase)
+                            .ToArray();
+                        return await Task.WhenAll(sortedRecords.Select(async record =>
+                        {
+                            var loaderManager = CreateLoaderManager(record);
+                            var loaderInspection = await loaderManager
+                                .InspectAsync(cancellationToken).ConfigureAwait(false);
+                            var loaderState = loaderInspection.State;
+                            var loaderReceipt = await loaderManager
+                                .GetReceiptAsync(cancellationToken).ConfigureAwait(false);
+                            var modCount = (await CreateModManager(record).DiscoverAsync(
+                                loaderInspection.PackageId ?? loaderState.ToString(),
+                                cancellationToken).ConfigureAwait(false)).Mods.Count;
+                            return (record, loaderState, loaderReceipt, modCount);
+                        })).ConfigureAwait(false);
+                    }, cancellationToken);
+                    discovered.AddRange(inspections);
                 },
                 lifetimeCancellation.Token);
             Instances.Clear();
@@ -3981,6 +4060,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     steamOfflineTransitionTask,
                     pendingDetailsLoad,
                     pendingContentLoad);
+                await catalogRefreshTask;
+                await steamReconnectTask;
             }
             catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
             {

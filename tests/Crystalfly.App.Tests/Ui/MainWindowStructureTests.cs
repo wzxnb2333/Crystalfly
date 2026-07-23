@@ -14,19 +14,35 @@ public sealed class MainWindowStructureTests
         var topbarGrid = topbar.Elements(Avalonia + "Grid").Single();
 
         Assert.Equal("*,Auto,*", (string?)topbarGrid.Attribute("ColumnDefinitions"));
+        var primaryNavigation = topbarGrid.Elements(Avalonia + "StackPanel")
+            .Single(panel => (string?)panel.Attribute("Grid.Column") == "1");
         var chromeActions = topbarGrid.Elements(Avalonia + "StackPanel")
             .Single(panel => (string?)panel.Attribute("Grid.Column") == "2");
         Assert.Equal("Right", (string?)chromeActions.Attribute("HorizontalAlignment"));
         Assert.DoesNotContain(topbar.Descendants(Avalonia + "Button"), IsVersionsNavigationButton);
+        var settingsTab = primaryNavigation.Elements(Avalonia + "Button").Single(button =>
+            HasBinding(button, "Command", "SelectPageCommand")
+            && (string?)button.Attribute("CommandParameter") == "Settings");
+        Assert.Contains(settingsTab.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "NavSettings"));
+        Assert.DoesNotContain(chromeActions.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "SelectPageCommand")
+            && (string?)button.Attribute("CommandParameter") == "Settings");
 
         var launchGrid = FindSectionRoot(document, "IsLaunchPage");
         Assert.DoesNotContain(launchGrid.Descendants(Avalonia + "Button"), button => HasBinding(button, "Command", "ManageSelectedInstanceCommand"));
-        Assert.Contains(launchGrid.Descendants(Avalonia + "Button"), button => HasBinding(button, "Command", "SelectPageCommand") && (string?)button.Attribute("CommandParameter") == "Versions");
+        Assert.Contains(launchGrid.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "SelectPageCommand")
+            && (string?)button.Attribute("CommandParameter") == "Versions"
+            && HasBinding(button, "Content", "SelectInstance"));
         Assert.Contains(launchGrid.Descendants(Avalonia + "Button"), button =>
             HasBinding(button, "Command", "OpenInstanceSettingsCommand")
             && HasBinding(button, "CommandParameter", "SelectedInstance"));
 
         var versionsGrid = FindSectionRoot(document, "IsVersionsPage");
+        Assert.Contains(versionsGrid.Descendants(Avalonia + "TextBlock"), text =>
+            HasClass(text, "cfp-section-title")
+            && HasBinding(text, "Text", "SelectInstance"));
         var instanceList = versionsGrid.Descendants(Avalonia + "ListBox").Single(list => HasClass(list, "cfp-instance-list"));
         var instanceRow = instanceList.Descendants(Avalonia + "Grid").Single(grid => HasClass(grid, "cfp-instance-row"));
         var instanceMain = instanceRow.Elements(Avalonia + "Button").Single(button => HasClass(button, "cfp-instance-main"));
@@ -52,6 +68,35 @@ public sealed class MainWindowStructureTests
         Assert.Contains("ListBox.cfp-instance-list > ListBoxItem:selected StackPanel.cfp-instance-actions", theme, StringComparison.Ordinal);
         Assert.Contains("Button.cfp-instance-main:pointerover /template/ ContentPresenter#PART_ContentPresenter", theme, StringComparison.Ordinal);
         Assert.DoesNotContain("Grid.cfp-instance-row:pointerover StackPanel.cfp-instance-actions", theme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Page_surfaces_register_short_reduced_motion_aware_entrance_animation()
+    {
+        var document = LoadMainWindow();
+        foreach (var page in new[]
+                 {
+                     "IsLaunchPage",
+                     "IsVersionsPage",
+                     "IsManagePage",
+                     "IsSpeedrunPage",
+                     "IsDownloadsPage",
+                     "IsSettingsPage"
+                 })
+        {
+            Assert.True(HasClass(FindSectionRoot(document, page), "cfp-page"), page);
+        }
+
+        var code = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Views",
+            "MainWindow.axaml.cs"));
+        Assert.Contains("SubscribeEntranceAnimations();", code, StringComparison.Ordinal);
+        Assert.Contains("AreClientAreaAnimationsEnabled()", code, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(180)", code, StringComparison.Ordinal);
+        Assert.Contains("Visual.OpacityProperty", code, StringComparison.Ordinal);
     }
 
     [Fact]

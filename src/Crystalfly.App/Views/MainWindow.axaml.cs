@@ -2,6 +2,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Avalonia;
+using Avalonia.Animation;
+using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
 using Avalonia.Input;
@@ -9,6 +11,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels;
@@ -33,6 +36,7 @@ public partial class MainWindow : Window
     private bool toastManagerUninstalled;
     private readonly List<TranslateTransform> knightWalkTransforms = [];
     private readonly List<LoadingContainer> knightLoadingHosts = [];
+    private readonly List<Control> entranceAnimationTargets = [];
     private DispatcherTimer? knightWalkTimer;
     private int knightWalkFrame;
     private Task? disposeBeforeCloseTask;
@@ -84,6 +88,7 @@ public partial class MainWindow : Window
     private async void OnOpened(object? sender, EventArgs eventArgs)
     {
         Opened -= OnOpened;
+        SubscribeEntranceAnimations();
         StartKnightWalkAnimation();
         if (DataContext is MainViewModel viewModel)
         {
@@ -213,6 +218,75 @@ public partial class MainWindow : Window
             || enabled != 0;
     }
 
+    private static readonly TimeSpan PageEntranceDuration = TimeSpan.FromMilliseconds(180);
+
+    private void SubscribeEntranceAnimations()
+    {
+        if (!AreClientAreaAnimationsEnabled())
+        {
+            return;
+        }
+
+        foreach (var control in this.GetVisualDescendants().OfType<Control>().Where(control =>
+                     control.Classes.Contains("cfp-page")
+                     || control.Classes.Contains("cfp-tab-panel")
+                     || control.Classes.Contains("cfp-mod-bulk-bar")))
+        {
+            entranceAnimationTargets.Add(control);
+            control.PropertyChanged += OnEntranceTargetPropertyChanged;
+            if (control.IsVisible)
+            {
+                _ = RunEntranceAnimationAsync(control);
+            }
+        }
+    }
+
+    private static void OnEntranceTargetPropertyChanged(
+        object? sender,
+        AvaloniaPropertyChangedEventArgs eventArgs)
+    {
+        if (eventArgs.Property == Visual.IsVisibleProperty
+            && sender is Control { IsVisible: true } control)
+        {
+            _ = RunEntranceAnimationAsync(control);
+        }
+    }
+
+    private static async Task RunEntranceAnimationAsync(Control control)
+    {
+        control.Opacity = 0;
+        var animation = new Animation
+        {
+            Duration = PageEntranceDuration,
+            Easing = new CubicEaseOut(),
+            FillMode = FillMode.Forward,
+            Children =
+            {
+                new KeyFrame
+                {
+                    Cue = new Cue(0),
+                    Setters = { new Setter(Visual.OpacityProperty, 0d) }
+                },
+                new KeyFrame
+                {
+                    Cue = new Cue(1),
+                    Setters = { new Setter(Visual.OpacityProperty, 1d) }
+                }
+            }
+        };
+        try
+        {
+            await animation.RunAsync(control);
+        }
+        finally
+        {
+            if (control.IsVisible)
+            {
+                control.Opacity = 1;
+            }
+        }
+    }
+
     private const uint SpiGetClientAreaAnimation = 0x1042;
 
     [DllImport("user32.dll", SetLastError = true)]
@@ -227,6 +301,11 @@ public partial class MainWindow : Window
     {
         Closed -= OnClosed;
         PropertyChanged -= OnWindowPropertyChanged;
+        foreach (var target in entranceAnimationTargets)
+        {
+            target.PropertyChanged -= OnEntranceTargetPropertyChanged;
+        }
+        entranceAnimationTargets.Clear();
         if (knightWalkTimer is not null)
         {
             knightWalkTimer.Stop();

@@ -2,11 +2,12 @@
 
 Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。启动页是实例选择与管理的唯一入口；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
 
-> 当前稳定版：`0.6.1`。GitHub Release 提供 Windows x64 便携包和安装包。
+> 当前稳定版：`0.6.2`。GitHub Release 提供 Windows x64 便携包和安装包。
 
 [English](#english)
 
 ![Crystalfly 启动预检](docs/screenshots/crystalfly-1280x720-zh.jpg)
+![选择实例](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)
 
 ### 界面验收截图
 
@@ -25,6 +26,7 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 ## 功能
 
 - 扫描用户选择的版本根目录，并把每个直接子目录作为独立实例。
+- 启动时在后台扫描实例与版本文件，不等待远程目录或 Steam 自动重连；顶部设置使用文字 Tab，“选择实例”入口与页面切换保持 180ms 淡入并服从系统减少动态效果设置。
 - 识别 `1.2.2.1`、`1.4.3.2`、`1.5.78.11833` 和动态 `latest` 稳定通道。
 - 启动页的实例入口可直接选择、进入设置、完整克隆或永久删除实例；删除会先检查游戏进程、下载任务与文件事务，确认后同时移除游戏目录和实例状态。
 - 事务化安装、切换、修复和卸载 Loader，检测冲突及文件漂移。
@@ -148,7 +150,7 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.1'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.2'
 
 # 构建、测试并静默更新固定安装目录（请先关闭 Crystalfly）
 pwsh -NoProfile -File '.\scripts\build-and-install.ps1'
@@ -164,9 +166,10 @@ Crystalfly 使用 [GPL-3.0-only](LICENSE)。第三方游戏、Loader 和 Mod 不
 
 Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The Launch page is the only entry point for selecting and managing launchable instances; actual game downloads live under Download → Game Versions.
 
-The current stable release is `0.6.1`. GitHub Releases provide a Windows x64 portable ZIP and Inno Setup installer.
+The current stable release is `0.6.2`. GitHub Releases provide a Windows x64 portable ZIP and Inno Setup installer.
 
 ![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
+![Select instance](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)
 
 ### UI acceptance screenshots
 
@@ -185,6 +188,7 @@ The current stable release is `0.6.1`. GitHub Releases provide a Windows x64 por
 ### Highlights
 
 - Discovers direct child directories under a user-selected version root and keeps each instance isolated.
+- Scans instance and build files in the background at startup without waiting for the remote catalog or Steam reconnect. Settings is a top text tab, the instance entry is named Select Instance, and page transitions use a reduced-motion-aware 180 ms fade.
 - Recognizes `1.2.2.1`, `1.4.3.2`, `1.5.78.11833`, and a dynamic stable `latest` channel.
 - Uses the Launch-page instance entry to select, open settings, clone a full copy, or permanently delete an instance. Deletion first checks running games, queued downloads, and file transactions, then removes both game and instance state directories after confirmation.
 - Installs, switches, repairs, and removes mutually exclusive loaders through recoverable file transactions.
@@ -253,7 +257,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.1'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.2'
 
 # Build, test, and silently update the fixed install directory after closing Crystalfly.
 pwsh -NoProfile -File '.\scripts\build-and-install.ps1'
