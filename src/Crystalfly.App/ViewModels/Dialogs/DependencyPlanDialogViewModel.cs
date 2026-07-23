@@ -13,7 +13,8 @@ public sealed class DependencyPlanNodeViewModel(
     bool isTarget,
     bool isUnresolved,
     string targetLabel = "Target",
-    string unresolvedLabel = "Unresolved")
+    string unresolvedLabel = "Unresolved",
+    string? parentModId = null)
 {
     public string PrimaryName { get; } = primaryName;
 
@@ -36,6 +37,14 @@ public sealed class DependencyPlanNodeViewModel(
     public string TargetLabel { get; } = targetLabel;
 
     public string UnresolvedLabel { get; } = unresolvedLabel;
+
+    public string? ParentModId { get; } = parentModId;
+
+    public IReadOnlyList<TreeConnectorKind> Connectors { get; internal set; } = [];
+
+    public bool ShowTargetIcon => IsTarget && !IsUnresolved;
+
+    public bool ShowDependencyIcon => !IsTarget && !IsUnresolved;
 }
 
 public sealed partial class DependencyPlanDialogViewModel : ViewModelBase, IDialogContext
@@ -56,6 +65,7 @@ public sealed partial class DependencyPlanDialogViewModel : ViewModelBase, IDial
         CancelText = cancelText;
         CanConfirm = canConfirm;
         IsDangerous = isDangerous;
+        DependencyTreeConnectors.Assign(nodes);
     }
 
     public string Title { get; }

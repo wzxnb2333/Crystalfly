@@ -14,7 +14,7 @@ public sealed class CatalogProviderTests : IDisposable
     [Fact]
     public async Task Load_merges_remote_catalog_and_updates_cache()
     {
-        var remote = CreateCatalog("remote-build", "1001");
+        var remote = CreateCatalog("1.5.12620.0", "1001");
         using var client = new HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(CrystalflyJson.Serialize(remote), Encoding.UTF8, "application/json")
@@ -27,8 +27,89 @@ public sealed class CatalogProviderTests : IDisposable
             client);
 
         Assert.Contains(result.Builds, build => build.Id == "1.2.2.1");
-        Assert.Equal("1001", result.Builds.Single(build => build.Id == "remote-build").ManifestId);
+        Assert.Equal("1001", result.Builds.Single(build => build.Id == "1.5.12620.0").ManifestId);
         Assert.Equal("1001", (await AtomicJsonStore.ReadAsync<GameCatalog>(cachePath)).Builds.Single().ManifestId);
+    }
+
+    [Fact]
+    public async Task Load_filters_unknown_remote_builds_and_dependent_content_before_caching()
+    {
+        var known = CreateCatalog("1.5.12620.0", "1001").Builds[0];
+        var unknown = new GameBuild
+        {
+            Id = "future-build",
+            DisplayVersion = "Future",
+            DepotId = 367521,
+            ManifestId = "9999",
+            ExecutableSha256 = new string('0', 64),
+            GlobalGameManagersSha256 = new string('0', 64)
+        };
+        var unknownLoader = Loader(
+            "https://example.invalid/future-loader.zip",
+            new string('0', 64),
+            1) with
+        {
+            Id = "future-loader",
+            SupportedBuildIds = [unknown.Id]
+        };
+        var remote = new GameCatalog
+        {
+            Builds = [known, unknown],
+            Channels =
+            [
+                new GameChannel { Name = "latest", BuildId = known.Id },
+                new GameChannel { Name = "future", BuildId = unknown.Id }
+            ],
+            Loaders = [unknownLoader],
+            Mods =
+            [
+                Mod("future-mod", unknownLoader.Id, [unknown.Id])
+            ],
+            SpeedrunAssets =
+            [
+                new SpeedrunAsset
+                {
+                    Id = "future-tool",
+                    Name = "Future tool",
+                    Version = "1",
+                    DownloadUrl = "https://example.invalid/future-tool.zip",
+                    SizeBytes = 1,
+                    Sha256 = new string('0', 64),
+                    SupportedBuildIds = [unknown.Id]
+                }
+            ],
+            SpeedrunTemplates =
+            [
+                new SpeedrunTemplate
+                {
+                    Id = "future-template",
+                    Name = "Future template",
+                    BuildId = unknown.Id
+                }
+            ]
+        };
+        using var client = new HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(CrystalflyJson.Serialize(remote), Encoding.UTF8, "application/json")
+        }));
+        var cachePath = Path.Combine(directory, "catalog.json");
+
+        var result = await CatalogProvider.LoadAsync(
+            new Uri("https://example.invalid/catalog.json"),
+            cachePath,
+            client);
+        var cached = await AtomicJsonStore.ReadAsync<GameCatalog>(cachePath);
+
+        Assert.DoesNotContain(result.Builds, build => build.Id == unknown.Id);
+        Assert.DoesNotContain(result.Channels, channel => channel.BuildId == unknown.Id);
+        Assert.DoesNotContain(result.Loaders, loader => loader.Id == unknownLoader.Id);
+        Assert.DoesNotContain(result.Mods, mod => mod.Id == "future-mod");
+        Assert.DoesNotContain(result.SpeedrunAssets, asset => asset.Id == "future-tool");
+        Assert.DoesNotContain(result.SpeedrunTemplates, template => template.Id == "future-template");
+        Assert.DoesNotContain(cached.Builds, build => build.Id == unknown.Id);
+        Assert.DoesNotContain(cached.Channels, channel => channel.BuildId == unknown.Id);
+        Assert.DoesNotContain(cached.Loaders, loader => loader.Id == unknownLoader.Id);
+        Assert.DoesNotContain(cached.Mods, mod => mod.Id == "future-mod");
     }
 
     [Fact]
@@ -153,7 +234,7 @@ public sealed class CatalogProviderTests : IDisposable
         using var client = new HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(
-                CrystalflyJson.Serialize(CreateCatalog("remote-build", "1004")),
+                CrystalflyJson.Serialize(CreateCatalog("1.5.12620.0", "1004")),
                 Encoding.UTF8,
                 "application/json")
         }));
@@ -164,7 +245,8 @@ public sealed class CatalogProviderTests : IDisposable
             client);
 
         Assert.DoesNotContain(result.Builds, build => build.Id == "stale-build");
-        Assert.Contains(result.Builds, build => build.Id == "remote-build");
+        Assert.Contains(result.Builds, build =>
+            build.Id == "1.5.12620.0" && build.ManifestId == "1004");
     }
 
     [Theory]

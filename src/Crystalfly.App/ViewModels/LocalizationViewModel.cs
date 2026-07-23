@@ -58,6 +58,26 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["Mods"] = "Mods",
         ["Snapshots"] = "Save Snapshots",
         ["Logs"] = "Logs",
+        ["Config"] = "Config",
+        ["ConfigHint"] = "Edit the instance game settings file (AppConfig.ini). Video, audio, language and key bindings are stored elsewhere and are not editable here.",
+        ["Accessibility"] = "Accessibility",
+        ["ReducedCameraShake"] = "Reduced camera shake",
+        ["ReducedControllerRumble"] = "Reduced controller rumble",
+        ["AdvancedConfig"] = "Advanced key/value",
+        ["AdvancedConfigHint"] = "Edit any section, key or value directly. Unknown fields are preserved.",
+        ["AddEntry"] = "Add entry",
+        ["RemoveEntry"] = "Remove",
+        ["SaveConfig"] = "Save",
+        ["ResetConfig"] = "Reset",
+        ["ConfigSaved"] = "Configuration saved",
+        ["ConfigSection"] = "Section",
+        ["ConfigKey"] = "Key",
+        ["ConfigValue"] = "Value",
+        ["ConfigLocked"] = "Close the game to edit its configuration.",
+        ["CurrentSave"] = "Current instance saves",
+        ["EditSave"] = "Edit save",
+        ["SaveSlot"] = "Save slot",
+        ["NoSaveSlots"] = "This instance does not have any save files yet.",
         ["SpeedrunTitle"] = "Official speedrun environments",
         ["SpeedrunHint"] = "Create a dedicated verified copy. Daily instances are never modified.",
         ["CreateEnvironment"] = "Create environment",
@@ -423,6 +443,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["ProtocolRegistrationHint"] = "The installer registers links used by preset shares and external commands."
         ,["ProtocolRegistered"] = "Registered"
         ,["ProtocolNotRegistered"] = "Not registered"
+        ,["LatestBuild"] = "Latest"
     };
 
     private static readonly IReadOnlyDictionary<string, string> Chinese = new Dictionary<string, string>
@@ -478,6 +499,26 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["Mods"] = "Mods",
         ["Snapshots"] = "存档快照",
         ["Logs"] = "日志",
+        ["Config"] = "配置",
+        ["ConfigHint"] = "编辑实例的游戏配置文件（AppConfig.ini）。视频、音频、语言与键位存储在别处，无法在此编辑。",
+        ["Accessibility"] = "无障碍",
+        ["ReducedCameraShake"] = "减弱镜头抖动",
+        ["ReducedControllerRumble"] = "减弱手柄震动",
+        ["AdvancedConfig"] = "高级键值",
+        ["AdvancedConfigHint"] = "直接编辑任意段、键或值，未知字段会被保留。",
+        ["AddEntry"] = "添加条目",
+        ["RemoveEntry"] = "删除",
+        ["SaveConfig"] = "保存",
+        ["ResetConfig"] = "重置",
+        ["ConfigSaved"] = "配置已保存",
+        ["ConfigSection"] = "段",
+        ["ConfigKey"] = "键",
+        ["ConfigValue"] = "值",
+        ["ConfigLocked"] = "请关闭游戏后再编辑配置。",
+        ["CurrentSave"] = "当前实例存档",
+        ["EditSave"] = "编辑存档",
+        ["SaveSlot"] = "存档槽",
+        ["NoSaveSlots"] = "此实例还没有存档文件。",
         ["SpeedrunTitle"] = "正式速通环境",
         ["SpeedrunHint"] = "创建专用验证副本，不修改日常实例。",
         ["CreateEnvironment"] = "创建环境",
@@ -843,6 +884,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["ProtocolRegistrationHint"] = "安装包会注册预设分享和外部命令所用的链接协议。"
         ,["ProtocolRegistered"] = "已注册"
         ,["ProtocolNotRegistered"] = "未注册"
+        ,["LatestBuild"] = "最新版"
     };
 
     private IReadOnlyDictionary<string, string> values = Chinese;

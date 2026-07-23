@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Crystalfly.App.ViewModels.Dialogs"
              xmlns:converters="using:Avalonia.Data.Converters"
+             xmlns:controls="using:Crystalfly.App.Views.Controls"
              xmlns:u="https://irihi.tech/ursa"
              x:Class="Crystalfly.App.Views.Dialogs.DependencyPlanDialogView"
              x:DataType="vm:DependencyPlanDialogViewModel"
@@ -25,14 +26,33 @@
             <ItemsControl ItemsSource="{Binding Nodes}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:DependencyPlanNodeViewModel">
-                        <Grid ColumnDefinitions="Auto,*"
-                              Margin="0,0,0,6">
-                            <Border Width="{Binding Indent}" />
+                        <Grid ColumnDefinitions="Auto,*">
+                            <controls:DependencyTreeGuide Connectors="{Binding Connectors}"
+                                                          LineBrush="{DynamicResource CfBorderBrush}"
+                                                          VerticalAlignment="Stretch" />
                             <Border Grid.Column="1"
                                     Classes="cfp-card"
-                                    Padding="12,10">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                    <StackPanel Spacing="3">
+                                    Padding="12,10"
+                                    Margin="0,0,0,6">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                    <Grid Width="16"
+                                          Height="16"
+                                          VerticalAlignment="Top"
+                                          Margin="0,1,0,0">
+                                        <LucideIcon Kind="Target"
+                                                    Size="16"
+                                                    Foreground="{DynamicResource CfAccentBrush}"
+                                                    IsVisible="{Binding ShowTargetIcon}" />
+                                        <LucideIcon Kind="TriangleAlert"
+                                                    Size="16"
+                                                    Foreground="{DynamicResource CfErrorBrush}"
+                                                    IsVisible="{Binding IsUnresolved}" />
+                                        <LucideIcon Kind="Package"
+                                                    Size="16"
+                                                    Foreground="{DynamicResource CfMutedTextBrush}"
+                                                    IsVisible="{Binding ShowDependencyIcon}" />
+                                    </Grid>
+                                    <StackPanel Grid.Column="1" Spacing="3">
                                         <TextBlock Classes="cfp-row-title"
                                                    Text="{Binding PrimaryName}"
                                                    TextWrapping="Wrap" />
@@ -48,7 +68,7 @@
                                                    TextWrapping="Wrap"
                                                    IsVisible="{Binding InstallRoot, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
                                     </StackPanel>
-                                    <StackPanel Grid.Column="1"
+                                    <StackPanel Grid.Column="2"
                                                 HorizontalAlignment="Right"
                                                 Spacing="4">
                                         <Border Classes="cfp-badge"

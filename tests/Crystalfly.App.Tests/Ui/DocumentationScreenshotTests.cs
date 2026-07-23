@@ -10,11 +10,15 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels;
+using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views;
+using Crystalfly.App.Views.Dialogs;
 using Crystalfly.Core.Catalog;
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Runtime;
+using Crystalfly.Core.Saves;
+using Crystalfly.Core.Snapshots;
 using Ursa.Controls;
 
 namespace Crystalfly.App.Tests.Ui;
@@ -34,7 +38,10 @@ public sealed class DocumentationScreenshotTests
         new("crystalfly-mod-install-overlay-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.MarketInstall),
         new("crystalfly-instance-detail-900x600-zh.jpg", 900, 600, 1d, ScreenshotState.InstanceDetail),
         new("crystalfly-installed-mod-health-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.InstalledModHealth),
-        new("crystalfly-mod-presets-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.ModPresets)
+        new("crystalfly-mod-presets-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.ModPresets),
+        new("crystalfly-instance-config-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.InstanceConfig),
+        new("crystalfly-save-editor-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.SaveEditor),
+        new("crystalfly-dependency-tree-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.DependencyTree)
     ];
 
     [AvaloniaFact]
@@ -44,9 +51,20 @@ public sealed class DocumentationScreenshotTests
             Environment.GetEnvironmentVariable("CRYSTALFLY_UPDATE_SCREENSHOTS"),
             "1",
             StringComparison.Ordinal);
+        var requestedScreenshots = (Environment.GetEnvironmentVariable("CRYSTALFLY_SCREENSHOT_FILTER") ?? string.Empty)
+            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var captures = requestedScreenshots.Length == 0
+            ? Cases
+            : Cases.Where(capture => requestedScreenshots.Contains(
+                capture.FileName,
+                StringComparer.OrdinalIgnoreCase)).ToArray();
+        if (requestedScreenshots.Length > 0)
+        {
+            Assert.Equal(requestedScreenshots.Length, captures.Length);
+        }
         var outputDirectory = Path.Combine(FindRepositoryRoot(), "docs", "screenshots");
 
-        foreach (var capture in Cases)
+        foreach (var capture in captures)
         {
             await using var fixture = CreateFixture();
             await fixture.PrepareAsync(capture.State);
@@ -68,6 +86,10 @@ public sealed class DocumentationScreenshotTests
             else if (capture.State == ScreenshotState.InstalledModHealth)
             {
                 fixture.FocusExternalMod();
+            }
+            else if (capture.State == ScreenshotState.DependencyTree)
+            {
+                await fixture.OpenDependencyTreeAsync();
             }
 
             Dispatcher.UIThread.RunJobs();
@@ -294,6 +316,31 @@ public sealed class DocumentationScreenshotTests
                 Assert.Contains(fixture.ViewModel.Loc["SharePreset"], visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["ImportSharedPreset"], visibleText);
                 break;
+            case ScreenshotState.InstanceConfig:
+                Assert.Contains(fixture.ViewModel.Loc["Config"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["Accessibility"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["AdvancedConfig"], visibleText);
+                Assert.Contains(
+                    fixture.ViewModel.GameConfig!.Entries,
+                    entry => entry.Key == "CustomPracticeFlag" && entry.Value == "Enabled");
+                break;
+            case ScreenshotState.SaveEditor:
+                Assert.Contains(fixture.Instance.Name, visibleText);
+                Assert.Contains("user1.dat", visibleText);
+                Assert.Equal(
+                    ["user1.dat", "user2.dat", "user3.dat", "user4.dat"],
+                    fixture.ViewModel.SaveEditor!.Slots);
+                Assert.Contains(
+                    fixture.ViewModel.SaveEditor.Entries,
+                    entry => entry.Path == "playerData.geo" && entry.Value == "1250");
+                break;
+            case ScreenshotState.DependencyTree:
+                Assert.Single(fixture.Window.GetVisualDescendants().OfType<CustomDialogControl>());
+                Assert.Contains(fixture.ViewModel.Loc["ConfirmModUninstallTitle"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["DependencyImpact"], visibleText);
+                Assert.Contains("调试模组", visibleText);
+                Assert.Contains("Satchel", visibleText);
+                break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(state), state, null);
         }
@@ -350,7 +397,12 @@ public sealed class DocumentationScreenshotTests
                 ScreenshotState.GameVersions => "Downloads",
                 ScreenshotState.Settings => "Settings",
                 ScreenshotState.MarketList or ScreenshotState.MarketDetail or ScreenshotState.MarketInstall => "Downloads",
-                ScreenshotState.InstanceDetail or ScreenshotState.InstalledModHealth or ScreenshotState.ModPresets => "Manage",
+                ScreenshotState.InstanceDetail
+                    or ScreenshotState.InstalledModHealth
+                    or ScreenshotState.ModPresets
+                    or ScreenshotState.InstanceConfig
+                    or ScreenshotState.SaveEditor
+                    or ScreenshotState.DependencyTree => "Manage",
                 _ => "Launch"
             };
 
@@ -365,7 +417,10 @@ public sealed class DocumentationScreenshotTests
                 or ScreenshotState.LaunchIssuesOverlay
                 or ScreenshotState.InstanceDetail
                 or ScreenshotState.InstalledModHealth
-                or ScreenshotState.ModPresets)
+                or ScreenshotState.ModPresets
+                or ScreenshotState.InstanceConfig
+                or ScreenshotState.SaveEditor
+                or ScreenshotState.DependencyTree)
             {
                 ViewModel.SelectedInstance = Instance;
                 for (var attempt = 0; attempt < 100 && ViewModel.IsLoadingInstanceDetails; attempt++)
@@ -423,6 +478,147 @@ public sealed class DocumentationScreenshotTests
             {
                 ViewModel.CurrentManageTab = "Presets";
                 PrepareModPresets();
+            }
+
+            if (state == ScreenshotState.InstanceConfig)
+            {
+                await PrepareInstanceConfigAsync();
+            }
+
+            if (state == ScreenshotState.SaveEditor)
+            {
+                await PrepareSaveEditorAsync();
+            }
+
+            if (state == ScreenshotState.DependencyTree)
+            {
+                ViewModel.CurrentManageTab = "Mods";
+            }
+        }
+
+        private async Task PrepareInstanceConfigAsync()
+        {
+            var configPath = Path.Combine(
+                ViewModel.VersionRoot,
+                ".crystalfly",
+                "instances",
+                Instance.Id,
+                "local-low",
+                AppConfigService.FileName);
+            Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
+            await File.WriteAllTextAsync(
+                configPath,
+                """
+                [Accessibility]
+                ReducedCameraShake=0.25
+                ReducedControllerRumble=0.50
+
+                [Practice]
+                CustomPracticeFlag=Enabled
+                """);
+            ViewModel.CurrentManageTab = "Config";
+            for (var attempt = 0;
+                 attempt < 100 && ViewModel.GameConfig?.IsLoaded != true;
+                 attempt++)
+            {
+                await Task.Delay(10);
+            }
+        }
+
+        private async Task PrepareSaveEditorAsync()
+        {
+            var saveStorageRoot = Path.Combine(root, "save-editor");
+            var localLow = Path.Combine(saveStorageRoot, "instances", Instance.Id, "local-low");
+            Directory.CreateDirectory(localLow);
+            var json =
+                """
+                {
+                  "playerData": {
+                    "geo": 1250,
+                    "health": 9,
+                    "hasDash": true,
+                    "respawnScene": "Town"
+                  }
+                }
+                """;
+            foreach (var slot in new[] { "user1.dat", "user2.dat", "user3.dat", "user4.dat" })
+            {
+                await SaveFileCodec.EncryptAsync(Path.Combine(localLow, slot), json);
+            }
+
+            var editor = new SaveEditorViewModel(
+                new NamedSnapshotService(saveStorageRoot, $"Crystalfly.ScreenshotTests.{Guid.NewGuid():N}"),
+                Instance.Id,
+                null,
+                Instance.Name);
+            await editor.InitializeAsync();
+            ViewModel.CurrentManageTab = "Snapshots";
+            ViewModel.SaveEditor = editor;
+        }
+
+        public async Task OpenDependencyTreeAsync()
+        {
+            var nodes = new[]
+            {
+                new DependencyPlanNodeViewModel(
+                    "调试模组",
+                    "DebugMod",
+                    "hkmod:DebugMod",
+                    "hollow_knight_Data/Managed/Mods/DebugMod",
+                    ViewModel.Loc["WillDelete"],
+                    0,
+                    isTarget: true,
+                    isUnresolved: false,
+                    targetLabel: ViewModel.Loc["Target"]),
+                new DependencyPlanNodeViewModel(
+                    "Satchel",
+                    "Satchel",
+                    "hkmod:Satchel",
+                    "hollow_knight_Data/Managed/Mods/Satchel",
+                    ViewModel.Loc["DependenciesWillBeMissing"],
+                    1,
+                    isTarget: false,
+                    isUnresolved: false,
+                    parentModId: "hkmod:DebugMod"),
+                new DependencyPlanNodeViewModel(
+                    "共享工具库",
+                    "Common Utilities",
+                    "hkmod:CommonUtilities",
+                    "hollow_knight_Data/Managed/Mods/CommonUtilities",
+                    ViewModel.Loc["DependenciesWillBeMissing"],
+                    2,
+                    isTarget: false,
+                    isUnresolved: true,
+                    unresolvedLabel: ViewModel.Loc["Unresolved"],
+                    parentModId: "hkmod:Satchel")
+            };
+            var dialog = new DependencyPlanDialogViewModel(
+                ViewModel.Loc["ConfirmModUninstallTitle"],
+                ViewModel.Loc["DependencyImpact"],
+                nodes,
+                ViewModel.Loc["Uninstall"],
+                ViewModel.Loc["Cancel"],
+                canConfirm: true,
+                isDangerous: true);
+            _ = OverlayDialog.ShowCustomAsync<
+                DependencyPlanDialogView,
+                DependencyPlanDialogViewModel,
+                bool>(
+                dialog,
+                MainWindow.OverlayHostId,
+                new OverlayDialogOptions
+                {
+                    CanLightDismiss = false,
+                    CanDragMove = false,
+                    IsCloseButtonVisible = true,
+                    CanResize = false
+                });
+            for (var attempt = 0;
+                 attempt < 100 && !Window.GetVisualDescendants().OfType<CustomDialogControl>().Any();
+                 attempt++)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Delay(10);
             }
         }
 
@@ -638,6 +834,9 @@ public sealed class DocumentationScreenshotTests
         MarketInstall,
         InstanceDetail,
         InstalledModHealth,
-        ModPresets
+        ModPresets,
+        InstanceConfig,
+        SaveEditor,
+        DependencyTree
     }
 }

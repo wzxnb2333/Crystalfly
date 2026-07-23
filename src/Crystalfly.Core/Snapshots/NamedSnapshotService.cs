@@ -1,6 +1,7 @@
 using Crystalfly.Core.LocalLow;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Runtime;
+using Crystalfly.Core.Saves;
 using Crystalfly.Core.Serialization;
 using Crystalfly.Core.Transactions;
 
@@ -159,6 +160,113 @@ public sealed class NamedSnapshotService
         finally
         {
             LocalLowDirectory.DeleteIfExists(stagingPath);
+        }
+    }
+
+    public Task<IReadOnlyList<string>> ListSaveSlotsAsync(
+        string instanceId,
+        string? snapshotId,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateSegment(instanceId, nameof(instanceId));
+        if (snapshotId is not null)
+        {
+            ValidateSegment(snapshotId, nameof(snapshotId));
+        }
+
+        var basePath = snapshotId is null
+            ? GetInstanceLocalLowPath(instanceId)
+            : Path.Combine(GetSnapshotsRoot(instanceId), snapshotId, "data");
+        if (!Directory.Exists(basePath))
+        {
+            return Task.FromResult<IReadOnlyList<string>>([]);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var slots = Enumerable.Range(1, 4)
+            .Select(slot => $"user{slot}.dat")
+            .Where(slot => File.Exists(Path.Combine(basePath, slot)))
+            .ToArray();
+        return Task.FromResult<IReadOnlyList<string>>(slots);
+    }
+
+    public async Task<string> DecryptSaveAsync(
+        string instanceId,
+        string? snapshotId,
+        string slotRelativePath,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateSegment(instanceId, nameof(instanceId));
+        if (snapshotId is not null)
+        {
+            ValidateSegment(snapshotId, nameof(snapshotId));
+        }
+        ValidateEditableSaveSlot(slotRelativePath);
+
+        var basePath = snapshotId is null
+            ? GetInstanceLocalLowPath(instanceId)
+            : Path.Combine(GetSnapshotsRoot(instanceId), snapshotId, "data");
+        var filePath = ResolveUnderBase(basePath, slotRelativePath);
+        return await SaveFileCodec.DecryptAsync(filePath, cancellationToken);
+    }
+
+    public async Task UpdateSaveAsync(
+        string instanceId,
+        string? snapshotId,
+        string slotRelativePath,
+        string json,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateSegment(instanceId, nameof(instanceId));
+        if (snapshotId is not null)
+        {
+            ValidateSegment(snapshotId, nameof(snapshotId));
+        }
+        ValidateEditableSaveSlot(slotRelativePath);
+
+        using var guard = HollowKnightProcessGuard.Acquire(mutexName, processProbe);
+        var basePath = snapshotId is null
+            ? GetInstanceLocalLowPath(instanceId)
+            : Path.Combine(GetSnapshotsRoot(instanceId), snapshotId, "data");
+        var filePath = ResolveUnderBase(basePath, slotRelativePath);
+        await SaveFileCodec.EncryptAsync(filePath, json, cancellationToken);
+
+        if (snapshotId is not null)
+        {
+            var snapshotRoot = Path.Combine(GetSnapshotsRoot(instanceId), snapshotId);
+            var metadataPath = Path.Combine(snapshotRoot, "snapshot.json");
+            var snapshot = await AtomicJsonStore.ReadAsync<NamedSnapshot>(metadataPath, cancellationToken);
+            var newHash = await LocalLowDirectory.HashFilesAsync(
+                snapshot.SnapshotPath, includeLogs: false, cancellationToken);
+            await AtomicJsonStore.WriteAsync(
+                metadataPath,
+                snapshot with { Sha256 = newHash },
+                cancellationToken);
+        }
+    }
+
+    private static string ResolveUnderBase(string basePath, string relativePath)
+    {
+        var full = Path.GetFullPath(Path.Combine(basePath, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        var normalizedBase = Path.GetFullPath(basePath);
+        if (!full.StartsWith(normalizedBase, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Path escapes the base directory.", nameof(relativePath));
+        }
+
+        return full;
+    }
+
+    private static void ValidateEditableSaveSlot(string slotRelativePath)
+    {
+        if (slotRelativePath.Length != "user1.dat".Length
+            || !slotRelativePath.StartsWith("user", StringComparison.OrdinalIgnoreCase)
+            || slotRelativePath[4] is < '1' or > '4'
+            || !slotRelativePath.EndsWith(".dat", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                "Save editor slots must be one of user1.dat through user4.dat.",
+                nameof(slotRelativePath));
         }
     }
 

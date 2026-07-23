@@ -83,6 +83,72 @@ public sealed class DialogViewModelTests
     }
 
     [Fact]
+    public void Dependency_dialog_assigns_tree_connectors_and_node_icons()
+    {
+        var nodes = new[]
+        {
+            new DependencyPlanNodeViewModel(
+                "Feature",
+                string.Empty,
+                "feature",
+                string.Empty,
+                "Enabled",
+                0,
+                isTarget: true,
+                isUnresolved: false),
+            new DependencyPlanNodeViewModel(
+                "Middle",
+                string.Empty,
+                "middle",
+                string.Empty,
+                "Disabled",
+                1,
+                isTarget: false,
+                isUnresolved: false,
+                parentModId: "feature"),
+            new DependencyPlanNodeViewModel(
+                "Base",
+                string.Empty,
+                "base",
+                string.Empty,
+                "Missing",
+                2,
+                isTarget: false,
+                isUnresolved: true,
+                parentModId: "middle"),
+            new DependencyPlanNodeViewModel(
+                "Optional",
+                string.Empty,
+                "optional",
+                string.Empty,
+                "Enabled",
+                1,
+                isTarget: false,
+                isUnresolved: false,
+                parentModId: "feature")
+        };
+
+        _ = new DependencyPlanDialogViewModel(
+            "Dependencies",
+            "Review",
+            nodes,
+            "Confirm",
+            "Cancel",
+            canConfirm: true,
+            isDangerous: false);
+
+        Assert.Empty(nodes[0].Connectors);
+        Assert.Equal([TreeConnectorKind.Branch], nodes[1].Connectors);
+        Assert.Equal(
+            [TreeConnectorKind.Continue, TreeConnectorKind.LastBranch],
+            nodes[2].Connectors);
+        Assert.Equal([TreeConnectorKind.LastBranch], nodes[3].Connectors);
+        Assert.True(nodes[0].ShowTargetIcon);
+        Assert.True(nodes[1].ShowDependencyIcon);
+        Assert.False(nodes[2].ShowDependencyIcon);
+    }
+
+    [Fact]
     public void Dependency_dialog_confirm_and_close_return_expected_results()
     {
         var dialog = new DependencyPlanDialogViewModel(

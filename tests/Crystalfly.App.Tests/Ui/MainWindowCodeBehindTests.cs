@@ -79,6 +79,7 @@ public sealed class MainWindowCodeBehindTests : IDisposable
 
         Assert.Equal(["feature", "middle", "base"], nodes.Select(node => node.ModId));
         Assert.Equal([0, 1, 2], nodes.Select(node => node.Depth));
+        Assert.Equal([null, "feature", "middle"], nodes.Select(node => node.ParentModId));
         Assert.True(nodes[0].IsTarget);
         Assert.Contains(viewModel.Loc["Enabled"], nodes[0].Status, StringComparison.Ordinal);
         Assert.Contains(viewModel.Loc["Disabled"], nodes[1].Status, StringComparison.Ordinal);
