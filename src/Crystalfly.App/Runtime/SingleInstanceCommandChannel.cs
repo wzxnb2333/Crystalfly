@@ -133,7 +133,7 @@ public sealed class SingleInstanceCommandChannel : IAsyncDisposable
         lifetime.Cancel();
         if (serverTask is not null)
         {
-            await serverTask;
+            await serverTask.ConfigureAwait(false);
         }
         lifetime.Dispose();
     }

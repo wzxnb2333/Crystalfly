@@ -1,3 +1,4 @@
+using System.IO.Pipes;
 using Crystalfly.App.Runtime;
 using Crystalfly.Core.Runtime;
 
@@ -60,5 +61,45 @@ public sealed class SingleInstanceCommandChannelTests
         await completed.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(["first", "second"], received);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_does_not_resume_on_the_calling_synchronization_context()
+    {
+        var pipeName = $"Crystalfly.Tests.{Guid.NewGuid():N}";
+        var server = new SingleInstanceCommandChannel(pipeName);
+        server.Start();
+        await using var client = new NamedPipeClientStream(
+            ".",
+            pipeName,
+            PipeDirection.Out,
+            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+        await client.ConnectAsync().WaitAsync(TimeSpan.FromSeconds(5));
+
+        var previousContext = SynchronizationContext.Current;
+        var stoppedContext = new StoppedSynchronizationContext();
+        ValueTask disposal;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(stoppedContext);
+            disposal = server.DisposeAsync();
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previousContext);
+        }
+
+        await disposal.AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(0, stoppedContext.PostCount);
+    }
+
+    private sealed class StoppedSynchronizationContext : SynchronizationContext
+    {
+        public int PostCount { get; private set; }
+
+        public override void Post(SendOrPostCallback callback, object? state)
+        {
+            PostCount++;
+        }
     }
 }
