@@ -678,7 +678,7 @@
                                     </Button>
                                 </Grid>
 
-                                <Grid ColumnDefinitions="240,*" ColumnSpacing="16" MinHeight="380">
+                                <Grid ColumnDefinitions="252,*" ColumnSpacing="16" MinHeight="380">
                                     <StackPanel Grid.Column="0" Spacing="12">
                                         <Border Classes="cfp-card">
                                             <StackPanel Spacing="10">
