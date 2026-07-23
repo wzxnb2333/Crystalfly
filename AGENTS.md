@@ -31,6 +31,17 @@ Use four-space indentation, file-scoped namespaces, nullable reference types, an
 
 Tests use xUnit; UI tests use `Avalonia.Headless.XUnit`. Name tests by behavior, for example `ApplyDirectory_rejects_reparse_point_staging_root`. Add regression coverage for changed behavior, including failure, cancellation, rollback, and path-safety cases where relevant. There is no fixed coverage percentage; the full solution test run is the merge gate.
 
+### Change-to-Test Routing
+
+Run only the affected test project for faster feedback:
+
+| Changed paths | Test command |
+| --- | --- |
+| `src/Crystalfly.App/**` | `dotnet test tests/Crystalfly.App.Tests -c Release --no-build` |
+| `src/Crystalfly.Core/**` | `dotnet test tests/Crystalfly.Core.Tests -c Release --no-build` |
+| `src/Crystalfly.Steam/**` | `dotnet test tests/Crystalfly.Steam.Tests -c Release --no-build` |
+| Cross-module or `Directory.*.props` changes | Full solution test run |
+
 ## Commit & Pull Request Guidelines
 
 Use concise Conventional Commit subjects seen in history: `feat:`, `fix:`, or `build:`. Keep commits scoped and avoid mixing generated output or unrelated cleanup. Pull requests should explain the background, changes, observable result, and verification commands. Link relevant issues, call out compatibility or data-migration risks, and include before/after screenshots for Avalonia UI changes.

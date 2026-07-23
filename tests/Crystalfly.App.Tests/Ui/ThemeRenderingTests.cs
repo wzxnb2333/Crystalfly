@@ -35,13 +35,14 @@ public sealed class ThemeRenderingTests
     }
 
     [AvaloniaFact]
-    public void Main_window_uses_custom_chrome_controls_without_system_decorations()
+    public void Main_window_uses_custom_chrome_with_native_resize_border()
     {
         var window = new MainWindow { Width = 900, Height = 600 };
         window.Show();
         try
         {
-            Assert.Equal(WindowDecorations.None, window.WindowDecorations);
+            Assert.Equal(WindowDecorations.BorderOnly, window.WindowDecorations);
+            Assert.True(window.CanResize);
             var minimize = Assert.IsType<Button>(FindChromeButton(window, "cfp-window-minimize"));
             var maximize = Assert.IsType<Button>(FindChromeButton(window, "cfp-window-maximize"));
             var close = Assert.IsType<Button>(FindChromeButton(window, "cfp-window-close"));

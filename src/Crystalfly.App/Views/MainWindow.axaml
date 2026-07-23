@@ -18,7 +18,10 @@
         Height="720"
         MinWidth="900"
         MinHeight="600"
-        WindowDecorations="None"
+        CanResize="True"
+        WindowDecorations="BorderOnly"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="-1"
         Icon="/Assets/hollow-knight-icon.png"
         Title="Crystalfly">
 

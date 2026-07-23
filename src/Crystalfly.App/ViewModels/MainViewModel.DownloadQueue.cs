@@ -52,7 +52,7 @@ public partial class MainViewModel
             () => catalog,
             packageHttpClient,
             instanceOperationCoordinator,
-            static () => new SystemHollowKnightProcessProbe().IsRunning(),
+            isGameProcessRunning,
             networkPolicy: networkPolicy);
         var executor = new SteamDownloadQueueExecutor(
             packageExecutor,
@@ -78,7 +78,7 @@ public partial class MainViewModel
         return new DownloadQueueService(
             Path.Combine(paths.ApplicationDataRoot, "download-queue.json"),
             executor,
-            static () => new SystemHollowKnightProcessProbe().IsRunning(),
+            isGameProcessRunning,
             TimeSpan.FromMilliseconds(500),
             networkPolicy,
             instanceOperationCoordinator);
