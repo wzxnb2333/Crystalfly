@@ -58,6 +58,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly Func<Task>? disposeSteamOverride;
     private readonly Func<CancellationToken, Task<RefreshTokenCredential>>? qrSignInOverride;
     private readonly Func<bool>? steamLoggedOnOverride;
+    private readonly Func<bool> isGameProcessRunning;
     private readonly Func<CancellationToken, Task<GitHubRouteLatencyTestResult>>? githubLatencyTestOverride;
     private readonly Func<ModManifest, CancellationToken, Task<ModContentLoadResult>>? modContentLoadOverride;
     private readonly Func<
@@ -136,13 +137,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             bool,
             CancellationToken,
             Task<ApplicationUpdateCheckResult>>? applicationUpdateCheckOverride = null,
-        IProtocolRegistrationService? protocolRegistrationService = null)
+        IProtocolRegistrationService? protocolRegistrationService = null,
+        Func<bool>? gameProcessRunningOverride = null)
     {
         this.launchOverride = launchOverride;
         this.downloadOverride = downloadOverride;
         this.disposeSteamOverride = disposeSteamOverride;
         this.qrSignInOverride = qrSignInOverride;
         this.steamLoggedOnOverride = steamLoggedOnOverride;
+        isGameProcessRunning = gameProcessRunningOverride
+            ?? (static () => new SystemHollowKnightProcessProbe().IsRunning());
         this.githubLatencyTestOverride = githubLatencyTestOverride;
         this.modContentLoadOverride = modContentLoadOverride;
         this.instanceDeletionOverride = instanceDeletionOverride;

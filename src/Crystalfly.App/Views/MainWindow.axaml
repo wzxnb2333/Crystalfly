@@ -18,7 +18,10 @@
         Height="720"
         MinWidth="900"
         MinHeight="600"
-        WindowDecorations="None"
+        CanResize="True"
+        WindowDecorations="BorderOnly"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="-1"
         Icon="/Assets/hollow-knight-icon.png"
         Title="Crystalfly">
 
@@ -675,7 +678,7 @@
                                     </Button>
                                 </Grid>
 
-                                <Grid ColumnDefinitions="240,*" ColumnSpacing="16" MinHeight="380">
+                                <Grid ColumnDefinitions="252,*" ColumnSpacing="16" MinHeight="380">
                                     <StackPanel Grid.Column="0" Spacing="12">
                                         <Border Classes="cfp-card">
                                             <StackPanel Spacing="10">

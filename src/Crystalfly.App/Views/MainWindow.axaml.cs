@@ -89,6 +89,7 @@ public partial class MainWindow : Window
     {
         Opened -= OnOpened;
         SubscribeEntranceAnimations();
+        ApplyWin11RoundedCorners();
         StartKnightWalkAnimation();
         if (DataContext is MainViewModel viewModel)
         {
@@ -112,6 +113,37 @@ public partial class MainWindow : Window
                 await CheckForApplicationUpdateAsync(viewModel, force: false);
             }
         }
+    }
+
+    [DllImport("dwmapi.dll", PreserveSig = true)]
+    private static extern int DwmSetWindowAttribute(
+        IntPtr hwnd,
+        uint dwAttribute,
+        ref int pvAttribute,
+        uint cbAttribute);
+
+    private const uint DwmwaWindowCornerPreference = 33;
+    private const int DwmwcpRound = 2;
+
+    private void ApplyWin11RoundedCorners()
+    {
+        var platformHandle = TryGetPlatformHandle();
+        var handle = platformHandle?.Handle ?? IntPtr.Zero;
+        if (handle == IntPtr.Zero
+            || !string.Equals(
+                platformHandle?.HandleDescriptor,
+                "HWND",
+                StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var preference = DwmwcpRound;
+        _ = DwmSetWindowAttribute(
+            handle,
+            DwmwaWindowCornerPreference,
+            ref preference,
+            sizeof(int));
     }
 
     private void StartKnightWalkAnimation()

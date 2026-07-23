@@ -100,6 +100,22 @@ public sealed class MainWindowStructureTests
     }
 
     [Fact]
+    public void Main_window_requests_Windows_11_rounded_corners_after_opening()
+    {
+        var code = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Views",
+            "MainWindow.axaml.cs"));
+
+        Assert.Contains("ApplyWin11RoundedCorners();", code, StringComparison.Ordinal);
+        Assert.Contains("DwmSetWindowAttribute", code, StringComparison.Ordinal);
+        Assert.Contains("DwmwaWindowCornerPreference = 33", code, StringComparison.Ordinal);
+        Assert.Contains("DwmwcpRound = 2", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Installed_mods_use_compact_rows_hover_actions_and_bottom_bulk_bar()
     {
         var document = LoadMainWindow();

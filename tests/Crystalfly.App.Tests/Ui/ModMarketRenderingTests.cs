@@ -785,7 +785,12 @@ public sealed class ModMarketRenderingTests
         };
         var instance = Instance("practice", "Practice", instanceRoot);
         await InstanceSidecar.SaveAsync(instance);
-        var viewModel = new MainViewModel(Path.Combine(root, "app-data"))
+        var viewModel = new MainViewModel(
+            Path.Combine(root, "app-data"),
+            launchOverride: null,
+            downloadOverride: null,
+            disposeSteamOverride: null,
+            gameProcessRunningOverride: static () => false)
         {
             CurrentPage = "Downloads",
             CurrentDownloadSection = "ModMarket",
