@@ -752,11 +752,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
         {
         }
-        catch (Exception exception) when (exception is HttpRequestException
-            or IOException
-            or InvalidDataException
-            or UnauthorizedAccessException
-            or InvalidOperationException)
+        catch (Exception exception)
         {
             ApplicationLog.Write(
                 Path.Combine(paths.ApplicationDataRoot, "logs", "crystalfly.log"),

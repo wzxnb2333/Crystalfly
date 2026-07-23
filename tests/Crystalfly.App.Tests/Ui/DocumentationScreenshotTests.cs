@@ -29,6 +29,7 @@ public sealed class DocumentationScreenshotTests
     [
         new("crystalfly-900x600-zh.jpg", 900, 600, 1d, ScreenshotState.GameVersions),
         new("crystalfly-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.Launch),
+        new("crystalfly-select-instance-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.InstanceSelection),
         new("crystalfly-launch-issues-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.LaunchIssues),
         new("crystalfly-launch-issues-overlay-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.LaunchIssuesOverlay),
         new("crystalfly-1920x1080-zh.jpg", 1920, 1080, 1.5d, ScreenshotState.Settings),
@@ -250,6 +251,10 @@ public sealed class DocumentationScreenshotTests
                 Assert.Contains(fixture.Instance.Name, visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["Ready"], visibleText);
                 break;
+            case ScreenshotState.InstanceSelection:
+                Assert.Contains(fixture.ViewModel.Loc["SelectInstance"], visibleText);
+                Assert.Contains(fixture.Instance.Name, visibleText);
+                break;
             case ScreenshotState.LaunchIssues:
                 Assert.True(fixture.ViewModel.HasLaunchIssues);
                 Assert.Contains(fixture.ViewModel.LaunchIssueCountText, visibleText);
@@ -395,6 +400,7 @@ public sealed class DocumentationScreenshotTests
             ViewModel.CurrentPage = state switch
             {
                 ScreenshotState.GameVersions => "Downloads",
+                ScreenshotState.InstanceSelection => "Versions",
                 ScreenshotState.Settings => "Settings",
                 ScreenshotState.MarketList or ScreenshotState.MarketDetail or ScreenshotState.MarketInstall => "Downloads",
                 ScreenshotState.InstanceDetail
@@ -826,6 +832,7 @@ public sealed class DocumentationScreenshotTests
     {
         GameVersions,
         Launch,
+        InstanceSelection,
         LaunchIssues,
         LaunchIssuesOverlay,
         Settings,

@@ -209,6 +209,28 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Background_catalog_failure_does_not_escape_disposal()
+    {
+        using var test = new TestDirectory();
+        var refreshStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var viewModel = new MainViewModel(test.CreateDirectory("app-data"));
+        SetPrivateField(
+            viewModel,
+            "catalogLoader",
+            new Func<CancellationToken, Task<GameCatalog>>(_ =>
+            {
+                refreshStarted.TrySetResult();
+                return Task.FromException<GameCatalog>(new FormatException("bad catalog"));
+            }));
+
+        await viewModel.InitializeAsync();
+        await refreshStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await viewModel.DisposeAsync();
+    }
+
+    [Fact]
     public async Task Refresh_runs_version_directory_discovery_off_the_calling_thread()
     {
         using var test = new TestDirectory();
