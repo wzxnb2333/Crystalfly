@@ -2,7 +2,7 @@
 
 Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。启动页是实例选择与管理的唯一入口；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
 
-> 当前稳定版：`0.6.0`。GitHub Release 提供 Windows x64 便携包和安装包。
+> 当前稳定版：`0.6.1`。GitHub Release 提供 Windows x64 便携包和安装包。
 
 [English](#english)
 
@@ -18,6 +18,9 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 ![Mod 详情](docs/screenshots/crystalfly-mod-market-detail-1280x720-zh.jpg)
 ![安装目标实例](docs/screenshots/crystalfly-mod-install-overlay-1280x720-zh.jpg)
 ![实例详情](docs/screenshots/crystalfly-instance-detail-900x600-zh.jpg)
+![实例配置编辑](docs/screenshots/crystalfly-instance-config-1280x720-zh.jpg)
+![实例存档编辑](docs/screenshots/crystalfly-save-editor-1280x720-zh.jpg)
+![依赖影响树](docs/screenshots/crystalfly-dependency-tree-1280x720-zh.jpg)
 
 ## 功能
 
@@ -41,6 +44,8 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 - 设置页可在 GitHub 直连与 GitHub 镜像间切换并分别测试延迟；镜像仅代理官方 GitHub 目录和 GitHub 托管安装包，Steam、自定义目录及其他下载地址保持原线路，包校验规则不变。
 - 启动前切换实例 LocalLow，退出后写回，并恢复原共享数据。
 - 创建永久命名“存档快照”；快照仅包含实例的非日志 LocalLow，事务临时恢复点成功后自动清理。
+- 在实例设置中编辑当前实例隔离的 `AppConfig.ini`；未知配置项会原样保留，写入采用原子替换。
+- 在当前实例或其命名快照中编辑 `user1.dat` 至 `user4.dat`；解密和展开异步执行，空存档会显示明确状态，不会阻塞主窗口。
 - 在实例详情创建追加或精确 Mod 预设，支持复制、导入导出、分享码、按依赖顺序应用，以及恢复应用前启停和安装状态；固定 Mod 及其传递依赖不会被精确模式停用。
 - 创建独立速通副本，按模板部署速通工具，并在每次启动前写出验证报告。
 - 支持严格校验的 `crystalfly://` 外部命令和单实例转发；安装包会注册协议，所有修改状态的外部命令均先展示摘要并确认。
@@ -74,7 +79,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 
 1. 在“设置”中选择版本根目录，例如 `D:\HK_ver`。
 2. Crystalfly 只扫描直接子目录，并忽略 `<版本根目录>\.crystalfly`。
-3. 从启动页打开实例选择，选中实例后可进入设置管理 Loader、“已安装 Mod”、“Mod 预设”和“存档快照”。
+3. 从启动页打开实例选择，选中实例后可进入设置管理 Loader、游戏配置、“已安装 Mod”、“Mod 预设”和“存档快照”；当前实例及快照的四个存档槽可在“存档快照”中编辑。
 4. 需要下载游戏时进入“下载 → 游戏版本”；需要查找在线 Mod 时进入“下载 → Mod 市场”；进度、速度、取消与重试位于“下载 → 下载队列”。
 5. 启动游戏时不要同时运行其他《空洞骑士》进程。
 
@@ -143,7 +148,7 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.0'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.1'
 
 # 构建、测试并静默更新固定安装目录（请先关闭 Crystalfly）
 pwsh -NoProfile -File '.\scripts\build-and-install.ps1'
@@ -159,7 +164,7 @@ Crystalfly 使用 [GPL-3.0-only](LICENSE)。第三方游戏、Loader 和 Mod 不
 
 Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The Launch page is the only entry point for selecting and managing launchable instances; actual game downloads live under Download → Game Versions.
 
-The current stable release is `0.6.0`. GitHub Releases provide a Windows x64 portable ZIP and Inno Setup installer.
+The current stable release is `0.6.1`. GitHub Releases provide a Windows x64 portable ZIP and Inno Setup installer.
 
 ![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
 
@@ -173,6 +178,9 @@ The current stable release is `0.6.0`. GitHub Releases provide a Windows x64 por
 ![Mod detail](docs/screenshots/crystalfly-mod-market-detail-1280x720-zh.jpg)
 ![Install target dialog](docs/screenshots/crystalfly-mod-install-overlay-1280x720-zh.jpg)
 ![Instance details](docs/screenshots/crystalfly-instance-detail-900x600-zh.jpg)
+![Instance configuration editor](docs/screenshots/crystalfly-instance-config-1280x720-zh.jpg)
+![Instance save editor](docs/screenshots/crystalfly-save-editor-1280x720-zh.jpg)
+![Dependency-impact tree](docs/screenshots/crystalfly-dependency-tree-1280x720-zh.jpg)
 
 ### Highlights
 
@@ -195,6 +203,8 @@ The current stable release is `0.6.0`. GitHub Releases provide a Windows x64 por
 - Lets users switch between direct GitHub access and a GitHub mirror and test each route latency. Only official GitHub catalogs and GitHub-hosted packages are proxied; Steam, custom catalogs, and other download URLs keep their original route, with the same package verification.
 - Swaps per-instance LocalLow data before launch, captures it after exit, then restores the original shared data.
 - Creates persistent named save snapshots containing only non-log LocalLow data, plus dedicated speedrun copies with template-specific tools and a pre-launch report.
+- Edits the selected instance's isolated `AppConfig.ini` while preserving unknown settings and committing changes through atomic replacement.
+- Edits only `user1.dat` through `user4.dat` from the selected instance or one of its named snapshots. Save decoding and expansion run asynchronously, and empty save sets show an explicit state instead of blocking the window.
 - Creates append or exact Mod presets bound to one build and Loader, with dependency-ordered apply, local JSON import/export, share codes, and restoration of the pre-apply install and enabled state.
 - Accepts strictly validated `crystalfly://` commands through single-instance forwarding. The installer registers the protocol, and every state-changing external request shows a parsed summary before confirmation.
 - Checks a signed stable update manifest once per day. Users can update now, defer, or skip a version; installed mode runs the Inno installer, while portable mode preserves `Data` through same-volume backup and replacement.
@@ -243,7 +253,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.0'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.1'
 
 # Build, test, and silently update the fixed install directory after closing Crystalfly.
 pwsh -NoProfile -File '.\scripts\build-and-install.ps1'
