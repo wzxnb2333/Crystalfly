@@ -1,10 +1,13 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -28,6 +31,10 @@ public partial class MainWindow : Window
     private bool closeRequested;
     private bool toastManagerClosing;
     private bool toastManagerUninstalled;
+    private readonly List<TranslateTransform> knightWalkTransforms = [];
+    private readonly List<LoadingContainer> knightLoadingHosts = [];
+    private DispatcherTimer? knightWalkTimer;
+    private int knightWalkFrame;
     private Task? disposeBeforeCloseTask;
     private Task? closeConfirmationTask;
     private Task<bool>? marketInstallDialogTask;
@@ -48,6 +55,7 @@ public partial class MainWindow : Window
         DataContextChanged += OnDataContextChanged;
         OnDataContextChanged(this, EventArgs.Empty);
         Opened += OnOpened;
+        Closed += OnClosed;
     }
 
     private void OnWindowChromePointerPressed(object? sender, PointerPressedEventArgs e)
@@ -76,6 +84,7 @@ public partial class MainWindow : Window
     private async void OnOpened(object? sender, EventArgs eventArgs)
     {
         Opened -= OnOpened;
+        StartKnightWalkAnimation();
         if (DataContext is MainViewModel viewModel)
         {
             var initialized = false;
@@ -96,6 +105,173 @@ public partial class MainWindow : Window
             {
                 ApplicationUpdateHealthHandshake.SignalFromEnvironment();
                 await CheckForApplicationUpdateAsync(viewModel, force: false);
+            }
+        }
+    }
+
+    private void StartKnightWalkAnimation()
+    {
+        foreach (var (imageName, hostName) in new[]
+        {
+            ("GlobalKnightWalkImage", "GlobalLoadingHost"),
+            ("SaveEditorKnightWalkImage", "SaveEditorLoadingHost")
+        })
+        {
+            var image = this.FindControl<Image>(imageName);
+            var host = this.FindControl<LoadingContainer>(hostName);
+            if (image is null || host is null)
+            {
+                continue;
+            }
+
+            var transform = new TranslateTransform();
+            image.RenderTransform = transform;
+            knightWalkTransforms.Add(transform);
+            knightLoadingHosts.Add(host);
+            host.PropertyChanged += OnKnightLoadingHostPropertyChanged;
+        }
+
+        if (knightWalkTransforms.Count == 0 || !AreClientAreaAnimationsEnabled())
+        {
+            return;
+        }
+
+        knightWalkTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+        knightWalkTimer.Tick += OnKnightWalkTick;
+        PropertyChanged += OnWindowPropertyChanged;
+        UpdateKnightWalkAnimationState();
+    }
+
+    private void OnKnightLoadingHostPropertyChanged(
+        object? sender,
+        AvaloniaPropertyChangedEventArgs eventArgs) =>
+        UpdateKnightWalkAnimationState();
+
+    private void OnWindowPropertyChanged(
+        object? sender,
+        AvaloniaPropertyChangedEventArgs eventArgs)
+    {
+        if (eventArgs.Property == Visual.IsVisibleProperty)
+        {
+            UpdateKnightWalkAnimationState();
+        }
+    }
+
+    private void OnKnightWalkTick(object? sender, EventArgs eventArgs)
+    {
+        if (!ShouldAnimateKnight())
+        {
+            UpdateKnightWalkAnimationState();
+            return;
+        }
+
+        knightWalkFrame = (knightWalkFrame + 1) % 4;
+        var offset = -knightWalkFrame * 45;
+        foreach (var transform in knightWalkTransforms)
+        {
+            transform.X = offset;
+        }
+    }
+
+    private bool ShouldAnimateKnight() =>
+        IsVisible
+        && knightLoadingHosts.Any(host => host.IsLoading && host.IsEffectivelyVisible);
+
+    private void UpdateKnightWalkAnimationState()
+    {
+        if (knightWalkTimer is null)
+        {
+            return;
+        }
+
+        if (ShouldAnimateKnight())
+        {
+            knightWalkTimer.Start();
+            return;
+        }
+
+        knightWalkTimer.Stop();
+        knightWalkFrame = 0;
+        foreach (var transform in knightWalkTransforms)
+        {
+            transform.X = 0;
+        }
+    }
+
+    private static bool AreClientAreaAnimationsEnabled()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return true;
+        }
+
+        return !SystemParametersInfo(
+                SpiGetClientAreaAnimation,
+                0,
+                out var enabled,
+                0)
+            || enabled != 0;
+    }
+
+    private const uint SpiGetClientAreaAnimation = 0x1042;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SystemParametersInfo(
+        uint uiAction,
+        uint uiParam,
+        out int pvParam,
+        uint fWinIni);
+
+    private void OnClosed(object? sender, EventArgs eventArgs)
+    {
+        Closed -= OnClosed;
+        PropertyChanged -= OnWindowPropertyChanged;
+        if (knightWalkTimer is not null)
+        {
+            knightWalkTimer.Stop();
+            knightWalkTimer.Tick -= OnKnightWalkTick;
+            knightWalkTimer = null;
+        }
+
+        foreach (var host in knightLoadingHosts)
+        {
+            host.PropertyChanged -= OnKnightLoadingHostPropertyChanged;
+        }
+
+        knightLoadingHosts.Clear();
+        knightWalkTransforms.Clear();
+    }
+
+    private async void OnSaveSlotSelectionChanged(
+        object? sender,
+        SelectionChangedEventArgs eventArgs)
+    {
+        if (sender is not ComboBox
+            {
+                DataContext: SaveEditorViewModel editor,
+                SelectedItem: string slot
+            })
+        {
+            return;
+        }
+
+        try
+        {
+            await editor.SelectSlotAsync(slot);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or InvalidDataException
+                or UnauthorizedAccessException
+                or System.Security.Cryptography.CryptographicException)
+        {
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
             }
         }
     }

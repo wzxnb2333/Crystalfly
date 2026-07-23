@@ -111,11 +111,35 @@
                        TextWrapping="Wrap" />
         </Border>
 
-        <u:LoadingContainer Grid.Row="2"
+        <u:LoadingContainer Name="GlobalLoadingHost"
+                            Grid.Row="2"
                             IsLoading="{Binding IsBusy}"
-                            LoadingMessage="{Binding StatusMessage}"
                             HorizontalContentAlignment="Stretch"
                             VerticalContentAlignment="Stretch">
+            <u:LoadingContainer.Indicator>
+                <Grid Width="360" Height="112" RowDefinitions="20,72,20">
+                    <Border Name="GlobalKnightLoadingViewport"
+                            Grid.Row="1"
+                            Width="45"
+                            Height="72"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            ClipToBounds="True">
+                        <Image Name="GlobalKnightWalkImage"
+                               Width="180"
+                               Height="72"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"
+                               Source="/Assets/knight-walk.png" />
+                    </Border>
+                    <TextBlock Name="GlobalLoadingMessage"
+                               Grid.Row="2"
+                               Classes="cfp-meta"
+                               Text="{Binding StatusMessage}"
+                               TextAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                </Grid>
+            </u:LoadingContainer.Indicator>
         <Grid>
             <!-- Launch -->
             <Grid IsVisible="{Binding IsLaunchPage}" ColumnDefinitions="224,*">
@@ -130,7 +154,7 @@
                             <Image Width="64"
                                    Height="64"
                                    HorizontalAlignment="Center"
-                                   Source="/Assets/hollow-knight-icon.png" />
+                                   Source="/Assets/knight-icon.png" />
                             <StackPanel Spacing="4" HorizontalAlignment="Center">
                                 <TextBlock Classes="cfp-page-title"
                                            Text="{Binding SelectedInstance.Name}"
@@ -459,6 +483,12 @@
                                     CommandParameter="Logs">
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"><LucideIcon Kind="ScrollText" Size="16" /><TextBlock Grid.Column="1" Text="{Binding Loc[Logs]}" TextTrimming="CharacterEllipsis" /></Grid>
                             </Button>
+                            <Button Classes="cfp-local-nav"
+                                    Classes.active="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Config}"
+                                    Command="{Binding SelectManageTabCommand}"
+                                    CommandParameter="Config">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"><LucideIcon Kind="Settings2" Size="16" /><TextBlock Grid.Column="1" Text="{Binding Loc[Config]}" TextTrimming="CharacterEllipsis" /></Grid>
+                            </Button>
                         </StackPanel>
                     </Border>
 
@@ -778,74 +808,223 @@
                             </StackPanel>
 
                             <StackPanel Spacing="16"
+                                        Classes="cfp-tab-panel"
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Snapshots}">
-                                <TextBlock Classes="cfp-page-title" Text="{Binding Loc[Snapshots]}" />
-                                <WrapPanel Orientation="Horizontal">
-                                         <TextBox Width="240"
+                                <StackPanel Spacing="16"
+                                            IsVisible="{Binding IsEditingSave, Converter={x:Static converters:BoolConverters.Not}}">
+                                    <TextBlock Classes="cfp-page-title" Text="{Binding Loc[Snapshots]}" />
+                                    <WrapPanel Orientation="Horizontal">
+                                        <TextBox Width="240"
+                                                 Classes="cfp-input"
+                                                 Text="{Binding SnapshotName, Mode=TwoWay}"
+                                                 PlaceholderText="{Binding Loc[SnapshotName]}"
+                                                 AutomationProperties.Name="{Binding Loc[SnapshotName]}"
+                                                 Margin="0,0,8,8" />
+                                        <Button Classes="cfp-accent"
+                                                Command="{Binding CreateSnapshotCommand}"
+                                                Margin="0,0,8,8">
+                                            <Button.IsEnabled>
+                                                <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
+                                                    <Binding Path="HasInstance" />
+                                                    <Binding Path="SnapshotName" Converter="{x:Static converters:StringConverters.IsNotNullOrEmpty}" />
+                                                    <Binding Path="IsBusy" Converter="{x:Static converters:BoolConverters.Not}" />
+                                                    <Binding Path="IsGameRunning" Converter="{x:Static converters:BoolConverters.Not}" />
+                                                </MultiBinding>
+                                            </Button.IsEnabled>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <LucideIcon Kind="Camera" Size="16" />
+                                                <TextBlock Text="{Binding Loc[CreateSnapshot]}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </WrapPanel>
+                                    <Button Classes="cfp-market-item"
+                                            Command="{Binding EditSaveCommand}"
+                                            CommandParameter="current"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Stretch"
+                                            IsVisible="{Binding HasInstance}"
+                                            IsEnabled="{Binding IsGameRunning, Converter={x:Static converters:BoolConverters.Not}}">
+                                        <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="10">
+                                            <Border Width="32"
+                                                    Height="32"
+                                                    CornerRadius="6"
+                                                    Background="{DynamicResource CfAccentSoftBrush}">
+                                                <LucideIcon Kind="PenLine"
+                                                            Size="16"
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                                <TextBlock Classes="cfp-row-title" Text="{Binding SelectedInstance.Name}" />
+                                                <TextBlock Classes="cfp-caption" Text="{Binding Loc[CurrentSave]}" />
+                                            </StackPanel>
+                                            <LucideIcon Grid.Column="2"
+                                                        Kind="ChevronRight"
+                                                        Size="16"
+                                                        Foreground="{DynamicResource CfMutedTextBrush}"
+                                                        VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Button>
+                                    <Border Classes="cfp-list-frame">
+                                        <Grid>
+                                            <ListBox Classes="cfp-list"
+                                                     ItemsSource="{Binding Snapshots}"
+                                                     SelectedItem="{Binding SelectedSnapshot, Mode=TwoWay}">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:NamedSnapshot">
+                                                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                                                            <StackPanel Spacing="4">
+                                                                <TextBlock Classes="cfp-row-title" Text="{Binding Name}" />
+                                                                <TextBlock Classes="cfp-caption" Text="{Binding Id}" />
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="1"
+                                                                       Classes="cfp-meta"
+                                                                       Text="{Binding CreatedAt}"
+                                                                       VerticalAlignment="Center" />
+                                                            <Button Grid.Column="2"
+                                                                    Classes="cfp-icon"
+                                                                    Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).EditSaveCommand}"
+                                                                    CommandParameter="{Binding Id}"
+                                                                    VerticalAlignment="Center"
+                                                                    IsEnabled="{Binding $parent[Window].((vm:MainViewModel)DataContext).IsGameRunning, Converter={x:Static converters:BoolConverters.Not}}"
+                                                                    ToolTip.Tip="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[EditSave]}"
+                                                                    AutomationProperties.Name="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[EditSave]}"
+                                                                    Content="{LucideIconContent Pencil, 14}" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                            <TextBlock MinHeight="120"
+                                                       Margin="24"
+                                                       Classes="cfp-meta"
+                                                       Text="{Binding Loc[NoSnapshotsAction]}"
+                                                       TextAlignment="Center"
+                                                       TextWrapping="Wrap"
+                                                       VerticalAlignment="Center"
+                                                       IsVisible="{Binding Snapshots.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}" />
+                                        </Grid>
+                                    </Border>
+                                    <Button Classes="cfp-secondary"
+                                            Click="ConfirmRestoreSnapshot"
+                                            HorizontalAlignment="Right">
+                                        <Button.IsEnabled>
+                                            <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
+                                                <Binding Path="SelectedSnapshot" Converter="{x:Static converters:ObjectConverters.IsNotNull}" />
+                                                <Binding Path="IsBusy" Converter="{x:Static converters:BoolConverters.Not}" />
+                                                <Binding Path="IsGameRunning" Converter="{x:Static converters:BoolConverters.Not}" />
+                                            </MultiBinding>
+                                        </Button.IsEnabled>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <LucideIcon Kind="ArchiveRestore" Size="16" />
+                                            <TextBlock Text="{Binding Loc[Restore]}" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+
+                                <StackPanel Spacing="12"
+                                            IsVisible="{Binding $parent[Window].((vm:MainViewModel)DataContext).IsEditingSave}"
+                                            DataContext="{Binding SaveEditor}">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                        <Button Classes="cfp-secondary"
+                                                Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).ExitSaveEditorCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <LucideIcon Kind="ArrowLeft" Size="16" />
+                                                <TextBlock Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[Back]}" />
+                                            </StackPanel>
+                                        </Button>
+                                        <TextBlock Grid.Column="1"
+                                                   Classes="cfp-page-title"
+                                                   Text="{Binding SourceLabel}"
+                                                   VerticalAlignment="Center" />
+                                        <ComboBox Grid.Column="2"
                                                   Classes="cfp-input"
-                                                  Text="{Binding SnapshotName, Mode=TwoWay}"
-                                                  PlaceholderText="{Binding Loc[SnapshotName]}"
-                                                  AutomationProperties.Name="{Binding Loc[SnapshotName]}"
-                                                  Margin="0,0,8,8" />
-                                         <Button Classes="cfp-accent"
-                                                 Command="{Binding CreateSnapshotCommand}"
-                                                 Margin="0,0,8,8">
-                                             <Button.IsEnabled>
-                                                 <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
-                                                     <Binding Path="HasInstance" />
-                                                     <Binding Path="SnapshotName" Converter="{x:Static converters:StringConverters.IsNotNullOrEmpty}" />
-                                                     <Binding Path="IsBusy" Converter="{x:Static converters:BoolConverters.Not}" />
-                                                     <Binding Path="IsGameRunning" Converter="{x:Static converters:BoolConverters.Not}" />
-                                                 </MultiBinding>
-                                             </Button.IsEnabled>
-                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                 <LucideIcon Kind="Camera" Size="16" />
-                                                 <TextBlock Text="{Binding Loc[CreateSnapshot]}" />
-                                             </StackPanel>
-                                         </Button>
-                                </WrapPanel>
-                                <Border Classes="cfp-list-frame">
-                                     <Grid>
-                                         <ListBox Classes="cfp-list"
-                                                  ItemsSource="{Binding Snapshots}"
-                                                  SelectedItem="{Binding SelectedSnapshot, Mode=TwoWay}">
-                                             <ListBox.ItemTemplate>
-                                                 <DataTemplate x:DataType="models:NamedSnapshot">
-                                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                                         <StackPanel Spacing="4">
-                                                             <TextBlock Classes="cfp-row-title" Text="{Binding Name}" />
-                                                             <TextBlock Classes="cfp-caption" Text="{Binding Id}" />
-                                                         </StackPanel>
-                                                         <TextBlock Grid.Column="1" Classes="cfp-meta" Text="{Binding CreatedAt}" VerticalAlignment="Center" />
-                                                     </Grid>
-                                                 </DataTemplate>
-                                             </ListBox.ItemTemplate>
-                                         </ListBox>
-                                         <TextBlock MinHeight="120"
-                                                    Margin="24"
-                                                    Classes="cfp-meta"
-                                                    Text="{Binding Loc[NoSnapshotsAction]}"
-                                                    TextAlignment="Center"
-                                                    TextWrapping="Wrap"
+                                                  MinWidth="180"
+                                                  ItemsSource="{Binding Slots}"
+                                                  SelectedItem="{Binding SelectedSlot, Mode=TwoWay}"
+                                                  SelectionChanged="OnSaveSlotSelectionChanged"
+                                                  AutomationProperties.Name="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[SaveSlot]}" />
+                                    </Grid>
+                                    <u:LoadingContainer Name="SaveEditorLoadingHost"
+                                                        MinHeight="480"
+                                                        IsLoading="{Binding IsLoaded, Converter={x:Static converters:BoolConverters.Not}}"
+                                                        HorizontalContentAlignment="Stretch"
+                                                        VerticalContentAlignment="Stretch">
+                                        <u:LoadingContainer.Indicator>
+                                            <Border Name="SaveEditorKnightLoadingViewport"
+                                                    Width="45"
+                                                    Height="72"
+                                                    HorizontalAlignment="Center"
                                                     VerticalAlignment="Center"
-                                                    IsVisible="{Binding Snapshots.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}" />
-                                     </Grid>
-                                 </Border>
-                                 <Button Classes="cfp-secondary"
-                                         Click="ConfirmRestoreSnapshot"
-                                         HorizontalAlignment="Right">
-                                     <Button.IsEnabled>
-                                         <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
-                                             <Binding Path="SelectedSnapshot" Converter="{x:Static converters:ObjectConverters.IsNotNull}" />
-                                             <Binding Path="IsBusy" Converter="{x:Static converters:BoolConverters.Not}" />
-                                             <Binding Path="IsGameRunning" Converter="{x:Static converters:BoolConverters.Not}" />
-                                         </MultiBinding>
-                                     </Button.IsEnabled>
-                                     <StackPanel Orientation="Horizontal" Spacing="8">
-                                         <LucideIcon Kind="ArchiveRestore" Size="16" />
-                                         <TextBlock Text="{Binding Loc[Restore]}" />
-                                     </StackPanel>
-                                 </Button>
+                                                    ClipToBounds="True">
+                                                <Image Name="SaveEditorKnightWalkImage"
+                                                       Width="180"
+                                                       Height="72"
+                                                       HorizontalAlignment="Left"
+                                                       VerticalAlignment="Center"
+                                                       Source="/Assets/knight-walk.png" />
+                                            </Border>
+                                        </u:LoadingContainer.Indicator>
+                                        <Grid IsVisible="{Binding IsLoaded}">
+                                            <Border Classes="cfp-list-frame" MaxHeight="480">
+                                                <ListBox Classes="cfp-list cfp-save-entry-list"
+                                                         ItemsSource="{Binding Entries}">
+                                                    <ListBox.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <VirtualizingStackPanel />
+                                                        </ItemsPanelTemplate>
+                                                    </ListBox.ItemsPanel>
+                                                    <ListBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:SaveEntryViewModel">
+                                                            <Grid ColumnDefinitions="2*,3*,80"
+                                                                  ColumnSpacing="8"
+                                                                  Margin="0,0,0,4">
+                                                                <TextBlock Classes="cfp-caption"
+                                                                           Text="{Binding Path}"
+                                                                           VerticalAlignment="Center"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           ToolTip.Tip="{Binding Path}" />
+                                                                <TextBox Grid.Column="1"
+                                                                         Classes="cfp-input"
+                                                                         Text="{Binding Value, Mode=TwoWay}"
+                                                                         AutomationProperties.Name="{Binding Path}" />
+                                                                <TextBlock Grid.Column="2"
+                                                                           Classes="cfp-meta"
+                                                                           Text="{Binding Kind}"
+                                                                           VerticalAlignment="Center" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ListBox.ItemTemplate>
+                                                </ListBox>
+                                            </Border>
+                                            <TextBlock Margin="24"
+                                                       Classes="cfp-meta"
+                                                       Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[NoSaveSlots]}"
+                                                       TextAlignment="Center"
+                                                       TextWrapping="Wrap"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       IsVisible="{Binding Slots.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}" />
+                                        </Grid>
+                                    </u:LoadingContainer>
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="8"
+                                                HorizontalAlignment="Right">
+                                        <Button Classes="cfp-secondary" Command="{Binding ResetCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <LucideIcon Kind="RotateCcw" Size="16" />
+                                                <TextBlock Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[ResetConfig]}" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Classes="cfp-primary"
+                                                Command="{Binding SaveCommand}"
+                                                IsEnabled="{Binding CanSave}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <LucideIcon Kind="Save" Size="16" />
+                                                <TextBlock Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[Save]}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </StackPanel>
                             </StackPanel>
 
                             <StackPanel Spacing="16"
@@ -903,6 +1082,137 @@
                                                  ScrollViewer.VerticalScrollBarVisibility="Auto" />
                                     </Grid>
                                 </Grid>
+                            </StackPanel>
+
+                            <StackPanel Name="GameConfigPanel"
+                                        Spacing="16"
+                                        Classes="cfp-tab-panel"
+                                        IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Config}">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Classes="cfp-page-title" Text="{Binding Loc[Config]}" />
+                                    <TextBlock Classes="cfp-meta"
+                                               Text="{Binding Loc[ConfigHint]}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Border Classes="cfp-error" IsVisible="{Binding IsGameRunning}">
+                                    <TextBlock Text="{Binding Loc[ConfigLocked]}" TextWrapping="Wrap" />
+                                </Border>
+                                <Border Classes="cfp-card"
+                                        IsVisible="{Binding GameConfig, Converter={x:Static converters:ObjectConverters.IsNotNull}}">
+                                    <StackPanel Spacing="16"
+                                                IsEnabled="{Binding IsGameRunning, Converter={x:Static converters:BoolConverters.Not}}">
+                                        <StackPanel Spacing="10">
+                                            <TextBlock Classes="cfp-section-title" Text="{Binding Loc[Accessibility]}" />
+                                            <Grid ColumnDefinitions="220,*,64"
+                                                  ColumnSpacing="12"
+                                                  IsVisible="{Binding SupportsAccessibility}">
+                                                <TextBlock Text="{Binding Loc[ReducedCameraShake]}"
+                                                           VerticalAlignment="Center" />
+                                                <Slider Grid.Column="1"
+                                                        Minimum="0"
+                                                        Maximum="1"
+                                                        TickFrequency="0.05"
+                                                        IsSnapToTickEnabled="True"
+                                                        Value="{Binding GameConfig.ReducedCameraShake, Mode=TwoWay}"
+                                                        VerticalAlignment="Center"
+                                                        AutomationProperties.Name="{Binding Loc[ReducedCameraShake]}" />
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding GameConfig.ReducedCameraShake, StringFormat={}{0:0.00}}"
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="Right" />
+                                            </Grid>
+                                            <Grid ColumnDefinitions="220,*,64" ColumnSpacing="12">
+                                                <TextBlock Text="{Binding Loc[ReducedControllerRumble]}"
+                                                           VerticalAlignment="Center" />
+                                                <Slider Grid.Column="1"
+                                                        Minimum="0"
+                                                        Maximum="1"
+                                                        TickFrequency="0.05"
+                                                        IsSnapToTickEnabled="True"
+                                                        Value="{Binding GameConfig.ReducedControllerRumble, Mode=TwoWay}"
+                                                        VerticalAlignment="Center"
+                                                        AutomationProperties.Name="{Binding Loc[ReducedControllerRumble]}" />
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding GameConfig.ReducedControllerRumble, StringFormat={}{0:0.00}}"
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="Right" />
+                                            </Grid>
+                                        </StackPanel>
+                                        <StackPanel Spacing="8">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Classes="cfp-section-title" Text="{Binding Loc[AdvancedConfig]}" />
+                                                    <TextBlock Classes="cfp-meta"
+                                                               Text="{Binding Loc[AdvancedConfigHint]}"
+                                                               TextWrapping="Wrap" />
+                                                </StackPanel>
+                                                <Button Grid.Column="1"
+                                                        Classes="cfp-secondary"
+                                                        Command="{Binding GameConfig.AddEntryCommand}"
+                                                        VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <LucideIcon Kind="Plus" Size="16" />
+                                                        <TextBlock Text="{Binding Loc[AddEntry]}" />
+                                                    </StackPanel>
+                                                </Button>
+                                            </Grid>
+                                            <Grid ColumnDefinitions="150,190,*,Auto" ColumnSpacing="8">
+                                                <TextBlock Classes="cfp-caption" Text="{Binding Loc[ConfigSection]}" />
+                                                <TextBlock Grid.Column="1" Classes="cfp-caption" Text="{Binding Loc[ConfigKey]}" />
+                                                <TextBlock Grid.Column="2" Classes="cfp-caption" Text="{Binding Loc[ConfigValue]}" />
+                                            </Grid>
+                                            <ItemsControl ItemsSource="{Binding GameConfig.Entries}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:ConfigEntryViewModel">
+                                                        <Grid ColumnDefinitions="150,190,*,Auto"
+                                                              ColumnSpacing="8"
+                                                              Margin="0,0,0,6">
+                                                            <TextBox Classes="cfp-input"
+                                                                     Text="{Binding Section, Mode=TwoWay}"
+                                                                     AutomationProperties.Name="{Binding #Root.DataContext.Loc[ConfigSection]}" />
+                                                            <TextBox Grid.Column="1"
+                                                                     Classes="cfp-input"
+                                                                     Text="{Binding Key, Mode=TwoWay}"
+                                                                     AutomationProperties.Name="{Binding #Root.DataContext.Loc[ConfigKey]}" />
+                                                            <TextBox Grid.Column="2"
+                                                                     Classes="cfp-input"
+                                                                     Text="{Binding Value, Mode=TwoWay}"
+                                                                     AutomationProperties.Name="{Binding #Root.DataContext.Loc[ConfigValue]}" />
+                                                            <Button Grid.Column="3"
+                                                                    Classes="cfp-icon"
+                                                                    Command="{Binding #Root.DataContext.GameConfig.RemoveEntryCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    ToolTip.Tip="{Binding #Root.DataContext.Loc[RemoveEntry]}"
+                                                                    AutomationProperties.Name="{Binding #Root.DataContext.Loc[RemoveEntry]}"
+                                                                    Content="{LucideIconContent Trash2, 16}" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                        <WrapPanel Orientation="Horizontal">
+                                            <Button Name="ConfigSaveButton"
+                                                    Classes="cfp-accent"
+                                                    Command="{Binding GameConfig.SaveCommand}"
+                                                    IsEnabled="{Binding GameConfig.IsDirty}"
+                                                    Margin="0,0,8,8">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <LucideIcon Kind="Save" Size="16" />
+                                                    <TextBlock Text="{Binding Loc[SaveConfig]}" />
+                                                </StackPanel>
+                                            </Button>
+                                            <Button Name="ConfigResetButton"
+                                                    Classes="cfp-secondary"
+                                                    Command="{Binding GameConfig.ResetCommand}"
+                                                    Margin="0,0,8,8">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <LucideIcon Kind="RotateCcw" Size="16" />
+                                                    <TextBlock Text="{Binding Loc[ResetConfig]}" />
+                                                </StackPanel>
+                                            </Button>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </Grid>
                     </ScrollViewer>

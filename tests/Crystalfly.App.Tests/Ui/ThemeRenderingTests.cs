@@ -268,7 +268,10 @@ public sealed class ThemeRenderingTests
 
         try
         {
-            var loading = Assert.Single(window.GetLogicalDescendants().OfType<LoadingContainer>());
+            var loading = Assert.IsType<LoadingContainer>(
+                window.FindControl<Control>("GlobalLoadingHost"));
+            var loadingMessage = Assert.IsType<TextBlock>(
+                window.FindControl<Control>("GlobalLoadingMessage"));
             var skeleton = Assert.Single(window.GetLogicalDescendants().OfType<Skeleton>());
             Assert.Equal(HorizontalAlignment.Stretch, loading.HorizontalContentAlignment);
             Assert.Equal(VerticalAlignment.Stretch, loading.VerticalContentAlignment);
@@ -285,7 +288,7 @@ public sealed class ThemeRenderingTests
             Dispatcher.UIThread.RunJobs();
 
             Assert.True(loading.IsLoading);
-            Assert.Equal("Working", loading.LoadingMessage);
+            Assert.Equal("Working", loadingMessage.Text);
             Assert.True(skeleton.IsLoading);
             Assert.True(skeleton.IsActive);
             var downloadProgress = Assert.IsType<ProgressBar>(

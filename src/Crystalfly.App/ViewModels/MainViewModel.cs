@@ -592,7 +592,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
     [NotifyPropertyChangedFor(nameof(LaunchReadinessTitle))]
     [NotifyPropertyChangedFor(nameof(LaunchReadinessHint))]
+    [NotifyPropertyChangedFor(nameof(SupportsAccessibility))]
     public partial InstanceItemViewModel? SelectedInstance { get; set; }
+
+    public bool SupportsAccessibility =>
+        SelectedInstance is not null
+        && !SelectedInstance.Record.BuildId.StartsWith("1.2.", StringComparison.OrdinalIgnoreCase)
+        && !SelectedInstance.Record.BuildId.StartsWith("1.4.", StringComparison.OrdinalIgnoreCase);
 
     [ObservableProperty]
     public partial SettingOption<UiLanguage>? SelectedLanguage { get; set; }

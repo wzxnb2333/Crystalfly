@@ -58,6 +58,31 @@ public sealed class EditorIntegrationViewModelTests : IDisposable
         Assert.DoesNotContain("user2.dat", viewModel.SaveEditor.Slots);
     }
 
+    [Fact]
+    public async Task Edit_current_save_without_slots_finishes_loading()
+    {
+        var versionRoot = Directory.CreateDirectory(Path.Combine(root, "versions")).FullName;
+        var selected = CreateInstance(versionRoot, "empty");
+        Directory.CreateDirectory(Path.Combine(
+            versionRoot,
+            ".crystalfly",
+            "instances",
+            selected.Id,
+            "local-low"));
+        await using var viewModel = new MainViewModel(Path.Combine(root, "app-data"))
+        {
+            VersionRoot = versionRoot,
+            SelectedInstance = new InstanceItemViewModel(selected, selected.BuildId, "Vanilla", 0)
+        };
+
+        await viewModel.EditSaveCommand.ExecuteAsync("current");
+
+        Assert.NotNull(viewModel.SaveEditor);
+        Assert.True(viewModel.SaveEditor.IsLoaded);
+        Assert.Empty(viewModel.SaveEditor.Slots);
+        Assert.Empty(viewModel.SaveEditor.Entries);
+    }
+
     private static InstanceRecord CreateInstance(string versionRoot, string id)
     {
         var instanceRoot = Directory.CreateDirectory(Path.Combine(versionRoot, id)).FullName;

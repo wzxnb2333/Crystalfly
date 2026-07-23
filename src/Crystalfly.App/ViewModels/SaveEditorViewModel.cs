@@ -68,6 +68,7 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
+        IsLoaded = false;
         var service = snapshotService;
         var instId = instanceId;
         var snapId = snapshotId;
@@ -84,7 +85,14 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
         {
             SelectedSlot = Slots[0];
             await LoadSlotAsync(Slots[0], cancellationToken);
+            return;
         }
+
+        SelectedSlot = null;
+        currentSlot = string.Empty;
+        Entries = [];
+        IsDirty = false;
+        IsLoaded = true;
     }
 
     public async Task SelectSlotAsync(string slot, CancellationToken cancellationToken = default)
