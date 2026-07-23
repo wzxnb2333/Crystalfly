@@ -53,7 +53,7 @@ public static class CatalogProvider
                 var candidate = await AtomicJsonStore.ReadAsync<GameCatalog>(cachePath, cancellationToken);
                 ValidateSource(candidate);
                 ValidateCatalog(candidate, CatalogMerger.Merge(embedded, candidate, null));
-                cache = candidate;
+                cache = FilterToEmbeddedBuilds(embedded, candidate);
             }
             catch (Exception exception) when (exception is IOException or JsonException or InvalidDataException)
             {
@@ -73,6 +73,7 @@ public static class CatalogProvider
                 ?? throw new JsonException("Remote catalog did not contain a catalog value.");
             ValidateSource(candidate);
             ValidateCatalog(candidate, CatalogMerger.Merge(embedded, null, candidate));
+            candidate = FilterToEmbeddedBuilds(embedded, candidate);
             await AtomicJsonStore.WriteAsync(cachePath, candidate, cancellationToken);
             remote = candidate;
         }
@@ -85,6 +86,43 @@ public static class CatalogProvider
         }
 
         return CatalogMerger.Merge(embedded, cache, remote, customCatalogs);
+    }
+
+    private static GameCatalog FilterToEmbeddedBuilds(GameCatalog embedded, GameCatalog candidate)
+    {
+        var embeddedBuildIds = embedded.Builds
+            .Select(build => build.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var loaderIds = candidate.Loaders
+            .Where(loader => loader.SupportedBuildIds.All(embeddedBuildIds.Contains))
+            .Select(loader => loader.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return candidate with
+        {
+            Builds = candidate.Builds
+                .Where(build => embeddedBuildIds.Contains(build.Id))
+                .ToArray(),
+            Channels = candidate.Channels
+                .Where(channel => embeddedBuildIds.Contains(channel.BuildId))
+                .ToArray(),
+            Loaders = candidate.Loaders
+                .Where(loader => loaderIds.Contains(loader.Id))
+                .ToArray(),
+            Mods = candidate.Mods
+                .Where(mod => loaderIds.Contains(mod.LoaderId)
+                    && mod.SupportedBuildIds.All(embeddedBuildIds.Contains))
+                .ToArray(),
+            SpeedrunAssets = candidate.SpeedrunAssets
+                .Where(asset => asset.SupportedBuildIds.All(embeddedBuildIds.Contains))
+                .ToArray(),
+            SpeedrunTemplates = candidate.SpeedrunTemplates
+                .Where(template => embeddedBuildIds.Contains(template.BuildId))
+                .ToArray(),
+            SpeedrunFileManifests = candidate.SpeedrunFileManifests
+                .Where(manifest => embeddedBuildIds.Contains(manifest.BuildId))
+                .ToArray()
+        };
     }
 
     private static void ValidateCatalog(GameCatalog source, GameCatalog resolved)

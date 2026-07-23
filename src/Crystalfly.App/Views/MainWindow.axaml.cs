@@ -1132,7 +1132,8 @@ public partial class MainWindow : Window
                     : viewModel.Loc["DependenciesWillBeMissing"],
                 node.Depth,
                 node.Kind == Crystalfly.Core.Mods.ModRemovalImpactKind.WillRemove,
-                isUnresolved: false);
+                isUnresolved: false,
+                parentModId: node.RelatedToModId);
         }).ToArray();
         var dialog = new DependencyPlanDialogViewModel(
             bulk ? viewModel.Loc["ConfirmBulkUninstallTitle"] : viewModel.Loc["ConfirmModUninstallTitle"],
@@ -1251,12 +1252,13 @@ public partial class MainWindow : Window
                 root is null ? viewModel.Loc["Missing"] : root.IsEnabled ? viewModel.Loc["Enabled"] : viewModel.Loc["Disabled"],
                 0,
                 isTarget: true,
-                isUnresolved: false));
+                isUnresolved: false,
+                parentModId: null));
             AppendChildren(rootId, 1, new HashSet<string>(StringComparer.OrdinalIgnoreCase) { rootId });
         }
         foreach (var item in plan.Items.Where(item => !rendered.Contains(item.ModId)))
         {
-            AppendItem(item, 0, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            AppendItem(item, 0, new HashSet<string>(StringComparer.OrdinalIgnoreCase), null);
         }
         return nodes;
 
@@ -1268,14 +1270,15 @@ public partial class MainWindow : Window
             }
             foreach (var child in childItems)
             {
-                AppendItem(child, depth, path);
+                AppendItem(child, depth, path, parentId);
             }
         }
 
         void AppendItem(
             ModDependencyRepairPlanItem item,
             int depth,
-            IReadOnlySet<string> parentPath)
+            IReadOnlySet<string> parentPath,
+            string? parentModId)
         {
             if (parentPath.Contains(item.ModId))
             {
@@ -1300,7 +1303,8 @@ public partial class MainWindow : Window
                 $"{currentStatus} · {actionStatus}",
                 depth,
                 isTarget: false,
-                isUnresolved: item.Action == ModDependencyRepairAction.Unresolved));
+                isUnresolved: item.Action == ModDependencyRepairAction.Unresolved,
+                parentModId: parentModId));
             var path = new HashSet<string>(parentPath, StringComparer.OrdinalIgnoreCase) { item.ModId };
             AppendChildren(item.ModId, depth + 1, path);
         }
@@ -1313,7 +1317,8 @@ public partial class MainWindow : Window
             string status,
             int depth,
             bool isTarget,
-            bool isUnresolved) => new(
+            bool isUnresolved,
+            string? parentModId) => new(
                 primaryName,
                 secondaryName,
                 modId,
@@ -1323,7 +1328,8 @@ public partial class MainWindow : Window
                 isTarget,
                 isUnresolved,
                 viewModel.Loc["Target"],
-                viewModel.Loc["Unresolved"]);
+                viewModel.Loc["Unresolved"],
+                parentModId);
     }
     private async void ConfirmUninstallLoader(object? sender, RoutedEventArgs eventArgs)
     {
