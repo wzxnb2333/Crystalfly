@@ -107,6 +107,45 @@ public sealed class NamedSnapshotServiceTests
             service.CreateAsync("practice", "Blocked"));
     }
 
+    [Fact]
+    public async Task List_save_slots_returns_only_root_user1_through_user4_for_selected_instance()
+    {
+        using var test = new TestDirectory();
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        var selected = test.CreateDirectory(
+            "version", ".crystalfly", "instances", "practice", "local-low");
+        var other = test.CreateDirectory(
+            "version", ".crystalfly", "instances", "race", "local-low");
+        await test.WriteAsync(selected, "user1.dat", "slot-1");
+        await test.WriteAsync(selected, "user3.dat", "slot-3");
+        await test.WriteAsync(selected, "user1_1.4.3.2.dat", "version-backup");
+        await test.WriteAsync(selected, "archive", "user2.dat", "nested-backup");
+        await test.WriteAsync(selected, "user5.dat", "unsupported-slot");
+        await test.WriteAsync(other, "user2.dat", "other-instance");
+        var service = CreateService(storage);
+
+        var slots = await service.ListSaveSlotsAsync("practice", snapshotId: null);
+
+        Assert.Equal(["user1.dat", "user3.dat"], slots);
+    }
+
+    [Theory]
+    [InlineData("user1_1.4.3.2.dat")]
+    [InlineData("archive/user2.dat")]
+    [InlineData("user5.dat")]
+    public async Task Save_editor_operations_reject_non_slot_paths(string relativePath)
+    {
+        using var test = new TestDirectory();
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        test.CreateDirectory("version", ".crystalfly", "instances", "practice", "local-low");
+        var service = CreateService(storage);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.DecryptSaveAsync("practice", snapshotId: null, relativePath));
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.UpdateSaveAsync("practice", snapshotId: null, relativePath, "{}"));
+    }
+
     private static NamedSnapshotService CreateService(string storage) => new(
         storage,
         UniqueMutexName(),
