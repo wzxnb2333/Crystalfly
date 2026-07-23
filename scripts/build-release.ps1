@@ -4,8 +4,11 @@ param(
     [ValidateSet('win-x64')]
     [string]$Runtime = 'win-x64',
     [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$')]
-    [string]$Version = '0.5.0',
-    [string]$IsccPath
+    [string]$Version = '0.6.0',
+    [string]$IsccPath,
+    [string]$SigningKeyPath,
+    [string]$ReleaseNotesPath,
+    [string]$PublishedAt
 )
 
 $ErrorActionPreference = 'Stop'
@@ -59,6 +62,7 @@ function Reset-ReleaseStaging {
 
     foreach ($path in @(
         (Join-Path $ArtifactsPath "publish\$Runtime"),
+        (Join-Path $ArtifactsPath "updater\$Runtime"),
         (Join-Path $ArtifactsPath "portable\$Runtime"),
         (Join-Path $ArtifactsPath 'installer')
     )) {
@@ -70,6 +74,14 @@ function Reset-ReleaseStaging {
     $checksums = Join-Path $ArtifactsPath 'SHA256SUMS.txt'
     if (Test-Path -LiteralPath $checksums) {
         Remove-Item -LiteralPath $checksums -Force
+    }
+    foreach ($manifestPath in @(
+        (Join-Path $ArtifactsPath 'update-manifest.v1.json'),
+        (Join-Path $ArtifactsPath 'update-manifest.v1.json.bak')
+    )) {
+        if (Test-Path -LiteralPath $manifestPath) {
+            Remove-Item -LiteralPath $manifestPath -Force
+        }
     }
 }
 
@@ -261,11 +273,31 @@ if ($MyInvocation.InvocationName -eq '.') {
 $root = Split-Path -Parent $PSScriptRoot
 $artifacts = Join-Path $root 'artifacts'
 $publish = Join-Path $artifacts "publish\$Runtime"
+$updaterPublish = Join-Path $artifacts "updater\$Runtime"
 $portable = Join-Path $artifacts "portable\$Runtime"
 $appProject = Join-Path $root 'src\Crystalfly.App\Crystalfly.App.csproj'
+$updaterProject = Join-Path $root 'src\Crystalfly.Updater\Crystalfly.Updater.csproj'
+$releaseToolProject = Join-Path $root 'tools\Crystalfly.ReleaseTool\Crystalfly.ReleaseTool.csproj'
+$updatePublicKey = Join-Path $root 'src\Crystalfly.App\Updates\stable-1.pub'
 $zip = Join-Path $artifacts "Crystalfly-$Version-$Runtime-portable.zip"
 $installer = Join-Path $artifacts "installer\Crystalfly-$Version-win-x64-setup.exe"
+$updateManifest = Join-Path $artifacts 'update-manifest.v1.json'
 $checksums = Join-Path $artifacts 'SHA256SUMS.txt'
+
+if ([string]::IsNullOrWhiteSpace($SigningKeyPath)) {
+    $SigningKeyPath = Join-Path $root '.env.update-signing'
+}
+if ([string]::IsNullOrWhiteSpace($ReleaseNotesPath)) {
+    $ReleaseNotesPath = Join-Path $root "docs\releases\$Version.md"
+}
+if ([string]::IsNullOrWhiteSpace($PublishedAt)) {
+    $PublishedAt = [DateTimeOffset]::UtcNow.ToString('O', [Globalization.CultureInfo]::InvariantCulture)
+}
+foreach ($requiredFile in $SigningKeyPath, $ReleaseNotesPath, $updatePublicKey) {
+    if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) {
+        throw "Required release input was not found: '$requiredFile'."
+    }
+}
 
 Reset-ReleaseStaging -ArtifactsPath $artifacts -Runtime $Runtime
 Invoke-Native 'Solution restore' {
@@ -273,6 +305,9 @@ Invoke-Native 'Solution restore' {
 }
 Invoke-Native 'Runtime restore' {
     dotnet restore $appProject -r $Runtime
+}
+Invoke-Native 'Updater runtime restore' {
+    dotnet restore $updaterProject -r $Runtime
 }
 Invoke-Native 'Release build' {
     dotnet build (Join-Path $root 'Crystalfly.slnx') -c $Configuration --no-restore
@@ -285,6 +320,18 @@ Invoke-Native 'Self-contained publish' {
         --no-restore -p:Version=$Version -p:DebugSymbols=false -p:DebugType=None `
         -p:CopyOutputSymbolsToPublishDirectory=false -o $publish
 }
+Invoke-Native 'Updater single-file publish' {
+    dotnet publish $updaterProject -c $Configuration -r $Runtime --self-contained true `
+        --no-restore -p:Version=$Version -p:PublishSingleFile=true `
+        -p:DebugSymbols=false -p:DebugType=None `
+        -p:CopyOutputSymbolsToPublishDirectory=false -o $updaterPublish
+}
+
+$updaterExecutable = Join-Path $updaterPublish 'Crystalfly.Updater.exe'
+if (-not (Test-Path -LiteralPath $updaterExecutable -PathType Leaf)) {
+    throw "Updater publish did not create '$updaterExecutable'."
+}
+Copy-Item -LiteralPath $updaterExecutable -Destination (Join-Path $publish 'Crystalfly.Updater.exe') -Force
 
 Remove-PublishSymbols -PublishPath $publish
 Assert-PublishContainsNoSymbols -PublishPath $publish
@@ -307,6 +354,26 @@ if (-not (Test-Path -LiteralPath $installer)) {
     throw "Installer was not created at '$installer'."
 }
 
-$hashes = Get-FileHash -Algorithm SHA256 -LiteralPath $zip, $installer
-Write-ArtifactChecksums -Paths $zip, $installer -ArtifactsPath $artifacts -OutputPath $checksums
+Invoke-Native 'Signed update manifest' {
+    dotnet run --project $releaseToolProject -c $Configuration --no-build -- sign `
+        --version $Version `
+        --notes $ReleaseNotesPath `
+        --portable $zip `
+        --installer $installer `
+        --private-env $SigningKeyPath `
+        --output $updateManifest `
+        --published-at $PublishedAt `
+        --tag "v$Version"
+}
+if (-not (Test-Path -LiteralPath $updateManifest -PathType Leaf)) {
+    throw "Signed update manifest was not created at '$updateManifest'."
+}
+Invoke-Native 'Signed update manifest verification' {
+    dotnet run --project $releaseToolProject -c $Configuration --no-build -- verify `
+        --manifest $updateManifest `
+        --public-key $updatePublicKey
+}
+
+$hashes = Get-FileHash -Algorithm SHA256 -LiteralPath $zip, $installer, $updateManifest
+Write-ArtifactChecksums -Paths $zip, $installer, $updateManifest -ArtifactsPath $artifacts -OutputPath $checksums
 $hashes

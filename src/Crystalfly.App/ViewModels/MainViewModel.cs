@@ -10,6 +10,8 @@ using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Crystalfly.App.Downloads;
+using Crystalfly.App.Updates;
+using Crystalfly.App.Runtime;
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.Core.Catalog;
 using Crystalfly.Core.Configuration;
@@ -50,6 +52,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly CancellationTokenSource lifetimeCancellation = new();
     private readonly object settingsSaveQueueLock = new();
     private readonly object disposeLock = new();
+    private readonly object externalProtocolCommandSync = new();
     private readonly Func<Task>? launchOverride;
     private readonly Func<CancellationToken, Task>? downloadOverride;
     private readonly Func<Task>? disposeSteamOverride;
@@ -58,16 +61,23 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly Func<CancellationToken, Task<GitHubRouteLatencyTestResult>>? githubLatencyTestOverride;
     private readonly Func<ModManifest, CancellationToken, Task<ModContentLoadResult>>? modContentLoadOverride;
     private readonly Func<
+        CrystalflySettings,
+        bool,
+        CancellationToken,
+        Task<ApplicationUpdateCheckResult>>? applicationUpdateCheckOverride;
+    private readonly Func<
         InstanceRecord,
         Func<CancellationToken, ValueTask<InstanceDeletionConditions>>,
         CancellationToken,
         Task<InstanceDeletionResult>>? instanceDeletionOverride;
     private readonly GitHubRouteLatencyService githubLatencyService;
+    private readonly IProtocolRegistrationService protocolRegistrationService;
     private CrystalflySettings settings = new();
     private Task settingsSaveQueue = Task.CompletedTask;
     private Task steamOfflineTransitionTask = Task.CompletedTask;
     private Task? initializationTask;
     private Task? disposeTask;
+    private Task externalProtocolCommandTask = Task.CompletedTask;
     private SteamAuthenticationSession? steamSession;
     private CancellationTokenSource? steamSignInCancellation;
     private CancellationTokenSource? downloadCancellation;
@@ -111,7 +121,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             Func<CancellationToken, ValueTask<InstanceDeletionConditions>>,
             CancellationToken,
             Task<InstanceDeletionResult>>? instanceDeletionOverride = null,
-        Func<ModManifest, CancellationToken, Task<ModContentLoadResult>>? modContentLoadOverride = null)
+        Func<ModManifest, CancellationToken, Task<ModContentLoadResult>>? modContentLoadOverride = null,
+        Func<
+            CrystalflySettings,
+            bool,
+            CancellationToken,
+            Task<ApplicationUpdateCheckResult>>? applicationUpdateCheckOverride = null,
+        IProtocolRegistrationService? protocolRegistrationService = null)
     {
         this.launchOverride = launchOverride;
         this.downloadOverride = downloadOverride;
@@ -121,6 +137,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         this.githubLatencyTestOverride = githubLatencyTestOverride;
         this.modContentLoadOverride = modContentLoadOverride;
         this.instanceDeletionOverride = instanceDeletionOverride;
+        this.applicationUpdateCheckOverride = applicationUpdateCheckOverride;
+        this.protocolRegistrationService = protocolRegistrationService
+            ?? new WindowsProtocolRegistrationService();
         paths = applicationDataRoot is null
             ? CrystalflyPaths.Resolve(
                 AppContext.BaseDirectory,
@@ -214,7 +233,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public bool HasInstance => SelectedInstance is not null;
 
-    public bool CanNavigate => !IsBusy && !IsGameRunning;
+    public bool CanNavigate => !IsBusy && !IsGameRunning && !IsExternalCommandRunning;
 
     public bool CanCloneInstance => CanNavigate && !string.IsNullOrWhiteSpace(CloneInstanceName);
 
@@ -288,6 +307,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public string OfficialModCatalogError => settings.CustomModLinks is not null
         ? customModLinksError ?? customModLinksResult?.Reason ?? string.Empty
         : officialCatalogResult?.Reason ?? string.Empty;
+
+    public bool IsProtocolRegistered => protocolRegistrationService.IsRegistered(
+        Path.Combine(AppContext.BaseDirectory, "Crystalfly.App.exe"));
+
+    public string ProtocolRegistrationStatus => IsProtocolRegistered
+        ? Loc["ProtocolRegistered"]
+        : Loc["ProtocolNotRegistered"];
 
     public bool IsLaunchPage => CurrentPage == "Launch";
 
@@ -414,6 +440,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(CanLaunch))]
     [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
     public partial bool IsBusy { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanNavigate))]
+    [NotifyPropertyChangedFor(nameof(CanCloneInstance))]
+    [NotifyPropertyChangedFor(nameof(CanLaunch))]
+    [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
+    public partial bool IsExternalCommandRunning { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
@@ -594,10 +627,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private async Task InitializeCoreAsync()
     {
+        ApplicationUpdateLauncher.CleanupExpiredAssets(
+            Path.Combine(paths.ApplicationDataRoot, "updates"),
+            DateTimeOffset.UtcNow,
+            TimeSpan.FromDays(7));
         settings = await CrystalflySettingsStore.LoadAsync(settingsPath);
         IsOfflineMode = settings.OfflineMode;
         ApplyLanguage(settings.Language);
         ApplyTheme(settings.Theme);
+        InitializeApplicationUpdateSettings();
         catalog = await LoadCatalogAsync(lifetimeCancellation.Token);
         VersionRoot = settings.VersionRoot ?? string.Empty;
         CustomSourcesText = string.Join(
@@ -2417,6 +2455,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         VisibleAvailableMods.Clear();
         InstalledMods.Clear();
         VisibleInstalledMods.Clear();
+        Snapshots.Clear();
         ModPresets.Clear();
         SelectedPreset = null;
         HasPresetRestorePoint = false;
@@ -2767,6 +2806,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Loc = localization;
         OnPropertyChanged(nameof(Loc));
         OnPropertyChanged(nameof(SelectedModContentStatusText));
+        OnPropertyChanged(nameof(IsProtocolRegistered));
+        OnPropertyChanged(nameof(ProtocolRegistrationStatus));
+        RefreshApplicationUpdateText();
         NotifyOfficialCatalogLabels();
         if (DownloadQueueGroups.Count > 0)
         {
@@ -3739,6 +3781,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private async Task DisposeCoreAsync()
     {
         lifetimeCancellation.Cancel();
+        Task pendingExternalProtocolCommand;
+        lock (externalProtocolCommandSync)
+        {
+            pendingExternalProtocolCommand = externalProtocolCommandTask;
+        }
         var detailsCancellation = Interlocked.Exchange(ref detailsLoadCancellation, null);
         detailsCancellation?.Cancel();
         var pendingDetailsLoad = detailsLoadTask;
@@ -3761,6 +3808,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     PrepareMarketInstallTargetsCommand.ExecutionTask ?? Task.CompletedTask,
                     InstallMarketModCommand.ExecutionTask ?? Task.CompletedTask,
                     TestGitHubLatencyCommand.ExecutionTask ?? Task.CompletedTask,
+                    pendingExternalProtocolCommand,
                     steamOfflineTransitionTask,
                     pendingDetailsLoad,
                     pendingContentLoad);

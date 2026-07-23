@@ -1,15 +1,14 @@
-﻿using Avalonia;
-using System;
+using Avalonia;
+using Crystalfly.App.Runtime;
 
 namespace Crystalfly.App;
 
-sealed class Program
+internal sealed class Program
 {
     private const string ApplicationMutexName = @"Local\Crystalfly.Application";
+    private const string CommandPipeName = "Crystalfly.Application.Commands";
+    internal const string ActivateMessage = "@activate";
 
-    // Initialization code. Don't use any Avalonia, third-party APIs or any
-    // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
-    // yet and stuff might break.
     [STAThread]
     public static void Main(string[] args)
     {
@@ -19,16 +18,48 @@ sealed class Program
             out bool createdNew);
         if (!createdNew)
         {
+            try
+            {
+                SingleInstanceCommandChannel.ForwardAsync(
+                        CommandPipeName,
+                        FindProtocolCommand(args) ?? ActivateMessage,
+                        TimeSpan.FromSeconds(5))
+                    .GetAwaiter()
+                    .GetResult();
+            }
+            catch (Exception exception) when (exception is IOException
+                or TimeoutException
+                or OperationCanceledException
+                or UnauthorizedAccessException
+                or ArgumentException)
+            {
+            }
             return;
         }
 
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        var commandChannel = new SingleInstanceCommandChannel(CommandPipeName);
+        commandChannel.MessageReceived += App.EnqueueExternalMessage;
+        commandChannel.Start();
+        if (FindProtocolCommand(args) is { } startupCommand)
+        {
+            App.EnqueueExternalMessage(startupCommand);
+        }
+        try
+        {
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+        finally
+        {
+            commandChannel.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
     }
 
-    // Avalonia configuration, don't remove; also used by visual designer.
-    public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<App>()
-            .UsePlatformDetect()
-            .WithInterFont()
-            .LogToTrace();
+    private static string? FindProtocolCommand(IEnumerable<string> args) =>
+        args.FirstOrDefault(argument =>
+            argument.StartsWith("crystalfly:", StringComparison.OrdinalIgnoreCase));
+
+    public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
+        .UsePlatformDetect()
+        .WithInterFont()
+        .LogToTrace();
 }

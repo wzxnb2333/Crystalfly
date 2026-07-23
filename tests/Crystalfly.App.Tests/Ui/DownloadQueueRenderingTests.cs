@@ -170,6 +170,130 @@ public sealed class DownloadQueueRenderingTests
     }
 
     [AvaloniaFact]
+    public async Task Updating_with_active_download_waits_for_close_confirmation_before_starting()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "crystalfly-update-close", Guid.NewGuid().ToString("N"));
+        var executor = new BlockingExecutor();
+        var queue = new DownloadQueueService(
+            Path.Combine(root, "download-queue.json"),
+            executor,
+            static () => false,
+            TimeSpan.FromMilliseconds(10));
+        var viewModel = new MainViewModel(root, null, null, null, null, queue);
+        var window = new MainWindow { Width = 900, Height = 600, DataContext = viewModel };
+        window.Show();
+        await queue.InitializeAsync();
+        await queue.EnqueueAsync(Group("update-cancel"));
+        await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() =>
+        {
+            Dispatcher.UIThread.RunJobs();
+            return viewModel.HasUnfinishedDownloads;
+        });
+
+        var started = false;
+        try
+        {
+            Task<bool> update = window.StartApplicationUpdateAsync(
+                viewModel,
+                _ =>
+                {
+                    started = true;
+                    return Task.FromResult(true);
+                });
+            var dialog = await WaitForDialogAsync(window);
+
+            Assert.False(started);
+            var cancel = dialog.GetVisualDescendants().OfType<Button>()
+                .Single(button => AutomationProperties.GetName(button) == viewModel.Loc["Cancel"]);
+            cancel.Command!.Execute(cancel.CommandParameter);
+
+            Assert.False(await update);
+            Assert.False(started);
+            Assert.True(window.IsVisible);
+        }
+        finally
+        {
+            typeof(MainWindow)
+                .GetField("closeAfterDispose", System.Reflection.BindingFlags.Instance
+                    | System.Reflection.BindingFlags.NonPublic)!
+                .SetValue(window, true);
+            window.Close();
+            await viewModel.DisposeAsync();
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Confirming_update_close_starts_updater_and_closes_without_second_confirmation()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "crystalfly-update-confirm", Guid.NewGuid().ToString("N"));
+        var executor = new BlockingExecutor();
+        var queue = new DownloadQueueService(
+            Path.Combine(root, "download-queue.json"),
+            executor,
+            static () => false,
+            TimeSpan.FromMilliseconds(10));
+        var viewModel = new MainViewModel(root, null, null, null, null, queue);
+        var window = new MainWindow { Width = 900, Height = 600, DataContext = viewModel };
+        window.Show();
+        await queue.InitializeAsync();
+        await queue.EnqueueAsync(Group("update-confirm"));
+        await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() =>
+        {
+            Dispatcher.UIThread.RunJobs();
+            return viewModel.HasUnfinishedDownloads;
+        });
+
+        var started = false;
+        try
+        {
+            Task<bool> update = window.StartApplicationUpdateAsync(
+                viewModel,
+                _ =>
+                {
+                    started = true;
+                    return Task.FromResult(true);
+                });
+            var dialog = await WaitForDialogAsync(window);
+            var confirm = dialog.GetVisualDescendants().OfType<Button>()
+                .Single(button => AutomationProperties.GetName(button) == viewModel.Loc["Confirm"]);
+            confirm.Command!.Execute(confirm.CommandParameter);
+
+            Assert.True(await update);
+            await WaitUntilAsync(() =>
+            {
+                Dispatcher.UIThread.RunJobs();
+                return !window.IsVisible;
+            });
+            Assert.True(started);
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<CustomDialogControl>(), dialog =>
+                dialog.GetVisualDescendants().OfType<TextBlock>().Any(text =>
+                    text.Text == viewModel.Loc["ConfirmCloseDownloadsTitle"]));
+        }
+        finally
+        {
+            if (window.IsVisible)
+            {
+                typeof(MainWindow)
+                    .GetField("closeAfterDispose", System.Reflection.BindingFlags.Instance
+                        | System.Reflection.BindingFlags.NonPublic)!
+                    .SetValue(window, true);
+                window.Close();
+                await viewModel.DisposeAsync();
+            }
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Failed_download_requires_close_confirmation()
     {
         var root = Path.Combine(Path.GetTempPath(), "crystalfly-close-failed", Guid.NewGuid().ToString("N"));

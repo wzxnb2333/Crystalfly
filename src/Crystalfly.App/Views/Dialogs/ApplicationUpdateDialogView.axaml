@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Crystalfly.App.ViewModels.Dialogs"
+             xmlns:mv="using:MarkView.Avalonia"
+             xmlns:u="https://irihi.tech/ursa"
+             x:Class="Crystalfly.App.Views.Dialogs.ApplicationUpdateDialogView"
+             x:DataType="vm:ApplicationUpdateDialogViewModel"
+             MinWidth="520"
+             MaxWidth="680">
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Escape" Command="{Binding LaterCommand}" />
+    </UserControl.KeyBindings>
+
+    <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
+        <TextBlock Classes="cfp-section-title"
+                   Text="{Binding Title}"
+                   TextWrapping="Wrap" />
+        <TextBlock Grid.Row="1"
+                   Classes="cfp-meta"
+                   Text="{Binding Version}" />
+        <ScrollViewer Grid.Row="2"
+                      MinHeight="120"
+                      MaxHeight="320"
+                      VerticalScrollBarVisibility="Auto">
+            <mv:MarkdownViewer Markdown="{Binding NotesMarkdown}" />
+        </ScrollViewer>
+        <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+            <Button Classes="cfp-secondary"
+                    Command="{Binding SkipCommand}"
+                    Content="{Binding SkipText}"
+                    AutomationProperties.Name="{Binding SkipText}" />
+            <Button Grid.Column="2"
+                    Classes="cfp-secondary"
+                    Command="{Binding LaterCommand}"
+                    Content="{Binding LaterText}"
+                    MinWidth="96"
+                    u:FocusHelper.DialogFocusHint="True"
+                    AutomationProperties.Name="{Binding LaterText}" />
+            <Button Grid.Column="3"
+                    Classes="cfp-primary"
+                    Command="{Binding UpdateCommand}"
+                    Content="{Binding UpdateText}"
+                    MinWidth="96"
+                    AutomationProperties.Name="{Binding UpdateText}" />
+        </Grid>
+    </Grid>
+</UserControl>

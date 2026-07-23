@@ -157,6 +157,36 @@ code retrieves a preset; deletion requires the one-time returned token, whose
 SHA-256 hash is the only token material stored. Hosted sharing is disabled by the
 global offline policy, while local JSON import and export remain available.
 
+## External commands and application updates
+
+`crystalfly://` input is capped before parsing and accepts only the documented
+command and parameter sets. State-changing commands are projected into a local
+summary and require confirmation. A current-user named pipe forwards a second
+process to the existing window; it carries only the bounded protocol document
+or an activation marker.
+
+The stable update document is an Ed25519-signed envelope. The embedded public
+key validates its exact payload before any version or asset field is used. The
+payload is restricted to the stable channel, Windows x64, one installer and one
+portable asset hosted by this repository's GitHub Release. Asset downloads use
+the global offline and GitHub-route policies and are accepted only after exact
+size and SHA-256 verification. The updater receives the signed size and hash,
+re-verifies the asset after the main process exits, and holds a read-sharing
+lock through installation so a user-writable cached asset cannot be replaced
+between verification and elevation.
+
+The application copies the bundled update helper to a temporary directory
+before exiting. Installed mode invokes the Inno installer with silent switches.
+Portable mode extracts into a sibling staging directory, rejects traversal and
+reparse entries, and records a persistent operation journal under
+`.crystalfly-update-recovery`. Current program files move into a sibling backup;
+the backup is retained until the replacement application writes a health
+handshake, and a later updater run can restore interrupted operations. Verified
+assets are deleted after the updater reaches a determined result, while startup
+removes expired orphan assets. The portable `Data` directory is excluded from
+both replacement and cleanup. Instance roots, caches, saves, and LocalLow are
+outside the application replacement boundary.
+
 ## LocalLow isolation
 
 Before first takeover, Crystalfly copies the complete shared Hollow Knight

@@ -1748,6 +1748,51 @@
                                           IsChecked="{Binding IsOfflineMode, Mode=TwoWay}" />
                             </Grid>
                         </Border>
+                        <Border Classes="cfp-card">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Classes="cfp-row-title" Text="{Binding Loc[ApplicationUpdates]}" />
+                                        <TextBlock Classes="cfp-caption"
+                                                   Text="{Binding Loc[ApplicationUpdatesHint]}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <CheckBox Grid.Column="1"
+                                              VerticalAlignment="Center"
+                                              Content="{Binding Loc[CheckForUpdates]}"
+                                              IsChecked="{Binding IsAutomaticUpdateCheckEnabled, Mode=TwoWay}" />
+                                </Grid>
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBlock Classes="cfp-meta"
+                                               Text="{Binding ApplicationUpdateStatus}"
+                                               VerticalAlignment="Center" />
+                                    <Button Grid.Column="1"
+                                            Classes="cfp-secondary"
+                                            Click="OnCheckForApplicationUpdatesClick"
+                                            IsEnabled="{Binding IsCheckingForApplicationUpdates, Converter={x:Static converters:BoolConverters.Not}}"
+                                            AutomationProperties.Name="{Binding Loc[CheckNow]}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <LucideIcon Kind="RefreshCw" Size="15" />
+                                            <TextBlock Text="{Binding Loc[CheckNow]}" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        <Border Classes="cfp-card">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Classes="cfp-row-title" Text="{Binding Loc[ProtocolRegistration]}" />
+                                    <TextBlock Classes="cfp-caption"
+                                               Text="{Binding Loc[ProtocolRegistrationHint]}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="1"
+                                           Classes="cfp-row-title"
+                                           Text="{Binding ProtocolRegistrationStatus}"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
                         <Border Classes="cfp-card cfp-github-route-card">
                             <StackPanel Spacing="10">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">

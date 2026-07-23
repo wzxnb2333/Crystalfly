@@ -2,7 +2,7 @@
 
 Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。启动页是实例选择与管理的唯一入口；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
 
-> 当前稳定版：`0.5.0`。GitHub Release 提供 Windows x64 便携包和安装包。
+> 当前稳定版：`0.6.0`。GitHub Release 提供 Windows x64 便携包和安装包。
 
 [English](#english)
 
@@ -43,6 +43,8 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 - 创建永久命名“存档快照”；快照仅包含实例的非日志 LocalLow，事务临时恢复点成功后自动清理。
 - 在实例详情创建追加或精确 Mod 预设，支持复制、导入导出、分享码、按依赖顺序应用，以及恢复应用前启停和安装状态；固定 Mod 及其传递依赖不会被精确模式停用。
 - 创建独立速通副本，按模板部署速通工具，并在每次启动前写出验证报告。
+- 支持严格校验的 `crystalfly://` 外部命令和单实例转发；安装包会注册协议，所有修改状态的外部命令均先展示摘要并确认。
+- 每天检查一次 Ed25519 签名稳定更新清单，支持立即更新、稍后和跳过版本；安装模式静默运行 Inno 安装包，便携模式使用同卷备份与替换并保留 `Data`。
 
 ## 兼容矩阵
 
@@ -141,13 +143,13 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.5.0'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.0'
 
 # 构建、测试并静默更新固定安装目录（请先关闭 Crystalfly）
 pwsh -NoProfile -File '.\scripts\build-and-install.ps1'
 ```
 
-脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。`build-and-install.ps1` 会从 `Directory.Build.props` 读取版本号，执行完整 Release 构建和测试，验证产物后以管理员权限静默更新 `D:\Program Files\Crystalfly`，最后核对已安装版本。运行中的 Crystalfly 会使流程停止，不会强制关闭程序。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包和 `SHA256SUMS.txt`。首轮只公开源码；本地产物未做 Authenticode 签名，仅用于本机验证。详细设计见 [架构文档](docs/architecture.md)。
+脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。发布构建从已忽略的 `.env.update-signing` 读取 `CRYSTALFLY_UPDATE_SIGNING_KEY`，并使用 `tools/Crystalfly.ReleaseTool` 生成签名更新清单；私钥文件不得提交。`build-and-install.ps1` 会从 `Directory.Build.props` 读取版本号，执行完整 Release 构建和测试，验证产物后以管理员权限静默更新 `D:\Program Files\Crystalfly`，最后核对已安装版本。运行中的 Crystalfly 会使流程停止，不会强制关闭程序。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、独立更新程序、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包、`update-manifest.v1.json` 和 `SHA256SUMS.txt`。产物尚未使用 Authenticode 签名；客户端仍会验证更新清单的 Ed25519 签名及资产 SHA-256、大小和版本。详细设计见 [架构文档](docs/architecture.md)。
 
 ## 许可证
 
@@ -157,7 +159,7 @@ Crystalfly 使用 [GPL-3.0-only](LICENSE)。第三方游戏、Loader 和 Mod 不
 
 Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The Launch page is the only entry point for selecting and managing launchable instances; actual game downloads live under Download → Game Versions.
 
-The current stable release is `0.5.0`. GitHub Releases provide a Windows x64 portable ZIP and Inno Setup installer.
+The current stable release is `0.6.0`. GitHub Releases provide a Windows x64 portable ZIP and Inno Setup installer.
 
 ![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
 
@@ -194,6 +196,8 @@ The current stable release is `0.5.0`. GitHub Releases provide a Windows x64 por
 - Swaps per-instance LocalLow data before launch, captures it after exit, then restores the original shared data.
 - Creates persistent named save snapshots containing only non-log LocalLow data, plus dedicated speedrun copies with template-specific tools and a pre-launch report.
 - Creates append or exact Mod presets bound to one build and Loader, with dependency-ordered apply, local JSON import/export, share codes, and restoration of the pre-apply install and enabled state.
+- Accepts strictly validated `crystalfly://` commands through single-instance forwarding. The installer registers the protocol, and every state-changing external request shows a parsed summary before confirmation.
+- Checks a signed stable update manifest once per day. Users can update now, defer, or skip a version; installed mode runs the Inno installer, while portable mode preserves `Data` through same-volume backup and replacement.
 
 The current built-in speedrun templates are intentionally unverified because the catalog does not yet contain a trusted rules revision and complete Steam file allowlist. Unknown new public manifests remain launchable as vanilla, but loader installation stays locked until the catalog verifies the build.
 
@@ -239,13 +243,13 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.5.0'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.0'
 
 # Build, test, and silently update the fixed install directory after closing Crystalfly.
 pwsh -NoProfile -File '.\scripts\build-and-install.ps1'
 ```
 
-The scripts automatically locate Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. `build-and-install.ps1` reads the version from `Directory.Build.props`, runs the full Release build and tests, validates the artifacts, then silently updates `D:\Program Files\Crystalfly` with administrator approval and verifies the installed version. It stops when Crystalfly is running and never terminates the process. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, portable ZIP, installer, and `SHA256SUMS.txt`.
+The scripts automatically locate Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. Release builds read `CRYSTALFLY_UPDATE_SIGNING_KEY` from the ignored `.env.update-signing` file and use `tools/Crystalfly.ReleaseTool` to sign the update manifest; never commit the private key file. `build-and-install.ps1` reads the version from `Directory.Build.props`, runs the full Release build and tests, validates the artifacts, then silently updates `D:\Program Files\Crystalfly` with administrator approval and verifies the installed version. It stops when Crystalfly is running and never terminates the process. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, updater helper, portable ZIP, installer, signed `update-manifest.v1.json`, and `SHA256SUMS.txt`. Assets are not Authenticode-signed yet; the client still verifies the Ed25519 manifest signature plus each asset's SHA-256, size, and version.
 
 Application settings use `%LOCALAPPDATA%\Crystalfly`, or `Data` beside the executable when `portable.flag` exists. Per-instance state always stays under `<version-root>\.crystalfly`.
 

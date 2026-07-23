@@ -11,7 +11,9 @@ using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views.Dialogs;
+using Crystalfly.App.Runtime;
 using Crystalfly.Core.Mods;
+using Crystalfly.Core.Runtime;
 using Irihi.Avalonia.Shared.Contracts;
 using Ursa.Controls;
 
@@ -22,6 +24,8 @@ public partial class MainWindow : Window
     internal const string OverlayHostId = "Crystalfly.Main";
 
     private bool closeAfterDispose;
+    private bool closeForApplicationUpdate;
+    private bool closeRequested;
     private bool toastManagerClosing;
     private bool toastManagerUninstalled;
     private Task? disposeBeforeCloseTask;
@@ -30,8 +34,12 @@ public partial class MainWindow : Window
     private Task<LaunchIssuesDialogResult?>? launchIssuesDialogTask;
     private int marketInstallDialogOpening;
     private readonly WindowToastManager toastManager;
+    private readonly SemaphoreSlim externalCommandGate = new(1, 1);
     private Action<string>? toastRequestedHandler;
     private MainViewModel? toastViewModel;
+    private bool externalCommandReady;
+
+    internal bool IsExternalCommandReady => externalCommandReady;
 
     public MainWindow()
     {
@@ -70,19 +78,104 @@ public partial class MainWindow : Window
         Opened -= OnOpened;
         if (DataContext is MainViewModel viewModel)
         {
+            var initialized = false;
             try
             {
                 await viewModel.InitializeAsync();
+                initialized = true;
             }
             catch (Exception exception)
             {
                 viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
             }
+            finally
+            {
+                ResumeExternalCommands();
+            }
+            if (initialized)
+            {
+                ApplicationUpdateHealthHandshake.SignalFromEnvironment();
+                await CheckForApplicationUpdateAsync(viewModel, force: false);
+            }
+        }
+    }
+
+    private async void OnCheckForApplicationUpdatesClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            await CheckForApplicationUpdateAsync(viewModel, force: true);
+        }
+    }
+
+    private async Task CheckForApplicationUpdateAsync(MainViewModel viewModel, bool force)
+    {
+        try
+        {
+            var result = await viewModel.CheckApplicationUpdateAsync(force);
+            if (result.Manifest is not { } manifest || !IsVisible)
+            {
+                return;
+            }
+
+            var dialogViewModel = new ApplicationUpdateDialogViewModel(
+                viewModel.Loc["ApplicationUpdateTitle"],
+                string.Format(
+                    System.Globalization.CultureInfo.CurrentUICulture,
+                    viewModel.Loc["ApplicationUpdateVersionFormat"],
+                    manifest.Version),
+                manifest.NotesMarkdown,
+                viewModel.Loc["UpdateNow"],
+                viewModel.Loc["Later"],
+                viewModel.Loc["SkipThisVersion"]);
+            var choice = await OverlayDialog.ShowCustomAsync<
+                ApplicationUpdateDialogView,
+                ApplicationUpdateDialogViewModel,
+                ApplicationUpdateDialogResult>(
+                dialogViewModel,
+                OverlayHostId,
+                CreateOverlayOptions());
+            switch (choice)
+            {
+                case ApplicationUpdateDialogResult.Update:
+                    await StartApplicationUpdateAsync(
+                        viewModel,
+                        viewModel.StartAvailableApplicationUpdateAsync);
+                    break;
+                case ApplicationUpdateDialogResult.SkipVersion:
+                    await viewModel.SkipApplicationUpdateAsync();
+                    break;
+                case ApplicationUpdateDialogResult.Later:
+                    break;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception) when (exception is HttpRequestException
+            or IOException
+            or InvalidDataException
+            or UnauthorizedAccessException
+            or InvalidOperationException)
+        {
+            viewModel.ReportApplicationUpdateFailure(exception);
         }
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
+        if (closeForApplicationUpdate)
+        {
+            closeForApplicationUpdate = false;
+            closeRequested = true;
+            SuspendExternalCommands();
+            e.Cancel = true;
+            base.OnClosing(e);
+            CloseOpenDialogs();
+            disposeBeforeCloseTask ??= DisposeBeforeCloseAsync();
+            return;
+        }
+
         if (!closeAfterDispose && DataContext is MainViewModel { IsBusy: true })
         {
             e.Cancel = true;
@@ -92,10 +185,14 @@ public partial class MainWindow : Window
 
         if (closeAfterDispose)
         {
+            closeRequested = true;
+            SuspendExternalCommands();
             base.OnClosing(e);
             return;
         }
 
+        closeRequested = true;
+        SuspendExternalCommands();
         e.Cancel = true;
         base.OnClosing(e);
         if (DataContext is MainViewModel { HasUnfinishedDownloads: true } viewModel)
@@ -107,11 +204,46 @@ public partial class MainWindow : Window
         disposeBeforeCloseTask ??= DisposeBeforeCloseAsync();
     }
 
+    internal async Task<bool> StartApplicationUpdateAsync(
+        MainViewModel viewModel,
+        Func<CancellationToken, Task<bool>> startUpdate,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(viewModel);
+        ArgumentNullException.ThrowIfNull(startUpdate);
+
+        if (viewModel.HasUnfinishedDownloads)
+        {
+            bool confirmed = await ShowConfirmationAsync(
+                viewModel.Loc["ConfirmCloseDownloadsTitle"],
+                viewModel.Loc["ConfirmCloseDownloadsMessage"],
+                string.IsNullOrWhiteSpace(viewModel.ActiveDownloadSummary)
+                    ? viewModel.Loc["DownloadQueue"]
+                    : viewModel.ActiveDownloadSummary,
+                viewModel,
+                isDangerous: true);
+            if (!confirmed)
+            {
+                return false;
+            }
+        }
+
+        if (!await startUpdate(cancellationToken))
+        {
+            return false;
+        }
+
+        closeForApplicationUpdate = true;
+        Close();
+        return true;
+    }
+
     private async Task ConfirmCloseWithDownloadsAsync(MainViewModel viewModel)
     {
+        var confirmed = false;
         try
         {
-            var confirmed = await ShowConfirmationAsync(
+            confirmed = await ShowConfirmationAsync(
                 viewModel.Loc["ConfirmCloseDownloadsTitle"],
                 viewModel.Loc["ConfirmCloseDownloadsMessage"],
                 string.IsNullOrWhiteSpace(viewModel.ActiveDownloadSummary)
@@ -128,6 +260,11 @@ public partial class MainWindow : Window
         finally
         {
             closeConfirmationTask = null;
+            if (!confirmed && !closeAfterDispose)
+            {
+                closeRequested = false;
+                ResumeExternalCommands();
+            }
         }
     }
 
@@ -1112,14 +1249,16 @@ public partial class MainWindow : Window
         string target,
         MainViewModel viewModel,
         bool canConfirm = true,
-        bool isDangerous = false)
+        bool isDangerous = false,
+        string? confirmText = null,
+        string? cancelText = null)
     {
         var dialogViewModel = new ConfirmationDialogViewModel(
             title,
             message,
             target,
-            viewModel.Loc["Confirm"],
-            viewModel.Loc["Cancel"],
+            confirmText ?? viewModel.Loc["Confirm"],
+            cancelText ?? viewModel.Loc["Cancel"],
             canConfirm,
             isDangerous);
         return await OverlayDialog.ShowCustomAsync<
@@ -1129,6 +1268,123 @@ public partial class MainWindow : Window
             dialogViewModel,
             OverlayHostId,
             CreateOverlayOptions());
+    }
+
+    internal void EnqueueExternalMessage(string message) =>
+        _ = HandleExternalMessageAsync(message);
+
+    internal void ActivateForExternalCommand()
+    {
+        if (WindowState == WindowState.Minimized)
+        {
+            WindowState = WindowState.Normal;
+        }
+        Show();
+        Activate();
+    }
+
+    internal void SuspendExternalCommands() => externalCommandReady = false;
+
+    internal void ResumeExternalCommands()
+    {
+        if (closeAfterDispose || closeRequested)
+        {
+            return;
+        }
+
+        externalCommandReady = true;
+        App.DrainExternalMessages();
+    }
+
+    private async Task HandleExternalMessageAsync(string message)
+    {
+        await externalCommandGate.WaitAsync();
+        try
+        {
+            if (!externalCommandReady)
+            {
+                return;
+            }
+
+            ActivateForExternalCommand();
+            if (string.Equals(message, Program.ActivateMessage, StringComparison.Ordinal))
+            {
+                return;
+            }
+            if (DataContext is not MainViewModel viewModel)
+            {
+                return;
+            }
+
+            ProtocolCommand command;
+            try
+            {
+                command = viewModel.PrepareProtocolCommand(ProtocolCommandParser.Parse(message));
+            }
+            catch (Exception exception) when (exception is ProtocolCommandException
+                or InvalidOperationException)
+            {
+                viewModel.ErrorMessage = $"{viewModel.Loc["InvalidExternalCommand"]}: {exception.Message}";
+                return;
+            }
+
+            if (!viewModel.CanExecuteProtocolCommand(command, out string rejectionReason))
+            {
+                viewModel.ErrorMessage = $"{viewModel.Loc["InvalidExternalCommand"]}: {rejectionReason}";
+                return;
+            }
+
+            if (command.RequiresConfirmation)
+            {
+                var confirmed = await ShowConfirmationAsync(
+                    viewModel.Loc["ExternalCommandTitle"],
+                    viewModel.Loc["ExternalCommandMessage"],
+                    viewModel.DescribeProtocolCommand(command),
+                    viewModel,
+                    isDangerous: command.Kind is ProtocolCommandKind.ResetApplicationSettings
+                        or ProtocolCommandKind.DeleteModSettings
+                        or ProtocolCommandKind.DeleteAllModSettings,
+                    confirmText: viewModel.Loc["RunCommand"]);
+                if (!confirmed)
+                {
+                    return;
+                }
+            }
+
+            if (!externalCommandReady)
+            {
+                return;
+            }
+            if (!viewModel.CanExecuteProtocolCommand(command, out rejectionReason))
+            {
+                viewModel.ErrorMessage = $"{viewModel.Loc["InvalidExternalCommand"]}: {rejectionReason}";
+                return;
+            }
+
+            try
+            {
+                await viewModel.ExecuteProtocolCommandAsync(command);
+            }
+            catch (OperationCanceledException) when (!externalCommandReady)
+            {
+            }
+            catch (Exception exception) when (exception is IOException
+                or InvalidDataException
+                or InvalidOperationException
+                or UnauthorizedAccessException
+                or HttpRequestException
+                or KeyNotFoundException
+                or ArgumentException
+                or System.Text.Json.JsonException
+                or Win32Exception)
+            {
+                viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            }
+        }
+        finally
+        {
+            externalCommandGate.Release();
+        }
     }
 
     private void OpenExternalUrl(object? sender, RoutedEventArgs eventArgs)
