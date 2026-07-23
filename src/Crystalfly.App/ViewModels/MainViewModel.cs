@@ -386,6 +386,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public partial string CurrentManageTab { get; set; } = "Overview";
 
     [ObservableProperty]
+    public partial GameConfigViewModel? GameConfig { get; set; }
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGameVersionsDownloadSection))]
     [NotifyPropertyChangedFor(nameof(IsModMarketDownloadSection))]
     [NotifyPropertyChangedFor(nameof(IsDownloadQueueSection))]
@@ -554,6 +557,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public partial NamedSnapshot? SelectedSnapshot { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsEditingSave))]
+    public partial SaveEditorViewModel? SaveEditor { get; set; }
+
+    public bool IsEditingSave => SaveEditor is not null;
+
+    [ObservableProperty]
     public partial SpeedrunTemplate? SelectedSpeedrunTemplate { get; set; }
 
     [ObservableProperty]
@@ -693,6 +702,64 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             CurrentManageTab = tab;
         }
     }
+
+    private async Task LoadGameConfigAsync()
+    {
+        var selected = SelectedInstance;
+        if (selected is null || IsGameRunning)
+        {
+            GameConfig = null;
+            return;
+        }
+
+        var configPath = Path.Combine(
+            GetInstanceStateRoot(selected.Id),
+            "local-low",
+            AppConfigService.FileName);
+        if (GameConfig is not null
+            && string.Equals(GameConfig.ConfigPath, configPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var viewModel = new GameConfigViewModel(configPath);
+        viewModel.Saved += OnGameConfigSaved;
+        GameConfig = viewModel;
+        try
+        {
+            await viewModel.LoadAsync(lifetimeCancellation.Token);
+            if (SelectedInstance?.Id != selected.Id
+                || CurrentManageTab != "Config"
+                || IsGameRunning)
+            {
+                if (ReferenceEquals(GameConfig, viewModel))
+                {
+                    GameConfig = null;
+                }
+            }
+        }
+        catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
+        {
+            if (ReferenceEquals(GameConfig, viewModel))
+            {
+                GameConfig = null;
+            }
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or InvalidDataException
+                or UnauthorizedAccessException)
+        {
+            if (ReferenceEquals(GameConfig, viewModel))
+            {
+                GameConfig = null;
+                ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            }
+        }
+    }
+
+    private void OnGameConfigSaved() =>
+        ToastRequested?.Invoke(Loc["ConfigSaved"]);
 
     [RelayCommand]
     private void SelectDownloadSection(string? section)
@@ -2163,6 +2230,71 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     [RelayCommand]
+    private async Task EditSaveAsync(string? snapshotId)
+    {
+        var selected = SelectedInstance;
+        if (selected is null || IsGameRunning)
+        {
+            return;
+        }
+
+        string? targetSnapshotId;
+        string sourceLabel;
+        if (string.IsNullOrWhiteSpace(snapshotId)
+            || string.Equals(snapshotId, "current", StringComparison.OrdinalIgnoreCase))
+        {
+            targetSnapshotId = null;
+            sourceLabel = selected.Name;
+        }
+        else
+        {
+            targetSnapshotId = snapshotId;
+            sourceLabel = Snapshots.FirstOrDefault(snapshot => snapshot.Id == snapshotId)?.Name
+                ?? snapshotId;
+        }
+
+        var editor = new SaveEditorViewModel(
+            CreateSnapshotService(),
+            selected.Id,
+            targetSnapshotId,
+            sourceLabel);
+        SaveEditor = editor;
+        try
+        {
+            await editor.InitializeAsync(lifetimeCancellation.Token);
+            if (SelectedInstance?.Id != selected.Id || IsGameRunning)
+            {
+                if (ReferenceEquals(SaveEditor, editor))
+                {
+                    SaveEditor = null;
+                }
+            }
+        }
+        catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
+        {
+            if (ReferenceEquals(SaveEditor, editor))
+            {
+                SaveEditor = null;
+            }
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or InvalidDataException
+                or UnauthorizedAccessException
+                or CryptographicException)
+        {
+            if (ReferenceEquals(SaveEditor, editor))
+            {
+                SaveEditor = null;
+                ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            }
+        }
+    }
+
+    [RelayCommand]
+    private void ExitSaveEditor() => SaveEditor = null;
+
+    [RelayCommand]
     private async Task CreateSpeedrunEnvironmentAsync()
     {
         if (SelectedSpeedrunTemplate is null || !Directory.Exists(VersionRoot))
@@ -2448,6 +2580,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var previousLoadCancellation = Interlocked.Exchange(ref detailsLoadCancellation, null);
         previousLoadCancellation?.Cancel();
         previousLoadCancellation?.Dispose();
+        GameConfig = null;
+        SaveEditor = null;
         IsLoadingInstanceDetails = value is not null;
         AvailableLoaders.Clear();
         SelectedLoader = null;
@@ -2494,6 +2628,35 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation.Token);
             detailsLoadCancellation = cancellation;
             detailsLoadTask = LoadInstanceDetailsAsync(value.Record, generation, cancellation.Token);
+            if (CurrentManageTab == "Config")
+            {
+                _ = LoadGameConfigAsync();
+            }
+        }
+    }
+
+    partial void OnCurrentManageTabChanged(string value)
+    {
+        if (value == "Config")
+        {
+            _ = LoadGameConfigAsync();
+        }
+        else
+        {
+            GameConfig = null;
+        }
+    }
+
+    partial void OnIsGameRunningChanged(bool value)
+    {
+        if (value)
+        {
+            GameConfig = null;
+            SaveEditor = null;
+        }
+        else if (CurrentManageTab == "Config")
+        {
+            _ = LoadGameConfigAsync();
         }
     }
 
