@@ -2,7 +2,7 @@
 
 Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。启动页是实例选择与管理的唯一入口；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
 
-> 当前稳定版：`0.6.4`。GitHub Release 提供 Windows x64 便携包和安装包。
+> 当前稳定版：`0.6.5`。GitHub Release 提供 Windows x64 便携包和安装包。
 
 [English](#english)
 
@@ -151,7 +151,7 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.4'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.5'
 
 # 构建、测试并静默更新固定安装目录（请先关闭 Crystalfly）
 pwsh -NoProfile -File '.\scripts\build-and-install.ps1'
@@ -167,7 +167,7 @@ Crystalfly 使用 [GPL-3.0-only](LICENSE)。第三方游戏、Loader 和 Mod 不
 
 Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The Launch page is the only entry point for selecting and managing launchable instances; actual game downloads live under Download → Game Versions.
 
-The current stable release is `0.6.4`. GitHub Releases provide a Windows x64 portable ZIP and Inno Setup installer.
+The current stable release is `0.6.5`. GitHub Releases provide a Windows x64 portable ZIP and Inno Setup installer.
 
 ![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
 ![Select instance](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)
@@ -225,7 +225,7 @@ Download → Mod Market discovers online mods and filters them by keyword, game 
 
 The target dialog previews the loader, every recursive dependency, and the requested mod. Confirmation only adds the plan to Download → Download Queue, so the market remains usable. Each dependency chain runs in loader/dependency/mod order; unrelated groups share up to three network slots. Transfers may continue while the game runs, but installation waits for the target game process to exit. Transient network failures retry three times, while deterministic hash, manifest, and compatibility errors fail immediately. Unfinished tasks resume after restart; failed tasks remain available for manual retry.
 
-When the UI is Simplified Chinese, the market also loads the maintained HK ModLinks Chinese translation catalog. It searches translated names, descriptions, and labels alongside official English metadata; missing translations fall back to English. The source data and import command are documented in [docs/mod-translations.zh-CN.md](docs/mod-translations.zh-CN.md).
+When the UI is Simplified Chinese, the market also loads Crystalfly's independently maintained HK ModLinks Chinese translation catalog. It searches translated names, descriptions, and labels alongside official English metadata; missing translations fall back to English. The source policy and validation command are documented in [docs/mod-translations.zh-CN.md](docs/mod-translations.zh-CN.md).
 
 The Installed Mods page includes receipt-backed and external Mods and can filter enabled, disabled, local, external, pinned, updateable, or unhealthy entries. External Mods stay read-only until explicit takeover. Managed Mods support health inspection and exact-version repair; local takeovers support re-import or accepting current hashes. Pinning protects entries from batch uninstall and dependency cleanup. Uninstall previews a dependency-impact tree and only suggests unused dependencies instead of deleting them automatically.
 
@@ -259,7 +259,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.4'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.5'
 
 # Build, test, and silently update the fixed install directory after closing Crystalfly.
 pwsh -NoProfile -File '.\scripts\build-and-install.ps1'
