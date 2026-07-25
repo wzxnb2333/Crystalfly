@@ -460,6 +460,46 @@
         <Setter Property="Foreground" Value="{DynamicResource CfAccentBrush}" />
     </Style>
 
+    <Style Selector="Border.cfp-download-account">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="10,8" />
+    </Style>
+
+    <Style Selector="Border.cfp-download-qr">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="12" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+
+    <Style Selector="ComboBox.cfp-download-build-filter">
+        <Setter Property="MinWidth" Value="84" />
+    </Style>
+
+    <Style Selector="ListBox.cfp-download-build-list">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="ListBox.cfp-download-build-list > ListBoxItem">
+        <Setter Property="MinHeight" Value="38" />
+        <Setter Property="Padding" Value="8,3" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+
+    <Style Selector="ListBox.cfp-download-build-list > ListBoxItem:selected">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedBrush}" />
+    </Style>
+
+    <Style Selector="Border.cfp-download-build-icon">
+        <Setter Property="Width" Value="28" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+        <Setter Property="CornerRadius" Value="4" />
+    </Style>
+
 
     <Style Selector="Button.cfp-instance-main"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
     <Style Selector="Button.cfp-instance-main:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.cfp-instance-main:pressed /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/></Style>

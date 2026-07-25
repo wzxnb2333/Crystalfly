@@ -263,6 +263,33 @@ public sealed class LayoutRenderingTests
     }
 
     [AvaloniaFact]
+    public void Speedrun_page_shows_only_the_coming_soon_placeholder()
+    {
+        var viewModel = new MainViewModel(Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N")))
+        {
+            CurrentPage = "Speedrun"
+        };
+        var window = new MainWindow { Width = 1280, Height = 720 };
+        window.Show();
+        window.DataContext = viewModel;
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text =>
+                text.IsEffectivelyVisible && text.Text == "仍在开发中");
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<ListBox>(), list => list.IsEffectivelyVisible);
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBox>(), textBox => textBox.IsEffectivelyVisible);
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(), button =>
+                button.IsEffectivelyVisible && button.Command == viewModel.CreateSpeedrunEnvironmentCommand);
+        }
+        finally
+        {
+            CloseImmediately(window);
+        }
+    }
+
+    [AvaloniaFact]
     public void Top_navigation_follows_visual_keyboard_order()
     {
         var viewModel = new MainViewModel(Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N")));

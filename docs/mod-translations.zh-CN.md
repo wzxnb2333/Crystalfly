@@ -4,7 +4,7 @@
 
 ## 来源与回退
 
-数据由维护者提供的 `Mod对照表  有中文说明，可下载.xlsx` 导入，导入日期和源文件不会写入运行时目录。程序启动时使用内嵌基线，随后尝试读取本地缓存并请求 GitHub `main/catalog/mod-translations.zh-CN.v1.json`。远程内容通过校验后原子写入缓存；远程失败时回退到有效缓存，再回退到内嵌基线。缺少翻译的 Mod 使用官方英文名称和说明。
+数据由 Bilibili UP 主 [MioSS-](https://space.bilibili.com/538844794) 提供的 `Mod对照表  有中文说明，可下载.xlsx` 导入，导入日期和源文件不会写入运行时目录。程序启动时使用内嵌基线，随后尝试读取本地缓存并请求 GitHub `main/catalog/mod-translations.zh-CN.v1.json`。远程内容通过校验后原子写入缓存；远程失败时回退到有效缓存，再回退到内嵌基线。缺少翻译的 Mod 使用官方英文名称和说明。
 
 ## 更新命令
 

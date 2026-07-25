@@ -273,7 +273,7 @@ public sealed class DocumentationScreenshotTests
                 break;
             case ScreenshotState.Settings:
                 Assert.Contains(fixture.ViewModel.Loc["VersionRoot"], visibleText);
-                Assert.Contains(fixture.ViewModel.Loc["OfflineMode"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["SettingsGeneral"], visibleText);
                 break;
             case ScreenshotState.MarketList:
                 Assert.Contains(fixture.ViewModel.Loc["MarketTitle"], visibleText);
@@ -397,6 +397,7 @@ public sealed class DocumentationScreenshotTests
             ViewModel.SelectedMarketMod = null;
             ViewModel.CurrentManageTab = "Overview";
             ViewModel.CurrentDownloadSection = "GameVersions";
+            ViewModel.CurrentSettingsSection = "General";
             ViewModel.CurrentPage = state switch
             {
                 ScreenshotState.GameVersions => "Downloads",
