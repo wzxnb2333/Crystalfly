@@ -2,6 +2,8 @@
 
 部署到 Vercel，并在 Vercel Marketplace 添加 Upstash Redis 集成。当前 Marketplace 集成会配置 `KV_REST_API_URL` 和 `KV_REST_API_TOKEN`；代码同时兼容 Upstash 原生的 `UPSTASH_REDIS_REST_URL` 与 `UPSTASH_REDIS_REST_TOKEN`。这些值只保存在 Vercel 项目环境变量或本地 `.env` 中。
 
+生产地址：`https://crystalflyapi.jwst233.top/`。
+
 ```powershell
 cd services/preset-share
 npm install

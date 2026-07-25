@@ -12,7 +12,7 @@ namespace Crystalfly.App.ViewModels;
 public partial class MainViewModel
 {
     internal static readonly Uri PresetShareServiceUri =
-        new("https://crystalfly-preset-share.vercel.app/");
+        new("https://crystalflyapi.jwst233.top/");
 
     private PresetShareClient? presetShareClient;
 
