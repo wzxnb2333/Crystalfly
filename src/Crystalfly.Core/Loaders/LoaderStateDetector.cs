@@ -19,69 +19,74 @@ public static class LoaderStateDetector
     {
         instanceRoot = Path.GetFullPath(instanceRoot);
         var managed = Path.Combine(instanceRoot, "hollow_knight_Data", "Managed");
-        var hasBepInEx = Directory.Exists(Path.Combine(instanceRoot, "BepInEx"))
+        var bepInExRoot = Path.Combine(instanceRoot, "BepInEx");
+        var hasBepInEx = File.Exists(Path.Combine(bepInExRoot, "core", "BepInEx.dll"))
             || File.Exists(Path.Combine(instanceRoot, "doorstop_config.ini"))
             || File.Exists(Path.Combine(instanceRoot, "winhttp.dll"));
-        var hasModdingApi = Directory.Exists(Path.Combine(managed, "Mods"))
-            || File.Exists(Path.Combine(managed, "MMHOOK_Assembly-CSharp.dll"))
+        var hasBepInExArtifacts = hasBepInEx
+            || Directory.Exists(bepInExRoot)
+            && Directory.EnumerateFileSystemEntries(bepInExRoot, "*", SearchOption.TopDirectoryOnly).Any();
+        var hasModdingApi = File.Exists(Path.Combine(managed, "MMHOOK_Assembly-CSharp.dll"))
             || (Directory.Exists(managed) && Directory.EnumerateFiles(
                 managed,
                 "MMHOOK_TeamCherry*.dll",
                 SearchOption.TopDirectoryOnly).Any());
 
-        if (hasBepInEx && hasModdingApi)
+        if (receipt is not null)
         {
-            return receipt is null
-                ? External(LoaderState.Conflict)
-                : Inspection(LoaderState.Conflict, receipt);
-        }
-        if (receipt is null)
-        {
-            if (!hasBepInEx && !hasModdingApi)
-            {
-                return new LoaderInspection
-                {
-                    State = LoaderState.Vanilla,
-                    Ownership = LoaderOwnership.None
-                };
-            }
-            if (hasModdingApi)
-            {
-                return External(LoaderState.Drifted);
-            }
-
-            var version = ReadAssemblyVersion(Path.Combine(instanceRoot, "BepInEx", "core", "BepInEx.dll"));
-            return version is null
-                ? External(LoaderState.Drifted)
-                : new LoaderInspection
-                {
-                    State = LoaderState.BepInEx,
-                    PackageId = $"bepinex-{version}",
-                    Version = version,
-                    Ownership = LoaderOwnership.External
-                };
-        }
-        if (receipt.LoaderState is not (LoaderState.BepInEx or LoaderState.ModdingApi)
-            || receipt.LoaderState == LoaderState.BepInEx != hasBepInEx
-            || receipt.LoaderState == LoaderState.ModdingApi != hasModdingApi)
-        {
-            return Inspection(LoaderState.Drifted, receipt);
-        }
-
-        foreach (var file in receipt.Files)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var path = ResolveUnderRoot(instanceRoot, file.RelativePath);
-            if (!File.Exists(path)
-                || !string.Equals(
-                    file.Sha256,
-                    await HashFileAsync(path, cancellationToken),
-                    StringComparison.OrdinalIgnoreCase))
+            if (receipt.LoaderState is not (LoaderState.BepInEx or LoaderState.ModdingApi))
             {
                 return Inspection(LoaderState.Drifted, receipt);
             }
+            if (receipt.LoaderState == LoaderState.BepInEx && hasModdingApi
+                || receipt.LoaderState == LoaderState.ModdingApi && hasBepInEx)
+            {
+                return Inspection(LoaderState.Conflict, receipt);
+            }
+
+            foreach (var file in receipt.Files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var path = ResolveUnderRoot(instanceRoot, file.RelativePath);
+                if (!File.Exists(path)
+                    || !string.Equals(
+                        file.Sha256,
+                        await HashFileAsync(path, cancellationToken),
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return Inspection(LoaderState.Drifted, receipt);
+                }
+            }
+            return Inspection(receipt.LoaderState, receipt);
         }
-        return Inspection(receipt.LoaderState, receipt);
+
+        if (hasBepInEx && hasModdingApi)
+        {
+            return External(LoaderState.Conflict);
+        }
+        if (!hasBepInExArtifacts && !hasModdingApi)
+        {
+            return new LoaderInspection
+            {
+                State = LoaderState.Vanilla,
+                Ownership = LoaderOwnership.None
+            };
+        }
+        if (hasModdingApi)
+        {
+            return External(LoaderState.Drifted);
+        }
+
+        var version = ReadAssemblyVersion(Path.Combine(instanceRoot, "BepInEx", "core", "BepInEx.dll"));
+        return version is null
+            ? External(LoaderState.Drifted)
+            : new LoaderInspection
+            {
+                State = LoaderState.BepInEx,
+                PackageId = $"bepinex-{version}",
+                Version = version,
+                Ownership = LoaderOwnership.External
+            };
     }
 
     private static LoaderInspection Inspection(LoaderState state, InstalledPackageReceipt receipt) => new()
