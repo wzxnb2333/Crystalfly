@@ -37,7 +37,7 @@ public sealed class EmbeddedCatalogTests
         Assert.Equal(10, root.GetProperty("tagNames").EnumerateObject().Count());
 
         var mods = root.GetProperty("mods").EnumerateArray().ToArray();
-        Assert.Equal(649, mods.Length);
+        Assert.Equal(652, mods.Length);
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string[] installFields =
         [
@@ -61,11 +61,7 @@ public sealed class EmbeddedCatalogTests
                 property => installFields.Contains(property.Name, StringComparer.OrdinalIgnoreCase));
         }
 
-        Assert.DoesNotContain(ids, id =>
-            string.Equals(id, "hkmod:Another Location", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(mods, mod => mod.EnumerateObject().Any(property =>
-            property.Value.ValueKind == JsonValueKind.String
-            && property.Value.GetString()!.Contains("Another Location", StringComparison.OrdinalIgnoreCase)));
+        Assert.Contains("hkmod:Another Location", ids, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -75,7 +71,7 @@ public sealed class EmbeddedCatalogTests
 
         Assert.Equal(1, catalog.SchemaVersion);
         Assert.Equal("zh-CN", catalog.Language);
-        Assert.Equal(649, catalog.Mods.Count);
+        Assert.Equal(652, catalog.Mods.Count);
         Assert.Equal(10, catalog.TagNames.Count);
         Assert.All(catalog.Mods, mod => Assert.StartsWith(
             "hkmod:",
@@ -86,11 +82,11 @@ public sealed class EmbeddedCatalogTests
             catalog.Mods.Select(mod => mod.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
 
         var noskGod = catalog.Mods.Single(mod => mod.Id == "hkmod:Nosk God");
-        Assert.Equal("神之诺斯克", noskGod.DisplayName);
+        Assert.Equal("神明诺斯克", noskGod.DisplayName);
         Assert.Null(noskGod.Description);
-        Assert.DoesNotContain(
-            catalog.Mods,
-            mod => string.Equals(mod.Id, "hkmod:Another Location", StringComparison.OrdinalIgnoreCase));
+        var anotherLocation = catalog.Mods.Single(mod => mod.Id == "hkmod:Another Location");
+        Assert.Equal("另一个地点", anotherLocation.DisplayName);
+        Assert.Equal("为随机机新增一个地点；可能附带条款与限制。", anotherLocation.Description);
     }
 
     [Fact]
