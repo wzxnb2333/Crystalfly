@@ -187,6 +187,63 @@ public sealed class MainWindowStructureTests
     }
 
     [Fact]
+    public void Settings_use_a_category_drawer_and_include_project_about_information()
+    {
+        var document = LoadMainWindow();
+        var settingsGrid = FindSectionRoot(document, "IsSettingsPage");
+        var layout = settingsGrid.Elements(Avalonia + "Grid")
+            .Single(grid => HasClass(grid, "cfp-settings-layout"));
+        var drawer = layout.Elements(Avalonia + "Border")
+            .Single(border => (string?)border.Attribute("Grid.Column") == "0" && HasClass(border, "cfp-rail"));
+        var content = layout.Elements(Avalonia + "ScrollViewer")
+            .Single(scrollViewer => (string?)scrollViewer.Attribute("Grid.Column") == "1");
+
+        foreach (var section in new[] { "General", "Network", "Catalog", "Updates", "About" })
+        {
+            Assert.Contains(drawer.Descendants(Avalonia + "Button"), button =>
+                HasBinding(button, "Command", "SelectSettingsSectionCommand")
+                && (string?)button.Attribute("CommandParameter") == section
+                && HasBinding(button, "Classes.active", $"Is{section}SettingsSection"));
+            Assert.Contains(content.Descendants(Avalonia + "StackPanel"), panel =>
+                ((string?)panel.Attribute("IsVisible"))?.Contains($"Is{section}SettingsSection", StringComparison.Ordinal) == true);
+        }
+
+        var about = content.Descendants(Avalonia + "StackPanel").Single(panel =>
+            ((string?)panel.Attribute("IsVisible"))?.Contains("IsAboutSettingsSection", StringComparison.Ordinal) == true);
+        Assert.Contains(about.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", "AboutContributors"));
+        Assert.Contains(about.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "OpenExternalUrl"
+            && (string?)button.Attribute("Tag") == "https://github.com/wzxnb2333/Crystalfly"
+            && HasBinding(button, "AutomationProperties.Name", "ProjectRepository"));
+        Assert.Contains(about.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", "LicenseName"));
+
+        foreach (var heading in new[] { "AboutDesignReferences", "AboutOpenSourceComponents", "AboutModCatalogAndTranslations" })
+        {
+            Assert.Contains(about.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", heading));
+        }
+
+        foreach (var sourceUrl in new[]
+                 {
+                     "https://github.com/Hex-Dragon/PCL2",
+                     "https://github.com/TheMulhima/Lumafly",
+                     "https://github.com/fifty-six/Scarab",
+                     "https://github.com/AvaloniaUI/Avalonia",
+                     "https://github.com/irihitech/Semi.Avalonia",
+                     "https://github.com/irihitech/Ursa.Avalonia",
+                     "https://github.com/SteamRE/SteamKit",
+                     "https://github.com/dme-compunet/Lucide.Avalonia",
+                     "https://github.com/Kryptos-FR/MarkView.Avalonia",
+                     "https://github.com/hk-modding/modlinks",
+                     "https://space.bilibili.com/538844794"
+                 })
+        {
+            Assert.Contains(about.Descendants(Avalonia + "Button"), button =>
+                (string?)button.Attribute("Click") == "OpenExternalUrl"
+                && (string?)button.Attribute("Tag") == sourceUrl);
+        }
+    }
+
+    [Fact]
     public void Launch_integrity_state_stays_visible_and_offline_mode_is_global()
     {
         var document = LoadMainWindow();

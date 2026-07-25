@@ -343,6 +343,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public bool IsSettingsPage => CurrentPage == "Settings";
 
+    public bool IsGeneralSettingsSection => CurrentSettingsSection == "General";
+
+    public bool IsNetworkSettingsSection => CurrentSettingsSection == "Network";
+
+    public bool IsCatalogSettingsSection => CurrentSettingsSection == "Catalog";
+
+    public bool IsUpdatesSettingsSection => CurrentSettingsSection == "Updates";
+
+    public bool IsAboutSettingsSection => CurrentSettingsSection == "About";
+
     public bool IsGameVersionsDownloadSection => CurrentDownloadSection == "GameVersions";
 
     public bool IsModMarketDownloadSection => CurrentDownloadSection == "ModMarket";
@@ -403,6 +413,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial GameConfigViewModel? GameConfig { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGeneralSettingsSection))]
+    [NotifyPropertyChangedFor(nameof(IsNetworkSettingsSection))]
+    [NotifyPropertyChangedFor(nameof(IsCatalogSettingsSection))]
+    [NotifyPropertyChangedFor(nameof(IsUpdatesSettingsSection))]
+    [NotifyPropertyChangedFor(nameof(IsAboutSettingsSection))]
+    public partial string CurrentSettingsSection { get; set; } = "General";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGameVersionsDownloadSection))]
@@ -853,6 +871,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             SelectedMarketMod = null;
         }
+    }
+
+    [RelayCommand]
+    private void SelectSettingsSection(string? section)
+    {
+        if (!CanNavigate || section is not ("General" or "Network" or "Catalog" or "Updates" or "About"))
+        {
+            return;
+        }
+
+        CurrentSettingsSection = section;
     }
 
     [RelayCommand]

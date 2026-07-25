@@ -206,6 +206,8 @@ public sealed class ModMarketRenderingTests
     public void Settings_show_read_only_hk_modlinks_status()
     {
         var (window, viewModel) = Show(page: "Settings");
+        viewModel.CurrentSettingsSection = "Catalog";
+        Dispatcher.UIThread.RunJobs();
         try
         {
             var visibleText = window.GetVisualDescendants()
@@ -226,6 +228,8 @@ public sealed class ModMarketRenderingTests
     public void Settings_show_GitHub_download_route_selector()
     {
         var (window, viewModel) = Show(page: "Settings");
+        viewModel.CurrentSettingsSection = "Network";
+        Dispatcher.UIThread.RunJobs();
         try
         {
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text =>

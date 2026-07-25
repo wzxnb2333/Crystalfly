@@ -1317,100 +1317,33 @@
 
             <!-- Speedrun -->
             <Grid Classes="cfp-page" IsVisible="{Binding IsSpeedrunPage}">
-                <ScrollViewer
-                              HorizontalContentAlignment="Stretch"
+                <ScrollViewer HorizontalContentAlignment="Stretch"
                               HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Classes="cfp-workspace"
-                                Margin="24"
-                                Spacing="16"
-                                MaxWidth="1920"
-                                HorizontalAlignment="Stretch">
-                        <StackPanel Spacing="4">
-                            <TextBlock Classes="cfp-page-title" Text="{Binding Loc[SpeedrunTitle]}" />
-                            <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunHint]}" TextWrapping="Wrap" />
-                        </StackPanel>
-                        <Grid ColumnDefinitions="*,16,*">
-                            <Border Grid.Column="0" Classes="cfp-list-frame">
-                                <Grid>
-                                    <ListBox Classes="cfp-list"
-                                             ItemsSource="{Binding SpeedrunTemplates}"
-                                             SelectedItem="{Binding SelectedSpeedrunTemplate, Mode=TwoWay}">
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="models:SpeedrunTemplate">
-                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                                    <StackPanel Spacing="4">
-                                                        <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextWrapping="Wrap" />
-                                                        <TextBlock Classes="cfp-caption" Text="{Binding BuildId}" />
-                                                    </StackPanel>
-                                                    <TextBlock Grid.Column="1"
-                                                               Classes="cfp-meta"
-                                                               MaxWidth="160"
-                                                               Text="{Binding RulesRevision}"
-                                                               TextWrapping="Wrap"
-                                                               VerticalAlignment="Center" />
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-                                    <StackPanel MinHeight="160"
-                                                Margin="24"
-                                                Spacing="12"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                IsVisible="{Binding SpeedrunTemplates.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}">
-                                        <TextBlock Classes="cfp-meta"
-                                                   Text="{Binding Loc[NoSpeedrunTemplatesAction]}"
-                                                   TextAlignment="Center"
-                                                   TextWrapping="Wrap" />
-                                        <Button Classes="cfp-secondary"
-                                                Command="{Binding SelectPageCommand}"
-                                                CommandParameter="Settings">
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <LucideIcon Kind="Settings" Size="16" />
-                                                <TextBlock Text="{Binding Loc[OpenSettings]}" />
-                                            </StackPanel>
-                                        </Button>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Grid.Column="2" Classes="cfp-card">
-                                <StackPanel Spacing="12">
-                                    <TextBlock Classes="cfp-section-title" Text="{Binding Loc[CreateEnvironment]}" />
-                                    <TextBlock Classes="cfp-meta"
-                                               Text="{Binding SelectedSpeedrunTemplate.Name}"
-                                               TextWrapping="Wrap" />
-                                    <TextBox Classes="cfp-input"
-                                             Text="{Binding SpeedrunEnvironmentName, Mode=TwoWay}"
-                                             PlaceholderText="{Binding Loc[EnvironmentName]}"
-                                             AutomationProperties.Name="{Binding Loc[EnvironmentName]}" />
-                                    <StackPanel Spacing="6"
-                                                IsVisible="{Binding SelectedSpeedrunTemplate.RequiresLoadNormaliserSelection}">
-                                        <TextBlock Classes="cfp-caption" Text="{Binding Loc[LoadNormaliserSeconds]}" />
-                                        <ComboBox Classes="cfp-input"
-                                                  ItemsSource="{Binding SelectedSpeedrunTemplate.AllowedLoadNormaliserSeconds}"
-                                                  SelectedItem="{Binding SelectedLoadNormaliserSeconds, Mode=TwoWay}"
-                                                  AutomationProperties.Name="{Binding Loc[LoadNormaliserSeconds]}" />
-                                    </StackPanel>
-                                    <Button Classes="cfp-primary"
-                                            Command="{Binding CreateSpeedrunEnvironmentCommand}">
-                                        <Button.IsEnabled>
-                                            <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
-                                                <Binding Path="SelectedSpeedrunTemplate" Converter="{x:Static converters:ObjectConverters.IsNotNull}" />
-                                                <Binding Path="SpeedrunEnvironmentName" Converter="{x:Static converters:StringConverters.IsNotNullOrEmpty}" />
-                                                <Binding Path="IsBusy" Converter="{x:Static converters:BoolConverters.Not}" />
-                                                <Binding Path="IsGameRunning" Converter="{x:Static converters:BoolConverters.Not}" />
-                                            </MultiBinding>
-                                        </Button.IsEnabled>
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <LucideIcon Kind="PackagePlus" Size="16" />
-                                            <TextBlock Text="{Binding Loc[CreateEnvironment]}" />
-                                        </StackPanel>
-                                    </Button>
-                                    <TextBlock Classes="cfp-meta" Text="{Binding SpeedrunStatus}" TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
-                        </Grid>
-                    </StackPanel>
+                    <Grid Classes="cfp-workspace"
+                          Margin="24"
+                          MaxWidth="1920"
+                          HorizontalAlignment="Stretch">
+                        <Border Classes="cfp-card"
+                                MaxWidth="440"
+                                Padding="32"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+                            <StackPanel Spacing="12" HorizontalAlignment="Center">
+                                <LucideIcon Kind="Timer" Size="32" HorizontalAlignment="Center" />
+                                <TextBlock Classes="cfp-page-title"
+                                           Text="{Binding Loc[SpeedrunTitle]}"
+                                           TextAlignment="Center" />
+                                <TextBlock Classes="cfp-section-title"
+                                           Text="{Binding Loc[SpeedrunComingSoon]}"
+                                           TextAlignment="Center" />
+                                <TextBlock Classes="cfp-meta"
+                                           MaxWidth="360"
+                                           Text="{Binding Loc[SpeedrunComingSoonHint]}"
+                                           TextAlignment="Center"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
                 </ScrollViewer>
             </Grid>
 
@@ -1976,235 +1909,201 @@
 
             <!-- Settings -->
             <Grid Classes="cfp-page" IsVisible="{Binding IsSettingsPage}">
-                <ScrollViewer
-                              HorizontalContentAlignment="Stretch"
-                              HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Classes="cfp-workspace cfp-settings-workspace"
-                                Margin="24"
-                                Spacing="16"
-                                MaxWidth="1200"
-                                HorizontalAlignment="Stretch">
-                        <Border Classes="cfp-card">
-                            <StackPanel Spacing="12">
-                                <TextBlock Classes="cfp-section-title" Text="{Binding Loc[VersionRoot]}" />
-                                <u:PathPicker UsePickerType="OpenFolder"
-                                              Title="{Binding Loc[SelectVersionRootTitle]}"
-                                              SelectedPathsText="{Binding VersionRoot, Mode=TwoWay}"
-                                              SuggestedStartPath="{Binding VersionRoot}"
-                                              Command="{Binding ApplyVersionRootCommand}"
-                                              IsOmitCommandOnCancel="True"
-                                              MinHeight="44"
-                                              AutomationProperties.Name="{Binding Loc[VersionRoot]}">
-                                    <u:PathPicker.Styles>
-                                        <Style Selector="TextBox">
-                                            <Setter Property="AutomationProperties.Name"
-                                                    Value="{Binding Loc[VersionRoot]}" />
-                                        </Style>
-                                    </u:PathPicker.Styles>
-                                    <u:PathPicker.ButtonContent>
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <LucideIcon Kind="FolderOpen" Size="16" />
-                                            <TextBlock Text="{Binding Loc[Browse]}" />
+                <Grid Classes="cfp-settings-layout" ColumnDefinitions="176,*">
+                    <Border Grid.Column="0" Classes="cfp-rail" Padding="8,16">
+                        <StackPanel Classes="cfp-manage-nav" Spacing="4" IsEnabled="{Binding CanNavigate}">
+                            <Button Classes="cfp-local-nav" Classes.active="{Binding IsGeneralSettingsSection}" Command="{Binding SelectSettingsSectionCommand}" CommandParameter="General">
+                                <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Settings2" Size="16" /><TextBlock Text="{Binding Loc[SettingsGeneral]}" /></StackPanel>
+                            </Button>
+                            <Button Classes="cfp-local-nav" Classes.active="{Binding IsNetworkSettingsSection}" Command="{Binding SelectSettingsSectionCommand}" CommandParameter="Network">
+                                <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Gauge" Size="16" /><TextBlock Text="{Binding Loc[SettingsNetwork]}" /></StackPanel>
+                            </Button>
+                            <Button Classes="cfp-local-nav" Classes.active="{Binding IsCatalogSettingsSection}" Command="{Binding SelectSettingsSectionCommand}" CommandParameter="Catalog">
+                                <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Store" Size="16" /><TextBlock Text="{Binding Loc[SettingsCatalog]}" /></StackPanel>
+                            </Button>
+                            <Button Classes="cfp-local-nav" Classes.active="{Binding IsUpdatesSettingsSection}" Command="{Binding SelectSettingsSectionCommand}" CommandParameter="Updates">
+                                <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="RefreshCw" Size="16" /><TextBlock Text="{Binding Loc[SettingsUpdates]}" /></StackPanel>
+                            </Button>
+                            <Button Classes="cfp-local-nav" Classes.active="{Binding IsAboutSettingsSection}" Command="{Binding SelectSettingsSectionCommand}" CommandParameter="About">
+                                <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Info" Size="16" /><TextBlock Text="{Binding Loc[SettingsAbout]}" /></StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                    <ScrollViewer Grid.Column="1"
+                                  HorizontalContentAlignment="Stretch"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Classes="cfp-workspace cfp-settings-workspace"
+                                    Margin="24"
+                                    Spacing="16"
+                                    MaxWidth="1200"
+                                    HorizontalAlignment="Stretch">
+                            <StackPanel Spacing="16" IsVisible="{Binding IsGeneralSettingsSection}">
+                                <Border Classes="cfp-card">
+                                    <StackPanel Spacing="12">
+                                        <TextBlock Classes="cfp-section-title" Text="{Binding Loc[VersionRoot]}" />
+                                        <u:PathPicker UsePickerType="OpenFolder"
+                                                      Title="{Binding Loc[SelectVersionRootTitle]}"
+                                                      SelectedPathsText="{Binding VersionRoot, Mode=TwoWay}"
+                                                      SuggestedStartPath="{Binding VersionRoot}"
+                                                      Command="{Binding ApplyVersionRootCommand}"
+                                                      IsOmitCommandOnCancel="True"
+                                                      MinHeight="44"
+                                                      AutomationProperties.Name="{Binding Loc[VersionRoot]}">
+                                            <u:PathPicker.Styles>
+                                                <Style Selector="TextBox">
+                                                    <Setter Property="AutomationProperties.Name" Value="{Binding Loc[VersionRoot]}" />
+                                                </Style>
+                                            </u:PathPicker.Styles>
+                                            <u:PathPicker.ButtonContent>
+                                                <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="FolderOpen" Size="16" /><TextBlock Text="{Binding Loc[Browse]}" /></StackPanel>
+                                            </u:PathPicker.ButtonContent>
+                                        </u:PathPicker>
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="cfp-card">
+                                    <Grid ColumnDefinitions="*,16,*">
+                                        <StackPanel Grid.Column="0" Spacing="8">
+                                            <TextBlock Classes="cfp-row-title" Text="{Binding Loc[Language]}" />
+                                            <ComboBox Classes="cfp-input" ItemsSource="{Binding LanguageOptions}" SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[Language]}">
+                                                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+                                            </ComboBox>
                                         </StackPanel>
-                                    </u:PathPicker.ButtonContent>
-                                </u:PathPicker>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Classes="cfp-card">
-                            <Grid ColumnDefinitions="*,16,*">
-                                <StackPanel Grid.Column="0" Spacing="8">
-                                    <TextBlock Classes="cfp-row-title" Text="{Binding Loc[Language]}" />
-                                    <ComboBox Classes="cfp-input"
-                                              ItemsSource="{Binding LanguageOptions}"
-                                              SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}"
-                                              AutomationProperties.Name="{Binding Loc[Language]}">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <TextBlock Text="{Binding Name}" />
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2" Spacing="8">
-                                    <TextBlock Classes="cfp-row-title" Text="{Binding Loc[Theme]}" />
-                                    <ComboBox Classes="cfp-input"
-                                              ItemsSource="{Binding ThemeOptions}"
-                                              SelectedItem="{Binding SelectedTheme, Mode=TwoWay}"
-                                              AutomationProperties.Name="{Binding Loc[Theme]}">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <TextBlock Text="{Binding Name}" />
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                        <Border Classes="cfp-card">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                <StackPanel Spacing="3">
-                                    <TextBlock Classes="cfp-row-title" Text="{Binding Loc[OfflineMode]}" />
-                                    <TextBlock Classes="cfp-caption"
-                                               Text="{Binding Loc[OfflineModeHint]}"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                                <CheckBox Grid.Column="1"
-                                          VerticalAlignment="Center"
-                                          Content="{Binding Loc[OfflineMode]}"
-                                          IsChecked="{Binding IsOfflineMode, Mode=TwoWay}" />
-                            </Grid>
-                        </Border>
-                        <Border Classes="cfp-card">
-                            <StackPanel Spacing="10">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                    <StackPanel Spacing="3">
-                                        <TextBlock Classes="cfp-row-title" Text="{Binding Loc[ApplicationUpdates]}" />
-                                        <TextBlock Classes="cfp-caption"
-                                                   Text="{Binding Loc[ApplicationUpdatesHint]}"
-                                                   TextWrapping="Wrap" />
-                                    </StackPanel>
-                                    <CheckBox Grid.Column="1"
-                                              VerticalAlignment="Center"
-                                              Content="{Binding Loc[CheckForUpdates]}"
-                                              IsChecked="{Binding IsAutomaticUpdateCheckEnabled, Mode=TwoWay}" />
-                                </Grid>
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                    <TextBlock Classes="cfp-meta"
-                                               Text="{Binding ApplicationUpdateStatus}"
-                                               VerticalAlignment="Center" />
-                                    <Button Grid.Column="1"
-                                            Classes="cfp-secondary"
-                                            Click="OnCheckForApplicationUpdatesClick"
-                                            IsEnabled="{Binding IsCheckingForApplicationUpdates, Converter={x:Static converters:BoolConverters.Not}}"
-                                            AutomationProperties.Name="{Binding Loc[CheckNow]}">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <LucideIcon Kind="RefreshCw" Size="15" />
-                                            <TextBlock Text="{Binding Loc[CheckNow]}" />
+                                        <StackPanel Grid.Column="2" Spacing="8">
+                                            <TextBlock Classes="cfp-row-title" Text="{Binding Loc[Theme]}" />
+                                            <ComboBox Classes="cfp-input" ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[Theme]}">
+                                                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+                                            </ComboBox>
                                         </StackPanel>
-                                    </Button>
-                                </Grid>
+                                    </Grid>
+                                </Border>
                             </StackPanel>
-                        </Border>
-                        <Border Classes="cfp-card">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                <StackPanel Spacing="3">
-                                    <TextBlock Classes="cfp-row-title" Text="{Binding Loc[ProtocolRegistration]}" />
-                                    <TextBlock Classes="cfp-caption"
-                                               Text="{Binding Loc[ProtocolRegistrationHint]}"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                                <TextBlock Grid.Column="1"
-                                           Classes="cfp-row-title"
-                                           Text="{Binding ProtocolRegistrationStatus}"
-                                           VerticalAlignment="Center" />
-                            </Grid>
-                        </Border>
-                        <Border Classes="cfp-card cfp-github-route-card">
-                            <StackPanel Spacing="10">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                    <StackPanel Spacing="3">
-                                        <TextBlock Classes="cfp-row-title" Text="{Binding Loc[GitHubRoute]}" />
-                                        <TextBlock Classes="cfp-caption" Text="{Binding Loc[GitHubRouteHint]}" TextWrapping="Wrap" />
-                                    </StackPanel>
-                                    <ComboBox Grid.Column="1" Width="190" Classes="cfp-input" ItemsSource="{Binding GitHubRouteOptions}" SelectedItem="{Binding SelectedGitHubRoute, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[GitHubRoute]}">
-                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                </Grid>
-                                <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
-                                    <Border Classes="cfp-latency-result"><StackPanel Spacing="2"><TextBlock Classes="cfp-caption" Text="{Binding Loc[GitHubDirect]}" /><TextBlock Classes="cfp-row-title" Text="{Binding GitHubDirectLatency}" /></StackPanel></Border>
-                                    <Border Grid.Column="1" Classes="cfp-latency-result"><StackPanel Spacing="2"><TextBlock Classes="cfp-caption" Text="{Binding Loc[GitHubMirror]}" /><TextBlock Classes="cfp-row-title" Text="{Binding GitHubMirrorLatency}" /></StackPanel></Border>
-                                    <Button Grid.Column="2" Classes="cfp-secondary" Command="{Binding TestGitHubLatencyCommand}" IsEnabled="{Binding IsTestingGitHubLatency, Converter={x:Static converters:BoolConverters.Not}}"><StackPanel Orientation="Horizontal" Spacing="6"><LucideIcon Kind="Gauge" Size="15" /><TextBlock Text="{Binding Loc[TestLatency]}" /></StackPanel></Button>
-                                </Grid>
-                            </StackPanel>
-                        </Border>
 
-                        <Border Classes="cfp-card">
-                            <StackPanel Spacing="6">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                    <StackPanel Spacing="2">
-                                        <TextBlock Classes="cfp-section-title" Text="{Binding Loc[HKModLinks]}" />
-                                        <TextBlock Classes="cfp-caption" Text="{Binding Loc[HKModLinksHint]}" />
+                            <StackPanel Spacing="16" IsVisible="{Binding IsNetworkSettingsSection}">
+                                <Border Classes="cfp-card">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                        <StackPanel Spacing="3"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[OfflineMode]}" /><TextBlock Classes="cfp-caption" Text="{Binding Loc[OfflineModeHint]}" TextWrapping="Wrap" /></StackPanel>
+                                        <CheckBox Grid.Column="1" VerticalAlignment="Center" Content="{Binding Loc[OfflineMode]}" IsChecked="{Binding IsOfflineMode, Mode=TwoWay}" />
+                                    </Grid>
+                                </Border>
+                                <Border Classes="cfp-card cfp-github-route-card">
+                                    <StackPanel Spacing="10">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                            <StackPanel Spacing="3"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[GitHubRoute]}" /><TextBlock Classes="cfp-caption" Text="{Binding Loc[GitHubRouteHint]}" TextWrapping="Wrap" /></StackPanel>
+                                            <ComboBox Grid.Column="1" Width="190" Classes="cfp-input" ItemsSource="{Binding GitHubRouteOptions}" SelectedItem="{Binding SelectedGitHubRoute, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[GitHubRoute]}"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+                                        </Grid>
+                                        <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
+                                            <Border Classes="cfp-latency-result"><StackPanel Spacing="2"><TextBlock Classes="cfp-caption" Text="{Binding Loc[GitHubDirect]}" /><TextBlock Classes="cfp-row-title" Text="{Binding GitHubDirectLatency}" /></StackPanel></Border>
+                                            <Border Grid.Column="1" Classes="cfp-latency-result"><StackPanel Spacing="2"><TextBlock Classes="cfp-caption" Text="{Binding Loc[GitHubMirror]}" /><TextBlock Classes="cfp-row-title" Text="{Binding GitHubMirrorLatency}" /></StackPanel></Border>
+                                            <Button Grid.Column="2" Classes="cfp-secondary" Command="{Binding TestGitHubLatencyCommand}" IsEnabled="{Binding IsTestingGitHubLatency, Converter={x:Static converters:BoolConverters.Not}}"><StackPanel Orientation="Horizontal" Spacing="6"><LucideIcon Kind="Gauge" Size="15" /><TextBlock Text="{Binding Loc[TestLatency]}" /></StackPanel></Button>
+                                        </Grid>
                                     </StackPanel>
-                                    <TextBlock Grid.Column="1"
-                                               Classes="cfp-row-title"
-                                               Text="{Binding OfficialModCatalogStatus}"
-                                               VerticalAlignment="Center" />
-                                </Grid>
-                                <TextBlock Classes="cfp-meta"
-                                           Text="{Binding OfficialModCatalogSummary}"
-                                           TextWrapping="Wrap" />
-                                <TextBlock Classes="cfp-meta"
-                                            Text="{Binding OfficialModCatalogError}"
-                                            Foreground="{DynamicResource CfErrorBrush}"
-                                            TextWrapping="Wrap"
-                                           IsVisible="{Binding OfficialModCatalogError, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+                                </Border>
                             </StackPanel>
-                        </Border>
 
-                        <Border Classes="cfp-card">
-                            <StackPanel Spacing="12">
-                                <TextBlock Classes="cfp-section-title" Text="{Binding Loc[CustomModLinks]}" />
-                                <TextBlock Classes="cfp-caption"
-                                           Text="{Binding Loc[CustomModLinksHint]}"
-                                           TextWrapping="Wrap" />
-                                <TextBox Classes="cfp-input"
-                                         Text="{Binding CustomModLinksUrl, Mode=TwoWay}"
-                                         PlaceholderText="https://example.invalid/ModLinks.xml"
-                                         AutomationProperties.Name="{Binding Loc[CustomModLinks]}" />
-                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                    <ComboBox Classes="cfp-input"
-                                              ItemsSource="{Binding CustomModLinksBuildOptions}"
-                                              SelectedItem="{Binding SelectedCustomModLinksBuild, Mode=TwoWay}"
-                                              AutomationProperties.Name="{Binding Loc[MarketBuild]}">
-                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                    <ComboBox Grid.Column="1"
-                                              Classes="cfp-input"
-                                              ItemsSource="{Binding CustomModLinksLoaderOptions}"
-                                              SelectedItem="{Binding SelectedCustomModLinksLoader, Mode=TwoWay}"
-                                              AutomationProperties.Name="{Binding Loc[MarketLoader]}">
-                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                </Grid>
-                                <Button Classes="cfp-accent"
-                                        Command="{Binding SaveCustomModLinksCommand}"
-                                        HorizontalAlignment="Right">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <LucideIcon Kind="Save" Size="16" />
-                                        <TextBlock Text="{Binding Loc[Save]}" />
+                            <StackPanel Spacing="16" IsVisible="{Binding IsCatalogSettingsSection}">
+                                <Border Classes="cfp-card">
+                                    <StackPanel Spacing="6">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                            <StackPanel Spacing="2"><TextBlock Classes="cfp-section-title" Text="{Binding Loc[HKModLinks]}" /><TextBlock Classes="cfp-caption" Text="{Binding Loc[HKModLinksHint]}" /></StackPanel>
+                                            <TextBlock Grid.Column="1" Classes="cfp-row-title" Text="{Binding OfficialModCatalogStatus}" VerticalAlignment="Center" />
+                                        </Grid>
+                                        <TextBlock Classes="cfp-meta" Text="{Binding OfficialModCatalogSummary}" TextWrapping="Wrap" />
+                                        <TextBlock Classes="cfp-meta" Text="{Binding OfficialModCatalogError}" Foreground="{DynamicResource CfErrorBrush}" TextWrapping="Wrap" IsVisible="{Binding OfficialModCatalogError, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
                                     </StackPanel>
-                                </Button>
+                                </Border>
+                                <Border Classes="cfp-card">
+                                    <StackPanel Spacing="12">
+                                        <TextBlock Classes="cfp-section-title" Text="{Binding Loc[CustomModLinks]}" />
+                                        <TextBlock Classes="cfp-caption" Text="{Binding Loc[CustomModLinksHint]}" TextWrapping="Wrap" />
+                                        <TextBox Classes="cfp-input" Text="{Binding CustomModLinksUrl, Mode=TwoWay}" PlaceholderText="https://example.invalid/ModLinks.xml" AutomationProperties.Name="{Binding Loc[CustomModLinks]}" />
+                                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                            <ComboBox Classes="cfp-input" ItemsSource="{Binding CustomModLinksBuildOptions}" SelectedItem="{Binding SelectedCustomModLinksBuild, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[MarketBuild]}"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+                                            <ComboBox Grid.Column="1" Classes="cfp-input" ItemsSource="{Binding CustomModLinksLoaderOptions}" SelectedItem="{Binding SelectedCustomModLinksLoader, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[MarketLoader]}"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+                                        </Grid>
+                                        <Button Classes="cfp-accent" Command="{Binding SaveCustomModLinksCommand}" HorizontalAlignment="Right"><StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Save" Size="16" /><TextBlock Text="{Binding Loc[Save]}" /></StackPanel></Button>
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="cfp-card">
+                                    <StackPanel Spacing="12">
+                                        <TextBlock Classes="cfp-section-title" Text="{Binding Loc[CustomCatalogSources]}" />
+                                        <TextBox Classes="cfp-input" Text="{Binding CustomSourcesText, Mode=TwoWay}" AcceptsReturn="True" MinHeight="120" AutomationProperties.Name="{Binding Loc[CustomCatalogSources]}" TextWrapping="NoWrap" />
+                                        <Button Classes="cfp-accent" Command="{Binding SaveCustomSourcesCommand}" HorizontalAlignment="Right">
+                                            <Button.IsEnabled><MultiBinding Converter="{x:Static converters:BoolConverters.And}"><Binding Path="IsBusy" Converter="{x:Static converters:BoolConverters.Not}" /><Binding Path="IsGameRunning" Converter="{x:Static converters:BoolConverters.Not}" /></MultiBinding></Button.IsEnabled>
+                                            <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Save" Size="16" /><TextBlock Text="{Binding Loc[Save]}" /></StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
-                        </Border>
 
-                        <Border Classes="cfp-card">
-                            <StackPanel Spacing="12">
-                                <TextBlock Classes="cfp-section-title" Text="{Binding Loc[CustomCatalogSources]}" />
-                                <TextBox Classes="cfp-input"
-                                         Text="{Binding CustomSourcesText, Mode=TwoWay}"
-                                         AcceptsReturn="True"
-                                         MinHeight="120"
-                                         AutomationProperties.Name="{Binding Loc[CustomCatalogSources]}"
-                                         TextWrapping="NoWrap" />
-                                <Button Classes="cfp-accent"
-                                        Command="{Binding SaveCustomSourcesCommand}"
-                                        HorizontalAlignment="Right">
-                                    <Button.IsEnabled>
-                                        <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
-                                            <Binding Path="IsBusy" Converter="{x:Static converters:BoolConverters.Not}" />
-                                            <Binding Path="IsGameRunning" Converter="{x:Static converters:BoolConverters.Not}" />
-                                        </MultiBinding>
-                                    </Button.IsEnabled>
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <LucideIcon Kind="Save" Size="16" />
-                                        <TextBlock Text="{Binding Loc[Save]}" />
+                            <StackPanel Spacing="16" IsVisible="{Binding IsUpdatesSettingsSection}">
+                                <Border Classes="cfp-card">
+                                    <StackPanel Spacing="10">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                            <StackPanel Spacing="3"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[ApplicationUpdates]}" /><TextBlock Classes="cfp-caption" Text="{Binding Loc[ApplicationUpdatesHint]}" TextWrapping="Wrap" /></StackPanel>
+                                            <CheckBox Grid.Column="1" VerticalAlignment="Center" Content="{Binding Loc[CheckForUpdates]}" IsChecked="{Binding IsAutomaticUpdateCheckEnabled, Mode=TwoWay}" />
+                                        </Grid>
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                            <TextBlock Classes="cfp-meta" Text="{Binding ApplicationUpdateStatus}" VerticalAlignment="Center" />
+                                            <Button Grid.Column="1" Classes="cfp-secondary" Click="OnCheckForApplicationUpdatesClick" IsEnabled="{Binding IsCheckingForApplicationUpdates, Converter={x:Static converters:BoolConverters.Not}}" AutomationProperties.Name="{Binding Loc[CheckNow]}"><StackPanel Orientation="Horizontal" Spacing="6"><LucideIcon Kind="RefreshCw" Size="15" /><TextBlock Text="{Binding Loc[CheckNow]}" /></StackPanel></Button>
+                                        </Grid>
                                     </StackPanel>
-                                </Button>
+                                </Border>
+                                <Border Classes="cfp-card">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                        <StackPanel Spacing="3"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[ProtocolRegistration]}" /><TextBlock Classes="cfp-caption" Text="{Binding Loc[ProtocolRegistrationHint]}" TextWrapping="Wrap" /></StackPanel>
+                                        <TextBlock Grid.Column="1" Classes="cfp-row-title" Text="{Binding ProtocolRegistrationStatus}" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
                             </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </ScrollViewer>
+
+                            <StackPanel Spacing="16" IsVisible="{Binding IsAboutSettingsSection}">
+                                <Border Classes="cfp-card">
+                                    <StackPanel Spacing="16">
+                                        <StackPanel Spacing="4"><TextBlock Classes="cfp-section-title" Text="{Binding Loc[AboutTitle]}" /><TextBlock Classes="cfp-meta" Text="{Binding Loc[AboutDescription]}" TextWrapping="Wrap" /></StackPanel>
+                                        <Grid ColumnDefinitions="160,*" ColumnSpacing="12"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[AboutContributors]}" /><TextBlock Grid.Column="1" Text="{Binding Loc[AboutContributorValue]}" TextWrapping="Wrap" /></Grid>
+                                        <Grid ColumnDefinitions="160,*" ColumnSpacing="12"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[ProjectRepository]}" /><Button Grid.Column="1" Classes="cfp-link" Tag="https://github.com/wzxnb2333/Crystalfly" Click="OpenExternalUrl" AutomationProperties.Name="{Binding Loc[ProjectRepository]}"><TextBlock Text="https://github.com/wzxnb2333/Crystalfly" TextWrapping="Wrap" /></Button></Grid>
+                                        <Grid ColumnDefinitions="160,*" ColumnSpacing="12"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[OpenSourceLicense]}" /><TextBlock Grid.Column="1" Text="{Binding Loc[LicenseName]}" TextWrapping="Wrap" /></Grid>
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="cfp-card">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Classes="cfp-section-title" Text="{Binding Loc[AboutDesignReferences]}" />
+                                        <TextBlock Classes="cfp-caption" Text="{Binding Loc[AboutDesignReferencesDescription]}" TextWrapping="Wrap" />
+                                        <WrapPanel>
+                                            <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/Hex-Dragon/PCL2" Click="OpenExternalUrl"><TextBlock Text="PCL2" /></Button>
+                                            <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/TheMulhima/Lumafly" Click="OpenExternalUrl"><TextBlock Text="Lumafly" /></Button>
+                                            <Button Classes="cfp-link" Tag="https://github.com/fifty-six/Scarab" Click="OpenExternalUrl"><TextBlock Text="Scarab" /></Button>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="cfp-card">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Classes="cfp-section-title" Text="{Binding Loc[AboutOpenSourceComponents]}" />
+                                        <TextBlock Classes="cfp-caption" Text="{Binding Loc[AboutOpenSourceComponentsDescription]}" TextWrapping="Wrap" />
+                                        <WrapPanel>
+                                            <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/AvaloniaUI/Avalonia" Click="OpenExternalUrl"><TextBlock Text="Avalonia" /></Button>
+                                            <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/irihitech/Semi.Avalonia" Click="OpenExternalUrl"><TextBlock Text="Semi.Avalonia" /></Button>
+                                            <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/irihitech/Ursa.Avalonia" Click="OpenExternalUrl"><TextBlock Text="Ursa" /></Button>
+                                            <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/SteamRE/SteamKit" Click="OpenExternalUrl"><TextBlock Text="SteamKit2" /></Button>
+                                            <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/dme-compunet/Lucide.Avalonia" Click="OpenExternalUrl"><TextBlock Text="Lucide.Avalonia" /></Button>
+                                            <Button Classes="cfp-link" Tag="https://github.com/Kryptos-FR/MarkView.Avalonia" Click="OpenExternalUrl"><TextBlock Text="MarkView.Avalonia" /></Button>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="cfp-card">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Classes="cfp-section-title" Text="{Binding Loc[AboutModCatalogAndTranslations]}" />
+                                        <TextBlock Classes="cfp-caption" Text="{Binding Loc[AboutModCatalogAndTranslationsDescription]}" TextWrapping="Wrap" />
+                                        <WrapPanel>
+                                            <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/hk-modding/modlinks" Click="OpenExternalUrl"><TextBlock Text="HK ModLinks" /></Button>
+                                            <Button Classes="cfp-link" Tag="https://space.bilibili.com/538844794" Click="OpenExternalUrl"><TextBlock Text="MioSS- · Bilibili" /></Button>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
             </Grid>
         </Grid>
         </u:LoadingContainer>

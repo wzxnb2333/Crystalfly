@@ -437,7 +437,11 @@ public sealed class ThemeRenderingTests
             Path.GetTempPath(),
             "crystalfly-ui",
             Guid.NewGuid().ToString("N"));
-        var viewModel = new MainViewModel(applicationDataRoot) { CurrentPage = "Settings" };
+        var viewModel = new MainViewModel(applicationDataRoot)
+        {
+            CurrentPage = "Settings",
+            CurrentSettingsSection = "Catalog"
+        };
         SetOfficialCatalogResult(viewModel, new(
             Crystalfly.Core.Catalog.OfficialCatalogLoadStatus.Failed,
             new Crystalfly.Core.Models.GameCatalog(),
