@@ -17,3246 +17,3261 @@
     {
       "id": "hkmod:Abskoth",
       "displayName": "Abskoth",
-      "description": "一个为无上辐光战斗添加无敌马科斯怪物的游戏模组。"
+      "description": "一个游戏模式，将无敌的马科斯添加到绝对光辉战斗中。"
     },
     {
       "id": "hkmod:AbsoluteZote",
-      "displayName": "无上左特",
-      "description": "一个新的 GPZ 模组 Boss。同时安装 AbsoluteZote 和 PureZote 即可启用 AnyZote。"
+      "displayName": "AbsoluteZote",
+      "description": "新的 GPZ mod boss。一起安装 AbsoluteZote 和 PureZote 以启用 AnyZote。"
     },
     {
       "id": "hkmod:AbsRad Configurable Attacks",
-      "displayName": "辐光可配置攻击",
-      "description": "允许配置无上辐光攻击频率。支持同时作用于多个辐光。"
+      "displayName": "AbsRad 可配置攻击",
+      "description": "允许配置 Absolute Radiance 的攻击频率。同时适用于多个光辉。"
     },
     {
       "id": "hkmod:AbsRad Teleport Control",
-      "displayName": "辐光传送控制",
-      "description": "允许在无上辐光战斗的平台阶段和最终阶段禁用传送位置。支持同时处理多个无上辐光。"
+      "displayName": "AbsRad Teleport Control",
+      "description": "允许在平台和绝对光辉战斗的最后阶段禁用传送位置。同时适用于多个光辉。"
     },
     {
       "id": "hkmod:AccessRandomizer",
-      "displayName": "随机化入口",
-      "description": "杂项访问检查的随机化器附加组件。"
+      "displayName": "AccessRandomizer",
+      "description": "用于各种访问检查的随机机插件。"
     },
     {
       "id": "hkmod:AdBlocker",
-      "displayName": "广告拦截器",
-      "description": "屏蔽广告"
+      "displayName": "AdBlocker",
+      "description": "阻止广告"
     },
     {
       "id": "hkmod:Additional Challenge",
       "displayName": "额外挑战",
-      "description": "一个让你能使用46种不同效果来增加游戏挑战性的Mod。共有4种效果类型（持续型、冷却型、Boss攻击型、敌人跟随型），可通过Mod菜单启用。此外还包含混沌模式，会随机周期性触发各种效果。"
+      "description": "该模组允许您使用 46 种不同的效果，让您的游戏更具挑战性。有 4 种类型的效果（持续、冷却、Boss 攻击、敌人跟随）可以从 mod 菜单启用。还有一种 choas 模式，可以随机选择周期性发生的效果。"
     },
     {
       "id": "hkmod:Additional Timelines",
       "displayName": "额外时间线",
-      "description": "在制作人员名单结束后，为统计界面添加额外的时间线。"
+      "description": "在片尾字幕后向统计屏幕添加额外时间线。"
     },
     {
       "id": "hkmod:AdditionalMaps",
-      "displayName": "额外地图",
-      "description": "添加了白色宫殿和神居的地图。白色宫殿的地图位于大房间的长椅旁，神居的地图则放在万神殿上方的长椅边。"
+      "displayName": "附加地图",
+      "description": "添加白宫和神殿地图。白宫的一张就在大房间的长椅旁边。神殿位于万神殿上方的长椅旁边。"
     },
     {
       "id": "hkmod:Ado Death Scream",
-      "displayName": "阿多死亡尖啸",
-      "description": "当骑士死亡时播放阿多的尖叫声。"
+      "displayName": "阿多死亡尖叫",
+      "description": "骑士死亡时，会改为播放 Ado 的尖叫。"
     },
     {
       "id": "hkmod:Afterimage Plus",
-      "displayName": "残影增强版",
-      "description": "一个为骑士和敌人添加可定制残影效果的模组。"
+      "displayName": "Afterimage Plus",
+      "description": "一个为骑士和敌人提供可定制残像的模组。"
     },
     {
       "id": "hkmod:All4Love",
-      "displayName": "全为爱",
-      "description": "博爱众生。"
+      "displayName": "All4Love",
+      "description": "爱4全部。"
     },
     {
       "id": "hkmod:AllGrubRewardsAtOnce",
-      "displayName": "一次性全幼虫奖励",
-      "description": "幼虫之父一次性给予所有可用奖励。"
+      "displayName": "AllGrubRewardsAtOnce",
+      "description": "Grubfather 一次性给出所有可用奖励。"
     },
     {
       "id": "hkmod:AllHallownestEnhanced",
-      "displayName": "全霍尔尼斯增强版",
-      "description": "这是一个强化了整个圣巢的 Mod。我花了两个半月的时间制作它。它将带你体验初次遇见空洞骑士的乐趣。我希望它能成为《丝之歌》发布前的一道美味替代品。"
+      "displayName": "AllHallownestEnhanced",
+      "description": "这是一个增强整个圣巢的模组。我花了2.5个月才完成。带你体验初见空洞骑士的喜悦。希望在SilkSong发布之前它能够成为一个很好的代餐。"
     },
     {
       "id": "hkmod:AlphabetRando",
-      "displayName": "字母随机化",
-      "description": "游戏界面中字母的随机化连接"
+      "displayName": "AlphabetRando",
+      "description": "游戏本身 UI 中字母的随机机连接"
     },
     {
       "id": "hkmod:AlreadyEnoughPlayMaker",
-      "displayName": "已足够PlayMaker",
-      "description": "一个针对 PlayMaker FSM 的优化模组。"
+      "displayName": "AlreadyEnoughPlayMaker",
+      "description": "PlayMaker FSM 的优化模组。"
     },
     {
       "id": "hkmod:Always Furious",
-      "displayName": "始终愤怒",
-      "description": "装备时，堕落之怒始终生效。"
+      "displayName": "始终狂怒",
+      "description": "堕落者之怒在装备时始终处于激活状态"
     },
     {
       "id": "hkmod:AlwaysHazardRespawn",
-      "displayName": "始终危险重生",
-      "description": "死亡后总是在危险重生点复活。"
+      "displayName": "AlwaysHazardRespawn",
+      "description": "死亡后始终在危险重生位置重生。"
     },
     {
       "id": "hkmod:AlwaysWorldSense",
-      "displayName": "常驻世界感知",
-      "description": "立即获得世界感知"
+      "displayName": "AlwaysWorldSense",
+      "description": "立即授予世界感知"
     },
     {
       "id": "hkmod:Ancient Aspid",
-      "displayName": "远古阿斯匹德",
-      "description": "一个为《空洞骑士》制作的模组，在王国边缘添加了一场全新的、具有挑战性的Boss战。"
+      "displayName": "Ancient Aspid",
+      "description": "空洞骑士的模组，为王国边缘添加了全新的、具有挑战性的boss战"
+    },
+    {
+      "id": "hkmod:Another Location",
+      "displayName": "另一个地点",
+      "description": "为随机机新增一个地点；可能附带条款与限制。"
     },
     {
       "id": "hkmod:Any Radiance 3.0",
-      "displayName": "辐光 3.0",
-      "description": "辐光 3.0"
+      "displayName": "任意辐射 3.0",
+      "description": "任意辐射 3.0"
     },
     {
       "id": "hkmod:AnyZote",
-      "displayName": "任意左特",
-      "description": "史上最强的左特模组Boss。"
+      "displayName": "AnyZote",
+      "description": "有史以来最强大的 zote modded Boss。"
     },
     {
       "id": "hkmod:Arcade Knight",
       "displayName": "街机骑士",
-      "description": "添加了一些小游戏。"
+      "description": "添加一些小游戏。"
     },
     {
       "id": "hkmod:Archipelago",
       "displayName": "群岛",
-      "description": "启用与 Archipelago 多世界系统的联机游玩。"
+      "description": "可以玩群岛多世界系统。"
     },
     {
       "id": "hkmod:Archipelago Map Mod",
-      "displayName": "群岛地图模组",
-      "description": "这是一个与 Archipelago 多世界随机化器兼容的 RandoMapMod 转换版本。"
+      "displayName": "Archipelago Map Mod",
+      "description": "RandoMapMod 的转换，可与 Archipelago 多重世界随机机配合使用"
     },
     {
       "id": "hkmod:Architect",
       "displayName": "建筑师",
-      "description": "一款空洞骑士关卡编辑模组，通过内置的关卡编辑器和分享功能，轻松制作并分享自定义关卡。"
+      "description": "空洞骑士关卡编辑器模组，可使用游戏内关卡编辑器和关卡共享器轻松制作和共享自定义关卡。"
     },
     {
       "id": "hkmod:ArchitectLegacy",
-      "displayName": "建筑遗产",
-      "description": "空洞骑士关卡编辑器 Architect 的旧版本。"
+      "displayName": "ArchitectLegacy",
+      "description": "旧版本的Architect，空洞骑士关卡编辑器。"
     },
     {
       "id": "hkmod:Archiv",
       "displayName": "档案",
-      "description": "教师档案馆里有些不对劲"
+      "description": "教师档案中有问题"
     },
     {
       "id": "hkmod:AsciiCamera",
-      "displayName": "ASCII相机",
-      "description": "为摄像机应用着色器，使游戏画面以ASCII字符形式输出。"
+      "displayName": "AsciiCamera",
+      "description": "将着色器应用于相机，使游戏输出为 ascii 字符。"
     },
     {
       "id": "hkmod:Aspid Queen",
       "displayName": "阿斯皮德女王",
-      "description": "在诸神堂中添加一场原始阿斯匹德 Boss 战。"
+      "description": "在众神殿中添加了一场原始的阿斯皮德 Boss 战。"
     },
     {
       "id": "hkmod:Aspidnest",
-      "displayName": "阿斯皮德巢穴",
-      "description": "添加了许多无法杀死的敌人，如原始阿司匹德、水晶猎人、卢德尔、螳螂佩特拉、蜂巢士兵、蜂巢守卫、斯奎特、苔藓蝇、福鲁克费和长枪哨兵，它们会跟随你穿越整个圣巢。该模组可在模组选项页面中根据个人喜好进行配置。"
+      "displayName": "Aspidnest",
+      "description": "添加了许多无法杀死的敌人，例如原始 Aspids、水晶猎人、Loodles、Mantis Petras、Hive Soldiers、Hive Guardians、Squits、Mossflies、Flukefeys 和 Lance Sentries，它们会在整个圣巢中跟随你。这个模组可以在这个模组的选项页面中根据您自己的喜好进行配置。"
     },
     {
       "id": "hkmod:AspyCompanion",
-      "displayName": "阿斯比伙伴",
-      "description": "将格林之子替换为阿斯皮。"
+      "displayName": "AspyCompanion",
+      "description": "用 Aspy 取代 Grimmchild。"
     },
     {
       "id": "hkmod:Asymmetric Knight",
-      "displayName": "不对称骑士",
-      "description": "自定义骑士附加组件，允许左右方向的骑士精灵图不同。添加 Knight_left.png、Sprint_left.png 和 Unn_left.png 即可使用。"
+      "displayName": "非对称骑士",
+      "description": "一个自定义骑士插件，允许左看和右看的骑士精灵不同。添加要使用的 Knight_left.png、Sprint_left.png 和 Unn_left.png。"
     },
     {
       "id": "hkmod:AuraRad",
-      "displayName": "光环辐光",
-      "description": "无上辐光 Mod Boss"
+      "displayName": "AuraRad",
+      "description": "无上辐光 Boss 模组。"
     },
     {
       "id": "hkmod:Backdash",
-      "displayName": "后撤步",
-      "description": "允许玩家在游戏中使用后撤步"
+      "displayName": "Backdash",
+      "description": "允许玩家在游戏中使用 Backdash"
     },
     {
       "id": "hkmod:BaldurRngConfig",
-      "displayName": "巴德尔随机配置",
-      "description": "配置各种长辈巴尔德尔的设置"
+      "displayName": "BaldurRngConfig",
+      "description": "配置各种Elder Baldur设置"
     },
     {
       "id": "hkmod:BenchDeploy",
-      "displayName": "长椅部署",
-      "description": "使用控制器/键盘部署多个长椅。其他玩家的长椅基于物品同步地图同步模组"
+      "displayName": "BenchDeploy",
+      "description": "使用控制器/键盘部署多工作台。 itemsync MapSyncMod 上的其他玩家长椅"
     },
     {
       "id": "hkmod:BenchRando",
-      "displayName": "椅子随机",
-      "description": "这是一个为《随机化4》制作的附加模组，用于将长椅随机分布到新位置，并将传送至长椅的能力随机化为可拾取物品。"
+      "displayName": "BenchRando",
+      "description": "Randomizer 4 附加组件，用于将长椅随机化到新位置，并随机化将长椅作为物品扭曲的能力。"
     },
     {
       "id": "hkmod:Benchwarp",
-      "displayName": "回椅子",
-      "description": "用于选择并传送至长椅的模组。同时支持放置长椅及传送至房间过渡点。"
+      "displayName": "Benchwarp",
+      "description": "用于选择和变形到工作台的Mod。还允许放置长椅和扭曲到房间过渡。"
     },
     {
       "id": "hkmod:BenchWarpFix",
-      "displayName": "回椅子修复",
-      "description": "当使用长椅传送进入没有长椅的场景时，不会导致软锁，而是将你传送到泥土之口。可能不适用于有漏洞的速通流程。"
+      "displayName": "BenchWarpFix",
+      "description": "当在没有长椅的场景中进行长椅变形时，软锁会让你陷入泥沼。可能不适用于有故障的运行。"
     },
     {
       "id": "hkmod:BenchwarpSpoilerCloak",
-      "displayName": "传送椅跳跃\n剧透斗篷",
-      "description": "一个长椅传送的附加模组，可在菜单中隐藏尚未访问过的长椅名称。"
+      "displayName": "BenchwarpSpoilerCloak",
+      "description": "Benchwarp 插件，可在菜单中隐藏尚未访问的工作台名称。"
     },
     {
       "id": "hkmod:Better Godhome Music",
-      "displayName": "更好的神居音乐",
-      "description": "将“幽魂敌人”替换为新的“神居”版本Boss曲目（由我制作）"
+      "displayName": "更好的Godhome音乐",
+      "description": "用新的Godhome版本的Boss曲目（由我制作）取代了闹鬼的敌人"
     },
     {
       "id": "hkmod:Better Void Heart",
       "displayName": "更好的虚空之心",
-      "description": "当你获得虚空之心时，保留王之灵魂的灵魂恢复效果。"
+      "description": "拾起虚空之心时保持王魂灵魂回复。"
     },
     {
       "id": "hkmod:BetterCrystalHeart",
-      "displayName": "更好的水晶之心",
-      "description": "为水晶之心增加伤害与充能时间的协同效果与增益。"
+      "displayName": "BetterCrystalHeart",
+      "description": "为水晶之心的伤害和充电时间增加协同作用和奖励。"
     },
     {
       "id": "hkmod:BetterModList",
-      "displayName": "更好的Mod列表",
-      "description": "自定义模组列表的显示方式"
+      "displayName": "BetterModList",
+      "description": "可调整游戏内 Mod 列表的呈现形式。"
     },
     {
       "id": "hkmod:Biblically Accurate Lasers",
-      "displayName": "圣经级精准激光",
-      "description": "为辐光与无上辐光战斗添加了一些可配置的激光。"
+      "displayName": "圣经准确的激光器",
+      "description": "在光辉和绝对光辉战斗中添加一些可配置的激光器。"
     },
     {
       "id": "hkmod:BingoAdvancedCustomGeneration",
-      "displayName": "高级自定义宾果生成",
-      "description": "一个允许使用BingoSync生成更复杂宾果板的Mod。"
+      "displayName": "BingoAdvancedCustomGeneration",
+      "description": "允许使用 BingoSync 生成更复杂的棋盘的 mod"
     },
     {
       "id": "hkmod:BingoBoard",
-      "displayName": "宾果板",
-      "description": "游戏内宾果板显示。"
+      "displayName": "BingoBoard",
+      "description": "把宾果挑战面板直接显示在游戏内。"
     },
     {
       "id": "hkmod:BingoBoardReplay",
-      "displayName": "宾果板回放",
-      "description": "一款为宾果锦标赛组织者设计的Mod，可在玩家存在直播延迟时协助转播游戏面板。使用方法请参阅GitHub说明文档。"
+      "displayName": "BingoBoardReplay",
+      "description": "宾果锦标赛组织者的模组，可在玩家出现流延迟时帮助重新流式传输游戏板。使用方法请参见 GitHub 自述文件。"
     },
     {
       "id": "hkmod:BingoGoalPack1",
-      "displayName": "Bingo 目标包 1",
-      "description": "为BingoSync添加更多目标，并包含新的棋盘类型"
+      "displayName": "BingoGoalPack1",
+      "description": "向 BingoSync 添加更多目标并包含新的棋盘类型"
     },
     {
       "id": "hkmod:BingoGoalPack2",
-      "displayName": "宾果目标包2",
-      "description": "为自定义BingoSync挑战添加更精细的规格设置。"
+      "displayName": "BingoGoalPack2",
+      "description": "为自定义 BingoSync 挑战添加了更细粒度的规范"
     },
     {
       "id": "hkmod:BingoGoalPackGrubDay",
-      "displayName": "Bingo目标包：幼虫日",
-      "description": "一个目标包，为2026年幼虫节宾果活动新增6个目标的自动标记功能。"
+      "displayName": "BingoGoalPackGrubDay",
+      "description": "一个目标包，为 2026 年 Grub Day 宾吉活动添加了 6 个新目标的自动标记"
     },
     {
       "id": "hkmod:BingoGoalPackSpleengy",
-      "displayName": "Bingo 目标包 - Spleengy",
-      "description": "一个为锁定模式设计的备用宾果目标包"
+      "displayName": "BingoGoalPackSpleengy",
+      "description": "专为锁定格式设计的备用宾果球门包"
     },
     {
       "id": "hkmod:BingoSync",
-      "displayName": "Bingo同步",
-      "description": "一个自动在 bingosync.com 上标记方格的《空洞骑士》Mod。"
+      "displayName": "BingoSync",
+      "description": "A Hollow Knight mod，可在 bingosync.com 上自动标记方块"
     },
     {
       "id": "hkmod:BingoSyncExtension",
-      "displayName": "Bingo同步扩展",
-      "description": "此前用于为BingoSync添加额外自动标记逻辑，现已弃用。"
+      "displayName": "BingoSyncExtension",
+      "description": "以前用于向 BingoSync 添加额外的自动标记逻辑，现已弃用"
     },
     {
       "id": "hkmod:BingoUI",
-      "displayName": "宾果UI",
-      "description": "随机生成器与速通宾果赛中的宾果目标自动追踪。"
+      "displayName": "BingoUI",
+      "description": "自动跟踪随机机和速通宾果比赛的宾果目标。"
     },
     {
       "id": "hkmod:BlindRadiance",
-      "displayName": "盲目光辉",
-      "description": "在选定场景中使背景更暗，以增强前景物体的可见度。"
+      "displayName": "BlindRadiance",
+      "description": "使选定场景中的背景变暗，以使前景对象更加明显。"
     },
     {
       "id": "hkmod:BlueSR_OST",
-      "displayName": "BlueSR 原声带",
-      "description": "将绿色小径、真菌荒地和封印容器战斗中的原声音乐替换为 BlueSR 的版本。"
+      "displayName": "BlueSR_OST",
+      "description": "用 BlueSR 的版本替换 Greenpath、Fungal Wastes 和 Sealed Vessel 战斗中的音轨。"
     },
     {
       "id": "hkmod:Bomber Knight",
-      "displayName": "炸弹骑士",
-      "description": "新增炸弹能力，以及几个新护符和自定义“Boss”。"
+      "displayName": "轰炸机骑士",
+      "description": "添加炸弹能力，以及一些新的护符和自定义“Boss”。"
     },
     {
       "id": "hkmod:Bonfire",
       "displayName": "篝火",
-      "description": "空洞骑士中的升级系统，带来更真实的黑暗之魂体验（一款知名的空洞骑士仿作）。"
+      "description": "《空洞骑士》中的升级系统，可提供更真实的《黑暗之魂》体验（众所周知的空洞骑士抄袭）。"
     },
     {
       "id": "hkmod:Boss Attacks",
       "displayName": "Boss 攻击",
-      "description": "在诸神堂中训练与特定 Boss 攻击及其他内容的 Boss 战斗。"
+      "description": "在众神殿中训练 Boss 战斗，对抗特定的 Boss 攻击等。"
     },
     {
       "id": "hkmod:BossLib",
       "displayName": "BossLib",
-      "description": "让制作Boss变得更简单。本身不提供任何功能。"
+      "description": "简化 Boss 制作的库；单独安装不会生效。"
     },
     {
       "id": "hkmod:BossStatueFramework",
-      "displayName": "Boss雕像框架",
-      "description": "为万神殿添加自定义 Boss 雕像的库。"
+      "displayName": "BossStatueFramework",
+      "description": "用于向众神殿添加自定义 Boss 雕像的库。"
     },
     {
       "id": "hkmod:BossSync",
-      "displayName": "Boss同步",
-      "description": "此 Mod 已废弃，其功能已整合至另一个 Mod（MapSyncMod）。目前正在开发另一个 Mod，用于优化 112% 合作 APB 速通体验，将以 \"SpeedrunSync\" 为名发布。"
+      "displayName": "BossSync",
+      "description": "此模组现已过时，因为其功能已实现到另一个模组（MapSyncMod）中。目前正在开发另一个模组，以完善 112% Coop APB 速度运行的一些内容，该模组将以“SpeedrunSync”的名称发布"
     },
     {
       "id": "hkmod:Breakable Wall Randomizer",
-      "displayName": "可破坏墙壁随机化",
-      "description": "空洞骑士随机化模组的可破坏墙壁扩展。"
+      "displayName": "Breakable Wall Randomizer",
+      "description": "用于可破坏墙壁的空洞骑士随机机附加组件。"
     },
     {
       "id": "hkmod:BrokeLocUtil",
-      "displayName": "破损定位工具",
-      "description": "一个用于解锁无法到达的随机位置调试扩展"
+      "displayName": "BrokeLocUtil",
+      "description": "用于授予无法访问的随机位置的调试扩展"
     },
     {
       "id": "hkmod:Broken Nail",
-      "displayName": "破碎之钉",
-      "description": "为《空洞骑士》新增“断钉挑战”的存档模式。"
+      "displayName": "断指甲",
+      "description": "为 hk 的断指甲挑战添加新的保存模式"
     },
     {
       "id": "hkmod:Brothers of Battle",
       "displayName": "战斗兄弟",
-      "description": "与伟大剑术大师斯莱训练的兄弟战斗"
+      "description": "与被伟大的指甲师狡猾训练的兄弟战斗"
     },
     {
       "id": "hkmod:BugPrince",
-      "displayName": "虫王子",
-      "description": "一个随机化4连接模组，将《蓝王子》的机制与《空洞骑士》的过渡随机化相结合。"
+      "displayName": "BugPrince",
+      "description": "随机机 4 连接，将 Blue Prince 机制与 Hollow Knight 过渡随机机相结合。"
     },
     {
       "id": "hkmod:CabbyCodes",
-      "displayName": "卡比代码",
-      "description": "一个全面的作弊菜单模组，通过游戏内界面提供对玩家属性、物品栏和游戏状态的控制。"
+      "displayName": "CabbyCodes",
+      "description": "全面的作弊菜单模组，可通过游戏内界面控制玩家统计数据、库存和游戏状态"
     },
     {
       "id": "hkmod:Cagney Carnation",
       "displayName": "卡格尼康乃馨",
-      "description": "《空洞骑士》Mod，添加了来自《茶杯头》的卡格尼·康乃馨 Boss。"
+      "description": "空洞骑士模组，添加了茶杯头的卡格尼康乃馨Boss。"
     },
     {
       "id": "hkmod:Carefree Grimm",
       "displayName": "无忧无虑的格林",
-      "description": "允许你同时拥有无忧旋律和格林之子"
+      "description": "让你同时拥有无忧无虑的旋律和格林之子"
     },
     {
       "id": "hkmod:CarefreeRngReset",
-      "displayName": "无忧重置",
-      "description": "该模组会在玩家每次进入诸神殿堂时，将无忧旋律的随机数重置为最高格挡概率。"
+      "displayName": "CarefreeRngReset",
+      "description": "每次玩家进入神殿时，该模组都会将无忧无虑的旋律rng重置为最高的阻塞可能性。"
     },
     {
       "id": "hkmod:CarThingMod",
-      "displayName": "车载模组",
-      "description": "每次玩家挥动骨钉时，都会扔出一辆车。"
+      "displayName": "CarThingMod",
+      "description": "每次玩家挥动钉子时都会扔出一辆车"
     },
     {
       "id": "hkmod:Casino Knight",
       "displayName": "赌场骑士",
-      "description": "来赌一把吧！在德特茅斯新增了一家赌场，里面设有老虎机，可以让你花掉吉欧。赢取大奖吧！"
+      "description": "我们去赌博吧！在德特茅斯添加一个带有老虎机的赌场以花费吉欧资金。赢大了！"
     },
     {
       "id": "hkmod:Castless Focus",
-      "displayName": "无咒聚焦",
-      "description": "防止轻触聚焦键时施放技能。（注意：此设置会使轻触聚焦键始终开始聚焦，延迟时间与长按相同）"
+      "displayName": "无投射对焦",
+      "description": "点击对焦按钮时停止投射。 （注意：这会导致点击对焦按钮始终启动对焦，其延迟与按住对焦按钮时的延迟相同）"
     },
     {
       "id": "hkmod:CelesteDash",
-      "displayName": "蔚蓝冲刺",
-      "description": "将类Celeste的冲刺系统引入空洞骑士"
+      "displayName": "CelesteDash",
+      "description": "将类似 Celeste 的冲刺系统带入空洞骑士"
     },
     {
       "id": "hkmod:CelesteKnight",
-      "displayName": "《蔚蓝骑士》",
-      "description": "蔚蓝移动方式：冲刺、超级跳、超级冲刺、蹬墙跳"
+      "displayName": "CelesteKnight",
+      "description": "Celeste 运动如冲刺、超级、超级、墙弹"
     },
     {
       "id": "hkmod:Challenge Mode",
       "displayName": "挑战模式",
-      "description": "一个为神居添加随机挑战修饰器的模组，提供多种自定义选项。关于修饰器及更多信息请参阅 ReadMe 文件。"
+      "description": "该模组将随机选择的挑战修改器添加到Godhome，并具有多个自定义选项。有关修饰符等的信息，请参阅自述文件。"
     },
     {
       "id": "hkmod:ChangeHud",
-      "displayName": "更换HUD",
-      "description": "一个模组，让你可以在同一模式下使用不同类型的界面。"
+      "displayName": "ChangeHud",
+      "description": "这个模组让您可以在同一模式下使用不同类型的HUD。"
     },
     {
       "id": "hkmod:Charm Changer",
-      "displayName": "护符更换器",
-      "description": "允许你自定义部分护符效果的强度"
+      "displayName": "护符变换器",
+      "description": "可让您自定义某些护符效果的强度"
     },
     {
       "id": "hkmod:Charm Changer Rando",
-      "displayName": "随机化护符更换器",
-      "description": "一个用于随机化“护符更换器”设置的模组。"
+      "displayName": "Charm Changer Rando",
+      "description": "随机化 Charm Changer 设置的 mod"
     },
     {
       "id": "hkmod:Charm Crab",
-      "displayName": "护符蟹",
-      "description": "新的护符机制、新护符、新法术以及平衡调整"
+      "displayName": "护符螃蟹",
+      "description": "新护符机制、新护符、新法术和重新平衡"
     },
     {
       "id": "hkmod:Charm Editor",
-      "displayName": "护符编辑器",
-      "description": "此模组允许你修改护符槽数量与冲刺大师技能。"
+      "displayName": "Charm Editor",
+      "description": "此模组允许您更改 Charm 凹口和 dashmaster"
     },
     {
       "id": "hkmod:Charm Loadouts",
-      "displayName": "护符配装",
-      "description": "允许你在长椅休息时保存和加载最多3个护符配置。"
+      "displayName": "护符加载",
+      "description": "允许您在长椅上休息时保存和加载最多 3 个护符构建。"
     },
     {
       "id": "hkmod:Charm Overhaul",
       "displayName": "护符大修",
-      "description": "将护符大修移植至1.5版本。重新平衡并重制了多种护符，同时新增了协同效果。"
+      "description": "护符港口大修至1.5。重新平衡和重新设计各种护符并增加新的协同作用"
     },
     {
       "id": "hkmod:Charm Rebalanced",
-      "displayName": "护符平衡",
-      "description": "点击[查看说明]以了解所有改动。如果您喜欢这个模组，请考虑在GitHub仓库上点个星标，这将帮助更多人发现这个模组！"
+      "displayName": "护符重新平衡",
+      "description": "单击[查看自述文件]以查看所有更改。如果您喜欢该模组，请考虑给 GitHub 存储库加一颗星，这将有助于将该模组传播给更多人！"
+    },
+    {
+      "id": "hkmod:Charmforging",
+      "displayName": "护符锻造",
+      "description": "为空洞骑士世界添加更多有趣的护符"
     },
     {
       "id": "hkmod:CharmPatch",
-      "displayName": "护符补丁",
-      "description": "这是一个小型改动合集，旨在优化游戏中部分护符的平衡性。请查看《护符修改器》模组的说明文档以获取推荐配置。"
+      "displayName": "CharmPatch",
+      "description": "这是一些小改动的集合，我认为这些改动可以提高游戏中某些护符的平衡性。请查看自述文件以获取 Charm Changer 模组建议。"
     },
     {
       "id": "hkmod:CharmPreset",
-      "displayName": "护符预设",
-      "description": "一个允许保存和加载护符预设的模组"
+      "displayName": "CharmPreset",
+      "description": "允许保存和加载护符预设的模组"
     },
     {
       "id": "hkmod:CharmReValance",
-      "displayName": "护符重衡",
-      "description": "护符与能力全面改造及自定义"
+      "displayName": "CharmReValance",
+      "description": "护符和能力大修和定制"
     },
     {
       "id": "hkmod:Christmas In Dirtmouth",
       "displayName": "德特茅斯的圣诞节",
-      "description": "德特茅斯变得热闹非凡！本模组在德特茅斯新增了一家圣诞装饰商店，由新NPC欢愉灵光经营。节日快乐！"
+      "description": "德特茅斯的气氛变得喜庆起来！该模组在德特茅斯添加了一家新的圣诞装饰店，由新的 NPC Merrywisp 拥有。节日快乐！"
     },
     {
       "id": "hkmod:CollectorGlitchRemover",
-      "displayName": "收集者漏洞修复",
-      "description": "防止“瞬间抓取”和“粘脚”收藏家漏洞。"
+      "displayName": "CollectorGlitchRemover",
+      "description": "防止“insta-grab”和“粘脚”收集器故障。"
     },
     {
       "id": "hkmod:Collision Glitch Remover",
-      "displayName": "碰撞故障移除器",
-      "description": "移除基于碰撞的漏洞，例如格鲁兹妈妈墙壁弹跳和收藏家“粘脚”漏洞。与CollectorGlitchRemover功能相同，但修复了所有场景。可与CollectorGlitchRemover一起添加，或替代CollectorGlitchRemover使用。"
+      "displayName": "碰撞故障消除器",
+      "description": "消除基于碰撞的故障，例如 Gruz 母墙反弹和收集器“粘脚”故障。与 CollectorGlitchRemover 的工作方式相同，只是它修复了每个场景。可以与 CollectorGlitchRemover 一起添加或代替 CollectorGlitchRemover。"
     },
     {
       "id": "hkmod:ColosseumTrophy",
-      "displayName": "竞技场奖杯",
-      "description": "重新启用竞技场奖杯的删减内容。"
+      "displayName": "罗马斗兽场奖杯",
+      "description": "重新启用罗马斗兽场奖杯剪切内容。"
     },
     {
       "id": "hkmod:CombatRandomizer",
-      "displayName": "战斗随机化器",
-      "description": "一个为受诅咒的战斗体验而设计的随机化附加模组。"
+      "displayName": "CombatRandomizer",
+      "description": "随机化器附加组件，带来受诅咒的战斗体验。"
     },
     {
       "id": "hkmod:CompanionCloth",
-      "displayName": "布匹伙伴",
-      "description": "让布蕾尔一路陪伴你，与你并肩作战。"
+      "displayName": "陪伴布",
+      "description": "让布一路陪伴，与你并肩作战"
     },
     {
       "id": "hkmod:CompassAlwaysOn",
-      "displayName": "指南针常亮",
-      "description": "使骑士的图标始终显示在地图上，即使你的背包中没有迷路指南针。"
+      "displayName": "CompassAlwaysOn",
+      "description": "使骑士的图标始终出现在地图上，即使任性指南针不在你的库存中。"
     },
     {
       "id": "hkmod:CondensedSpoilerLogger",
-      "displayName": "精简剧透记录器",
-      "description": "在 Rando Logs 目录下生成一份浓缩剧透日志（以及若干其他日志），包含该种子存档的关键信息。"
+      "displayName": "CondensedSpiilerLogger",
+      "description": "在 Rando Logs 目录中创建一个 Condensed Spoiler Log（以及其他几个日志），其中包含有关种子的关键信息。"
     },
     {
       "id": "hkmod:ConfigurableMaskDamage",
-      "displayName": "可配置面具伤害",
-      "description": "修改对骑士造成的伤害量"
+      "displayName": "ConfigurableMaskDamage",
+      "description": "更改对骑士造成的伤害量"
     },
     {
       "id": "hkmod:ConnectionMetadataInjector",
-      "displayName": "连接元数据注入器",
-      "description": "一个核心模组，允许像 RandoStats 和 MapModS 这样的随机化补充模组从连接中获取自定义元数据，而无需硬性依赖。"
+      "displayName": "ConnectionMetadataInjector",
+      "description": "一个核心模块，允许随机器补充模块（如 RandoStats 和 MapModS）从连接获取自定义元数据，而不需要硬依赖。"
     },
     {
       "id": "hkmod:ContainerConfig",
-      "displayName": "容器配置",
-      "description": "ItemChanger 的附加组件，用于控制特定检查点的呈现方式。"
+      "displayName": "ContainerConfig",
+      "description": "ItemChanger 插件用于控制某些检查的呈现方式。"
     },
     {
       "id": "hkmod:ContinueCountdown",
-      "displayName": "继续倒计时",
-      "description": "在继续游戏时添加倒计时功能"
+      "displayName": "ContinueCountdown",
+      "description": "继续时添加倒计时"
     },
     {
       "id": "hkmod:ControllerFixes",
       "displayName": "控制器修复",
-      "description": "修复了一些控制器问题并增加了相关功能。"
+      "description": "修复了一些控制器问题并添加了相关功能。"
     },
     {
       "id": "hkmod:Convenient Path of Pain",
-      "displayName": "便捷痛苦之路",
-      "description": "这个模组让每次用骨钉击中痛苦之路的灵魂图腾或翼兵时，都会完全填满你的灵魂容器。目前该效果不适用于骨钉技艺。感谢SFGrenade让这个模组兼容非原版的图腾和翼兵。"
+      "displayName": "便捷的痛苦之路",
+      "description": "这个模组使得每当你用指甲敲击痛苦之路灵魂图腾或翼模时，它都会完全重新填充你的灵魂容器。目前这不适用于骨钉。感谢 SFGrenade 使其与非香草图腾和 Wingsmoulds 兼容"
     },
     {
       "id": "hkmod:Core.FsmUtil",
-      "displayName": "核心.FsmUtil",
-      "description": "一个用于FSM编辑的库模组。"
+      "displayName": "Core.FsmUtil",
+      "description": "用于 fsm 编辑的库 mod。"
     },
     {
       "id": "hkmod:CorpseDreamRando",
-      "displayName": "尸体梦境随机化",
-      "description": "一个随机化器连接模组，为背景尸体添加了梦之钉对话。"
+      "displayName": "CorpseDreamRando",
+      "description": "随机化器连接，为背景尸体添加梦境指甲对话"
     },
     {
       "id": "hkmod:Corrupted Kin",
-      "displayName": "腐化同胞",
-      "description": "一个大幅改变失落近亲Boss战的Mod。"
+      "displayName": "Corrupted Kin",
+      "description": "一个显着改变Lost Kin bossfight的mod"
     },
     {
       "id": "hkmod:CountDownForLife",
-      "displayName": "生命倒计时",
-      "description": "当倒计时归零时，你将受到惩罚。"
+      "displayName": "CountDownForLife",
+      "description": "当倒计时归零时，你将受到惩罚"
     },
     {
       "id": "hkmod:Crafted Town",
-      "displayName": "手工小镇",
-      "description": "《工匠小镇》新增了一个区域、多种法术变体以及部分护符升级（目前为 Alpha 测试阶段）。"
+      "displayName": "精雕细琢的城镇",
+      "description": "精雕细琢的城镇添加了一个新位置，几个咒语替代品和一些护符升级（目前处于阿尔法状态）。"
     },
     {
       "id": "hkmod:CriticalSlash",
-      "displayName": "致命斩击",
-      "description": "使骨钉技艺在最早时机释放时造成额外伤害并更快恢复控制。"
+      "displayName": "CriticalSlash",
+      "description": "如果尽早释放，会使骨钉造成额外伤害并更快地返回控制权。"
     },
     {
       "id": "hkmod:Crystal Machinist",
       "displayName": "水晶机械师",
-      "description": "一个大幅改变愤怒守卫者Boss战的Mod"
+      "description": "一个显着改变愤怒守护者bossfight的mod"
     },
     {
       "id": "hkmod:Crystalblobbles",
-      "displayName": "水晶泡泡",
-      "description": "基于奥波路波的 Boss"
+      "displayName": "Crystalblobbles",
+      "description": "基于 Oblobbles 的 Boss"
     },
     {
       "id": "hkmod:Curse Randomizer",
-      "displayName": "诅咒随机化器",
-      "description": "随机化4连接，新增额外诅咒选项。"
+      "displayName": "Curse Randomizer",
+      "description": "Randomizer 4 连接，添加了额外的受诅咒选项。"
     },
     {
       "id": "hkmod:CursedMod",
-      "displayName": "诅咒模组",
-      "description": "这个模组包含各种杂项功能。例如让游戏窗口在 Windows 系统下显示为深色模式。"
+      "displayName": "CursedMod",
+      "description": "这个模组做了各种各样的事情。就像在 Windows 上将游戏窗口设置为深色模式一样。"
     },
     {
       "id": "hkmod:Custom Knight",
-      "displayName": "自定义骑士（皮肤Mod）",
-      "description": "支持玩家、敌人及区域重制的皮肤模组"
+      "displayName": "自定义骑士",
+      "description": "支持玩家、敌人和区域大修的皮肤"
     },
     {
       "id": "hkmod:Custom Title",
       "displayName": "自定义标题",
-      "description": "一个允许玩家使用自定义头衔的《空洞骑士》Mod。"
+      "description": "空洞骑士模组，允许玩家使用他们的自定义标题"
     },
     {
       "id": "hkmod:Custom Trial",
-      "displayName": "自定义试炼",
-      "description": "允许为愚人斗兽场创建自定义试炼。"
+      "displayName": "自定义试验",
+      "description": "允许为愚人斗兽场创建自定义试验。"
     },
     {
       "id": "hkmod:CustomAudio",
-      "displayName": "自定义音频",
-      "description": "一个空洞骑士模组，可以替换某些音频。"
+      "displayName": "CustomAudio",
+      "description": "空洞骑士 mod 可以替换某种音频"
     },
     {
       "id": "hkmod:CustomBgm",
-      "displayName": "自定义背景音乐",
-      "description": "允许自定义背景音乐。具体操作方法请参阅其说明文档。"
+      "displayName": "CustomBgm",
+      "description": "允许自定义背景音乐。有关操作方法，请参阅其自述文件。"
     },
     {
       "id": "hkmod:CustomConstraintInjector",
-      "displayName": "自定义约束注入器",
-      "description": "这是一个为 Randomizer 4 设计的附加模组，用于对放置位置设置用户自定义限制，并编辑物品和地点的优先级权重。"
+      "displayName": "CustomConstraintInjector",
+      "description": "Randomizer 4 附加组件，用于提供用户定义的放置约束以及编辑项目和位置的优先级权重。"
     },
     {
       "id": "hkmod:CustomGroupInjector",
-      "displayName": "自定义组注入器",
-      "description": "这是一个为不同分组随机化选项提供用户自定义物品组的 Randomizer 4 附加组件。"
+      "displayName": "CustomGroupInjector",
+      "description": "Randomizer 4 附加组件，用于为不同的分组随机化器选项提供用户定义的项目组。"
     },
     {
       "id": "hkmod:CustomImage",
       "displayName": "自定义图像",
-      "description": "你可以修改一些精灵图。"
+      "description": "您可以更改一些精灵。"
     },
     {
       "id": "hkmod:CustomizableAbilities",
-      "displayName": "可定制能力",
-      "description": "允许你自定义能力的模组：负数和分数骨钉；骨钉击中获得的灵魂量；骨钉冷却时间；伤害（同样支持负数和分数）以及梦之钉获得的灵魂量；法术和其他能力。负伤害会治疗敌人。"
+      "displayName": "CustomizedAbilities",
+      "description": "允许您自定义能力的Mod：负钉和分数钉；从钉子击中获得的灵魂数量；指甲冷却时间；伤害（也可以是负值和小数）以及从梦之钉收到的灵魂数量；咒语和其他能力。负伤害可以治疗敌人。"
     },
     {
       "id": "hkmod:CustomJournal",
-      "displayName": "自定义日志",
-      "description": "一个用于自定义日志图片的 CK 附加模组"
+      "displayName": "CustomJournal",
+      "description": "自定义日志图像的 CK 插件 mod"
     },
     {
       "id": "hkmod:CustomKnightPlus",
-      "displayName": "自定义骑士增强版",
-      "description": "一个为自定义骑士提供条件皮肤支持的模组"
+      "displayName": "CustomKnightPlus",
+      "description": "为自定义骑士提供条件皮肤支持的mod"
     },
     {
       "id": "hkmod:CustomKnightSuperAnimationAddon",
-      "displayName": "自定义骑士超级动画附加包",
-      "description": "允许插入自定义动画精灵表。如需导出精灵表，请使用 https://github.com/RedFrog6002/sseadv"
+      "displayName": "CustomKnightSuperAnimationAddon",
+      "description": "允许插入自定义动画精灵表。要导出精灵表，请使用 https://github.com/RedFrog6002/sseadv"
     },
     {
       "id": "hkmod:CustomLogicInjector",
-      "displayName": "自定义逻辑注入器",
-      "description": "一个为随机化4提供用户自定义逻辑编辑的附加组件。"
+      "displayName": "CustomLogicInjector",
+      "description": "Randomizer 4 附加组件，用于提供用户定义的逻辑编辑。"
     },
     {
       "id": "hkmod:CustomPantheon",
       "displayName": "自定义万神殿",
-      "description": "一个在神居添加额外 Boss 门的 Mod，Boss 序列由你自己决定。"
+      "description": "神之家额外增加一个boss门，boss顺序由你自己决定。"
     },
     {
       "id": "hkmod:CustomPlayerModel",
-      "displayName": "自定义玩家模型",
-      "description": "将你的骑士精灵替换为3D模型"
+      "displayName": "CustomPlayerModel",
+      "description": "用 3D 模型替换你的骑士精灵"
     },
     {
       "id": "hkmod:CustomPoolInjector",
-      "displayName": "自定义池注入器",
-      "description": "这是一个为 Randomizer 4 制作的附加模组，用于提供用户自定义的物品池，以随机化不同的物品组合。"
+      "displayName": "CustomPoolInjector",
+      "description": "Randomizer 4 附加组件，用于提供用户定义的项目池，以随机化不同的项目组合。"
     },
     {
       "id": "hkmod:CustomSaveArt",
-      "displayName": "自定义存档艺术",
-      "description": "让白色宫殿的保存点艺术变得有趣。仅此而已。"
+      "displayName": "CustomSaveArt",
+      "description": "使白宫保存艺术变得有趣。字面上没有别的。"
     },
     {
       "id": "hkmod:Cyclone Real Combat",
-      "displayName": "旋风真实战斗",
-      "description": "移除了学习旋风斩的过场动画，改为真实战斗。"
+      "displayName": "旋风实战",
+      "description": "删除了学习旋风过场动画并将其替换为实战"
     },
     {
       "id": "hkmod:Cyclone Throws",
       "displayName": "旋风投掷",
-      "description": "允许你将旋风斩作为远程武器投掷"
+      "description": "允许你将旋风作为远程武器投掷"
     },
     {
       "id": "hkmod:CycloneCopter",
       "displayName": "旋风直升机",
-      "description": "延长旋风斩以实现升空"
+      "description": "延长旋风分离器以实现升空"
     },
     {
       "id": "hkmod:DamageValuesRewritten",
-      "displayName": "伤害数值重写",
-      "description": "显示敌人受到伤害时的伤害数值"
+      "displayName": "伤害值重写",
+      "description": "当敌人受到伤害时显示伤害值"
     },
     {
       "id": "hkmod:DanielSteginkUtils",
-      "displayName": "DanielStegink工具集",
-      "description": "包含计算、逻辑和跨模组辅助功能的自定义库。"
+      "displayName": "DanielSteginkUtils",
+      "description": "带有计算、逻辑和跨模式助手的自定义库。"
     },
     {
       "id": "hkmod:DapperMapperSpoils",
-      "displayName": "时髦地图师战利品",
-      "description": "在精简剧透日志中新增一个类别，显示13张地图的位置。"
+      "displayName": "DapperMapperSpoils",
+      "description": "向压缩剧透日志添加一个类别，其中显示 13 个地图的位置。"
     },
     {
       "id": "hkmod:DarkerTransitions",
-      "displayName": "黑暗过渡",
-      "description": "将明亮的屏幕过渡效果变为黑色。"
+      "displayName": "DarkerTransitions",
+      "description": "将明亮的屏幕过渡为黑色。"
     },
     {
       "id": "hkmod:Darkness",
       "displayName": "黑暗",
-      "description": "将每个房间变为黑暗房间（类似于没有灯笼时所需的房间）。"
+      "description": "使每个房间都变成黑暗的房间（类似于需要灯笼但没有灯笼的房间）。"
     },
     {
       "id": "hkmod:DarknessRandomizer",
-      "displayName": "黑暗随机化",
-      "description": "一个用于随机化圣巢黑暗角落的Rando 4连接模组。"
+      "displayName": "DarknessRandomizer",
+      "description": "Rando 4 连接，用于随机化圣巢的黑暗角落。"
     },
     {
       "id": "hkmod:Dash Slash Plus",
-      "displayName": "冲刺斩增强版",
-      "description": "移除冲刺斩的蓄力要求。"
+      "displayName": "Dash Slash Plus",
+      "description": "删除了 Dash Slash 的收费要求。"
     },
     {
       "id": "hkmod:DashChanger",
-      "displayName": "冲刺修改器",
-      "description": "允许你修改冲刺的水平与垂直距离。"
+      "displayName": "DashChanger",
+      "description": "允许您更改破折号的水平和垂直长度。"
     },
     {
       "id": "hkmod:Dead Cells Barrel Launcher",
       "displayName": "死亡细胞桶装发射器",
-      "description": "将骑士的武器改为桶式发射器"
+      "description": "将骑士的武器改为桶装发射器"
     },
     {
       "id": "hkmod:Dead Cells Bosses",
-      "displayName": "死亡细胞Boss",
-      "description": "将《死亡细胞》的Boss加入《空洞骑士》"
+      "displayName": "死亡细胞 Boss",
+      "description": "将死亡细胞的 Boss 添加到空洞骑士"
     },
     {
       "id": "hkmod:Dead Cells The Queen",
-      "displayName": "死亡细胞：女王",
-      "description": "该模组已废弃且不再维护，请使用“Dead Cells Bosses”。"
+      "displayName": "死亡细胞女王",
+      "description": "该mod已被放弃，不再维护，请使用“死亡细胞Bosses”"
     },
     {
       "id": "hkmod:Dead Cells Time Keeper",
       "displayName": "死亡细胞时间守护者",
-      "description": "添加计时者雕像"
+      "description": "添加时间守护者雕像"
     },
     {
       "id": "hkmod:Dead Quirrel",
-      "displayName": "死亡奎若",
-      "description": "他已经死了。别再自欺欺人了。现在支持显示他是否还戴着面具。"
+      "displayName": "死了的奎雷尔",
+      "description": "他死了。别再否认了。现在支持他是否有面具。"
     },
     {
       "id": "hkmod:DeathCounter",
       "displayName": "死亡计数器",
-      "description": "一个炫酷的死亡计数器"
+      "description": "一个很酷的死亡计数器"
     },
     {
       "id": "hkmod:DeathSync",
-      "displayName": "死亡同步",
-      "description": "一个用于同步死亡机制的 ItemSync/MultiWorld 扩展模组"
+      "displayName": "DeathSync",
+      "description": "一个 ItemSync/MultiWorld 扩展来链接你的死亡"
     },
     {
       "id": "hkmod:DebugCharms",
-      "displayName": "调试护符",
-      "description": "一个专门针对护符的调试扩展"
+      "displayName": "DebugCharms",
+      "description": "专门用于超级按钮的调试扩展"
     },
     {
       "id": "hkmod:DebugMod",
       "displayName": "调试模组",
-      "description": "启用调试工具和功能，如穿墙、无敌、移除及给予物品和能力。"
+      "description": "允许调试工具和功能，例如无剪辑、无敌、删除和赋予物品和能力。"
     },
     {
       "id": "hkmod:DecorationMaster",
-      "displayName": "装饰大师",
-      "description": "一个通过增加尖刺和锯子来提升区域难度的模组。"
+      "displayName": "DecorationMaster",
+      "description": "通过添加钉子和锯子使区域变得更坚硬的模组"
     },
     {
       "id": "hkmod:Deez Nuts Mod",
-      "displayName": "迪兹坚果 Mod",
-      "description": "将所有文本替换为“Deez Nuts”。"
+      "displayName": "Deez Nuts Mod",
+      "description": "用 Deez Nuts 替换所有文本"
     },
     {
       "id": "hkmod:DeVect",
-      "displayName": "德维克特",
-      "description": "DeVect，中文名为《骨杖寂骑人》，是一款将《杀戮尖塔》中“缺陷”风格的球体玩法融入《空洞骑士》骑士动作系统的Mod。"
+      "displayName": "DeVect",
+      "description": "DeVect（中文名“骨杖寂骑人”）将《杀戮尖塔》中故障机器人的球体玩法带入骑士的招式体系。"
     },
     {
       "id": "hkmod:Disable Achievements",
       "displayName": "禁用成就",
-      "description": "阻止游戏在游戏内及所有平台（Steam、GoG等）上发放成就。"
+      "description": "阻止游戏在游戏内和所有平台（Steam、GoG 等）上授予成就"
     },
     {
       "id": "hkmod:Disable Enemy Geo",
       "displayName": "禁用敌人吉欧",
-      "description": "敌人不再掉落吉欧。"
+      "description": "敌人不再掉落吉欧"
     },
     {
       "id": "hkmod:Disable Low Health Vignette",
-      "displayName": "禁用低血量暗角",
-      "description": "禁用低血量暗角效果。"
+      "displayName": "禁用低运行状况晕影",
+      "description": "禁用低运行状况晕影。"
     },
     {
       "id": "hkmod:Discord Rich Presence",
-      "displayName": "Discord 状态同步",
-      "description": "原名 \"HollowKnightDRPC\"，此模组会在你的 Discord 个人资料（点击用户名时）中显示详细的游戏状态。"
+      "displayName": "Discord Rich Presence",
+      "description": "以前称为“HollowKnightDRPC”，此模组将详细的游戏状态添加到您的 Discord 个人资料中（当单击用户名时）。"
     },
     {
       "id": "hkmod:DistantGreens Charms",
-      "displayName": "远绿护符",
-      "description": "在《空洞骑士》中添加了一些自定义护符。"
+      "displayName": "DistantGreens Charms",
+      "description": "在空洞骑士中添加一些自定义护符。"
     },
     {
       "id": "hkmod:DivineFury",
-      "displayName": "神圣之怒",
-      "description": "该模组新增一个护符：神圣狂怒。该护符将玩家生命值锁定为1点，使\"亡者之怒\"在辐辉级神居战斗中也能生效。"
+      "displayName": "DivineFury",
+      "description": "这个模组增加了一个新的护符：神圣之怒。该护符将玩家的生命值设置为 1，从而使堕落者之怒能够在光辉神之家战斗中发挥作用。"
     },
     {
       "id": "hkmod:DoodleBosses",
-      "displayName": "涂鸦Boss",
-      "description": "HKM社区涂鸦Boss项目的集大成之作。所有Boss现在都变成了可爱的涂鸦风格！艺术家名单可在Readme文件及游戏内查看。"
+      "displayName": "DoodleBosses",
+      "description": "HKM 社区 Doodle Boss 项目的顶峰。所有的Boss现在都是可爱的涂鸦了！艺术家的作品可以在自述文件和游戏中找到。"
     },
     {
       "id": "hkmod:Double Bosses",
-      "displayName": "双倍 Boss",
-      "description": "一个（顾名思义）能让每个 Boss 数量翻倍的 Mod（实际上只影响万神殿底排 Boss 以及纯粹容器、梦魇之王、无上辐光、白色防御者）。\"享受\"这个 Mod 带来的混乱与疯狂吧。"
+      "displayName": "双Boss",
+      "description": "一个模组（顾名思义）将每个Boss加倍（实际上，只有众神殿中的底行+ PV、NG、AR、WK）。 “享受”这个模组提供的混乱和混乱"
     },
     {
       "id": "hkmod:Double Enemies",
       "displayName": "双倍敌人",
-      "description": "复制游戏中的大部分敌人，并使复制的首领共享生命值。"
+      "description": "复制游戏中的大多数敌人；成对出现的 Boss 共享生命值。"
     },
     {
       "id": "hkmod:DoubleJumpFix",
-      "displayName": "二段跳修复",
-      "description": "修复双跳有时无法正确取消这一臭名昭著Bug的Mod"
+      "displayName": "DoubleJumpFix",
+      "description": "修复了双跳有时无法正确取消的臭名昭著的错误的mod"
     },
     {
       "id": "hkmod:DoubleRadiance",
-      "displayName": "双辐光",
-      "description": "你可以同时与两个辐光战斗，它们的生命值共享。"
+      "displayName": "双光",
+      "description": "你可以同时使用两种光辉进行战斗，他们的生命值是共享的。"
     },
     {
       "id": "hkmod:DPSMeter",
-      "displayName": "DPS计量器",
-      "description": "这个模组可以让你看到每秒造成的伤害数值，同时也支持显示负伤害。"
+      "displayName": "DPSMeter",
+      "description": "Mod 可让您查看每秒造成多少伤害。也适用于负伤害。"
     },
     {
       "id": "hkmod:Dream Warpers",
-      "displayName": "梦境扭曲者",
-      "description": "戈布、长者胡和无眼在受到伤害后，100%概率传送。"
+      "displayName": "梦想扭曲者",
+      "description": "戈尔布、胡长老和无眼在受伤后100%传送。"
     },
     {
       "id": "hkmod:DreamNailRadiance",
-      "displayName": "梦之钉光辉",
-      "description": "允许你对辐光使用梦之钉（具体来说是她的腿部）。"
+      "displayName": "DreamNailRadiance",
+      "description": "使你能够使用梦想指甲对抗光辉（特别是她的腿）"
     },
     {
       "id": "hkmod:DreamShield Coop",
-      "displayName": "梦盾联机",
-      "description": "允许第2或第3名玩家以梦之盾或格林之子克隆体形式进行合作的Mod。支持其他Mod轻松添加更多内容。"
+      "displayName": "DreamShield Coop",
+      "description": "Mod允许与第二或第三个玩家作为dreamshield或grimmchild克隆进行合作。支持其他模组以轻松添加更多模组。"
     },
     {
       "id": "hkmod:Drunk Knight",
       "displayName": "醉骑士",
-      "description": "为摄像机添加失真和色差效果"
+      "description": "为相机添加罪孽和色差效果"
     },
     {
       "id": "hkmod:DumbEnemy",
-      "displayName": "蠢笨敌人",
-      "description": "使敌人及其攻击隐形"
+      "displayName": "DumbEnemy",
+      "description": "让敌人与敌方攻击不再显示。"
     },
     {
       "id": "hkmod:DynamicCrystalDash",
-      "displayName": "动态水晶冲刺",
-      "description": "根据蓄力时间长短缩放超级冲刺的速度"
+      "displayName": "DynamicCrystalDash",
+      "description": "根据充电时间调整 cdash 的速度"
     },
     {
       "id": "hkmod:DynamicRenderScale",
-      "displayName": "动态渲染缩放",
-      "description": "根据性能动态调整渲染比例。"
+      "displayName": "DynamicRenderScale",
+      "description": "根据当前运行性能自动升降画面渲染比例。"
     },
     {
       "id": "hkmod:EasierGeoEconomy",
-      "displayName": "简易吉欧经济",
-      "description": "允许你增加每次获取吉欧的数量。同时包含死亡时不损失吉欧的选项。"
+      "displayName": "EasierGeoEconomy",
+      "description": "允许您乘以每个吉欧块获得的金额。还包括一个在死亡时不丢失吉欧的选项。"
     },
     {
       "id": "hkmod:EasyMode",
-      "displayName": "简单模式",
-      "description": "可切换模组，让游戏稍微简单一点。"
+      "displayName": "EasyMode",
+      "description": "可切换模式，使游戏稍微容易一些。"
     },
     {
       "id": "hkmod:EasySoulRefill",
-      "displayName": "轻松灵魂补充",
-      "description": "每次重生、坐在长椅上或进入梦境 Boss 场地时，立即恢复你的灵魂计量（兼容苍白庭院 Mod）。"
+      "displayName": "EasySoulRefill",
+      "description": "每当你重生、坐在长椅上或进入梦想的Boss竞技场时，立即补充你的灵魂计量表（与Pale Court兼容）"
     },
     {
       "id": "hkmod:EdgeDetection",
-      "displayName": "边缘检测",
-      "description": "一个辅助功能模组，为游戏中重要的元素添加可自定义的边缘检测轮廓。"
+      "displayName": "EdgeDetection",
+      "description": "一种辅助功能模块，可为对游戏玩法重要的事物添加可自定义的边缘检测轮廓。"
     },
     {
       "id": "hkmod:Elderbugnest",
-      "displayName": "老爷爷巢穴",
-      "description": "将一群NPC替换成那位可爱的老朋友。"
+      "displayName": "Elderbugnest",
+      "description": "用可爱的老朋友替换了一堆 NPC"
     },
     {
       "id": "hkmod:EmoteWheel",
-      "displayName": "表情轮盘",
-      "description": "一个允许使用自定义表情的模组（若服务器安装了HkmpPouch，则多人游戏时也可使用）。"
+      "displayName": "EmoteWheel",
+      "description": "允许使用自定义表情的模组（如果服务器有 HkmpPouch，也可以在多人游戏期间使用）。"
     },
     {
       "id": "hkmod:Empty Menu",
       "displayName": "空菜单",
-      "description": "添加一个空白菜单界面。"
+      "description": "添加空菜单屏幕。"
     },
     {
       "id": "hkmod:EnchantedMask",
-      "displayName": "附魔面具",
-      "description": "新增名为“符文”的能力强化道具，可从面具匠处购买。"
+      "displayName": "EnchantedMask",
+      "description": "添加称为字形的新能力，可以从面具制造商处购买。"
     },
     {
       "id": "hkmod:EndlessIBaldur",
-      "displayName": "无尽伊巴尔德",
-      "description": "一个用于练习无道具巴尔德的 Mod"
+      "displayName": "EndlessIBaldur",
+      "description": "练习无物品baldur的mod"
     },
     {
       "id": "hkmod:EnemiesFightingEachOther",
-      "displayName": "敌人互斗",
-      "description": "允许玩家生成格鲁兹之母与蜂巢骑士，并让它们互相战斗。"
+      "displayName": "EnemiesFightingEachOther",
+      "description": "允许玩家在格鲁兹母亲和蜂巢骑士中生成并让他们互相战斗"
     },
     {
       "id": "hkmod:Enemy HP Bar",
-      "displayName": "敌人血量条",
-      "description": "为游戏中的所有敌人和 Boss 添加可更换皮肤的血量条。"
+      "displayName": "敌人生命条",
+      "description": "为游戏中的每个敌人和Boss添加可更换皮肤的生命条。"
     },
     {
       "id": "hkmod:Enemy Randomizer",
-      "displayName": "敌人随机化",
-      "description": "随机化敌人及相关内容的 Mod。"
+      "displayName": "敌人随机化器",
+      "description": "用于随机化敌人和相关事物的Mod。"
     },
     {
       "id": "hkmod:EnemyChanger",
-      "displayName": "敌人变换器",
-      "description": "允许导出并替换敌人贴图。具体操作方法请参阅自述文件。"
+      "displayName": "EnemyChanger",
+      "description": "允许转储和替换敌人纹理。请参阅自述文件了解如何执行此操作。"
     },
     {
       "id": "hkmod:ESoulLink",
-      "displayName": "灵魂链接",
-      "description": "一个口袋模组，使敌人在HKMP服务器上共享生命值。"
+      "displayName": "ESoulLink",
+      "description": "一个让敌人通过 HKMP 服务器共享生命值的 Pouch Mod。"
     },
     {
       "id": "hkmod:EssenceAlways",
-      "displayName": "永恒精华",
-      "description": "选择在击杀敌人时（如果你拥有梦之钉）总是或从不掉落梦境精华。"
+      "displayName": "精华始终",
+      "description": "杀死敌人时选择始终或从不掉落精华（如果你有梦想指甲）。"
     },
     {
       "id": "hkmod:Everwatchers",
-      "displayName": "恒视者",
-      "description": "一个基于守望者骑士的模组Boss，让你能同时与所有骑士战斗，并增加更多数量。"
+      "displayName": "永恒守望者",
+      "description": "基于守望者骑士的模组Boss，让你可以同时与他们战斗并添加更多他们"
     },
     {
       "id": "hkmod:EverySceneUtil",
-      "displayName": "场景通用工具",
-      "description": "一个用于在游戏每个场景中运行代码的开发者工具"
+      "displayName": "EverySceneUtil",
+      "description": "用于在游戏中的每个场景上运行代码的开发人员工具"
     },
     {
       "id": "hkmod:Exaltation",
-      "displayName": "升华",
-      "description": "实现了被废弃的“护符升华”机制：通过推进神居的进度来强化你的护符。"
+      "displayName": "Exaltation",
+      "description": "实现了废弃的“护符荣耀”机制：通过在Godhome中前进来增强你的护符。"
     },
     {
       "id": "hkmod:ExaltationExpanded",
-      "displayName": "崇高扩展",
-      "description": "由 Xhuis 创作的《Exaltation》模组的粉丝自制补充内容（由 Théodore 移植/更新）。"
+      "displayName": "ExaltationExpanded",
+      "description": "由 Xhuis 创建的 Exaltation mod 的粉丝制作补充（并由 Théodore 移植/更新）。"
     },
     {
       "id": "hkmod:Extra Rando",
-      "displayName": "额外随机",
-      "description": "随机化4与杂项设置连接。"
+      "displayName": "Extra Rando",
+      "description": "Randomizer 4 连接与其他设置。"
     },
     {
       "id": "hkmod:ExtraMenuBackgrounds",
-      "displayName": "额外菜单背景",
-      "description": "在额外菜单中添加了5个新的主菜单主题。"
+      "displayName": "ExtraMenuBackgrounds",
+      "description": "向 Extras 菜单添加 5 个新的主菜单主题。"
     },
     {
       "id": "hkmod:ExtraNotchesForExtraCharms",
-      "displayName": "额外护符槽",
-      "description": "此模组会根据你安装的模组护符数量，增加额外的护符槽位。"
+      "displayName": "ExtraNotchesForExtraCharms",
+      "description": "此 mod 根据您安装的 mod 护符数量添加额外的护符凹口。"
     },
     {
       "id": "hkmod:ExtraSpells",
-      "displayName": "额外法术",
-      "description": "一个添加了若干新法术和剑技的模组。在背包中选择法术即可循环切换。"
+      "displayName": "ExtraSpells",
+      "description": "一个添加了一些新咒语和骨钉艺术的模组。通过选择清单中的咒语来循环。"
     },
     {
       "id": "hkmod:Faction Elimination",
-      "displayName": "派系消除",
-      "description": "一个为 HKMP 设计的自定义游戏模式，队伍之间收集升级道具并相互对战。"
+      "displayName": "派系淘汰",
+      "description": "HKMP 的自定义游戏模式，团队可以在其中收集升级并互相战斗。"
     },
     {
       "id": "hkmod:Fake Peppino",
-      "displayName": "假佩皮诺",
-      "description": "添加了来自《披萨塔》的虚假佩皮诺 Boss。"
+      "displayName": "假 Peppino",
+      "description": "添加来自 Pizza Tower 的假 Peppino Boss。"
     },
     {
       "id": "hkmod:FallDamage",
       "displayName": "坠落伤害",
-      "description": "玩家受到的坠落伤害与最大生命值和坠落时间成正比。"
+      "description": "玩家受到的坠落伤害与其最大生命值和坠落时间成正比。"
     },
     {
       "id": "hkmod:Fart Knight",
       "displayName": "放屁骑士",
-      "description": "添加放屁攻击。"
+      "description": "添加放屁攻击"
     },
     {
       "id": "hkmod:Fast Travel",
       "displayName": "快速旅行",
-      "description": "点击地图即可在圣巢内任意传送。"
+      "description": "点击地图即可前往圣巢内的任何地方。"
     },
     {
       "id": "hkmod:Fast World",
       "displayName": "快速世界",
-      "description": "通过改变整个世界的速度（除了你），让你的圣巢更具挑战性！"
+      "description": "通过改变整个世界（除了你）的速度，让你的圣巢更具挑战性！"
     },
     {
       "id": "hkmod:FasterIntroSkip",
-      "displayName": "快速跳过开场",
-      "description": "使跳过开场动画更快。"
+      "displayName": "FasterIntroSkip",
+      "description": "使跳过介绍过场动画更快。"
     },
     {
       "id": "hkmod:Fennel",
       "displayName": "茴香",
-      "description": "将《莫莫多拉：月下遐想》中的茴香战斗移植到《空洞骑士》中。"
+      "description": "将《月光下的桃花梦》中的茴香战斗移植到《空洞骑士》中"
     },
     {
       "id": "hkmod:FiendMod",
-      "displayName": "恶魔Mod",
-      "description": "一个空洞骑士模组，将“愚者”替换为“恶魔”。"
+      "displayName": "FiendMod",
+      "description": "空洞骑士模组，将“傻瓜”一词替换为“恶魔”"
     },
     {
       "id": "hkmod:FireIsSmolBrain",
-      "displayName": "火是小脑",
-      "description": "在德特茅斯添加一个灵魂图腾，并封锁Boss战斗区域。"
+      "displayName": "FireIsSmolBrain",
+      "description": "向土嘴添加灵魂图腾并封锁 Boss 竞技场。"
     },
     {
       "id": "hkmod:Fishing",
       "displayName": "钓鱼",
-      "description": "为随机化模式添加钓鱼小游戏"
+      "description": "向随机机添加钓鱼小游戏"
     },
     {
       "id": "hkmod:FLACCodec",
-      "displayName": "FLAC编解码器",
-      "description": "为 AudioClip 提供 FLAC 编解码器支持"
+      "displayName": "FLACCodec",
+      "description": "AudioClip 的 FLAC 编解码器支持"
     },
     {
       "id": "hkmod:FlappyKnight",
-      "displayName": "拍翼骑士",
-      "description": "这是《空洞骑士》版的《Flappy Bird》。"
+      "displayName": "FlappyKnight",
+      "description": "它是《Flappy Bird》，但在《空洞骑士》中"
     },
     {
       "id": "hkmod:Floor is Lava",
-      "displayName": "地板是岩浆",
-      "description": "这是一个为《空洞骑士》制作的“地板是熔岩”Mod。请阅读 Read.me 文件。"
+      "displayName": "地板是熔岩",
+      "description": "是空洞骑士的地板是熔岩模组。请阅读自述文件"
     },
     {
       "id": "hkmod:Floor Time Counter",
-      "displayName": "地板时间计时器",
-      "description": "添加一个计数器，记录你接触地面的帧数。"
+      "displayName": "地面时间计数器",
+      "description": "添加一个计数器来记录您接触地面的帧数。"
     },
     {
       "id": "hkmod:FlowerRandomizer",
-      "displayName": "花随机化器",
-      "description": "为花之任务爱好者设计的空洞骑士随机化模组扩展。"
+      "displayName": "FlowerRandomizer",
+      "description": "为花卉探索爱好者提供的空洞骑士随机生成器附加组件。"
     },
     {
       "id": "hkmod:Flukemaster",
-      "displayName": "蛞蝓大师",
-      "description": "所有法术都会受到小浮虫巢的影响"
+      "displayName": "Flukemaster",
+      "description": "所有法术均受 Flukenest 影响"
     },
     {
       "id": "hkmod:FountainPreview",
-      "displayName": "喷泉预览",
-      "description": "ItemChanger 的附加组件，使盆地喷泉显示其将要给予的物品。"
+      "displayName": "FountainPreview",
+      "description": "ItemChanger 的附加组件，使盆地喷泉显示它将要提供的项目。"
     },
     {
       "id": "hkmod:Fragile Purse",
-      "displayName": "易碎钱袋",
-      "description": "受到攻击时会掉落吉欧，并可在设置中开启无吉欧时被击中即死亡。"
+      "displayName": "脆弱的钱包",
+      "description": "让你在被击中时掉落吉欧，并且有一个设置，如果你在没有任何吉欧的情况下被击中，就会杀死你"
     },
     {
       "id": "hkmod:FragileStrengthForNailArts",
-      "displayName": "脆弱骨钉技艺之力",
-      "description": "允许脆弱/不碎力量增加骨钉技艺的伤害。原作者：TTacco"
+      "displayName": "FragileStrengthForNailArts",
+      "description": "允许脆弱/牢不可破的强度来增加骨钉伤害。最初由 TTacco 创作"
     },
     {
       "id": "hkmod:FrameLimiter",
-      "displayName": "帧率限制器",
-      "description": "可以将帧率限制为你想要的任何数值（对特定帧的跳过操作很有用）。"
+      "displayName": "FrameLimiter",
+      "description": "可以将 fps 限制为您喜欢的任何值（对于特定于帧的跳过很有用）"
     },
     {
       "id": "hkmod:FriendCore",
       "displayName": "FriendCore",
-      "description": "实验性（但稳定）的库模组，具备敌人编辑功能。"
+      "description": "具有敌人编辑功能的实验性（但稳定）库模组。"
     },
     {
       "id": "hkmod:FrogCore",
-      "displayName": "蛙核心",
-      "description": "包含辅助工具的库模组，用于添加日志条目、NPC、商店，以及许多用于编辑和创建精灵集合与动画的 tk2d 辅助工具。"
+      "displayName": "FrogCore",
+      "description": "Library mod 包含用于添加日记条目、NPC、商店的帮助程序以及用于编辑和创建精灵集合和动画的许多 tk2d 帮助程序。"
+    },
+    {
+      "id": "hkmod:FsmMaster",
+      "displayName": "FsmMaster",
+      "description": "PlayMaker FSM 的可视化 FSM 图形检查和实时编辑"
     },
     {
       "id": "hkmod:FsmSeer",
-      "displayName": "Fsm先知",
-      "description": "按下 F3 时，在物体上方显示当前 FSM 名称和状态。"
+      "displayName": "FsmSeer",
+      "description": "按 F3 时显示活动的 FSM 名称和对象上方的状态。"
     },
     {
       "id": "hkmod:FStats",
       "displayName": "FStats",
-      "description": "在制作人员名单画面后显示一些关于本次通关的数据统计。"
+      "description": "在制作人员名单屏幕后显示有关运行的一些统计数据。"
     },
     {
       "id": "hkmod:FullSpeedAhead",
-      "displayName": "全速前进",
-      "description": "移除格挡减速。"
+      "displayName": "FullSpeedAhead",
+      "description": "消除招架减速。"
     },
     {
       "id": "hkmod:FuryFix",
-      "displayName": "狂怒修复",
-      "description": "尝试修复1点生命值时狂怒的存档问题。"
+      "displayName": "FuryFix",
+      "description": "尝试修复愤怒以达到 1 次最大生命值保存。"
     },
     {
       "id": "hkmod:FuryMod",
-      "displayName": "狂怒模组",
-      "description": "一个Mod：如果你装备了“坠落之怒”，你的生命值将变为1，并且可以使用该技能。"
+      "displayName": "FuryMod",
+      "description": "如果你装备了堕落之怒，你的生命值将变为 1 并且可以使用它"
     },
     {
       "id": "hkmod:FuryOfTheBallin",
-      "displayName": "弹球之怒",
-      "description": "护符会在你只剩1格面具时召唤马穆盟友；必须击败马穆才能解锁。"
+      "displayName": "FuryOfTheBallin",
+      "description": "当你的面具为 1 时，护符会生成 Marmu 盟友；必须击败Marmu才能解锁"
     },
     {
       "id": "hkmod:Fyrenest",
-      "displayName": "火焰巢穴",
-      "description": "新增30个护符，并带来全新探索内容！完整地图重制功能现正逐步回滚。若想继续体验地图改动，请勿更新或从代码库获取最新版本。"
+      "displayName": "Fyrenest",
+      "description": "添加 30 个新护符并创造新事物供探索！完整的地图重新制作现在正在回滚。如果您想继续使用地图更改，请不要更新或从存储库中获取最新版本。"
     },
     {
       "id": "hkmod:Galien Illusionist",
-      "displayName": "加里安幻术师",
-      "description": "Modboss。现在竞技场中会出现两个加里安，其中一个是假的。"
+      "displayName": "盖连魔术师",
+      "description": "Modboss。现在竞技场中将出现两个加利恩人，其中之一不是真实的。"
     },
     {
       "id": "hkmod:Game Object Dump",
-      "displayName": "游戏对象导出",
-      "description": "允许从场景中的游戏对象提取图集、精灵和音频片段。"
+      "displayName": "游戏对象转储",
+      "description": "允许从场景中的游戏对象中提取地图集、精灵和音频剪辑。"
     },
     {
       "id": "hkmod:GarfieldStorage",
-      "displayName": "加菲猫储物",
-      "description": "这个模组不言自明。"
+      "displayName": "GarfieldStorage",
+      "description": "这个模组解释了自己"
     },
     {
       "id": "hkmod:GatheringSwarmAlwaysOn",
-      "displayName": "聚集虫群常驻",
-      "description": "即使没有装备“聚集虫群”护符，也能自动收集吉欧。"
+      "displayName": "GatheringSwarmAlwaysOn",
+      "description": "使得geo可以通过Gathering Swarm收集，即使护符不在你的库存中。"
     },
     {
       "id": "hkmod:Gatling Aspid",
-      "displayName": "加特林阿斯匹德",
-      "description": "让原始飞蝇装备加特林机枪；提供配置选项。"
+      "displayName": "加特林阿斯皮德",
+      "description": "使原始阿斯皮德挥舞加特林转机枪；可用的配置选项。"
     },
     {
       "id": "hkmod:GearSwitcher",
-      "displayName": "齿轮切换器",
-      "description": "一个允许你切换预设装备配置，并随时更换护符的模组。"
+      "displayName": "GearSwitcher",
+      "description": "一种修改，可以让你切换准备好的装备模式，以及随时切换护符。"
     },
     {
       "id": "hkmod:Geo Remover",
-      "displayName": "移除吉欧",
-      "description": "移除 HUD 上的吉欧图标。"
+      "displayName": "Geo Remover",
+      "description": "从 HUD 中删除吉欧图标。"
     },
     {
       "id": "hkmod:GeoBundles",
-      "displayName": "金币捆",
-      "description": "将吉欧存入\"包裹\"中，防止死亡时损失，类似丝之歌中的念珠串。"
+      "displayName": "GeoBundles",
+      "description": "将 Geo 存储在“捆绑包”中，以防止其死亡后丢失，类似于丝绸歌曲中的念珠串。"
     },
     {
       "id": "hkmod:GeoHunger",
-      "displayName": "地理饥饿",
-      "description": "你逐渐失去吉欧，当吉欧为0时则逐渐失去生命值。"
+      "displayName": "GeoHunger",
+      "description": "你逐渐失去吉欧并在 0 几何时逐渐失去生命值。"
     },
     {
       "id": "hkmod:GeoLog",
-      "displayName": "地理日志",
-      "description": "记录游戏中所有吉欧的位置。启动时扫描整个游戏。"
+      "displayName": "GeoLog",
+      "description": "记录游戏中的所有吉欧位置。在启动时完成整个游戏。"
     },
     {
       "id": "hkmod:GeoPots",
-      "displayName": "地理罐",
-      "description": "增加推车和木桶被打破时掉落吉欧的几率。"
+      "displayName": "GeoPots",
+      "description": "增加了推车和桶在损坏时掉落吉欧的机会。"
     },
     {
       "id": "hkmod:GeoRando",
-      "displayName": "地理随机化",
-      "description": "为每一枚吉欧提供随机化连接"
+      "displayName": "GeoRando",
+      "description": "每个单独的吉欧块的随机化器连接"
     },
     {
       "id": "hkmod:Ghost Macro",
-      "displayName": "幽灵宏",
-      "description": "基于场景的碰撞箱录制与回放系统，支持时间轴播放、多次访问记录及类宏操作的幽灵回放功能。"
+      "displayName": "Ghost Macro",
+      "description": "基于场景的 hitbox 录制和重放系统，具有时间线播放、多访问支持和类似宏的重放功能"
     },
     {
       "id": "hkmod:GhostHunter",
-      "displayName": "幽灵猎手",
-      "description": "一个在多人游戏中显示其他玩家敌人位置的模组。"
+      "displayName": "GhostHunter",
+      "description": "在多人游戏中显示其他玩家敌人位置的模组。"
     },
     {
       "id": "hkmod:Glass Cannon Mod",
-      "displayName": "玻璃大炮 Mod",
-      "description": "一击必杀，包括你自己。"
+      "displayName": "玻璃大炮模组",
+      "description": "让一切一击即发，包括你"
     },
     {
       "id": "hkmod:GlassSoul",
-      "displayName": "玻璃灵魂",
-      "description": "让你一击必死。同时在 Mod 菜单中添加选项，每额外增加一点生命值，造成的伤害就提高 1 点。"
+      "displayName": "GlassSoul",
+      "description": "让你一击必亡。还在 mod 菜单中添加了选项，每增加一个生命值，造成的伤害就会增加 1 点"
     },
     {
       "id": "hkmod:GloriousGrimmMusic",
-      "displayName": "辉煌格林音乐",
-      "description": "在整个战斗中，聆听格林主题曲更为激烈的层次。"
+      "displayName": "GloriousGrimmMusic",
+      "description": "在整个战斗中聆听更强烈的格林主题"
     },
     {
       "id": "hkmod:God Soul",
-      "displayName": "神之灵魂",
-      "description": "让游戏变得极其困难"
+      "displayName": "神魂",
+      "description": "让游戏变得非常非常困难"
     },
     {
       "id": "hkmod:Godhome Elo Counter",
-      "displayName": "神居胜率计数器",
-      "description": "一个将 ELO 评分系统引入神居的 Mod"
+      "displayName": "Godhome Elo Counter",
+      "description": "向Godhome引入ELO评级系统的mod"
     },
     {
       "id": "hkmod:Godhome Win Loss Tracker",
-      "displayName": "神居胜负记录器",
-      "description": "在诸神堂和万神殿中追踪胜/负记录及命中统计。"
+      "displayName": "Godhome 胜负跟踪器",
+      "description": "跟踪众神殿和万神殿中的胜负和命中统计数据。"
     },
     {
       "id": "hkmod:GodhomeGeo",
-      "displayName": "神居金币",
-      "description": "移除阻止吉欧在神居生成的限制。"
+      "displayName": "GodhomeGeo",
+      "description": "删除了阻止geo在Godhome中生成的限制。"
     },
     {
       "id": "hkmod:GodhomeQoL",
-      "displayName": "神居生活质量改进",
-      "description": "此模组是一个大型工具合集，旨在帮助速通玩家应对挑战任务。"
+      "displayName": "GodhomeQoL",
+      "description": "这个模组是一个大型工具集合，旨在帮助挑战跑步者完成任务。"
     },
     {
       "id": "hkmod:GodhomeRandomizer",
-      "displayName": "神居随机化",
-      "description": "神居元素的随机化附加组件。"
+      "displayName": "GodhomeRandomizer",
+      "description": "Godhome 元素的随机化器附加组件。"
     },
     {
       "id": "hkmod:Godseeker Memory Jump",
-      "displayName": "神居记忆跳跃",
-      "description": "在梦之钉攻击寻神者时面朝右侧，即可传送至隐藏记忆，即使你已到过该区域。"
+      "displayName": "寻神者记忆跳跃",
+      "description": "在梦中钉住寻神者以扭曲到隐藏的记忆时面向右，即使你以前去过那里。"
     },
     {
       "id": "hkmod:GodSeekerPlus",
-      "displayName": "神寻者Plus",
-      "description": "多种调整与实用工具，助你优化神居体验。"
+      "displayName": "GodSeekerPlus",
+      "description": "各种调整和实用程序可增强您的Godhome体验"
     },
     {
       "id": "hkmod:Golden Godhome",
       "displayName": "金色神居",
-      "description": "为神居中的 Boss 重新上色，增加更多金色花纹与细节。"
+      "description": "神居里的雷斯金斯Boss将拥有更多金色设计和细节"
     },
     {
       "id": "hkmod:Gorb Plus",
-      "displayName": "加强版戈布",
-      "description": "一个为戈布战斗增加额外攻击方式的模组：飞剑弹幕。"
+      "displayName": "Gorb Plus",
+      "description": "一个在与 Gorb 战斗时增加额外攻击的模组：钉子弹幕。"
     },
     {
       "id": "hkmod:GPZ Precepts",
-      "displayName": "GPZ 训诫",
-      "description": "GPZ每次受到伤害时，会随机显示一条戒律。显示期间他处于无敌状态。"
+      "displayName": "GPZ 戒律",
+      "description": "GPZ 每次受到伤害时都会显示一条随机戒律。当它被展示时他是无敌的"
     },
     {
       "id": "hkmod:GPZPractice",
-      "displayName": "GPZ练习",
-      "description": "此模组允许你配置佐特幼体的生成。"
+      "displayName": "GPZPractice",
+      "description": "此模组允许您配置 Zotelings 的生成。"
     },
     {
       "id": "hkmod:GraphicOptions",
-      "displayName": "图形选项",
-      "description": "添加了“一些”图形选项。其中部分选项“可能”在更改时不稳定。"
+      "displayName": "GraphicOptions",
+      "description": "添加“一些”图形选项。其中一些“可能”难以改变。"
     },
     {
       "id": "hkmod:Grass Randomizer",
-      "displayName": "草地随机化",
-      "description": "随机化4连接，将草丛加入随机化物品和位置的池中。"
+      "displayName": "草随机化器",
+      "description": "随机化器 4 连接，将草添加到随机项目和位置池中。"
     },
     {
       "id": "hkmod:GrassCore",
-      "displayName": "草核",
-      "description": "一个与草相关活动的核心模组。"
+      "displayName": "GrassCore",
+      "description": "草相关活动的核心模组。"
     },
     {
       "id": "hkmod:GrassyKnight",
-      "displayName": "草之骑士",
-      "description": "追踪并显示你割了多少草。"
+      "displayName": "GrassyKnight",
+      "description": "跟踪并显示您割了多少草。"
     },
     {
       "id": "hkmod:Gravity Mod",
       "displayName": "重力模组",
-      "description": "为所有物体添加重力效果"
+      "description": "为所有物体添加重力"
     },
     {
       "id": "hkmod:GreatChampion",
-      "displayName": "大冠军",
-      "description": "失败冠军的模组Boss"
+      "displayName": "伟大的冠军",
+      "description": "失败冠军的Modboss"
     },
     {
       "id": "hkmod:Grimmchild Anywhere",
-      "displayName": "格林之子随处可去",
-      "description": "格林之子会在梦魇之王格林（TMG）和纯粹梦魇之王格林（NKG）的战斗中生成。"
+      "displayName": "Grimmchild 任何地方",
+      "description": "Grimmchild 都可以在 TMG 和 NKG 战斗中生成"
     },
     {
       "id": "hkmod:GripWall",
-      "displayName": "抓墙",
-      "description": "减少或消除贴墙时的重力影响。"
+      "displayName": "GripWall",
+      "description": "减少或消除紧贴墙壁时的重力效应。"
     },
     {
       "id": "hkmod:Grub Names",
-      "displayName": "幼虫命名",
-      "description": "ItemChanger/Randomizer 4 的附加模组，将幼虫名称替换为 Skurry 的幼虫名称。"
+      "displayName": "Grub Names",
+      "description": "ItemChanger/Randomizer 4 附加组件，用 Skurry 的 Grub 名称替换 Grub 名称"
     },
     {
       "id": "hkmod:GrubDay2026Plando",
-      "displayName": "2026年幼虫节计划",
-      "description": "2026年幼虫节联机Mod的同伴Mod"
+      "displayName": "GrubDay2026Plando",
+      "description": "2026 grubday plando 的配套 Mod"
     },
     {
       "id": "hkmod:GrubFriendlyRando",
-      "displayName": "友好幼虫随机",
-      "description": "将幼虫商店的描述改为“一个可爱的小扭扭朋友！”"
+      "displayName": "GrubFriendlyRando",
+      "description": "将 grub 商店描述更改为“一个可爱的小摇摆朋友！”"
     },
     {
       "id": "hkmod:GrubSpoiler",
-      "displayName": "幼虫剧透",
-      "description": "为CondensedSpoilerLog添加小幼虫的Mod。"
+      "displayName": "GrubSpoiler",
+      "description": "将 Grub 添加到 CondensedSpoilerLog 的 mod。"
     },
     {
       "id": "hkmod:GrubTrain",
-      "displayName": "幼虫列车",
-      "description": "幼虫伙伴"
+      "displayName": "GrubTrain",
+      "description": "Grubs 作为同伴"
     },
     {
       "id": "hkmod:Hall of Gods Extras",
-      "displayName": "神居扩展",
-      "description": "在万神殿中添加了空洞骑士和辐光。"
+      "displayName": "众神大厅额外内容",
+      "description": "将空洞骑士和光辉添加到众神大厅。"
     },
     {
       "id": "hkmod:Hallowest",
-      "displayName": "万圣节",
-      "description": "《空洞骑士》硬核玩法大修模组。提升游戏难度并重新平衡战斗系统。"
+      "displayName": "Hallowest",
+      "description": "空洞骑士的硬核游戏大修模组。增加难度并重新平衡战斗。"
     },
     {
       "id": "hkmod:Hallownest-Vocalized",
-      "displayName": "《圣巢之声》",
-      "description": "为《空洞骑士》的所有游戏内对话添加英语配音。"
+      "displayName": "Hallownest-Vocalized",
+      "description": "在空洞骑士的所有游戏对话中添加英语配音。"
     },
     {
       "id": "hkmod:Hallownest-Vocalized-AudioLoader",
-      "displayName": "空洞之巢-语音化-音频加载器",
-      "description": "空洞骑士语音化的依赖项。如果你还没下载，请与主模组一同下载！"
+      "displayName": "Hallownest-Vocalized-AudioLoader",
+      "description": "Hallownest Vocalized 的依赖项。如果您还没有，请与主模组一起下载！"
     },
     {
       "id": "hkmod:HarderAPSettings",
-      "displayName": "困难AP设置",
-      "description": "添加设置以增加AP难度，例如承受额外伤害、降低骨钉伤害，并将辐光替换为无上辐光。该功能在非群岛存档中同样生效。"
+      "displayName": "HarderAPSettings",
+      "description": "添加设置以使AP更难，例如承受额外伤害，减少钉子伤害，并用AbsRad取代Radiance。也适用于非群岛保存。"
     },
     {
       "id": "hkmod:Hat",
       "displayName": "帽子",
-      "description": "戴上帽子"
+      "description": "戴帽子"
     },
     {
       "id": "hkmod:Heal On Wall",
-      "displayName": "攀墙回血",
-      "description": "使您可以在墙壁上回血"
+      "displayName": "治愈墙壁",
+      "description": "让你可以治愈墙壁"
     },
     {
       "id": "hkmod:HealthShare",
-      "displayName": "生命共享",
-      "description": "让部分Boss共享生命值，API部分已迁移至Osmi"
+      "displayName": "HealthShare",
+      "description": "让一些Boss使用共享健康，API部分已移至Osmi"
     },
     {
       "id": "hkmod:Hell Mod",
-      "displayName": "地狱 Mod",
-      "description": "对玩家进行多项削弱，并增强敌人属性，以提升游戏难度。"
+      "displayName": "地狱模组",
+      "description": "对玩家进行各种削弱并对敌人进行增益以增加游戏难度。"
     },
     {
       "id": "hkmod:Hide Dialog Text",
-      "displayName": "隐藏对话文本",
-      "description": "按 F3 键切换对话文本的可见性。未来可能会移除该功能，因为它正在移植到 DebugMod 中。"
+      "displayName": "隐藏对话框文本",
+      "description": "按 F3 切换对话框文本的可见性。将来可能会删除，因为它正在移植到 DebugMod"
     },
     {
       "id": "hkmod:Hide Mod List",
-      "displayName": "隐藏模组列表",
-      "description": "允许你隐藏模组列表，或减少模组列表在屏幕上占用的空间。"
+      "displayName": "隐藏 Mod 列表",
+      "description": "允许您隐藏 Mod 列表或减少 Mod 列表在屏幕上占用的空间。"
     },
     {
       "id": "hkmod:Hit Counter",
-      "displayName": "命中计数器",
-      "description": "允许创建自定义计数器来统计命中次数。"
+      "displayName": "点击计数器",
+      "description": "允许创建自定义计数器来计算点击次数。"
     },
     {
       "id": "hkmod:HitboxOnly",
-      "displayName": "仅碰撞箱",
-      "description": "仅显示碰撞框并隐藏所有精灵。这为多个 Boss 提供了全新体验，因为攻击预兆将不再可见。"
+      "displayName": "HitboxOnly",
+      "description": "仅显示hitbox并隐藏所有精灵。这为多个 Boss 提供了新的体验，因为攻击预期不再可见。"
     },
     {
       "id": "hkmod:Hivesong",
-      "displayName": "《蜂巢之歌》",
-      "description": "本模组新增了一个护符“蜂巢之歌”，可提升宠物造成的伤害。"
+      "displayName": "Hivesong",
+      "description": "这个模组添加了一个新的护符，Hivesong，它增加了宠物造成的伤害。"
     },
     {
       "id": "hkmod:HKBattle",
       "displayName": "HKBattle",
-      "description": "HKBattle 是一款《空洞骑士》Mod，用于单人练习以及竞争性的 Boss 和万神殿挑战。"
+      "description": "HKBattle 是一款空洞骑士模组，适合单人练习以及竞争性 Boss 和万神殿挑战。"
     },
     {
       "id": "hkmod:HKHKHKHKHK",
-      "displayName": "《HKHKHKHKHK》",
-      "description": "VVVVVVV 风格的《空洞骑士》Mod。按 R 键翻转重力。"
+      "displayName": "HKHKHKHKHK",
+      "description": "VVVVVVV但在香港。使用 R 键翻转重力。"
     },
     {
       "id": "hkmod:HKMirror",
       "displayName": "HKMirror",
-      "description": "一个核心模组，让访问 PlayerData、使用反射以及 on/il 钩子变得更加便捷。"
+      "description": "一个核心模块，可以更轻松地访问 PlayerData、使用反射和 on/il 挂钩。"
     },
     {
       "id": "hkmod:HKmote",
-      "displayName": "《空洞骑士》动作模组",
-      "description": "在多人游戏中使用表情"
+      "displayName": "HKmote",
+      "description": "联机游玩时可以发送表情动作。"
     },
     {
       "id": "hkmod:HKMP",
       "displayName": "HKMP",
-      "description": "《空洞骑士》多人联机模组允许玩家创建游戏房间，并邀请其他玩家加入他们的冒险旅程。"
+      "description": "空洞骑士多人游戏允许人们主持游戏并让其他人加入他们的冒险。"
     },
     {
       "id": "hkmod:HKMP HealthDisplay",
-      "displayName": "HKMP 生命显示",
-      "description": "这是一个HKMP的附加模组，需要依赖HkmpPouch。可在公共服务器上使用。用于显示其他玩家的生命值数量。"
+      "displayName": "HKMP HealthDisplay",
+      "description": "使用 HkmpPouch 的 HKMP 插件。在公共服务器上工作。显示其他玩家的生命值"
     },
     {
       "id": "hkmod:HKMP Prop Hunt",
-      "displayName": "HKMP 道具捉迷藏",
-      "description": "一个为HKMP增加道具捉迷藏模式的多人游戏扩展。"
+      "displayName": "HKMP Prop Hunt",
+      "description": "HKMP 附加组件，可将道具狩猎添加到多人游戏中。"
     },
     {
       "id": "hkmod:HKMP Tag",
-      "displayName": "空洞骑士多人标签",
-      "description": "一个为HKMP添加标签游戏模式的扩展。"
+      "displayName": "HKMP 标签",
+      "description": "添加标签游戏模式的 HKMP 插件。"
     },
     {
       "id": "hkmod:HKMP.CheckSave",
-      "displayName": "HKMP.检查存档",
-      "description": "HKMP 玩家存档检查插件"
+      "displayName": "HKMP.CheckSave",
+      "description": "HKMP 用于检查玩家保存的插件"
     },
     {
       "id": "hkmod:HKMP.ModDiff",
-      "displayName": "HKMP.模组差异",
-      "description": "HKMP 插件，用于检查客户端与服务器之间的模组列表。"
+      "displayName": "HKMP.ModDiff",
+      "description": "HKMP 插件，用于检查客户端和服务器之间的 mod 列表。"
     },
     {
       "id": "hkmod:HKMP.VoiceChat",
-      "displayName": "HKMP.语音聊天",
-      "description": "一个HKMP附加组件，增加了（近距离）语音聊天功能。需要安装OpenAL（https://www.openal.org/）。"
+      "displayName": "HKMP.VoiceChat",
+      "description": "添加（近距离）语音聊天的 HKMP 插件。需要安装 OpenAL (https://www.openal.org/)。"
     },
     {
       "id": "hkmod:HkmpPouch",
-      "displayName": "HKMP 背包",
-      "description": "一个用于可选网络功能的 HKMP 附加组件的依赖模组。"
+      "displayName": "HkmpPouch",
+      "description": "具有网络功能的可选 hkmp 插件的依赖模块。"
     },
     {
       "id": "hkmod:HkmpTransitionAlerts",
-      "displayName": "HKMP 过渡提醒",
-      "description": "一个HKMP插件，用于高亮最近使用的过渡区域。"
+      "displayName": "HkmpTransitionAlerts",
+      "description": "用于突出显示最近使用的过渡的 HKMP 插件"
     },
     {
       "id": "hkmod:HKRoomLogger",
-      "displayName": "HK房间记录器",
-      "description": "将场景切换记录到文件中。Windows 专属软件 HKAT 的配套模组。"
+      "displayName": "HKRoomLogger",
+      "description": "将场景转换记录到文件中。仅适用于 Windows 的软件 HKAT 的配套模组。"
     },
     {
       "id": "hkmod:HKTags",
       "displayName": "HKTags",
-      "description": "一个库模组，允许你设置和获取标签与属性。"
+      "description": "一个库mod，允许您设置n'获取标签和属性"
     },
     {
       "id": "hkmod:HKTimer",
-      "displayName": "HK计时器",
-      "description": "一款适用于1.5版本的游戏内计时器模组"
+      "displayName": "HKTimer",
+      "description": "1.5 版本的游戏计时器模组"
     },
     {
       "id": "hkmod:HKTool",
-      "displayName": "HK工具",
-      "description": "一个库模组。（不支持 Linux）"
+      "displayName": "HKTool",
+      "description": "一个库模块。 （不支持Linux）"
     },
     {
       "id": "hkmod:HKTool Legacy",
-      "displayName": "HKTool 遗产版",
-      "description": "一个库模组。不再维护！！！**如果导致游戏崩溃，这属于正常现象，原因未知**"
+      "displayName": "HKTool Legacy",
+      "description": "一个库mod。不再维护!!!**如果它使你的游戏崩溃，这是正常的，原因未知**"
     },
     {
       "id": "hkmod:HKTracker",
-      "displayName": "空洞骑士追踪器",
-      "description": "追踪玩家数据。最常用于在直播中显示技能/护符。"
+      "displayName": "HKTracker",
+      "description": "跟踪玩家数据。最常用于在直播期间显示能力/护符"
     },
     {
       "id": "hkmod:HKViz",
       "displayName": "HKViz",
-      "description": "一个用于记录移动、死亡、装备的护符、使用的能力等多项数据的模组，支持在 hkviz.org 上可视化这些分析数据。"
+      "description": "一个记录运动、死亡、装备护符、使用的能力等分析的模组，允许在 hkviz.org 上可视化这些分析"
     },
     {
       "id": "hkmod:HKVR",
-      "displayName": "空洞骑士VR",
-      "description": "在虚拟现实中游玩《空洞骑士》。"
+      "displayName": "HKVR",
+      "description": "在虚拟现实中玩空洞骑士。"
     },
     {
       "id": "hkmod:Hollow Knight ACTS",
-      "displayName": "空洞骑士 ACTS",
-      "description": "一个将《丝之歌》的ACT系统移植到《空洞骑士》中的Mod。ACT位置基于Singbuzzordenethcut在YouTube上的视频。"
+      "displayName": "空洞骑士ACTS",
+      "description": "在hk中添加了SilkSongs ACT系统的mod。根据 yt 上的 Singbuzzordenethcut 视频采取行动。"
     },
     {
       "id": "hkmod:HollowKnightAchievementManager",
-      "displayName": "空洞骑士成就管理器",
-      "description": "管理《空洞骑士》成就的工具，支持原版与模组成就。同时可将成就同步至所选在线平台（GOG、Steam、XBox）。此外还能解锁/锁定菜单主题与游戏模式。"
+      "displayName": "HollowKnightAchievementManager",
+      "description": "允许管理空洞骑士成就，包括原版和改装版。还可以将它们与所选的在线商店（GOG、Steam、XBox）同步。还允许解锁/锁定菜单主题和游戏模式。"
     },
     {
       "id": "hkmod:HollowPoint",
-      "displayName": "空心点",
-      "description": "为玩家添加一把枪，并重新设计护符与技能，使其围绕枪械使用的概念展开。"
+      "displayName": "HollowPoint",
+      "description": "为玩家提供一把枪，重新设计护符和能力来围绕枪支使用的概念进行游戏"
     },
     {
       "id": "hkmod:HollowTwitch",
-      "displayName": "空洞Twitch",
-      "description": "允许Twitch聊天使用大量命令，为游戏增添趣味和变化。"
+      "displayName": "HollowTwitch",
+      "description": "允许 Twitch Chat 使用大量命令来增加游戏乐趣并改变游戏玩法。"
     },
     {
       "id": "hkmod:HowwowKnyight",
-      "displayName": "嚎叫骑士",
-      "description": "将《空洞骑士》中的所有文字（包括菜单、用户界面和游戏内对话）都翻译成更高级的UwU语言！OwO"
+      "displayName": "HowwowKnyight",
+      "description": "将Howwow Knyight 中的文本转换成超多的UwU 语言，包括菜单、使用界面和游戏内对话！奥沃"
     },
     {
       "id": "hkmod:HueShifter",
-      "displayName": "色调变换器",
-      "description": "使用着色器改变圣巢的颜色。也可以让一切变成彩虹。"
+      "displayName": "HueShifter",
+      "description": "使用着色器来改变圣巢的颜色。也能让一切都变成彩虹。"
     },
     {
       "id": "hkmod:HuKing",
       "displayName": "胡王",
-      "description": "长者幽灵胡的模组Boss"
+      "description": "胡鬼长老的modboss"
     },
     {
       "id": "hkmod:ICDebug",
       "displayName": "ICDebug",
-      "description": "一个 ModTerminal 的附加组件，添加了与 ItemChanger 相关的命令。"
+      "description": "ModTerminal 插件，添加与 ItemChanger 相关的命令。"
     },
     {
       "id": "hkmod:ICExtraDeployers",
-      "displayName": "IC额外部署器",
-      "description": "ItemChanger 附加组件，可预加载更多对象。适用于需要放置自定义巴德尔、门等元素的 IC 文件，作为其依赖项使用。"
+      "displayName": "ICExtraDeployers",
+      "description": "ItemChanger 插件可预加载更多对象。用作放置自定义 Baldurs、门等的 IC 文件的依赖项。"
     },
     {
       "id": "hkmod:ICPlandoTools",
-      "displayName": "ICP 兰多工具",
-      "description": "为 plando 作者添加了多种实用工具。"
+      "displayName": "ICPlandoTools",
+      "description": "为 plando 作者添加各种实用程序。"
     },
     {
       "id": "hkmod:ImmortalLight",
-      "displayName": "不朽之光",
-      "description": "无上辐光模组Boss"
+      "displayName": "ImmortalLight",
+      "description": "绝对光辉的 modboss"
     },
     {
       "id": "hkmod:InfectedHallownest",
-      "displayName": "感染之巢",
-      "description": "为游戏新增一个阶段：击败空洞骑士后，感染将蔓延至整个游戏世界，随机强化敌人。"
+      "displayName": "感染圣巢",
+      "description": "为游戏添加了一个新阶段：击败空洞骑士后，感染会在整个游戏中扩展，随机强化敌人。"
     },
     {
       "id": "hkmod:Infection Bomb",
       "displayName": "感染炸弹",
-      "description": "每次你杀死一只感染（或任意）虫子时，都会召唤辐光。"
+      "description": "每当你杀死一个受感染的（或任何）虫子时就会产生光芒"
     },
     {
       "id": "hkmod:Inferno King Grimm",
       "displayName": "地狱之王格林",
-      "description": "一个大幅强化梦魇之王格林，使其变为多阶段战斗的Mod。同时包含可在主菜单配置的困难模式。"
+      "description": "一个可以显着增强噩梦之王格林进入多阶段战斗的模组。它还包括可以在主菜单上配置的硬模式"
     },
     {
       "id": "hkmod:Infinite AbsRad Phases",
-      "displayName": "无限辐光阶段",
-      "description": "使选定的无上辐光阶段变为无限"
+      "displayName": "无限 AbsRad 相位",
+      "description": "使选定的 AbsRad 相位无限"
     },
     {
       "id": "hkmod:InfiniteMapMarkers",
-      "displayName": "无限地图标记",
-      "description": "为什么要止步于每种地图标记6个呢"
+      "displayName": "InfiniteMapMarkers",
+      "description": "为什么在每个地图标记的 6 处停止"
     },
     {
       "id": "hkmod:InfiniteNotches",
-      "displayName": "无限槽位",
-      "description": "可切换的模组，用于启用无限护符槽。"
+      "displayName": "InfiniteNotches",
+      "description": "可切换模组，用于启用无限护符凹口。"
     },
     {
       "id": "hkmod:INFINITY",
-      "displayName": "无限",
-      "description": "一个纯粹容器 Boss Mod。"
+      "displayName": "INFINITY",
+      "description": "纯粹的船只Boss模组。"
     },
     {
       "id": "hkmod:InfoPanelUtil",
-      "displayName": "信息面板工具",
-      "description": "用于通过 DebugMod 创建信息面板的工具。"
+      "displayName": "InfoPanelUtil",
+      "description": "用于通过 DebugMod 创建信息面板的实用程序。"
     },
     {
       "id": "hkmod:Input Buffers",
-      "displayName": "输入缓冲",
-      "description": "允许为骑士的每个动作缓冲输入。"
+      "displayName": "输入缓冲区",
+      "description": "允许缓冲每个骑士动作的输入。"
     },
     {
       "id": "hkmod:Inputs Recheck",
-      "displayName": "输入重检",
-      "description": "在任何骑士状态变化时重新检测按住按钮，若按钮在可用前已按下且仍处于按住状态，则会触发该动作。基于Phenomenol的Input Buffers模组，但采用完全不同的逻辑实现。"
+      "displayName": "输入重新检查",
+      "description": "在任何骑士状态更改时重新检查按住的按钮，因此即使按钮在可用之前被按下（如果按钮仍然按住），也会触发操作。基于 Phenomenol 的输入缓冲区 mod，但逻辑完全不同。"
     },
     {
       "id": "hkmod:IntangibleShadow",
-      "displayName": "无形暗影",
-      "description": "暗影披风几乎可以穿过任何东西"
+      "displayName": "无形阴影",
+      "description": "阴影斗篷几乎可以穿过任何东西"
     },
     {
       "id": "hkmod:Invincibility Monitor",
-      "displayName": "无敌监控器",
-      "description": "在某些场景中提供无敌效果。"
+      "displayName": "无敌监视器",
+      "description": "在某些情况下赋予无敌。"
     },
     {
       "id": "hkmod:Invulnerability Indicator",
       "displayName": "无敌指示器",
-      "description": "为玩家角色在非场景切换、非无敌状态以及已有视觉提示的无敌状态之外的无敌期间，添加一个视觉指示器。"
+      "description": "当玩家角色在屏幕转换之外无敌、无敌以及已经在视觉上指示的无敌时添加视觉指示器。"
     },
     {
       "id": "hkmod:ItemChanger",
-      "displayName": "物品更换器",
-      "description": "用于处理其他模组编辑物品和位置的模组。"
+      "displayName": "ItemChanger",
+      "description": "Mod 处理其他 mod 的编辑项目和位置。"
     },
     {
       "id": "hkmod:ItemChangerDataLoader",
-      "displayName": "物品更换数据加载器",
-      "description": "用于创建随机化存档备份并启动预设存档的模组。"
+      "displayName": "ItemChangerDataLoader",
+      "description": "Mod 用于创建随机器保存的备份并启动 plandos。"
     },
     {
       "id": "hkmod:ItemCreator",
-      "displayName": "物品创造者",
-      "description": "用于创建自定义物品并显示在背包中的库。"
+      "displayName": "ItemCreator",
+      "description": "用于创建显示在库存中的自定义物品的库。"
     },
     {
       "id": "hkmod:ItemSync",
-      "displayName": "物品同步",
-      "description": "这是一个 RandomizerMod 4 的附加模组，用于在玩家之间共享物品拾取。默认 IP 已不再可用。如果你想连接到公共服务器，请使用 `mw.hkmp.org`。"
+      "displayName": "ItemSync",
+      "description": "RandomizerMod 4 附加组件，用于在玩家之间共享物品拾取。默认 IP 不再有效。如果您想连接到公共服务器，请使用“mw.hkmp.org”。"
     },
     {
       "id": "hkmod:Keep lifeblood on bench",
-      "displayName": "在长椅上保留生命血",
-      "description": "在长椅上休息时保留你的生命血，有助于避免在 P5 中意外消耗掉生命血层数。"
+      "displayName": "长椅保留生命血",
+      "description": "坐上长椅后仍保留生命血，避免在 P5 意外失去生命血层数。"
     },
     {
       "id": "hkmod:Keep Me Geo",
-      "displayName": "让我保持吉欧",
-      "description": "不想在死亡时失去一切而焦虑？那么“保留我的吉欧”将消除你的烦恼！死亡时，你将不再失去超出你意愿的吉欧！"
+      "displayName": "保留我的吉欧",
+      "description": "不想在死后失去一切的焦虑吗？那么 Keep Me Geo 将消除您的后顾之忧！当你死时，你不会失去比你想要的更多的吉欧！"
     },
     {
       "id": "hkmod:KeepDiveIFrames",
-      "displayName": "保持下冲无敌帧",
-      "description": "现在你可以再次利用无敌帧进行下砸连击了"
+      "displayName": "KeepDiveIFrames",
+      "description": "现在您可以再次滥用 i-frames 发送潜水垃圾邮件"
     },
     {
       "id": "hkmod:KeybindChaos",
-      "displayName": "按键混乱",
-      "description": "在一定（可配置）时间后随机化按键绑定。"
+      "displayName": "KeybindChaos",
+      "description": "在经过一定（可配置）时间后随机化按键绑定。"
     },
     {
       "id": "hkmod:KeybindOverhaul",
-      "displayName": "按键绑定大修",
-      "description": "增强了按键绑定自定义功能，支持分离动作、按键组合以及重复输入。"
+      "displayName": "KeybindOverhaul",
+      "description": "通过拆分操作、组合键和重复输入增强键绑定自定义"
     },
     {
       "id": "hkmod:Killable Dreamnail",
-      "displayName": "可击杀梦之钉",
-      "description": "添加一个名为“锯齿梦境”的护符，允许你用梦之钉造成伤害，伤害取决于你所拥有的梦之精华数量。"
+      "displayName": "可杀死梦钉",
+      "description": "添加一个名为“锯齿梦”的符咒，可以让你用梦钉造成伤害，伤害取决于你拥有的本质"
     },
     {
       "id": "hkmod:Kindred Spirit",
-      "displayName": "同源之灵",
-      "description": "将神居中的巨型苔藓冲锋者雕像替换为绿色小骑士的梦境和非梦境版本。"
+      "displayName": "Kindred Spirit",
+      "description": "用梦境和非梦境版本的Greenpath Vessel取代了Godhome中的巨型苔藓充电器雕像。"
     },
     {
       "id": "hkmod:Knight of Nights",
       "displayName": "夜之骑士",
-      "description": "一个为2025年万圣节Plando制作的Mod，包含部分随机化整合功能。"
+      "description": "万圣节 2025 plando 的 mod，具有一些随机集成。"
     },
     {
       "id": "hkmod:Konpanion",
-      "displayName": "康帕尼翁",
-      "description": "一个小骑士伙伴"
+      "displayName": "Konpanion",
+      "description": "小小骑士伴侣"
     },
     {
       "id": "hkmod:KorzUtils",
-      "displayName": "Korz工具",
-      "description": "为其他模组提供实用功能的库模组。"
+      "displayName": "KorzUtils",
+      "description": "为其他 mod 提供有用功能的库 mod。"
     },
     {
       "id": "hkmod:Kronk",
-      "displayName": "克朗克",
-      "description": "用于速通的简易物品计数器。主要用于Kronk%规则（所有拉杆收集）。"
+      "displayName": "Kronk",
+      "description": "用于快速运行的简单对象计数器。主要用于Kronk%（所有杠杆）。"
     },
     {
       "id": "hkmod:LanguageSupport",
-      "displayName": "语言支持",
-      "description": "支持更多语言。但尚未支持某些其他语言的字符。"
+      "displayName": "LanguageSupport",
+      "description": "允许支持其他语言。尚不允许使用其他语言的某些字符。"
     },
     {
       "id": "hkmod:LaughMod",
-      "displayName": "大笑Mod",
-      "description": "在特定事件发生时播放笑声。"
+      "displayName": "LaughMod",
+      "description": "在特定事件上播放笑声。"
     },
     {
       "id": "hkmod:Legacy Charm Costs",
-      "displayName": "遗留护符成本",
-      "description": "一个将快速劈砍和虫巢之息恢复至旧版槽位消耗（2槽位）的模组。提供选项，可在模组禁用后使更改在已打开的存档中持续生效。"
+      "displayName": "传统护符成本",
+      "description": "将Quick Slash和Flukenest恢复到旧等级成本（2个等级）的mod。提供选项，使更改在禁用后保留在打开的保存中。"
     },
     {
       "id": "hkmod:Lego Power Bricks",
-      "displayName": "乐高能量砖",
-      "description": "为《空洞骑士》添加了多种标志性的红色乐高能量块，以免费护符的形式呈现。目前需要开启调试模式才能为自己添加这些护符。"
+      "displayName": "乐高动力积木",
+      "description": "以免费护符的形式向空洞骑士添加各种标志性的红色乐高动力积木。目前需要调试才能给自己带来护符。"
     },
     {
       "id": "hkmod:Less Flashing Lights",
-      "displayName": "减少闪光",
-      "description": "减少闪烁光效。更多信息请查看说明文件。"
+      "displayName": "减少闪烁灯",
+      "description": "减少闪烁灯的数量。查看自述文件以获取更多信息"
     },
     {
       "id": "hkmod:LessHealing",
-      "displayName": "减少治疗",
-      "description": "一个《空洞骑士》模组，增加了可开关的选项，用于移除游戏中的各种治疗方式。"
+      "displayName": "LessHealing",
+      "description": "空洞骑士模组，添加了可切换选项，从游戏中删除各种治疗方法。"
     },
     {
       "id": "hkmod:LessVisualNoise",
-      "displayName": "减少视觉干扰",
-      "description": "为辅助功能减少游戏中的视觉效果。仍在开发中。建议与无粒子效果模组配合使用。"
+      "displayName": "LessVisualNoise",
+      "description": "减少游戏中的视觉效果以达到无障碍目的。仍在开发中。建议与无粒子模组一起使用"
     },
     {
       "id": "hkmod:LieButton",
-      "displayName": "躺平按钮",
-      "description": "一个简单的空洞骑士Mod。按下可自定义的按键即可切换躺下或站起状态。"
+      "displayName": "LieButton",
+      "description": "空洞骑士的简单模组。按某个可自定义的键可以躺下或起身，就像开关一样。"
     },
     {
       "id": "hkmod:Lifeblood",
-      "displayName": "生命血",
-      "description": "简单轻量的库模组"
+      "displayName": "Lifeblood",
+      "description": "简单的轻量级库模组"
     },
     {
       "id": "hkmod:Lightbringer",
       "displayName": "光明使者",
-      "description": "重大游戏玩法革新：手持光之长枪，携带全新护符与光辉法术，在圣巢中杀出一条血路，追寻那困扰我们梦境的束缚之光。"
+      "description": "重大游戏改革：用光之矛、全新的符咒和光芒四射的咒语在圣巢中杀出一条血路，寻找困扰我们梦想的束缚之光。"
     },
     {
       "id": "hkmod:Limitations",
       "displayName": "限制",
-      "description": "创造无休止的限制"
+      "description": "创造没有无尽的限制"
     },
     {
       "id": "hkmod:LoadNormalizer",
-      "displayName": "负载均衡器",
-      "description": "将加载扩展至用户自定义上限，以同步竞速中的加载过程。"
+      "displayName": "LoadNormalizer",
+      "description": "Mod 将负载扩展到用户定义的上限，以同步比赛的负载。"
     },
     {
       "id": "hkmod:LoadRandomizer",
-      "displayName": "随机加载器",
-      "description": "将加载时间随机化在0到10之间，数值越低出现概率越高。"
+      "displayName": "LoadRandomizer",
+      "description": "将加载时间从 0 随机到 10，并朝较低值加权。"
     },
     {
       "id": "hkmod:LockResolution",
       "displayName": "锁定分辨率",
-      "description": "锁定游戏内分辨率。失去焦点时开启垂直同步。"
+      "description": "锁定游戏分辨率。失去焦点时垂直同步"
     },
     {
       "id": "hkmod:Lore Master",
-      "displayName": "博学大师",
-      "description": "为石碑和特定NPC添加能力。与Lore Rando不兼容！如果你只对随机位置感兴趣，请改用Lore Randomizer。"
+      "displayName": "传说大师",
+      "description": "为传说碑和某些NPC添加能力。与 Lore Rando 不兼容！如果您只对随机位置感兴趣，请使用 Lore Randomizer。"
     },
     {
       "id": "hkmod:Lore Randomizer",
-      "displayName": "剧情随机化器",
-      "description": "随机化4连接，添加了一系列与背景故事相关的物品和地点。"
+      "displayName": "Lore Randomizer",
+      "description": "Randomizer 4 连接，添加了一堆与传说相关的物品和位置。"
     },
     {
       "id": "hkmod:LoreCore",
-      "displayName": "核心传说",
-      "description": "添加了一系列与背景故事相关的物品更换器位置和物品。"
+      "displayName": "LoreCore",
+      "description": "添加了一堆与传说相关的物品更换器位置和物品。"
     },
     {
       "id": "hkmod:Lost Artifacts",
-      "displayName": "失落遗物",
-      "description": "一个为《空洞骑士》添加强力神器的模组，这些神器散布于圣巢各处，可装备在骨钉上！兼容随机化4。"
+      "displayName": "失落的神器",
+      "description": "这个模组添加了散落在圣巢各处的强大神器，可以装备到钉子上！与随机机 4 兼容。"
     },
     {
       "id": "hkmod:LostFocus",
-      "displayName": "失去焦点",
-      "description": "一个能在切换标签页时自动暂停并静音游戏的模组。"
+      "displayName": "LostFocus",
+      "description": "当您切换标签时自动暂停和静音游戏的模组。"
     },
     {
       "id": "hkmod:LumaflyKnight",
-      "displayName": "荧光飞翼骑士",
-      "description": "追踪你已释放的荧光虫数量"
+      "displayName": "LumaflyKnight",
+      "description": "追踪你释放了多少只lumafly"
     },
     {
       "id": "hkmod:MagicUI",
-      "displayName": "魔法界面",
-      "description": "一个核心模组，用于帮助其他模组构建用户界面。本身不提供任何功能。"
+      "displayName": "MagicUI",
+      "description": "帮助其他模组构建 UI 的核心模组。其本身什么也不做。"
     },
     {
       "id": "hkmod:MajorItemByAreaTracker",
-      "displayName": "区域主要物品追踪器",
-      "description": "一个随机化连接模组，新增了带有半剧透功能的随机化游戏模式，并内置游戏内追踪器。"
+      "displayName": "MajorItemByAreaTracker",
+      "description": "随机化器连接，添加带有游戏内跟踪器的半剧透随机化器游戏模式。"
     },
     {
       "id": "hkmod:Mantis Gods",
-      "displayName": "螳螂诸神",
-      "description": "大幅增强了螳螂领主的战斗。"
+      "displayName": "螳螂神",
+      "description": "显着增强螳螂领主的战斗。"
     },
     {
       "id": "hkmod:MapChanger",
-      "displayName": "地图切换器",
-      "description": "地图模组库。"
+      "displayName": "MapChanger",
+      "description": "供地图类 Mod 调用的基础库。"
     },
     {
       "id": "hkmod:MapSyncMod",
-      "displayName": "地图同步模组",
-      "description": "同步地图、长椅、战斗、Boss、拉杆、墙壁、地板、门以及其他物品同步模组中的内容。"
+      "displayName": "MapSyncMod",
+      "description": "Sync Map Bench战斗boss杠杆墙地板门和其他ItemSyncMOD"
     },
     {
       "id": "hkmod:MarkothShield",
-      "displayName": "马科斯之盾",
-      "description": "此模组将梦之护盾升级为马科斯护盾。"
+      "displayName": "MarkothShield",
+      "description": "此模组将梦之盾升级为马科斯盾。"
     },
     {
       "id": "hkmod:Marmalade",
-      "displayName": "橘子酱",
-      "description": "辐光会生成马尔穆，而不是光球。"
+      "displayName": "果酱",
+      "description": "光辉产生Marmu而不是球体"
     },
     {
       "id": "hkmod:Mash Dash",
-      "displayName": "猛冲猛撞",
-      "description": "连续冲刺，速度更快，无需冷却"
+      "displayName": "Mash Dash",
+      "description": "持续、更快地冲刺，无需刷新"
     },
     {
       "id": "hkmod:Mash Slash",
-      "displayName": "粉碎斩击",
-      "description": "以你能按按钮的最快速度挥动骨钉"
+      "displayName": "Mash Slash",
+      "description": "尽可能快地挥动钉子，以粉碎按钮"
     },
     {
       "id": "hkmod:Mask Maker Notches",
-      "displayName": "面具制造者之槽",
-      "description": "一个在面具制作人房间中添加几个可购买护符槽的模组。"
+      "displayName": "Mask Maker Notches",
+      "description": "这个模组在Mask Maker的房间里添加了一些可购买的Charm Notches。"
     },
     {
       "id": "hkmod:Mask Remover",
-      "displayName": "移除面具",
-      "description": "从 HUD 中移除面具。适用于辐辉级战斗。"
+      "displayName": "遮罩移除器",
+      "description": "从HUD上移除遮罩。对于光芒四射的战斗很有用。"
     },
     {
       "id": "hkmod:Master",
       "displayName": "大师",
-      "description": "基于同名《泰拉瑞亚》模组制作的挑战模组。"
+      "description": "基于同名泰拉瑞亚模组的挑战模组"
     },
     {
       "id": "hkmod:Memesong",
-      "displayName": "梗曲",
-      "description": "在游玩时播放一些梗音频片段（可添加或移除片段以适配直播环境）"
+      "displayName": "Memesong",
+      "description": "在播放时播放一些 meme 音频剪辑（可以添加或删除剪辑以使流友好）"
     },
     {
       "id": "hkmod:MendBreakables",
-      "displayName": "修复易碎品",
-      "description": "修复某些可破坏物体"
+      "displayName": "MendBreakables",
+      "description": "修复某些易碎物体"
     },
     {
       "id": "hkmod:Menderbug Options",
-      "displayName": "修理虫选项",
-      "description": "选择修理虫的生成几率、死亡后是否重生，以及是否需要打破标志。"
+      "displayName": "Menderbug 选项",
+      "description": "选择 Menderbug 的生成机会、死后是否重生以及是否必须打破标志"
     },
     {
       "id": "hkmod:Menderbug's Revenge",
-      "displayName": "修虫复仇",
-      "description": "每当你破坏一个背景物体时，杀死骑士。"
+      "displayName": "Menderbug 的复仇",
+      "description": "每当你打破背景物体时就杀死骑士。"
     },
     {
       "id": "hkmod:MenuChanger",
-      "displayName": "菜单修改器",
-      "description": "用于处理其他模组修改主菜单的模组。"
+      "displayName": "MenuChanger",
+      "description": "Mod 处理编辑其他 mod 的主菜单。"
     },
     {
       "id": "hkmod:MenuThemesInGame",
-      "displayName": "游戏内菜单主题",
-      "description": "将菜单颜色校正应用于游戏过程中。破坏沉浸感。"
+      "displayName": "MenuThemesInGame",
+      "description": "将菜单颜色校正应用于游戏玩法。破坏沉浸感。"
     },
     {
       "id": "hkmod:MetalOST",
-      "displayName": "金属原声带",
-      "description": "将整个圣巢的原声音乐替换为 RYS 制作的定制金属变奏版。"
+      "displayName": "MetalOST",
+      "description": "用 RYS 制作的定制金属变体替换所有圣巢的 OST。"
     },
     {
       "id": "hkmod:MetalPipeHM",
-      "displayName": "金属管HM",
-      "description": "一个空洞骑士模组，每当骑士挥动骨钉时，就会播放金属管掉落的声音。"
+      "displayName": "MetalPipeHM",
+      "description": "空洞骑士模组，每当骑士挥动指甲时，就会播放金属管掉落的声音。"
     },
     {
       "id": "hkmod:MidasTouch",
-      "displayName": "迈达斯之触",
-      "description": "华丽躯壳掉落一个护符，可将敌人变为黄金。"
+      "displayName": "MidasTouch",
+      "description": "华丽的外壳会掉落一个将敌人变成金子的护身符"
     },
     {
       "id": "hkmod:MilliGolf",
       "displayName": "MilliGolf",
-      "description": "一个18洞的高尔夫球场，主角是米莉贝尔高尔夫球"
+      "description": "以高尔夫球 Millibelle 为主题的 18 洞球场"
     },
     {
       "id": "hkmod:Mimicpocalypse",
-      "displayName": "拟态末日",
-      "description": "2025 年幼虫节 Plando 的附加模组。"
+      "displayName": "Mimicpocalypse",
+      "description": "Grub Day 2025 Plando 的附加模组。"
     },
     {
       "id": "hkmod:Mirrored Hallownest",
       "displayName": "镜像圣巢",
-      "description": "将整个《空洞骑士》地图镜像翻转。"
+      "description": "镜像整个空洞骑士地图"
     },
     {
       "id": "hkmod:ModCommon",
-      "displayName": "Mod通用",
-      "description": "一个为空洞骑士模组提供辅助工具和其他实用功能的API模组。\n不建议在新模组中使用。"
+      "displayName": "ModCommon",
+      "description": "为《空洞骑士》模组开发提供辅助 API 与实用工具的库；不建议用于新模组。"
     },
     {
       "id": "hkmod:ModConsole",
-      "displayName": "Mod控制台",
-      "description": "游戏内C#交互式编程环境，可让你轻松测试代码。"
+      "displayName": "ModConsole",
+      "description": "游戏中的 C# REPL，可让您轻松测试代码。"
     },
     {
       "id": "hkmod:ModScript",
-      "displayName": "Mod脚本",
-      "description": "允许使用 JavaScript 编写脚本来修改游戏。"
+      "displayName": "ModScript",
+      "description": "允许用 JavaScript 编写脚本来修改游戏。"
     },
     {
       "id": "hkmod:ModTerminal",
-      "displayName": "Mod终端",
-      "description": "为 DebugMod 添加了一个游戏内终端，用于输入指令和作弊代码。"
+      "displayName": "ModTerminal",
+      "description": "添加一个游戏内终端，用于作为 DebugMod 插件输入命令和作弊。"
     },
     {
       "id": "hkmod:Moonside",
-      "displayName": "月之侧",
-      "description": "是即非，非即是。在月之侧，这完全说得通。"
+      "displayName": "月边",
+      "description": "是是否，否是是。这在月边来说非常有意义。"
     },
     {
       "id": "hkmod:More Charm Notches",
-      "displayName": "更多护符槽",
-      "description": "将你的护符槽数量翻倍，初始拥有6个而非3个，且每找到一件额外护符槽物品将为你增加2个槽位。"
+      "displayName": "更多护符槽口",
+      "description": "将你拥有的护符槽口数量加倍，这样你就可以从 6 个而不是 3 个开始，并且你发现的每个额外的护符槽口项目都会给你额外的 2 个槽口。"
     },
     {
       "id": "hkmod:More Godhome Space",
-      "displayName": "更多神居空间",
-      "description": "为诸神堂区域新增第三层，以便容纳更多模组添加的 Boss。"
+      "displayName": "更多Godhome空间",
+      "description": "在众神大厅区域添加第三层，以便可以添加更多改装的Boss"
     },
     {
       "id": "hkmod:MoreDoors",
       "displayName": "更多门",
-      "description": "为空洞骑士随机Mod 4添加更多锁住的门，遍布圣巢各处。"
+      "description": "Rando 4 连接，为圣巢添加更多上锁的门。"
     },
     {
       "id": "hkmod:MoreHealing",
       "displayName": "更多治疗",
-      "description": "添加更多治疗类护符。"
+      "description": "添加更多治疗护符。"
     },
     {
       "id": "hkmod:MoreLocations",
-      "displayName": "更多地点",
-      "description": "Randomizer 4 的附加模组，为随机化模式添加了多种地点。在 Randomizer 4 的“连接”菜单中激活。"
+      "displayName": "MoreLocations",
+      "description": "Randomizer 4 插件，向随机化器添加各种位置。在 Randomizer 4 的 Connections 菜单中激活。"
     },
     {
       "id": "hkmod:MoreMapMarkers",
       "displayName": "更多地图标记",
-      "description": "添加可配置的更多地图标记。"
+      "description": "提供更多地图标记，并允许按需配置。"
     },
     {
       "id": "hkmod:MoreMasks",
-      "displayName": "更多面具",
-      "description": "增加可显示的护符槽数量，同样适用于生命血护符。默认每行显示28个护符槽，可通过编辑本模组的全局设置文件进行调整。"
+      "displayName": "MoreMasks",
+      "description": "使更多蒙版可供显示。也适用于生命血面具。默认情况下，每行显示 28 个掩码。可以通过编辑该mod的全局设置文件来调整。"
     },
     {
       "id": "hkmod:MoreNotches",
-      "displayName": "更多槽位",
-      "description": "使更多护符槽位可显示。同样适用于过载护符与护符详情槽位。默认显示最多50个已装备槽位和20个护符详情槽位。可通过编辑本模组的全局设置文件进行调整。"
+      "displayName": "更多凹口",
+      "description": "使更多护符凹口可供显示。也适用于过度护符和护符细节凹口。默认情况下，它显示最多 50 个装备凹口和 20 个饰物细节凹口。可以通过编辑该mod的全局设置文件来调整。"
     },
     {
       "id": "hkmod:MoreSaves",
-      "displayName": "更多存档",
-      "description": "允许无限存档。通过 Mod 菜单提供备份/恢复、重命名、锁定及编辑存档数值等功能。注意：编辑当前正在进行的存档将立即在游戏中生效。"
+      "displayName": "更多保存",
+      "description": "允许无限保存。使用 modmenu 提供其他功能，例如备份/恢复、重命名、锁定和编辑保存中的值。注意：编辑当前保存的内容现在会在游戏中生效"
     },
     {
       "id": "hkmod:MoreStags",
-      "displayName": "更多鹿角虫站",
-      "description": "一个随机化连接，新增了新的鹿角站。"
+      "displayName": "MoreStags",
+      "description": "添加新雄鹿站的随机机连接"
     },
     {
       "id": "hkmod:MossBeast",
-      "displayName": "苔藓野兽",
-      "description": "MossBeast 是将《以撒的结合》中的Boss战“野兽”完整移植到《空洞骑士》中的Mod。"
+      "displayName": "MossBeast",
+      "description": "MossBeast 是从《以撒的结合》到《空洞骑士》的野兽 Boss 战的完整移植版。"
     },
     {
       "id": "hkmod:MotionBlur",
-      "displayName": "动态模糊",
-      "description": "添加动态模糊效果。"
+      "displayName": "MotionBlur",
+      "description": "添加运动模糊"
     },
     {
       "id": "hkmod:MultiplayerEvents",
-      "displayName": "多人事件",
-      "description": "一个增加多人互动功能的模组。"
+      "displayName": "多人游戏事件",
+      "description": "添加了一些多人游戏交互的模组。"
     },
     {
       "id": "hkmod:MultiWorld",
-      "displayName": "多世界",
-      "description": "这是一个 RandomizerMod 4 的附加组件，用于在所有世界之间分配玩家的物品。"
+      "displayName": "MultiWorld",
+      "description": "RandomizerMod 4 附加组件，用于在所有世界之间分配玩家的物品。"
     },
     {
       "id": "hkmod:MultiWorldLib",
-      "displayName": "多世界库",
-      "description": "用于物品同步与多世界网络传输的库。"
+      "displayName": "MultiWorldLib",
+      "description": "用于 ItemSync 和 MultiWorld 网络传输的库。"
     },
     {
       "id": "hkmod:MurderRando",
-      "displayName": "谋杀随机",
-      "description": "为那些憎恨无辜者准备的另一个随机连接。"
+      "displayName": "MurderRando",
+      "description": "为那些鄙视无辜者的人提供另一个随机联系。"
     },
     {
       "id": "hkmod:MuteBosses",
-      "displayName": "静默Boss",
-      "description": "通过菜单中的开关来静默Boss战斗音效。"
+      "displayName": "MuteBosses",
+      "description": "通过菜单中的切换使Boss静音"
     },
     {
       "id": "hkmod:MyHK",
-      "displayName": "我的空洞骑士",
-      "description": "一个辅助《空洞骑士》的模组，能显著提升游戏体验。"
+      "displayName": "MyHK",
+      "description": "HK辅助模组，可显着改善游戏体验"
     },
     {
       "id": "hkmod:MylaFlower",
-      "displayName": "米拉之花",
-      "description": "给米拉带去一朵花，保护她免受感染。"
+      "displayName": "MylaFlower",
+      "description": "给 Myla 送一朵花，保护她免受感染。"
     },
     {
       "id": "hkmod:Mythril Soul",
-      "displayName": "秘银之魂",
-      "description": "为《空洞骑士》新增一种游戏模式：永久死亡机制扩展至梦境领域，且当生命值等于或低于两格面具时禁用暂停功能（更难的钢铁之魂模式）。"
+      "displayName": "秘银灵魂",
+      "description": "为空洞骑士添加了一个新的游戏模式，其中永久死亡扩展到梦想，并在两个面具或以下时暂停禁用（更硬的钢铁灵魂）。"
     },
     {
       "id": "hkmod:Nail Destroy Bullet",
-      "displayName": "钉剑毁灭弹",
-      "description": "挥动骨钉可以摧毁敌人的子弹。"
+      "displayName": "钉子摧毁子弹",
+      "description": "摆动钉子会摧毁敌人的子弹。"
     },
     {
       "id": "hkmod:Nailgod",
       "displayName": "钉神",
-      "description": "斯莱模组Boss。"
+      "description": "狡猾的改装Boss。"
     },
     {
       "id": "hkmod:Nailmaster's Pride",
-      "displayName": "《剑术大师的骄傲》",
-      "description": "骨钉大师的荣耀会禁用普通骨钉攻击，但会解锁所有骨钉技艺并使其自动蓄力。"
+      "displayName": "骨钉大师的骄傲",
+      "description": "骨钉大师的荣耀可以防止常规骨钉攻击，但会授予所有骨钉艺术并自动为其充电"
     },
     {
       "id": "hkmod:NailsmithBackPay",
-      "displayName": "铁匠退款",
-      "description": "升级骨钉后，可从钉匠处取回花费的吉欧。"
+      "displayName": "NailsmithBackPay",
+      "description": "升级你的指甲后，从指甲匠那里取回你的geo。"
     },
     {
       "id": "hkmod:Negative Nail",
-      "displayName": "负能量骨钉",
-      "description": "让你的骨钉造成负伤害，迫使你依赖法术。建议搭配敌人血量条 Mod 游玩。"
+      "displayName": "负面指甲",
+      "description": "使你的指甲造成负面伤害，迫使你依赖法术。建议您使用 Enemy HP Bar mod 进行游戏。"
     },
     {
       "id": "hkmod:NetworkingPlando",
-      "displayName": "网络计划",
-      "description": "这是一个为 Networking plando 制作的补充模组。"
+      "displayName": "NetworkingPlando",
+      "description": "Networking plando 的补充模组"
     },
     {
       "id": "hkmod:NeverMuffle",
-      "displayName": "永不静音",
-      "description": "移除受到伤害时的低沉音效。"
+      "displayName": "NeverMuffle",
+      "description": "移除受到伤害时的消音效果。"
     },
     {
       "id": "hkmod:niaPfohtaP (PoP Upside Down)",
-      "displayName": "niaPfohtaP（倒置苦痛之路）",
-      "description": "将痛苦之路上下颠倒。"
+      "displayName": "niaPfohtaP（PoP 颠倒）",
+      "description": "使痛苦之路颠倒。"
     },
     {
       "id": "hkmod:Nightmare and Void",
       "displayName": "梦魇与虚空",
-      "description": "将梦魇之王格林与纯粹容器战斗转换为自定义双首领战。"
+      "description": "将梦魇王格林的战斗转化为带有纯容器的定制二人首领。"
     },
     {
       "id": "hkmod:Nightmare Spark",
       "displayName": "噩梦火花",
-      "description": "添加一个格林剧团主题的护符，并包含多种护符协同效果。"
+      "description": "添加格林剧团主题的护符与各种护符协同作用。"
     },
     {
       "id": "hkmod:No More Shards",
       "displayName": "不再有碎片",
-      "description": "一个简单的模组，让每个面具碎片和容器碎片分别直接给你一个完整的面具或容器。"
+      "description": "一个简单的模组，使每个面具碎片和容器碎片分别为您提供完整的面具或容器。"
     },
     {
       "id": "hkmod:No Particles",
       "displayName": "无粒子",
-      "description": "禁用大部分粒子效果。"
+      "description": "移除游戏中的大多数粒子特效。"
     },
     {
       "id": "hkmod:NoBlur",
       "displayName": "无模糊",
-      "description": "擦亮你的眼镜，看清《空洞骑士》背景物体，不再模糊。提供移除模糊平面、雾气物体和薄雾物体的选项。"
+      "description": "清洁您的眼镜，即可看到空洞骑士的背景物体而不模糊。用于删除模糊平面、雾对象和雾对象的选项。"
     },
     {
       "id": "hkmod:Noclip Accuracy",
-      "displayName": "无碰撞精准",
-      "description": "一个轻量级模组，用于追踪你在无碰撞/练习模式中受到多少次尖刺伤害。"
+      "displayName": "Noclip 精度",
+      "description": "一个轻量级模组，可跟踪您在 Noclip/练习运行期间受到的尖刺伤害次数"
     },
     {
       "id": "hkmod:NoDying",
-      "displayName": "无死亡",
-      "description": "一个简单的模组，让你的生命值不会低于1点。"
+      "displayName": "NoDying",
+      "description": "一个简单的模组，不会让你的生命值低于 1 点"
     },
     {
       "id": "hkmod:NoGlow",
-      "displayName": "无发光",
-      "description": "切换跟随骑士的微弱光芒。"
+      "displayName": "NoGlow",
+      "description": "切换跟随骑士周围的微弱光芒。"
     },
     {
       "id": "hkmod:NoMaps",
-      "displayName": "无地图",
-      "description": "从屏幕上移除地图"
+      "displayName": "NoMaps",
+      "description": "从屏幕上删除地图"
     },
     {
       "id": "hkmod:Nosk God",
-      "displayName": "神之诺斯克"
+      "displayName": "神明诺斯克"
     },
     {
       "id": "hkmod:Nosk Transformation",
-      "displayName": "诺斯克变形",
-      "description": "随心所欲化身为诺斯克——在《空洞骑士》中咆哮、吐息、跳跃、捉弄你的朋友们，支持隐身命名和HKMP联机。"
+      "displayName": "诺斯克变身",
+      "description": "随意成为诺斯克——在《空洞骑士》中咆哮、吐口水、跳跃和恶作剧你的朋友，并提供隐形命名和 HKMP 支持。"
     },
     {
       "id": "hkmod:NoSpiders",
-      "displayName": "无蜘蛛",
-      "description": "移除深巢前景中蜘蛛的模组"
+      "displayName": "NoSpiders",
+      "description": "去除深巢前景蜘蛛的mod"
     },
     {
       "id": "hkmod:NotBackgroundObjectRando",
-      "displayName": "非背景对象随机化",
-      "description": "没有丝之歌对社区的影响"
+      "displayName": "NotBackgroundObjectRando",
+      "description": "Silksong 对社区没有做什么"
     },
     {
       "id": "hkmod:NoTransitions",
-      "displayName": "无过渡",
-      "description": "不完整、有缺陷的演示版本。更多信息请查看 ReadMe 文件。"
+      "displayName": "NoTransitions",
+      "description": "不完整、损坏的演示版本。查看自述文件以获取更多信息"
     },
     {
       "id": "hkmod:NotSpikesmas",
-      "displayName": "非尖刺者",
-      "description": "在随机化池中添加一个物品，可防止尖刺伤害。"
+      "displayName": "NotSpikesmas",
+      "description": "将一个项目添加到随机化池中，以防止尖峰造成的伤害。"
     },
     {
       "id": "hkmod:NoWalkOfShame",
-      "displayName": "无羞耻行走",
-      "description": "在你死亡的房间内重生（跳过暗室/梦境房间/竞技场）"
+      "displayName": "NoWalkOfShame",
+      "description": "在你死去的房间里重生你（跳过暗室/梦境/斗兽场）"
     },
     {
       "id": "hkmod:Omega Radiance",
-      "displayName": "欧米伽光辉",
-      "description": "面对力量之神，这是“Any辐光”的修改版本，其目的并非增加难度，而是打造一场酷炫且独特的战斗。"
+      "displayName": "Omega Radiance",
+      "description": "面对力量之神，这是 Any Radiance 的修改版本，不是为了变得更难，而是为了成为一场酷炫而独特的战斗。"
     },
     {
       "id": "hkmod:OnlyBosses",
-      "displayName": "仅Boss",
-      "description": "OnlyBosses 是 TheHuntIsOn 敌人模块（用于移除基础敌人）的替代方案，但由于该模块已被移除，因此有了这个 Mod。"
+      "displayName": "OnlyBosses",
+      "description": "OnlyBosses 是 TheHuntIsOn 敌人模块（删除基本敌人）的替代品，但自从它被删除后，这个模组就在这里。"
     },
     {
       "id": "hkmod:OrbTracker",
-      "displayName": "轨道追踪器",
-      "description": "指向最近的耳语根球体，并统计你已获取的数量。"
+      "displayName": "OrbTracker",
+      "description": "将箭头指向最近的低语根球，并计算您获得的数量。"
     },
     {
       "id": "hkmod:Osmi",
-      "displayName": "奥斯米",
-      "description": "一个为其他 Mod 提供实用功能的库 Mod"
+      "displayName": "Osmi",
+      "description": "为其他模组提供实用程序的库模组"
     },
     {
       "id": "hkmod:ouchyGrass",
-      "displayName": "扎脚草",
-      "description": "触碰草地会使玩家受伤或死亡。"
+      "displayName": "ouchyGrass",
+      "description": "触摸草会伤害或杀死玩家。"
     },
     {
       "id": "hkmod:OWO_HollowKnight",
-      "displayName": "OWO_空洞骑士",
-      "description": "一个允许将 OWO 皮肤触觉设备与《空洞骑士》集成的模组。"
+      "displayName": "OWO_HollowKnight",
+      "description": "允许将 OWO Skin 触觉设备与 HK 集成的 mod"
     },
     {
       "id": "hkmod:Pale Court",
-      "displayName": "苍白庭院",
-      "description": "挑战圣巢最强大的冠军，在宏伟的战斗中一决高下！\n用强大的新护符战胜你的对手！\n发现新的秘密与故事！\n一切尽在令人惊叹的全新配乐中！"
+      "displayName": "Pale Court",
+      "description": "在盛大的战斗中挑战圣巢最强大的冠军！\n用强大的新护符战胜你的对手！\n发现新的秘密和故事！\n全部都有令人难以置信的新配乐！"
     },
     {
       "id": "hkmod:Pale Court Charms",
-      "displayName": "苍白宫廷护符",
-      "description": "添加苍白王庭的护符。旨在兼容那些无法与主版苍白王庭共同运行的模组。支持随机化模组与超越模组。\n请勿与苍白王庭同时使用，因为两个模组会添加相同的护符。"
+      "displayName": "Pale Court 饰物",
+      "description": "添加 Pale Court 的饰物。旨在允许与不适用于主要 Pale Court 的模组兼容。与随机机和超越一起使用。\n        不要与 Pale Court 一起使用，因为这两个 mod 都添加了相同的护符。"
     },
     {
       "id": "hkmod:Pale Prince",
       "displayName": "苍白王子",
-      "description": "对纯粹容器战斗进行全面重制，大幅提升难度。"
+      "description": "纯容器战斗大修，难度显着增加"
     },
     {
       "id": "hkmod:Pale Shadow",
-      "displayName": "苍白之影",
-      "description": "自制纯净容器 Boss Mod。"
+      "displayName": "苍白阴影",
+      "description": "自制纯容器Boss模组。"
     },
     {
       "id": "hkmod:PaletteSwapper",
-      "displayName": "调色板切换器",
-      "description": "修改房间色调的 Mod。"
+      "displayName": "PaletteSwaper",
+      "description": "Mod 改变房间色调。"
     },
     {
       "id": "hkmod:PantheonArchitect",
-      "displayName": "万神殿建筑师",
-      "description": "在《空洞骑士》中设计并游玩自定义的万神殿5阵容！用任意顺序的任意Boss打造你的完美Boss连战，并通过简单代码与好友分享你的创作。"
+      "displayName": "PantheonArchitect",
+      "description": "在《空洞骑士》中设计并玩自定义万神殿 5 阵容！以任何顺序与任何Boss一起创建完美的Boss挑战，然后使用简单的代码与朋友分享您的创作。"
     },
     {
       "id": "hkmod:PantheonOfRegions",
-      "displayName": "区域万神殿",
-      "description": "新增万神殿，可同时挑战多个Boss。"
+      "displayName": "PantheonOfRegions",
+      "description": "添加新的万神殿来一起对抗Boss"
     },
     {
       "id": "hkmod:Pantheons Hit Counter",
-      "displayName": "万神殿命中计数器",
-      "description": "自动统计万神殿中的命中次数。"
+      "displayName": "万神殿点击计数器",
+      "description": "自动计算万神殿中的点击次数。"
     },
     {
       "id": "hkmod:PaperKnight",
-      "displayName": "纸骑士",
-      "description": "当物体旋转时，精灵会以纸片旋转效果进行动画。"
+      "displayName": "PaperKnight",
+      "description": "当对象转动时，精灵会以纸旋转效果进行动画处理。"
     },
     {
       "id": "hkmod:ParryKnight",
-      "displayName": "格挡骑士",
-      "description": "可格挡的敌人仅能通过格挡造成伤害。只有法术才能伤害其他敌人。"
+      "displayName": "ParryKnight",
+      "description": "可以被招架的敌人只会受到招架伤害。只有法术才能伤害其他敌人。"
     },
     {
       "id": "hkmod:PathOfPureVessel",
-      "displayName": "纯粹容器之道",
-      "description": "在痛苦之路的尽头与纯粹容器战斗"
+      "displayName": "PathOfPureVessel",
+      "description": "POP结束时与PV的战斗"
     },
     {
       "id": "hkmod:PeakingPeekingPeaks",
-      "displayName": "高峰窥视",
-      "description": "此模组旨在让水晶山峰的名字更令人难忘。"
+      "displayName": "PeakingPeekingPeaks",
+      "description": "这个模组的目的是让 Crystal Peak 的名字更容易记住。"
     },
     {
       "id": "hkmod:PedroSoulOrb",
-      "displayName": "佩德罗灵魂球",
-      "description": "一个空洞骑士Mod，当你的灵魂值满时，会显示一个朋友。"
+      "displayName": "PedroSoulOrb",
+      "description": "一个空洞骑士模组，当你拥有完整的灵魂时，它会渲染一个朋友"
     },
     {
       "id": "hkmod:PermaFlukes",
-      "displayName": "永久蛆虫",
-      "description": "Flukes 不再消失"
+      "displayName": "PermaFlukes",
+      "description": "Flukes不会消失"
     },
     {
       "id": "hkmod:PersistentDivine",
-      "displayName": "持久神居",
-      "description": "一个模组，使迪万的帐篷在放逐格林剧团后仍留在德特茅斯，这样你就不会意外错过获得不毁护符的机会。"
+      "displayName": "PercientDivine",
+      "description": "即使在你放逐格林剧团之后，该模组仍将神圣帐篷保留在德特茅斯，这样你就不会意外错过获得牢不可破的护符的机会"
     },
     {
       "id": "hkmod:Pet",
       "displayName": "宠物",
-      "description": "给予跟随英雄的宠物。"
+      "description": "添加会跟随小骑士行动的宠物。"
     },
     {
       "id": "hkmod:PlatformingQoL",
-      "displayName": "平台跳跃质量提升",
-      "description": "《空洞骑士》平台跳跃体验优化模组，包含碰撞箱可视化与重生动画跳过功能。"
+      "displayName": "PlatformingQoL",
+      "description": "《空洞骑士》平台的生活质量改进，包括碰撞箱可视化和重生动画跳过。"
     },
     {
       "id": "hkmod:PlayerDataManager",
-      "displayName": "玩家数据管理器",
-      "description": "覆盖玩家数据值（例如，始终将 `hasQuill` 设置为 false）。拥有 DebugMod 会有所帮助，但并非必需。"
+      "displayName": "PlayerDataManager",
+      "description": "覆盖玩家数据值（例如，始终将 `hasQuill` 设置为 false）。拥有 DebugMod 很有帮助，但不是必需的。"
     },
     {
       "id": "hkmod:PlayerTrail",
-      "displayName": "玩家轨迹",
-      "description": "一个 HKMP 扩展模组，可为部分玩家身后添加一条拖尾特效。"
+      "displayName": "PlayerTrail",
+      "description": "一个 HKMP 插件，用于在某些玩家身后添加挥之不去的踪迹"
     },
     {
       "id": "hkmod:PogoableFlukes",
-      "displayName": "可弹跳的蛆虫",
-      "description": "你可以利用你的小粪球施法进行弹跳。"
+      "displayName": "PogoableFlukes",
+      "description": "你可以从你的 Flukenest 石膏上跳下来"
     },
     {
       "id": "hkmod:Pogonest",
-      "displayName": "波戈巢穴",
-      "description": "弹跳一切"
+      "displayName": "Pogonest",
+      "description": "Pogo 任何东西"
     },
     {
       "id": "hkmod:Poorly Translated",
-      "displayName": "机翻劣译",
-      "description": "劣质翻译版《空洞骑士》。游戏内所有文本均经过一连串谷歌翻译处理。支持英语、德语、西班牙语、法语、意大利语及中文。注意：英语翻译自1.4版本起已重新调整，使其翻译质量更加糟糕。"
+      "displayName": "翻译不佳",
+      "description": "翻译不佳空洞骑士。游戏中的所有文本都是通过谷歌翻译链运行的。有英语、德语、西班牙语、法语、意大利语和中文版本。注：1.4版本的英文翻译进行了修改，翻译得更加糟糕"
     },
     {
       "id": "hkmod:Powerful Shadow Dash",
-      "displayName": "强力暗影冲刺",
-      "description": "此模组将暗影冲刺冷却时间设为0。"
+      "displayName": "强大的暗影冲刺",
+      "description": "此mod将暗影冲刺冷却时间设置为0。"
     },
     {
       "id": "hkmod:press g to dab",
-      "displayName": "按 G 键跳舞",
-      "description": "按下 G 键，小骑士就会跳起“达布舞”。"
+      "displayName": "按 g 轻拍",
+      "description": "按 g 骑士将轻拍"
     },
     {
       "id": "hkmod:ProfanityFilterAddon",
-      "displayName": "粗口过滤器插件",
-      "description": "HKMP 和 SSMP 的服务器端脏话过滤插件，当前采用高性能规则过滤引擎。"
+      "displayName": "ProfanityFilterAddon",
+      "description": "适用于 HKMP 和 SSMP 的服务器端亵渎过滤器插件。目前使用高性能的基于规则的过滤引擎。"
     },
     {
       "id": "hkmod:Propeller Knight",
       "displayName": "螺旋桨骑士",
-      "description": "将《铲子骑士》中的螺旋桨骑士加入《空洞骑士》。"
+      "description": "将螺旋桨骑士从铲子骑士添加到空洞骑士。"
     },
     {
       "id": "hkmod:Pure Shape",
-      "displayName": "纯粹形态",
-      "description": "修改玩家的法术和剑技，玩家可以使用类似纯粹容器（Pure Container）的技能，例如格挡反击。"
+      "displayName": "纯形",
+      "description": "改变玩家的法术和指甲艺术，玩家可以使用类似于纯容器的技能，例如格挡反击。"
     },
     {
       "id": "hkmod:Pure Vessel Skills",
-      "displayName": "纯净容器技能",
-      "description": "允许你使用纯粹容器（Pure Vessel）的攻击招式"
+      "displayName": "纯器技能",
+      "description": "允许你使用纯器的攻击"
     },
     {
       "id": "hkmod:PurenailCore",
-      "displayName": "纯净核心",
-      "description": "Purenail 模组的通用工具与互操作支持"
+      "displayName": "PurenailCore",
+      "description": "Purenail mods 的常用实用程序和互操作"
     },
     {
       "id": "hkmod:PureZote",
-      "displayName": "纯净左特",
-      "description": "启用了灰色王子左特召唤永恒试炼并升级了其技能。同时安装AbsoluteZote和PureZote以启用AnyZote。"
+      "displayName": "PureZote",
+      "description": "使灰王子佐特能够召唤永恒考验并升级其技能。一起安装 AbsoluteZote 和 PureZote 以启用 AnyZote。"
     },
     {
       "id": "hkmod:PURITY",
-      "displayName": "纯净",
-      "description": "《落日轮回 II》新版本。模组化辐光。"
+      "displayName": "PURITY",
+      "description": "《日落轮回II》新版本。修改后的光辉。"
     },
     {
       "id": "hkmod:PvpArena",
-      "displayName": "PVP竞技场",
-      "description": "本模组在德特茅斯长椅右侧添加了一个带有隐形入口的PvP竞技场。"
+      "displayName": "PvpArena",
+      "description": "这个模组添加了一个 PvP 竞技场，在德特茅斯的板凳右侧有一个隐形入口。"
     },
     {
       "id": "hkmod:QoL",
-      "displayName": "生活质量",
-      "description": "一个包含多种生活品质改进的合集。"
+      "displayName": "QoL",
+      "description": "各种生活质量改善的集合。"
     },
     {
       "id": "hkmod:QoLTeleportKit",
-      "displayName": "生活质量传送工具包",
-      "description": "QoL 传送工具包是一款为《空洞骑士》添加便捷传送系统的 Mod。"
+      "displayName": "QoLTeleportKit",
+      "description": "QoL Teleport Kit 是一款空洞骑士模组，增加了方便的传送系统。"
     },
     {
       "id": "hkmod:Quasar Radiance",
-      "displayName": "类星体辐光",
-      "description": "这是《Any辐光 3.0》的一个大幅修改版本，旨在让休闲玩家玩得更开心、更享受，同时仍保留一定挑战性。战斗非常独特，不会像原版那样难到不可能通关。本模组建议在 300 FPS 上限下运行，如果帧数低于或高于此值，难度会比预期更高或更低。"
+      "displayName": "Quasar Radiance",
+      "description": "Any Radiance 3.0 的一个版本，经过大量修改，让休闲玩家变得更加有趣和享受，同时仍然提供一定程度的挑战。非常独特的战斗，并不像真实的战斗那样困难。该模组的游戏帧率上限为 300 FPS，因此如果您在较低或较高的帧率下进行游戏，将会比预期更难或更容易。"
     },
     {
       "id": "hkmod:QuickDive",
-      "displayName": "快速下砸",
-      "description": "一个将快速施法按键重新映射为仅使用下砸技能的 Mod。"
+      "displayName": "QuickDive",
+      "description": "将您的“快速投射”按钮重新映射为仅“潜水”的模组"
     },
     {
       "id": "hkmod:QuirrelBoat",
-      "displayName": "奎若之舟",
-      "description": "一个让奎若在蓝湖事件后仍可互动的模组。"
+      "displayName": "QuirrelBoat",
+      "description": "一个让 Quirrel 在蓝湖事件后可以互动的模组。"
     },
     {
       "id": "hkmod:QuirrelFlower",
-      "displayName": "奎若之花",
-      "description": "给奎若的一份小礼物"
+      "displayName": "QuirrelFlower",
+      "description": "给qurriel的小礼物"
     },
     {
       "id": "hkmod:Radiance Multiplier",
-      "displayName": "辐光倍增器",
-      "description": "允许同时与最多十个无上辐光战斗。共享生命值。"
+      "displayName": "光辉倍增器",
+      "description": "允许同时战斗最多十个绝对光辉。使用共享HP。"
     },
     {
       "id": "hkmod:RadianceExtras",
-      "displayName": "辐光额外内容",
-      "description": "为无上辐光战斗添加额外内容"
+      "displayName": "RadianceExtras",
+      "description": "为 Abs Rad Fight 添加额外内容"
     },
     {
       "id": "hkmod:RadiantMenu",
-      "displayName": "光辉菜单",
-      "description": "为游戏添加了一个光辉的菜单主题。"
+      "displayName": "RadiantMenu",
+      "description": "为游戏添加辐射菜单主题。"
     },
     {
       "id": "hkmod:RainbowEggs",
-      "displayName": "彩虹蛋",
-      "description": "一个随机化模组附加组件，让腐臭蛋变得更加色彩缤纷。"
+      "displayName": "RainbowEggs",
+      "description": "随机机插件，使腐臭鸡蛋更加丰富多彩。"
     },
     {
       "id": "hkmod:RainbowFlukes",
-      "displayName": "彩虹浮游",
-      "description": "蛞蝓变成彩虹色了！"
+      "displayName": "彩虹福禄克",
+      "description": "福禄克是彩虹！"
     },
     {
       "id": "hkmod:RainbowShinies",
-      "displayName": "彩虹闪光",
-      "description": "使所有发光物品拥有随机颜色"
+      "displayName": "RainbowShinies",
+      "description": "使所有发光体具有随机颜色"
     },
     {
       "id": "hkmod:Rando Vanilla Tracker",
-      "displayName": "随机原版追踪器",
-      "description": "随机化4的附加组件，用于追踪非随机化物品。"
+      "displayName": "Rando Vanilla Tracker",
+      "description": "Randomizer 4 附加组件，用于跟踪非随机项目。"
     },
     {
       "id": "hkmod:RandoChecksCounter",
-      "displayName": "随机检查计数器",
-      "description": "一个《空洞骑士》模组，提供已检查位置的实时计数器。"
+      "displayName": "RandoChecksCounter",
+      "description": "空洞骑士模组，提供检查位置的实时计数器。"
     },
     {
       "id": "hkmod:Random Pantheons",
       "displayName": "随机万神殿",
-      "description": "随机化神居的万神殿，使Boss以随机顺序出现。"
+      "description": "随机化Godhome的万神殿，因此Boss以随机顺序出现。"
     },
     {
       "id": "hkmod:RandoMapCore",
-      "displayName": "随机地图核心",
-      "description": "RandoMapMod 和 ArchipelagoMapMod 的库文件。"
+      "displayName": "RandoMapCore",
+      "description": "RandoMapMod 和 ArchipelagoMapMod 的库。"
     },
     {
       "id": "hkmod:RandoMapMod",
-      "displayName": "随机地图模组",
-      "description": "世界地图的随机化4全面重制，用于帮助查找物品和过渡检查点。"
+      "displayName": "RandoMapMod",
+      "description": "世界地图的随机机 4 大修，以帮助查找项目和转换检查。"
     },
     {
       "id": "hkmod:RandomCharm",
-      "displayName": "随机护符",
-      "description": "一个《空洞骑士》Mod，每次进入场景时随机更换你装备的护符（包括 Transcendence 新增的护符）。"
+      "displayName": "RandomCharm",
+      "description": "空洞骑士mod改变你随机装备的每个场景的护符（包括超越新护符）"
     },
     {
       "id": "hkmod:RandomCompanions",
-      "displayName": "随机同伴",
-      "description": "自定义骑士扩展包，使幼体与织者幼虫可使用所有可用皮肤。"
+      "displayName": "RandomCompanions",
+      "description": "自定义骑士插件，允许幼体和编织者使用所有可用的皮肤"
     },
     {
       "id": "hkmod:RandomGravityChange",
-      "displayName": "随机重力变化",
-      "description": "一个可以定期或通过按键随机改变重力的模组。"
+      "displayName": "RandomGravityChange",
+      "description": "一种周期性或按键时随机改变重力的模组。"
     },
     {
       "id": "hkmod:Randomizable Levers",
-      "displayName": "可随机化拉杆",
-      "description": "Randomizer 4 的附加模组，新增了随机化拉杆的选项。在 Randomizer 4 的“连接”菜单中激活拉杆随机化功能。"
+      "displayName": "随机化杠杆",
+      "description": "Randomizer 4 插件，添加了随机化杠杆的选项。在 Randomizer 4 的 Connections 菜单中激活随机杆。"
     },
     {
       "id": "hkmod:Randomizer 4",
-      "displayName": "随机化4",
-      "description": "用于随机化物品和/或过渡的模组，提供多种自定义选项。"
+      "displayName": "Randomizer 4",
+      "description": "Mod 用于随机化项目和/或过渡，具有众多自定义选项。"
     },
     {
       "id": "hkmod:RandomizerCore",
-      "displayName": "随机化核心",
-      "description": "随机化逻辑与算法库。"
+      "displayName": "RandomizerCore",
+      "description": "随机化器逻辑和算法的库。"
     },
     {
       "id": "hkmod:RandomizerCore.Json",
-      "displayName": "随机化核心.Json",
-      "description": "一个为RandomizerCore添加JSON编码逻辑数据支持的库。"
+      "displayName": "RandomizerCore.Json",
+      "description": "一个库，向 RandomizerCore 添加对 json 编码逻辑数据的支持。"
     },
     {
       "id": "hkmod:RandomizerSettingsRandomizer",
-      "displayName": "随机化设置",
-      "description": "Randomizer 4 的附加组件，可让你随机化设置。关于如何选择要随机化的设置，请参阅 README 文件。"
+      "displayName": "RandomizerSettingsRandomizer",
+      "description": "Randomizer 4 的附加组件，允许您随机化设置。有关如何选择随机设置的信息，请参阅自述文件。"
     },
     {
       "id": "hkmod:RandomTeleport",
       "displayName": "随机传送",
-      "description": "一个能让你在周期性、按键触发或受到伤害时随机传送至其他场景的Mod。"
+      "description": "一种可以在按键或损坏时定期将你传送到另一个场景的模组。"
     },
     {
       "id": "hkmod:RandoPlus",
       "displayName": "RandoPlus",
-      "description": "Randomizer 4 的附加模组，增加了更多随机化选项；例如，随机化蘑菇先生的位置。"
+      "description": "随机化器 4 的附加组件，添加了更多随机化选项；例如，随机分配蘑菇先生的位置。"
     },
     {
       "id": "hkmod:RandoSBRCO",
-      "displayName": "随机SBRCO",
-      "description": "为随机化器添加逻辑，确保给定的护符顺序能够被遵循。"
+      "displayName": "RandoSBRCO",
+      "description": "向随机机添加逻辑，以确保可以遵循给定的护符顺序"
     },
     {
       "id": "hkmod:RandoSettingsManager",
-      "displayName": "随机设置管理器",
-      "description": "一个《空洞骑士》模组，重新实现并扩展了随机化器的设置共享与预设管理功能，并提供了对连接模组的丰富支持。"
+      "displayName": "RandoSettingsManager",
+      "description": "空洞骑士模组，它重新实现并扩展了随机机的设置共享和预设管理，并提供对连接模组的丰富支持。"
     },
     {
       "id": "hkmod:RandoStats",
-      "displayName": "随机统计",
-      "description": "一个随机化辅助模组，在完成界面提供详细的检查与获取统计数据。"
+      "displayName": "RandoStats",
+      "description": "随机数补充模块，可在完成屏幕上提供详细检查和获取统计数据。"
     },
     {
       "id": "hkmod:RandoZoomZoom",
-      "displayName": "随机缩放缩放",
-      "description": "一个随机化模组附加组件，可让前期移动和吉欧收集速度稍快一些。"
+      "displayName": "RandoZoomZoom",
+      "description": "随机化器插件，可以使早期移动和吉欧收集更快一些。"
     },
     {
       "id": "hkmod:RCPathfinder",
       "displayName": "RCPathfinder",
-      "description": "RandomizerCore 的寻路库。"
+      "description": "RandomizerCore 的探路器库。"
     },
     {
       "id": "hkmod:RecentItemsDisplay",
-      "displayName": "最近物品显示",
-      "description": "ItemChanger（及Rando）的附加组件，可在屏幕右上角显示最近获得的拾取物。"
+      "displayName": "RecentItemsDisplay",
+      "description": "ItemChanger（和 Rando）的附加组件，在屏幕右上角显示最近获得的拾取物。"
     },
     {
       "id": "hkmod:RecentItemsDisplayNoGeo",
-      "displayName": "最近物品显示无吉欧",
-      "description": "为 RecentItemsDisplay 添加一个可切换的过滤器，以移除 GeoRando 的检查项。"
+      "displayName": "RecentItemsDisplayNoGeo",
+      "description": "添加一个可切换过滤器以从RecentItemsDisplay中删除GeoRando检查"
     },
     {
       "id": "hkmod:RecentItemsDisplayNoGrass",
-      "displayName": "近期物品显示无草",
-      "description": "最近物品显示 草地随机化 不显示草地"
+      "displayName": "最近的项目显示无草",
+      "description": "最近的项目显示草随机不显示草"
     },
     {
       "id": "hkmod:RecentItemsDisplayNoOneEssence",
-      "displayName": "最近物品显示无一人精华",
-      "description": "为 RecentItemsDisplay 添加一个可切换的过滤器，用于移除 1 点梦之精华的检查项。"
+      "displayName": "RecentItemsDisplayNoOneEssence",
+      "description": "添加一个可切换过滤器以从RecentItemsDisplay中删除1个精华检查"
     },
     {
       "id": "hkmod:RedoBirthplace",
-      "displayName": "重做诞生地",
-      "description": "重制诞生之地的过场动画。"
+      "displayName": "重做出生地",
+      "description": "重做出生地过场动画。"
     },
     {
       "id": "hkmod:RegretRecoveryRestoration",
-      "displayName": "悔恨恢复修复",
-      "description": "一个随机化连接模组，可在蛋商店移除暗影后恢复回收暗影的能力。"
+      "displayName": "RegretRecoveryRestoration",
+      "description": "随机机连接，可在鸡蛋店将其移除时恢复恢复阴影的能力"
     },
     {
       "id": "hkmod:Remove Haunted Foes",
-      "displayName": "移除幽灵敌人",
-      "description": "该 Mod 已被“更好的神居音乐”取代。"
+      "displayName": "删除闹鬼的敌人",
+      "description": "这个模组已被更好的Godhome音乐取代"
     },
     {
       "id": "hkmod:RemoveLaggyObjects",
-      "displayName": "移除卡顿物体",
-      "description": "从场景中移除可能导致严重卡顿的各种物体。同时移除RLO。"
+      "displayName": "RemoveLaggyObjects",
+      "description": "从场景中删除可能导致严重延迟的各种对象。还有 RLO"
     },
     {
       "id": "hkmod:ReopenCityDoor",
-      "displayName": "重开城市之门",
-      "description": "打开真菌荒地和城市之间上锁的门（位于胡长老坟墓上方 / 靠近通往十字路口的电梯）。"
+      "displayName": "重新打开城市门",
+      "description": "打开真菌荒地和城市之间上锁的门（胡长老的坟墓上方/通往十字路口的电梯附近）。"
     },
     {
       "id": "hkmod:ReplayLogger",
-      "displayName": "回放记录器",
-      "description": "ReplayLoger 是一个用于验证玩家挑战跑合法性的模组。"
+      "displayName": "ReplayLogger",
+      "description": "ReplayLoger 是一个为验证玩家挑战运行的合法性而创建的模组。"
     },
     {
       "id": "hkmod:ReplayTimerMod",
-      "displayName": "回放计时器模组",
-      "description": "记录你在每个房间的最佳通关时间，并在下一次尝试中以幽灵形式回放。"
+      "displayName": "ReplayTimerMod",
+      "description": "记录您在每个房间中的最佳时间，并在您下次尝试时将其作为幽灵播放。"
     },
     {
       "id": "hkmod:ResetCharmNotches",
-      "displayName": "重置护符槽",
-      "description": "重置护符槽和护符槽消耗。"
+      "displayName": "重置CharmNotches",
+      "description": "重置护符等级和护符等级成本。"
     },
     {
       "id": "hkmod:RespawnPoint Manager",
-      "displayName": "重生点管理器",
-      "description": "出生点管理器，可跨场景追踪、保存和切换玩家检查点，支持快速重置及自定义出生控制。"
+      "displayName": "RespawnPoint Manager",
+      "description": "Spawnpoint 管理器，通过快速重置和自定义生成控制来跟踪、保存和切换场景中的玩家检查点"
     },
     {
       "id": "hkmod:Restore NKG Title Card",
-      "displayName": "恢复 NKG 标题画面",
-      "description": "恢复神居梦魇之王格林标题画面"
+      "displayName": "恢复NKG称号卡",
+      "description": "恢复Godhome NKG称号卡"
     },
     {
       "id": "hkmod:ResurrectionMod",
-      "displayName": "复活Mod",
-      "description": "为 HKMP 添加倒地状态替代死亡，允许队友复活你。附带可配置的强制重生按键。"
+      "displayName": "ResurrectionMod",
+      "description": "添加倒地状态而不是死亡，允许队友在 HKMP 中复活你。具有可配置的强制重生键。"
     },
     {
       "id": "hkmod:ReverseKnight",
-      "displayName": "反向骑士",
-      "description": "骑士……看起来有点奇怪……"
+      "displayName": "ReverseKnight",
+      "description": "骑士...看起来有点奇怪..."
     },
     {
       "id": "hkmod:RgbRando",
-      "displayName": "RGB随机化",
-      "description": "一个随机化连接器，可对着色器的 RGB 值进行随机化处理。"
+      "displayName": "RgbRando",
+      "description": "随机化器连接，允许对着色器的 RGB 值进行随机化。"
     },
     {
       "id": "hkmod:RngCounters",
-      "displayName": "随机计数",
-      "description": "一个空洞骑士模组，用于统计烦人位置上的随机数生成（RNG）。"
+      "displayName": "RngCounters",
+      "description": "一个空洞骑士模组，可以在恼人的地方计算 RNG 的数量。"
     },
     {
       "id": "hkmod:RngSync",
-      "displayName": "随机同步",
-      "description": "一个空洞骑士模组，让大量随机数变得可预测。"
+      "displayName": "RngSync",
+      "description": "空洞骑士模组，使很多 RNG 具有确定性"
     },
     {
       "id": "hkmod:Rogue",
-      "displayName": "流浪者",
-      "description": "类银河城风格的《空洞骑士》万神殿 Mod"
+      "displayName": "盗贼",
+      "description": "类似盗贼的圣巢万神殿 mod"
     },
     {
       "id": "hkmod:RomanNumerals",
-      "displayName": "罗马数字",
-      "description": "将所有数字转换为罗马数字系统"
+      "displayName": "RomanNumerals",
+      "description": "把游戏里的数字统一改为罗马数字。"
     },
     {
       "id": "hkmod:Rope Rando",
-      "displayName": "绳索随机",
-      "description": "在随机Mod 4中添加了守望者骑士Boss房间中的绳索/吊灯。"
+      "displayName": "绳索兰多",
+      "description": "将守望者骑士 Boss 房间中的绳索/枝形吊灯添加到随机机 4。"
     },
     {
       "id": "hkmod:SaferWhitePalace",
-      "displayName": "安全白色宫殿",
-      "description": "允许你移除白宫的陷阱"
+      "displayName": "SaferWhitePalace",
+      "description": "让您消除白宫的危险"
     },
     {
       "id": "hkmod:Sanic",
-      "displayName": "桑尼克",
-      "description": "允许改变游戏时间流速。"
+      "displayName": "Sanic",
+      "description": "允许更改游戏时间刻度。"
     },
     {
       "id": "hkmod:Satchel",
-      "displayName": "背包",
-      "description": "背包是一种袋子，这个背包里装有供其他模组使用的酷炫物品。"
+      "displayName": "挎包",
+      "description": "挎包是一个包，这个包里有很酷的东西供其他模组使用。"
     },
     {
       "id": "hkmod:Scattered and Lost",
-      "displayName": "散落与迷失",
-      "description": "以《蔚蓝》为主题的内容模组，扩展了布雷塔的小屋。"
+      "displayName": "分散和迷失",
+      "description": "塞莱斯特主题内容模组，扩大布雷塔的小屋"
     },
     {
       "id": "hkmod:Scatternest",
-      "displayName": "散巢",
-      "description": "为随机化器和物品同步功能添加插件，允许玩家从多个不同地点开始游戏。"
+      "displayName": "Scatternest",
+      "description": "用于随机机和 ItemSync 的插件允许玩家从多个不同的位置开始。"
     },
     {
       "id": "hkmod:ScenePainter",
-      "displayName": "场景画家",
-      "description": "生成游戏中所有场景的SVG图像。可通过按K键手动触发。"
+      "displayName": "ScenePainter",
+      "description": "创建游戏中所有场景的 SVG 图像。可以使用 K 键手动启动。"
     },
     {
       "id": "hkmod:ScreenResolution",
       "displayName": "屏幕分辨率",
-      "description": "增加更多可用的屏幕分辨率选项。"
+      "description": "添加更多可用的屏幕分辨率选项。"
     },
     {
       "id": "hkmod:Screensaver",
-      "displayName": "屏保",
-      "description": "在游戏顶部添加了一个屏幕保护程序。"
+      "displayName": "屏幕保护程序",
+      "description": "在游戏顶部添加屏幕保护程序。"
     },
     {
       "id": "hkmod:ScreenShakeService",
-      "displayName": "屏幕震动服务",
-      "description": "移除屏幕震动：屏幕震动服务仅用于消除空洞骑士中多余的屏幕震动效果，因为这种震动会引发部分玩家不适。"
+      "displayName": "ScreenShakeService",
+      "description": "消除屏幕抖动：屏幕抖动服务仅支持削减勺剑客（空洞骑士）多余的屏幕抖动，因为所述抖动会刺激某些灵魂的神经质。"
     },
     {
       "id": "hkmod:ScreenshotMachine",
-      "displayName": "截图机器",
-      "description": "一个用于更好地制作空洞骑士截图的模组。"
+      "displayName": "ScreenshotMachine",
+      "description": "一个可以更好地创建空洞骑士屏幕截图的模组。"
     },
     {
       "id": "hkmod:SeedSummon",
-      "displayName": "种子召唤",
-      "description": "一个可以召唤生命种子的模组！"
+      "displayName": "SeedSummon",
+      "description": "可以召唤生命种子的模组！"
     },
     {
       "id": "hkmod:Seer",
       "displayName": "先知",
-      "description": "Seer Modded Boss → 先知 Boss 模组"
+      "description": "先知改装Boss"
     },
     {
       "id": "hkmod:Sein",
-      "displayName": "塞恩",
-      "description": "Custom Knight 皮肤“Ori”的配套模组，添加了专属特效。"
+      "displayName": "Sein",
+      "description": "自定义骑士皮肤“Ori”的配套模组，添加特殊效果"
     },
     {
       "id": "hkmod:SFCore",
       "displayName": "SFCore",
-      "description": "其他 Mod 使用的库 Mod。"
+      "description": "多个 Mod 共用的基础依赖库。"
     },
     {
       "id": "hkmod:Shade Lord",
       "displayName": "暗影领主",
-      "description": "在诸神堂中增加暗影之主作为 Boss。"
+      "description": "将暗影领主添加为众神殿中的 Boss"
     },
     {
       "id": "hkmod:ShadeControl",
-      "displayName": "暗影控制",
-      "description": "一个调试增强模组，让你可以控制暗影法术。"
+      "displayName": "ShadeControl",
+      "description": "A DebugAddition 使您可以控制阴影咒语"
     },
     {
       "id": "hkmod:ShadesAnywhere",
-      "displayName": "随处暗影",
-      "description": "梦魇、白色宫殿和神居中可以生成暗影。"
+      "displayName": "ShadesAnywhere",
+      "description": "阴影可以在梦境、白宫和神居中生成"
     },
     {
       "id": "hkmod:ShadeSnail",
-      "displayName": "阴影蜗牛",
-      "description": "生成一个永恒不灭的暗影，它会一直跟随你。"
+      "displayName": "ShadeSnail",
+      "description": "产生一个不朽的阴影，不断跟随你。"
     },
     {
       "id": "hkmod:Shared Health",
-      "displayName": "共享生命",
-      "description": "一个HKMP插件，用于在队伍间同步伤害与治疗。"
+      "displayName": "共享生命值",
+      "description": "HKMP 插件，用于同步团队之间的伤害和治疗。"
     },
     {
       "id": "hkmod:ShieldParry",
-      "displayName": "盾牌格挡",
-      "description": "允许玩家在游戏中使用护盾"
+      "displayName": "ShieldParry",
+      "description": "允许玩家在游戏中使用盾牌"
     },
     {
       "id": "hkmod:ShowFPS",
-      "displayName": "显示帧率",
-      "description": "一个在右下角添加FPS显示的Mod。"
+      "displayName": "ShowFPS",
+      "description": "在右下角添加 FPS 显示的 mod。"
     },
     {
       "id": "hkmod:ShowHPOnDeath",
-      "displayName": "死亡显示血量",
-      "description": "一个允许你在死亡后查看生命值的 Mod。"
+      "displayName": "ShowHPOnDeath",
+      "description": "一个可以让你在死亡后观看hp的mod"
     },
     {
       "id": "hkmod:ShuffledCharmEffects",
-      "displayName": "随机护符效果",
-      "description": "装备的护符将获得随机效果"
+      "displayName": "ShuffledCharmEffects",
+      "description": "装备的护符将具有随机效果"
     },
     {
       "id": "hkmod:ShyKnight",
-      "displayName": "害羞骑士",
-      "description": "移除神居竞技场和愚人斗兽场的观众。"
+      "displayName": "ShyKnight",
+      "description": "将观众从Godhome竞技场和愚人斗兽场中移除"
     },
     {
       "id": "hkmod:SiblingClimb",
-      "displayName": "《手足攀行》",
-      "description": "移除灯塔攀爬中的平台。"
+      "displayName": "SiblingClimb",
+      "description": "从灯塔攀登中移除平台。"
     },
     {
       "id": "hkmod:SilkSong (but not really)",
-      "displayName": "丝之歌（但并非如此）",
-      "description": "允许玩家扮演大黄蜂。"
+      "displayName": "SilkSong（但不是真的）",
+      "description": "让玩家以大黄蜂的形象进行游戏。"
     },
     {
       "id": "hkmod:Silksong Healing",
-      "displayName": "丝之歌治疗",
-      "description": "添加了一个名为“灵魂爆发”的护符，当玩家拥有99点灵魂时，可一次性回复3格血量，类似《丝之歌》中的机制。"
+      "displayName": "丝歌治疗",
+      "description": "添加了一个叫做灵魂爆发的护符，允许玩家在拥有99个灵魂时一次治疗3个面具，类似于丝歌"
     },
     {
       "id": "hkmod:Silksong-Start-Screen",
-      "displayName": "丝绸之歌-启动界面",
-      "description": "这是一个《空洞骑士》模组，将游戏标题界面替换为《丝之歌》主题的启动画面。目前该版本仅替换了标志，未替换背景——主要原因是缺乏高质量资源。为获得最佳视觉效果，建议搭配格林剧团背景使用。"
+      "displayName": "Silksong-Start-Screen",
+      "description": "一个空洞骑士模组，用Silksong主题的开始屏幕取代了游戏的标题屏幕。目前该版本仅更换了logo，并未更换背景——主要是由于缺乏优质资源。为了获得最佳视觉匹配，建议使用格林背景。"
     },
     {
       "id": "hkmod:Sit Button",
-      "displayName": "坐下按钮",
-      "description": "按下按钮即可在任何地方坐下"
+      "displayName": "坐按钮",
+      "description": "按下按钮即可坐在任何地方"
     },
     {
       "id": "hkmod:SkillCharms",
       "displayName": "技能护符",
-      "description": "技能现在可以装备为护符"
+      "description": "技能现在是可装备的护符"
     },
     {
       "id": "hkmod:SkillUpgrades",
       "displayName": "技能升级",
-      "description": "提供一系列骑士技能升级与调整。前往模组菜单启用它们。"
+      "description": "提供了一系列对骑士技能的升级和调整。访问 Mod 菜单来启用它们。"
     },
     {
       "id": "hkmod:SkinBenchRoulette",
-      "displayName": "皮肤长椅轮盘",
-      "description": "每次在长椅上休息时，随机更换你的自定义骑士皮肤！自动检测已下载的皮肤。"
+      "displayName": "SkinBenchRoulette",
+      "description": "每次您坐在长椅上时，都会随机分配您的自定义骑士皮肤！自动检测您下载的皮肤。"
     },
     {
       "id": "hkmod:SkiploverSpoilerLog",
-      "displayName": "跳跃爱好者剧透日志",
-      "description": "在 Rando Logs 目录中创建一个 Skiplover 剧透日志，显示启用所有跳过技巧后可到达的区域。"
+      "displayName": "SkiploverSpiilerLog",
+      "description": "在 Rando Logs 目录中创建一个 Skiplover Spoiler 日志，显示启用所有跳过后可以访问的内容。"
     },
     {
       "id": "hkmod:SkipToRadiance",
-      "displayName": "跳过辐光",
-      "description": "让空洞骑士在败给辐光后直接进入第四阶段。适用于练习模组辐光，或者只是懒得反复打空洞骑士。"
+      "displayName": "SkipToRadiance",
+      "description": "使HK在光辉死亡后立即进入第4阶段。对于练习改装的光辉很有用，或者只是当你太懒惰而无法一遍又一遍地与 HK 战斗时。"
     },
     {
       "id": "hkmod:SlantedKnight",
-      "displayName": "斜角骑士",
-      "description": "骑士会根据其生命值倾斜。"
+      "displayName": "SlantedKnight",
+      "description": "骑士的倾斜取决于其生命值。"
     },
     {
       "id": "hkmod:Smart Nail",
-      "displayName": "智能骨钉",
-      "description": "RandoPlus 的 QoL 模组，可在神居和梦境 Boss 战斗中自动升级你的骨钉。不兼容战斗或诅咒随机模式。"
+      "displayName": "Smart Nail",
+      "description": "RandoPlus 的 Qol mod，它会在 Godhome 和梦想Boss战斗中自动升级你的指甲。不适用于战斗或诅咒兰多。"
     },
     {
       "id": "hkmod:SmashKnight",
-      "displayName": "粉碎骑士",
-      "description": "根据剩余生命值改变骑士的操作方式。"
+      "displayName": "SmashKnight",
+      "description": "根据剩余生命值更改骑士处理方式。"
     },
     {
       "id": "hkmod:SmolKnight",
-      "displayName": "小骑士",
-      "description": "允许改变骑士的大小"
+      "displayName": "SmolKnight",
+      "description": "允许更改骑士的大小"
     },
     {
       "id": "hkmod:Snom",
-      "displayName": "雪诺",
-      "description": "美化模组，将游戏中的提克提克替换为雪吞虫。"
+      "displayName": "Snom",
+      "description": "用 Snoms 替换游戏中 Tiktiks 的化妆品模组"
     },
     {
       "id": "hkmod:Soul Nail on Heavy Blow",
-      "displayName": "沉重打击下的灵魂之钉",
-      "description": "装备沉重之击时，每五次攻击会生成一个暗影分身，对附近敌人发动锐影突袭。"
+      "displayName": "重击灵魂之钉",
+      "description": "每击中 5 次重击，你就会创建一个兄弟姐妹，对附近的敌人产生尖锐的阴影。"
     },
     {
       "id": "hkmod:Soul Paladin",
       "displayName": "灵魂圣骑士",
-      "description": "一个加速灵魂战士战斗并修改其攻击方式的 Mod。"
+      "description": "一个加速灵魂战士战斗并修改其攻击的模组。"
     },
     {
       "id": "hkmod:Soul Sovereign",
-      "displayName": "灵魂主宰",
-      "description": "对灵魂暴君的战斗进行了重制，使其更具挑战性。"
+      "displayName": "灵魂君主",
+      "description": "对灵魂暴君战斗进行了重做，使其更具挑战性。"
     },
     {
       "id": "hkmod:SpamDescendingDark",
-      "displayName": "暗影冲刺",
-      "description": "延长暗影冲刺的无敌时间，使其可以连续使用。"
+      "displayName": "SpamDescendingDark",
+      "description": "增加DDark的无敌性，因此可以不间断地使用"
     },
     {
       "id": "hkmod:SpeedChanger",
-      "displayName": "速度调节器",
-      "description": "加速或减慢游戏速度。这是Sanic模组的一个更可定制、更用户友好的版本。"
+      "displayName": "SpeedChanger",
+      "description": "加快或减慢游戏速度。 Sanic mod 的更可定制和用户友好的版本。"
     },
     {
       "id": "hkmod:SpeedRunQoL",
-      "displayName": "速通生活质量",
-      "description": "一个调试用附加组件，为速通练习添加了提升操作便捷性的新按键绑定。目前包含位置保存状态、故障绑定、强制额外乌姆攻击以及辐光快速重载功能。"
+      "displayName": "SpeedRunQoL",
+      "description": "一个调试插件，添加了新的按键绑定，这些按键绑定是用于速度运行练习的 QoL。目前添加了位置保存状态、故障绑定、强制额外 Uumuu 攻击和光辉快速重装"
     },
     {
       "id": "hkmod:Spell Counter",
       "displayName": "法术计数器",
-      "description": "多种模式的法术计数器模组：法术模式、休闲模式与连锁索罗戈斯模式"
+      "description": "具有多种模式的法术计数器模组：法术、休闲和链式Shorogos"
     },
     {
       "id": "hkmod:SpellChanger",
-      "displayName": "法术切换器",
-      "description": "一个旨在让其他模组更轻松编辑法术和骨钉技艺的库模组。"
+      "displayName": "SpellChanger",
+      "description": "一个库模组，旨在允许其他模组更轻松地编辑咒语和骨钉艺术。"
     },
     {
       "id": "hkmod:SpicyRando",
-      "displayName": "辣味随机化",
-      "description": "随机化模式中特定部分的多种难度提升"
+      "displayName": "SpicyRando",
+      "description": "rando特定部分的各种难度增加"
     },
     {
       "id": "hkmod:SpoilerViewerMod",
-      "displayName": "剧透查看器 Mod",
-      "description": "提供一个Java图形界面，用于浏览随机或计划通关的剧透日志。需要安装Java运行环境。"
+      "displayName": "SpoilerViewerMod",
+      "description": "提供一个 Java GUI，用于导航 randos 或 plandos 的剧透日志。需要安装 Java。"
     },
     {
       "id": "hkmod:SpriteDumper",
-      "displayName": "精灵导出器",
-      "description": "一个用于导出精灵图的模组。每次导出可能需要超过10分钟。按P键开始导出。"
+      "displayName": "SpriteDumper",
+      "description": "一个转储精灵的模组。每次转储可能需要 10 分钟以上。使用 P 键启动转储。"
     },
     {
       "id": "hkmod:SpriteToggler",
-      "displayName": "精灵切换器",
-      "description": "在 F10 键（可配置）上切换设置中定义的对象精灵（默认单个“OC 背景板”）。你可以使用 Unity Explorer 查找对象名称。"
+      "displayName": "SpriteToggler",
+      "description": "在 F10（可配置）上的设置（默认情况下为单个“OC 背板”）中定义的对象上切换精灵。您可以使用 Unity Explorer 查找对象名称"
     },
     {
       "id": "hkmod:StartingNotches",
-      "displayName": "起始槽位",
-      "description": "允许你使用可调节数量的额外护符槽，默认从2个开始。"
+      "displayName": "StartingNotches",
+      "description": "让您可以使用可调节数量的额外 Charm Notches，默认从 2 开始。"
     },
     {
       "id": "hkmod:Static Camera",
-      "displayName": "固定视角",
-      "description": "使用按键绑定锁定摄像机位置。"
+      "displayName": "静态相机",
+      "description": "使用按键绑定将相机锁定到位。"
     },
     {
       "id": "hkmod:Steady Hands (automap)",
-      "displayName": "稳定之手（自动地图）",
-      "description": "稳定骑士的双手，使其能在行走时绘制地图（无需在长椅上休息即可自动更新地图）。与其他修改地图的模组（如 VanillaMapMod 或 RandoMapMod）不兼容，这些模组已具备此功能。"
+      "displayName": "稳定手（自动地图）",
+      "description": "稳定骑士的手，以便他们可以在行走时绘图（自动更新地图，无需在长椅上休息）。与其他地图更改模组不兼容，例如 VanillaMapMod 或 RandoMapMod，它们已经做到了这一点。"
     },
     {
       "id": "hkmod:SteelSoulHUD",
-      "displayName": "钢魂HUD",
-      "description": "在普通模式中启用钢魂 HUD。"
+      "displayName": "SteelSoulHUD",
+      "description": "在正常模式下启用Steel Soul HUD。"
     },
     {
       "id": "hkmod:STFUGrimmChild",
-      "displayName": "闭嘴格林之子",
-      "description": "让格林之子闭嘴"
+      "displayName": "STFUGrimmChild",
+      "description": "使 grimm 孩子 stfu"
     },
     {
       "id": "hkmod:Stop Hitting Yourself",
-      "displayName": "别打自己了",
-      "description": "夜晚变得笨拙"
+      "displayName": "别再打自己了",
+      "description": "让小骑士变得笨手笨脚。"
     },
     {
       "id": "hkmod:StoriesOfaHkPlayer-Ch1",
-      "displayName": "空洞骑士玩家故事-第一章",
-      "description": "一个空洞骑士玩家与其个性化游戏副本的故事开端。"
+      "displayName": "StoriesOfaHkPlayer-Ch1",
+      "description": "空洞骑士玩家及其个性化游戏副本的故事开始。"
     },
     {
       "id": "hkmod:StoriesOfaHkPlayer-Ch2",
-      "displayName": "空洞骑士玩家故事-第二章",
-      "description": "空洞骑士玩家与其个性化游戏副本故事的第二章。\n直播此Mod的玩家请注意：此Mod会显示你的Windows/Mac/Linux用户名。"
+      "displayName": "StoriesOfaHkPlayer-Ch2",
+      "description": "空洞骑士玩家及其个性化游戏副本的故事的第二次迭代。\n对观看此 mod 的用户发出警告：此 mod 显示您的 windows/mac/linux 用户名。"
     },
     {
       "id": "hkmod:StubbornKnight",
-      "displayName": "固执骑士",
-      "description": "固执骑士是一个关于固执骑士的模组。骑士的思维始终锁定在一个方向上；你只能朝它想要的方向攻击。"
+      "displayName": "StubbornKnight",
+      "description": "StubbornKnight 是一个顽固的骑士模组。骑士的思想始终专注于一个方向；你只能朝它想要的方向攻击。"
     },
     {
       "id": "hkmod:Sunset Rad",
-      "displayName": "落日辐光",
-      "description": "模组化辐光"
+      "displayName": "日落辐射度",
+      "description": "调制辐射度"
     },
     {
       "id": "hkmod:SvgLib",
       "displayName": "SvgLib",
-      "description": "用于 .NET Framework 和 .NET Core 的 SVG 解析与合成库。"
+      "description": "适用于 .NET Framework 和 .NET Core 的 SVG 解析器和编写器库。"
     },
     {
       "id": "hkmod:SyncDreamShield",
-      "displayName": "同步梦盾",
-      "description": "同步你的梦之盾与其他HKMP玩家"
+      "displayName": "SyncDreamShield",
+      "description": "将您的梦想之盾与 HKMP 中的其他玩家同步"
     },
     {
       "id": "hkmod:Taxes",
-      "displayName": "税收",
-      "description": "你所有的吉欧"
+      "displayName": "税费",
+      "description": "您的所有吉欧位置意味着您的所有吉欧位置"
     },
     {
       "id": "hkmod:TestOfTeamwork",
-      "displayName": "团队协作测试",
-      "description": "为白宫添加了一段痛苦之路风格的区域。\n首先与德特茅斯及其周边的人物对话。\n这是一个单人游戏模组。“团队合作”指的是游戏内的事件。"
+      "displayName": "TestOfTeamwork",
+      "description": "向白宫添加“痛苦之路”风格部分。\n首先与德茅斯及其周边地区的人们交谈。\n这是一个单人模式。 “团队合作”是指游戏中的活动。"
     },
     {
       "id": "hkmod:Text Randomizer",
-      "displayName": "文本随机化",
-      "description": "随机打乱《空洞骑士》中的所有文本"
+      "displayName": "文本随机生成器",
+      "description": "随机播放《空洞骑士》中的所有文本"
     },
     {
       "id": "hkmod:TextMasher",
-      "displayName": "文本粉碎机",
-      "description": "当你按住骨钉、跳跃或聚集键时，自动跳过文本框。"
+      "displayName": "TextMasher",
+      "description": "如果您按住“钉子”、“跳跃”或“焦点”，则会自动混合文本框。"
     },
     {
       "id": "hkmod:The Glimmering Realm",
-      "displayName": "《微光领域》",
-      "description": "新增一种游戏模式，将圣巢的地图布局、物品和背景故事彻底重塑为一个全新的探索世界——微光领域！加入Discord社区：https://discord.gg/wP2FFY6uAB"
+      "displayName": "微光领域",
+      "description": "添加了一种游戏模式，将圣巢的布局、物品和传说改变为一个全新的探索世界——微光领域！加入 Discord：https://discord.gg/wP2FFY6uAB"
     },
     {
       "id": "hkmod:The H.I.V.E",
-      "displayName": "蜂巢",
-      "description": "一款让蜂巢更具挑战性并加入新背景故事的模组！同时包含经典模组Boss“嗡嗡波”的最新版本！建议（非必需）配合使用EnemyHPBar和HueShifter模组。此为《空洞骑士》模组系列的首部作品。"
+      "displayName": "H.I.V.E",
+      "description": "一个让蜂巢变得更难的模组，有一些新的知识！还包括经典模组 Boss Buzzbo 的最新版本！使用 EnemyHPBar 和 HueShifter 不是必需的，但建议使用。万圣节骑士模组系列的第一部分。"
     },
     {
       "id": "hkmod:The Pain of the Path",
-      "displayName": "《痛苦之路》",
-      "description": "允许玩家反向完成痛苦之路，从最终下落至国王傀儡处上方开始。"
+      "displayName": "痛苦之路",
+      "description": "允许玩家向后完成痛苦之路，从最后掉落到 Kingsmoulds 的上方开始。"
     },
     {
       "id": "hkmod:ThecurseofSly",
-      "displayName": "斯莱的诅咒",
-      "description": "当你获得吉欧时，你会受到伤害或死亡。"
+      "displayName": "狡猾的诅咒",
+      "description": "当你获得geo时，你会受到伤害或死亡。"
     },
     {
       "id": "hkmod:TheGloryOfBeingAFoolRandomizer",
-      "displayName": "愚者之耀随机化",
-      "description": "随机化成为愚者的荣耀。"
+      "displayName": "TheGloryOfBeingAFoolRandomizer",
+      "description": "随机化成为傻瓜的荣耀。"
     },
     {
       "id": "hkmod:TheHuntIsOn",
-      "displayName": "狩猎开始",
-      "description": "一款用于猎人追踪的模组。提供模块来改变游戏对猎人和速通玩家的影响方式。"
+      "displayName": "TheHuntIsOn",
+      "description": "一个用于追捕的模组。提供模块来改变游戏对猎人和快跑者的影响。"
     },
     {
       "id": "hkmod:TheRealJournalRando",
-      "displayName": "真实日志随机化",
-      "description": "Randomizer 4 的附加模组，新增了随机化所有其他猎人日志条目的选项。在 Randomizer 4 的连接菜单中激活。"
+      "displayName": "TheRealJournalRando",
+      "description": "Randomizer 4 插件添加了随机化所有其他猎人日记条目的选项。在 Randomizer 4 的 Connections 菜单中激活。"
     },
     {
       "id": "hkmod:TheRealTransitionRando",
-      "displayName": "真实过渡随机化",
-      "description": "一个随机化连接模组，将过渡点与其他物品放入同一池中。"
+      "displayName": "TheRealTransitionRando",
+      "description": "随机化器连接，将转换放入与其他项目相同的池中"
     },
     {
       "id": "hkmod:Toggle Rando Split Options",
       "displayName": "切换随机分割选项",
-      "description": "这是“可切换绑定”模组的扩展。它为绑定列表新增了分裂之爪、分裂斗篷和诅咒之刃。"
+      "description": "mod 可切换绑定的扩展。它将裂爪、裂开斗篷和诅咒钉添加到绑定列表中。"
     },
     {
       "id": "hkmod:Toggleable Bindings",
-      "displayName": "可切换束缚",
-      "description": "添加了随时单独开启/关闭神居束缚的功能，并让其他开发者更容易创建自定义束缚。"
+      "displayName": "可切换绑定",
+      "description": "添加随时激活/停用单个 Godhome 绑定的功能，并让其他开发人员更轻松地创建自定义绑定。"
     },
     {
       "id": "hkmod:TrandoPlus",
       "displayName": "TrandoPlus",
-      "description": "Randomizer 4 的附加模组，为过渡随机化功能增加了更多选项；例如，可仅随机化门口过渡。"
+      "description": "Randomizer 4 的附加组件，为 Transition Rando 添加更多选项；例如，仅随机化门口过渡。"
     },
     {
       "id": "hkmod:Transcendence",
       "displayName": "超越",
-      "description": "新增15个拥有不同能力的护符，可与随机化模式兼容使用。"
+      "description": "添加15个具有各种能力的新护符。可与随机机一起使用。"
     },
     {
       "id": "hkmod:Transtrans",
-      "displayName": "《跨域传送》",
-      "description": "跨性别权利的提克提克"
+      "displayName": "Transtrans",
+      "description": "跨性别权利的 Tiktiks"
     },
     {
       "id": "hkmod:TreasureHunt",
-      "displayName": "寻宝",
-      "description": "一个用于半剧透模式的随机化4连接。"
+      "displayName": "TreasureHunt",
+      "description": "半剧透格式的随机机 4 连接。"
     },
     {
       "id": "hkmod:Trial of Crusaders",
-      "displayName": "圣骑士试炼",
-      "description": "一款受《死亡细胞》、《以撒的结合》和《蓝王子》启发的Roguelike模组。"
+      "displayName": "十字军试炼",
+      "description": "一款受《死亡细胞》、《以撒的结合》和《蓝色王子》启发的 Rogue-like 模组。"
     },
     {
       "id": "hkmod:TribeOfBattle",
-      "displayName": "战斗部族",
-      "description": "基于战斗姐妹和背叛领主设计的Boss。"
+      "displayName": "TribeOfBattle",
+      "description": "基于战斗姐妹和叛徒领主的 Boss"
     },
     {
       "id": "hkmod:Twister Indicator",
       "displayName": "扭曲指示器",
-      "description": "当装备法术扭曲者护符时，为你的灵魂槽添加灰色色调（可自定义）。"
+      "description": "当你可以使用法术扭曲符咒语时，为你的灵魂栏添加灰色色调（可以自定义）"
     },
     {
       "id": "hkmod:U-tils",
-      "displayName": "U工具",
-      "description": "U-tale 制作与使用的实用工具"
+      "displayName": "U-tils",
+      "description": "U-tale 提供的实用程序"
     },
     {
       "id": "hkmod:UltimateChickenKnight",
-      "displayName": "终极鸡骑士",
-      "description": "在《空洞骑士》中实现《超级鸡马》玩法，需使用HKMP与建筑师Mod。"
+      "displayName": "UltimateChickenKnight",
+      "description": "《空洞骑士》中的终极鸡马，使用 HKMP 和 Architect mod。"
     },
     {
       "id": "hkmod:UnconstrainedRotation",
-      "displayName": "无限制旋转",
-      "description": "骑士可以自由旋转"
+      "displayName": "无约束旋转",
+      "description": "解除方向限制，让小骑士能够任意旋转。"
     },
     {
       "id": "hkmod:Uneated Grubs",
-      "displayName": "未食幼虫",
-      "description": "让幼虫之家里的幼虫保持原样，不让幼虫父亲吃掉它们。"
+      "displayName": "未吃的幼虫",
+      "description": "将幼虫保留在幼虫之家中，而不会被幼虫父亲吃掉。"
     },
     {
       "id": "hkmod:Unity Explorer",
-      "displayName": "Unity 探索器",
-      "description": "供模组开发者使用的实用工具，用于查看和编辑游戏结构。"
+      "displayName": "Unity Explorer",
+      "description": "Mod 开发人员查看和编辑游戏结构的有用工具。"
     },
     {
       "id": "hkmod:UnityExplorerPlus",
-      "displayName": "Unity探索者增强版",
-      "description": "一个为 UnityExplorer 添加功能的模组"
+      "displayName": "UnityExplorerPlus",
+      "description": "为 UnityExplorer 添加功能的 mod"
     },
     {
       "id": "hkmod:UnlimitedHiveblood",
       "displayName": "无限蜂巢之血",
-      "description": "为蜂巢之血与国王之魂/虚空之心添加协同效果，实现无限再生。"
+      "description": "增加蜂巢之血和王魂/虚空之心之间的协同作用，以实现无限的再生"
     },
     {
       "id": "hkmod:UnlimitedShades",
-      "displayName": "无限暗影",
-      "description": "多个暗影可以共存，因此吉欧永远不会真正丢失。"
+      "displayName": "无限阴影",
+      "description": "多种阴影可以共存，因此吉欧永远不会真正丢失。"
     },
     {
       "id": "hkmod:UnRando",
-      "displayName": "非随机化",
-      "description": "一个 Rando 4 连接补丁，用于修复随机物品的获取顺序。"
+      "displayName": "UnRando",
+      "description": "Rando 4 连接，固定获取随机项的顺序。"
     },
     {
       "id": "hkmod:UnrestrictedSteelSoul",
-      "displayName": "无限制钢魂",
-      "description": "一个《空洞骑士》模组，在钢魂模式下游玩时，会在梦境/神居区域启用永久死亡机制。"
+      "displayName": "UnrestrictedSteelSoul",
+      "description": "空洞骑士模组，在钢铁灵魂模式下玩时，可以在梦想/神之家区域实现永久死亡。"
     },
     {
       "id": "hkmod:Upgraded DreamShield",
       "displayName": "升级版梦之盾",
-      "description": "将梦之护盾变成一种可以阻挡激光的弓。"
+      "description": "将梦之盾变成一把可以阻挡激光的弓。"
     },
     {
       "id": "hkmod:Uumuu Hack",
-      "displayName": "乌姆乌破解",
-      "description": "此模组将使乌姆在第二循环及之后，奎若打破其护盾前仅攻击一次。"
+      "displayName": "Uumuu Hack",
+      "description": "这个mod将使Uumuu在Quirrel从第二个周期开始弹出其护盾之前只攻击一次。"
     },
     {
       "id": "hkmod:Uumuu Plus",
-      "displayName": "乌姆乌姆加强版",
-      "description": "乌姆乌姆已略微增强"
+      "displayName": "Uumuu Plus",
+      "description": "Uumuu 已略有增强"
     },
     {
       "id": "hkmod:Vampire Knight",
       "displayName": "吸血鬼骑士",
-      "description": "A.. 吸血意志！"
+      "description": "A..吸血会！"
     },
     {
       "id": "hkmod:Vanilla Map Mod",
-      "displayName": "原版地图 Mod",
-      "description": "将所有物品/地点添加到现有地图中。"
+      "displayName": "香草地图模组",
+      "description": "将所有项目/位置添加到现有地图。"
     },
     {
       "id": "hkmod:Vasi",
-      "displayName": "瓦西",
-      "description": "一个包含一些实用类的库。"
+      "displayName": "Vasi",
+      "description": "带有一些实用程序类的库。"
     },
     {
       "id": "hkmod:VendorRando",
-      "displayName": "商人随机",
-      "description": "一个随机化模组的扩展，用于随机化商贩的物理位置。"
+      "displayName": "VendorRando",
+      "description": "随机化供应商物理位置的附加组件"
     },
     {
       "id": "hkmod:VengeflyBombardier",
-      "displayName": "复仇蝇轰炸者",
-      "description": "《复仇蝇轰炸者》是一款《空洞骑士》模组，它将复仇蝇之王改造成更具攻击性的Boss战。"
+      "displayName": "VengeflyBombardier",
+      "description": "VengeflyBombardier 是一个空洞骑士模组，可将 Vengefly King 变成更具攻击性的 Boss 遭遇战。"
     },
     {
       "id": "hkmod:Vessel May Cry",
-      "displayName": "《容器之泣》",
-      "description": "一个彻底重制骑士动作模组以匹配维吉尔的Mod。建议阅读Mod页面。"
+      "displayName": "Vessel May Cry",
+      "description": "一个修改骑士的移动设置以匹配维吉尔的模组。建议阅读模组页面。"
     },
     {
       "id": "hkmod:Vietnamese Lang",
-      "displayName": "越南语语言包",
-      "description": "添加越南语。空洞骑士越南语化。"
+      "displayName": "越南语",
+      "description": "添加越南语。空洞骑士 越化"
     },
     {
       "id": "hkmod:VoiceToCrySuffering",
-      "displayName": "苦难之音",
-      "description": "对纯粹容器战斗的小调整"
+      "displayName": "VoiceToCrySuffering",
+      "description": "对 Pure Vessel 战斗的一个小调整"
     },
     {
       "id": "hkmod:VoidAndSoul",
-      "displayName": "虚空与灵魂",
-      "description": "这个模组通过0槽护符“虚空与灵魂”增加了RPG机制。"
+      "displayName": "VoidAndSoul",
+      "description": "这个模组通过 0 级护符 Void & Soul 添加了 RPG 机制。"
     },
     {
       "id": "hkmod:VoidHeartMenu",
-      "displayName": "虚空之心菜单",
-      "description": "让虚空之心版文字在PC版游戏中显示。"
+      "displayName": "VoidHeartMenu",
+      "description": "使Voidheart版本文本出现在游戏的PC版本上。"
     },
     {
       "id": "hkmod:WanderersWisdom",
-      "displayName": "流浪者智慧",
-      "description": "一个添加了2个新护符的Mod：流浪者的智慧与流浪者的狡黠。"
+      "displayName": "WanderersWisdom",
+      "description": "该模组添加了 2 个新护符：Wanderer's Wisdom 和 Wanderer's Guile。"
     },
     {
       "id": "hkmod:WavLib",
       "displayName": "WavLib",
-      "description": "一个用于读写WAV文件的库。"
+      "description": "用于读取和写入 WAV 文件的库。"
     },
     {
       "id": "hkmod:WeaverCore",
-      "displayName": "织者核心",
-      "description": "WeaverCore 核心模组，为诸如《地狱之王格林》和《腐化之亲》等模组提供必要支持。"
+      "displayName": "WeaverCore",
+      "description": "使用 WeaverCore 构建的模组所需的核心模组，例如 Inferno King Grimm 和 Corrupted Kin"
     },
     {
       "id": "hkmod:WebPCodec",
-      "displayName": "WebP编解码器",
-      "description": "为 Texture2D 添加 WebP 编解码支持"
+      "displayName": "WebPCodec",
+      "description": "Texture2D 的 WebP 编解码器支持"
     },
     {
       "id": "hkmod:WhatTheMoth",
-      "displayName": "什么蛾子",
-      "description": "一款致敬《西蒙说》的空洞骑士Mod，违抗辐光法官的命令会直接把你传送到辐光竞技场——顺带一提，这个Mod是西班牙语的。"
+      "displayName": "WhatTheMoth",
+      "description": "一个受西蒙说启发的空洞骑士模组，其中服从光辉法官会带你直接进入光辉竞技场，顺便说一下，MOD 是西班牙语的。"
     },
     {
       "id": "hkmod:WideCamera",
-      "displayName": "宽视角相机",
-      "description": "实现超宽屏无黑边显示。理论上也应适用于比16:9更窄或更高的屏幕比例。"
+      "displayName": "WideCamera",
+      "description": "使超宽屏幕成为可能，没有黑条。也适用于比 16:9 更瘦/更高的人。理论上来说。"
     },
     {
       "id": "hkmod:Wingy",
-      "displayName": "翼行者",
-      "description": "为无爪宾基社区制作的补充模组"
+      "displayName": "Wingy",
+      "description": "无爪宾吉社区的补充模组"
     },
     {
       "id": "hkmod:WorseSteadyBody",
-      "displayName": "更差稳定之体",
-      "description": "稳定之躯现在拥有更一致的效果"
+      "displayName": "WorseSteadyBody",
+      "description": "Steady Body 现在具有更一致的效果"
     },
     {
       "id": "hkmod:WrathOfTheSwarm",
-      "displayName": "虫群之怒",
-      "description": "将聚集虫群作为武器使用"
+      "displayName": "WrathOfTheSwarm",
+      "description": "使用聚集群作为武器"
     },
     {
       "id": "hkmod:Wrong Gravity",
-      "displayName": "错误重力",
-      "description": "圣巢？Hɐlloʍuǝsʇ！"
+      "displayName": "重力错误",
+      "description": "圣巢？你好！"
     },
     {
       "id": "hkmod:YetAnotherRandoConnection",
-      "displayName": "又一个随机连接",
-      "description": "一个随机化模组的扩展包，包含多种新增内容"
+      "displayName": "YetAnotherRandoConnection",
+      "description": "带有各种附加功能的随机机附加组件"
     },
     {
       "id": "hkmod:ZaliantsSurprise",
-      "displayName": "扎利安的惊喜",
-      "description": "这是 Zaliant 提出的一个 Mod 创意。\n原描述：\n这是苍白庭院 Mod。\n尽情享受吧！"
+      "displayName": "ZaliantsSurprise",
+      "description": "这是 Zaliant 的模组创意。\n以前的描述：\n这是 Pale Court 模组。\n享受！"
     },
     {
       "id": "hkmod:Zen Charm",
-      "displayName": "禅意护符",
-      "description": "添加一个护符，让你无需在长椅上就能更换其他护符。"
+      "displayName": "Zen Charm",
+      "description": "添加一个Charm，允许您不在长椅上时更改其他Charm"
     },
     {
       "id": "hkmod:Zote Killer",
       "displayName": "佐特杀手",
-      "description": "允许你在竞技场中击杀左特"
+      "description": "允许你在斗兽场杀死佐特"
     },
     {
       "id": "hkmod:ZoteCollectorHelper",
-      "displayName": "左特收集助手",
-      "description": "对灰色王子佐特和飞升收藏家进行了调整，例如佐特幼虫的生命值等。"
+      "displayName": "ZoteCollectorHelper",
+      "description": "调整灰王子佐特和提升的收藏家，比如佐特林的生命值等等。"
     }
   ]
 }

@@ -83,12 +83,12 @@ public sealed class ModInstallServiceTests : IDisposable
         var wrong = CreateService(Instance(), [Manifest("feature", "bepinex-5.4.23.4")]);
         Assert.Equal(ModInstallReadiness.Blocked, (await wrong.EvaluateAsync("feature")).Status);
 
-        Directory.CreateDirectory(Path.Combine(InstanceRoot, "BepInEx"));
+        await File.WriteAllTextAsync(Path.Combine(InstanceRoot, "winhttp.dll"), "doorstop");
         var conflict = CreateService(Instance(), [Manifest("feature", "modding-api-77")]);
         Assert.Equal(ModInstallReadiness.Blocked, (await conflict.EvaluateAsync("feature")).Status);
 
         File.Delete(LoaderReceiptPath);
-        Directory.Delete(Path.Combine(InstanceRoot, "BepInEx"), recursive: true);
+        File.Delete(Path.Combine(InstanceRoot, "winhttp.dll"));
         var drifted = CreateService(Instance(), [Manifest("feature", "modding-api-77")]);
         Assert.Equal(ModInstallReadiness.Blocked, (await drifted.EvaluateAsync("feature")).Status);
     }
@@ -128,7 +128,7 @@ public sealed class ModInstallServiceTests : IDisposable
             [Manifest("feature", "modding-api-77", packagePath: package)],
             client);
         Assert.Equal(ModInstallReadiness.Ready, (await service.EvaluateAsync("feature")).Status);
-        Directory.CreateDirectory(Path.Combine(InstanceRoot, "BepInEx"));
+        await File.WriteAllTextAsync(Path.Combine(InstanceRoot, "winhttp.dll"), "doorstop");
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.InstallAsync("feature"));
 

@@ -11,7 +11,7 @@ public sealed class LoaderStateDetectorTests : IDisposable
     private readonly string root = Path.Combine(Path.GetTempPath(), $"crystalfly-loader-{Guid.NewGuid():N}");
 
     [Fact]
-    public async Task Detect_distinguishes_vanilla_verified_loaders_and_conflicts()
+    public async Task Detect_does_not_treat_the_mods_directory_as_a_second_loader()
     {
         Directory.CreateDirectory(root);
         Assert.Equal(LoaderState.Vanilla, await LoaderStateDetector.DetectAsync(root, null));
@@ -21,6 +21,37 @@ public sealed class LoaderStateDetectorTests : IDisposable
         Assert.Equal(LoaderState.BepInEx, await LoaderStateDetector.DetectAsync(root, receipt));
 
         Directory.CreateDirectory(Path.Combine(root, "hollow_knight_Data", "Managed", "Mods"));
+        Assert.Equal(LoaderState.BepInEx, await LoaderStateDetector.DetectAsync(root, receipt));
+
+        CreateFile("hollow_knight_Data/Managed/MMHOOK_Assembly-CSharp.dll", "hook");
+        Assert.Equal(LoaderState.Conflict, await LoaderStateDetector.DetectAsync(root, receipt));
+    }
+
+    [Fact]
+    public async Task Inspect_allows_external_BepInEx_with_a_leftover_mods_directory()
+    {
+        var source = typeof(LoaderStateDetector).Assembly.Location;
+        var core = Path.Combine(root, "BepInEx", "core", "BepInEx.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(core)!);
+        File.Copy(source, core);
+        Directory.CreateDirectory(Path.Combine(root, "hollow_knight_Data", "Managed", "Mods"));
+
+        var inspection = await LoaderStateDetector.InspectAsync(root, null);
+
+        Assert.Equal(LoaderState.BepInEx, inspection.State);
+        Assert.Equal(LoaderOwnership.External, inspection.Ownership);
+    }
+
+    [Fact]
+    public async Task Detect_does_not_treat_an_empty_bepinex_directory_as_a_second_loader()
+    {
+        var hook = CreateFile("hollow_knight_Data/Managed/MMHOOK_Assembly-CSharp.dll", "hook");
+        var receipt = Receipt("modding-api-78", LoaderState.ModdingApi, hook, "hook");
+        Directory.CreateDirectory(Path.Combine(root, "BepInEx"));
+
+        Assert.Equal(LoaderState.ModdingApi, await LoaderStateDetector.DetectAsync(root, receipt));
+
+        CreateFile("winhttp.dll", "doorstop");
         Assert.Equal(LoaderState.Conflict, await LoaderStateDetector.DetectAsync(root, receipt));
     }
 

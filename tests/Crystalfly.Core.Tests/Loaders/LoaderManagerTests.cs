@@ -192,8 +192,10 @@ public sealed class LoaderManagerTests : IDisposable
     public async Task Conflict_stops_loader_install_before_files_are_overwritten()
     {
         var manager = CreateManager();
-        Directory.CreateDirectory(Path.Combine(InstanceRoot, "BepInEx"));
-        Directory.CreateDirectory(Path.Combine(InstanceRoot, "hollow_knight_Data", "Managed", "Mods"));
+        await File.WriteAllTextAsync(Path.Combine(InstanceRoot, "winhttp.dll"), "doorstop");
+        var managed = Path.Combine(InstanceRoot, "hollow_knight_Data", "Managed");
+        Directory.CreateDirectory(managed);
+        await File.WriteAllTextAsync(Path.Combine(managed, "MMHOOK_TeamCherry.Test.dll"), "hook");
         var package = CreateZip(("MMHOOK_Assembly-CSharp.dll", "api"));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>

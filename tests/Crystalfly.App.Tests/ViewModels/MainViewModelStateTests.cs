@@ -476,7 +476,7 @@ public sealed class MainViewModelStateTests : IDisposable
         var applicationDataRoot = test.CreateDirectory("app-data");
         var versionRoot = test.CreateDirectory("versions");
         var instanceRoot = test.CreateDirectory("versions", "1578");
-        Directory.CreateDirectory(Path.Combine(instanceRoot, "hollow_knight_Data", "Managed", "Mods"));
+        InstallExternalModdingApi(instanceRoot);
         var loader = new LoaderManifest
         {
             Id = "modding-api-77",
@@ -522,7 +522,7 @@ public sealed class MainViewModelStateTests : IDisposable
         using var test = new TestDirectory();
         var instanceRoot = test.CreateDirectory("versions", "1578");
         InstallExternalBepInEx(instanceRoot);
-        Directory.CreateDirectory(Path.Combine(instanceRoot, "hollow_knight_Data", "Managed", "Mods"));
+        InstallExternalModdingApi(instanceRoot);
         var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
         await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
         {
@@ -2475,6 +2475,13 @@ public sealed class MainViewModelStateTests : IDisposable
         var coreRoot = Path.Combine(instanceRoot, "BepInEx", "core");
         Directory.CreateDirectory(coreRoot);
         File.Copy(typeof(MainViewModel).Assembly.Location, Path.Combine(coreRoot, "BepInEx.dll"));
+    }
+
+    private static void InstallExternalModdingApi(string instanceRoot)
+    {
+        var managedRoot = Path.Combine(instanceRoot, "hollow_knight_Data", "Managed");
+        Directory.CreateDirectory(managedRoot);
+        File.WriteAllText(Path.Combine(managedRoot, "MMHOOK_Assembly-CSharp.dll"), "hook");
     }
 
     private static void InvokeRebuildSettingOptions(MainViewModel viewModel)

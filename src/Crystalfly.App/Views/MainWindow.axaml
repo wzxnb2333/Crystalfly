@@ -2095,8 +2095,7 @@
                                         <TextBlock Classes="cfp-section-title" Text="{Binding Loc[AboutModCatalogAndTranslations]}" />
                                         <TextBlock Classes="cfp-caption" Text="{Binding Loc[AboutModCatalogAndTranslationsDescription]}" TextWrapping="Wrap" />
                                         <WrapPanel>
-                                            <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/hk-modding/modlinks" Click="OpenExternalUrl"><TextBlock Text="HK ModLinks" /></Button>
-                                            <Button Classes="cfp-link" Tag="https://space.bilibili.com/538844794" Click="OpenExternalUrl"><TextBlock Text="MioSS- · Bilibili" /></Button>
+                                            <Button Classes="cfp-link" Tag="https://github.com/hk-modding/modlinks" Click="OpenExternalUrl"><TextBlock Text="HK ModLinks" /></Button>
                                         </WrapPanel>
                                     </StackPanel>
                                 </Border>

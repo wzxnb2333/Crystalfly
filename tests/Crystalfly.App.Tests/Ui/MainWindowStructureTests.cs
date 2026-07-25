@@ -233,8 +233,7 @@ public sealed class MainWindowStructureTests
                      "https://github.com/SteamRE/SteamKit",
                      "https://github.com/dme-compunet/Lucide.Avalonia",
                      "https://github.com/Kryptos-FR/MarkView.Avalonia",
-                     "https://github.com/hk-modding/modlinks",
-                     "https://space.bilibili.com/538844794"
+                     "https://github.com/hk-modding/modlinks"
                  })
         {
             Assert.Contains(about.Descendants(Avalonia + "Button"), button =>
