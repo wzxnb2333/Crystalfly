@@ -253,6 +253,8 @@ public partial class MainWindow : Window
     }
 
     private static readonly TimeSpan PageEntranceDuration = TimeSpan.FromMilliseconds(180);
+    private static readonly TimeSpan MicroInteractionDuration = TimeSpan.FromMilliseconds(120);
+    private const double PageEntranceOffset = 6d;
 
     private void SubscribeEntranceAnimations()
     {
@@ -261,10 +263,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        foreach (var control in this.GetVisualDescendants().OfType<Control>().Where(control =>
-                     control.Classes.Contains("cfp-page")
-                     || control.Classes.Contains("cfp-tab-panel")
-                     || control.Classes.Contains("cfp-mod-bulk-bar")))
+        foreach (var control in this.GetVisualDescendants().OfType<Control>().Where(IsEntranceAnimationTarget))
         {
             entranceAnimationTargets.Add(control);
             control.PropertyChanged += OnEntranceTargetPropertyChanged;
@@ -272,6 +271,33 @@ public partial class MainWindow : Window
             {
                 _ = RunEntranceAnimationAsync(control);
             }
+        }
+
+        ConfigureMicroInteractionTransitions();
+    }
+
+    private static bool IsEntranceAnimationTarget(Control control) =>
+        control.Classes.Contains("cfp-tab-panel")
+        || control.Classes.Contains("cfp-mod-bulk-bar")
+        || (control.Classes.Contains("cfp-page")
+            && !control.GetVisualDescendants().OfType<Control>().Any(descendant => descendant.Classes.Contains("cfp-tab-panel")));
+
+    private void ConfigureMicroInteractionTransitions()
+    {
+        foreach (var control in this.GetVisualDescendants().OfType<Control>().Where(control =>
+                     control.Classes.Contains("cfp-local-nav")
+                     || control.Classes.Contains("cfp-installed-mod-actions")
+                     || control.Classes.Contains("cfp-installed-mod-accent")))
+        {
+            control.Transitions = new Transitions
+            {
+                new DoubleTransition
+                {
+                    Property = Visual.OpacityProperty,
+                    Duration = MicroInteractionDuration,
+                    Easing = new CubicEaseOut()
+                }
+            };
         }
     }
 
@@ -289,6 +315,9 @@ public partial class MainWindow : Window
     private static async Task RunEntranceAnimationAsync(Control control)
     {
         control.Opacity = 0;
+        var existingRenderTransform = control.RenderTransform;
+        var entranceTransform = new TranslateTransform { Y = PageEntranceOffset };
+        control.RenderTransform = entranceTransform;
         var animation = new Animation
         {
             Duration = PageEntranceDuration,
@@ -308,12 +337,36 @@ public partial class MainWindow : Window
                 }
             }
         };
+        var motionAnimation = new Animation
+        {
+            Duration = PageEntranceDuration,
+            Easing = new CubicEaseOut(),
+            FillMode = FillMode.Forward,
+            Children =
+            {
+                new KeyFrame
+                {
+                    Cue = new Cue(0),
+                    Setters = { new Setter(TranslateTransform.YProperty, PageEntranceOffset) }
+                },
+                new KeyFrame
+                {
+                    Cue = new Cue(1),
+                    Setters = { new Setter(TranslateTransform.YProperty, 0d) }
+                }
+            }
+        };
+
         try
         {
-            await animation.RunAsync(control);
+            await Task.WhenAll(animation.RunAsync(control), motionAnimation.RunAsync(entranceTransform));
         }
         finally
         {
+            if (ReferenceEquals(control.RenderTransform, entranceTransform))
+            {
+                control.RenderTransform = existingRenderTransform;
+            }
             if (control.IsVisible)
             {
                 control.Opacity = 1;

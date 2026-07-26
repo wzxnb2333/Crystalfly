@@ -96,7 +96,41 @@ public sealed class MainWindowStructureTests
         Assert.Contains("SubscribeEntranceAnimations();", code, StringComparison.Ordinal);
         Assert.Contains("AreClientAreaAnimationsEnabled()", code, StringComparison.Ordinal);
         Assert.Contains("TimeSpan.FromMilliseconds(180)", code, StringComparison.Ordinal);
+        Assert.Contains("PageEntranceOffset", code, StringComparison.Ordinal);
+        Assert.Contains("TranslateTransform.YProperty", code, StringComparison.Ordinal);
+        Assert.Contains("IsEntranceAnimationTarget", code, StringComparison.Ordinal);
+        Assert.Contains("ConfigureMicroInteractionTransitions", code, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(120)", code, StringComparison.Ordinal);
         Assert.Contains("Visual.OpacityProperty", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Shared_rails_stretch_navigation_to_their_inner_edges()
+    {
+        var document = LoadMainWindow();
+        foreach (var section in new[] { "IsManagePage", "IsDownloadsPage", "IsSettingsPage" })
+        {
+            var rail = FindSectionRoot(document, section)
+                .Descendants(Avalonia + "Border")
+                .Single(border => HasClass(border, "cfp-rail"));
+            var nav = rail.Descendants(Avalonia + "StackPanel")
+                .Single(panel => HasClass(panel, "cfp-manage-nav"));
+
+            Assert.Equal("8,16", (string?)rail.Attribute("Padding"));
+            Assert.NotEmpty(nav.Elements(Avalonia + "Button"));
+            Assert.All(nav.Elements(Avalonia + "Button"), button => Assert.True(HasClass(button, "cfp-local-nav")));
+        }
+
+        var theme = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Styles",
+            "CrystalflyTheme.axaml"));
+        Assert.Contains("StackPanel.cfp-manage-nav", theme, StringComparison.Ordinal);
+        Assert.Contains("<Setter Property=\"HorizontalAlignment\" Value=\"Stretch\" />", theme, StringComparison.Ordinal);
+        Assert.DoesNotContain("Grid.cfp-manage-nav", theme, StringComparison.Ordinal);
+        Assert.DoesNotContain("Border.cfp-download-rail Button.cfp-local-nav TextBlock", theme, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -135,7 +169,9 @@ public sealed class MainWindowStructureTests
         Assert.Contains(modList.Descendants(Avalonia + "TextBlock"), text => HasClass(text, "cfp-installed-mod-name") && HasBinding(text, "Classes.disabled", "IsEnabled"));
         Assert.Contains(modList.Descendants(Avalonia + "StackPanel"), panel => HasClass(panel, "cfp-installed-mod-actions"));
         Assert.Contains(modList.Descendants(Avalonia + "Grid"), row =>
-            HasClass(row, "cfp-installed-mod-row") && HasBinding(row, "Classes.selected", "IsSelected"));
+            HasClass(row, "cfp-installed-mod-row")
+            && HasBinding(row, "Classes.selected", "IsSelected")
+            && (string?)row.Attribute("Background") == "Transparent");
 
         var quickActions = manageGrid.Descendants(Avalonia + "WrapPanel").Single(panel => HasClass(panel, "cfp-mod-quick-actions"));
         Assert.Equal(6, quickActions.Elements(Avalonia + "Button").Count());

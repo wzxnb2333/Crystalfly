@@ -353,6 +353,7 @@
         <Setter Property="CornerRadius" Value="6" />
         <Setter Property="Padding" Value="8,6" />
         <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
         <Setter Property="MinHeight" Value="36" />
     </Style>
 
@@ -373,7 +374,14 @@
         <Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}" />
     </Style>
 
-    <Style Selector="Border.cfp-download-rail Button.cfp-local-nav TextBlock">
+    <Style Selector="Button.cfp-local-nav:pressed">
+        <Setter Property="Opacity" Value="0.86" />
+        <Setter Property="RenderTransform">
+            <TranslateTransform Y="1" />
+        </Setter>
+    </Style>
+
+    <Style Selector="Button.cfp-local-nav TextBlock">
         <Setter Property="MinWidth" Value="109" />
     </Style>
 
@@ -517,7 +525,7 @@
     <Style Selector="TextBlock.cfp-installed-mod-name.disabled"><Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}"/><Setter Property="TextDecorations" Value="Strikethrough"/></Style>
     <Style Selector="Button.cfp-download-fab"><Setter Property="CornerRadius" Value="22"/><Setter Property="Padding" Value="0"/><Setter Property="MinHeight" Value="44"/><Setter Property="MinWidth" Value="44"/></Style>
     <Style Selector="Border.cfp-latency-result"><Setter Property="Padding" Value="8,6"/><Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}"/><Setter Property="CornerRadius" Value="6"/></Style>
-    <Style Selector="Grid.cfp-manage-nav"><Setter Property="HorizontalAlignment" Value="Stretch"/></Style>
+    <Style Selector="StackPanel.cfp-manage-nav"><Setter Property="HorizontalAlignment" Value="Stretch"/></Style>
 
     <Style Selector="ListBox.cfp-installed-mod-list > ListBoxItem"><Setter Property="MinHeight" Value="40"/><Setter Property="Padding" Value="5,3"/></Style>
     <Style Selector="ListBox.cfp-installed-mod-list > ListBoxItem:selected"><Setter Property="Background" Value="Transparent"/></Style>
