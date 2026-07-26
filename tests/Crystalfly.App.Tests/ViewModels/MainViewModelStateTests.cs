@@ -231,7 +231,7 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
-    public async Task Refresh_runs_version_directory_discovery_off_the_calling_thread()
+    public async Task Refresh_returns_while_version_directory_discovery_is_still_running()
     {
         using var test = new TestDirectory();
         var versionRoot = test.CreateDirectory("versions");
@@ -239,36 +239,54 @@ public sealed class MainViewModelStateTests : IDisposable
         {
             VersionRoot = versionRoot
         };
-        var callingThread = Environment.CurrentManagedThreadId;
-        var discoveryThread = 0;
         var discoveryStarted = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
-        var releaseDiscovery = new TaskCompletionSource<IReadOnlyList<InstanceRecord>>(
+        var releaseDiscovery = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
         SetPrivateField(
             viewModel,
             "instanceDiscovery",
             new Func<string, GameCatalog, CancellationToken, Task<IReadOnlyList<InstanceRecord>>>(
-                async (_, _, cancellationToken) =>
+                (_, _, cancellationToken) =>
                 {
-                    discoveryThread = Environment.CurrentManagedThreadId;
                     discoveryStarted.TrySetResult();
-                    return await releaseDiscovery.Task.WaitAsync(cancellationToken);
+                    releaseDiscovery.Task.Wait(cancellationToken);
+                    return Task.FromResult<IReadOnlyList<InstanceRecord>>([]);
                 }));
+
+        Task? refresh = null;
+        var refreshReturned = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var invokeThread = new Thread(() =>
+        {
+            try
+            {
+                refresh = InvokeRefreshAsync(viewModel);
+                refreshReturned.TrySetResult();
+            }
+            catch (Exception exception)
+            {
+                refreshReturned.TrySetException(exception);
+            }
+        })
+        {
+            IsBackground = true
+        };
 
         try
         {
-            var refresh = InvokeRefreshAsync(viewModel);
+            invokeThread.Start();
             await discoveryStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await refreshReturned.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-            Assert.NotEqual(callingThread, discoveryThread);
-
-            releaseDiscovery.TrySetResult([]);
+            releaseDiscovery.TrySetResult();
+            Assert.NotNull(refresh);
             await refresh.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(invokeThread.Join(TimeSpan.FromSeconds(5)));
         }
         finally
         {
-            releaseDiscovery.TrySetResult([]);
+            releaseDiscovery.TrySetResult();
         }
     }
 
