@@ -224,16 +224,6 @@ public static class LaunchPreflightEvaluator
                     report.ModifiedFiles,
                     report.CurrentFileSha256ByPath);
             }
-            if (report.Status == ModHealthStatus.ExtraFile || report.ExtraFiles.Count != 0)
-            {
-                AddFileIssues(
-                    issues,
-                    LaunchIssueCode.ModExtraFile,
-                    LaunchIssueSeverity.Warning,
-                    report.ModId,
-                    report.ExtraFiles,
-                    report.CurrentFileSha256ByPath);
-            }
             if (report.Status == ModHealthStatus.UnmanagedExternal)
             {
                 AddFileIssues(

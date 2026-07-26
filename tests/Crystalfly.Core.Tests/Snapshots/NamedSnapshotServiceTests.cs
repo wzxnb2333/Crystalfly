@@ -1,5 +1,6 @@
 using Crystalfly.Core.LocalLow;
 using Crystalfly.Core.Runtime;
+using Crystalfly.Core.Serialization;
 using Crystalfly.Core.Snapshots;
 
 namespace Crystalfly.Core.Tests.Snapshots;
@@ -7,25 +8,37 @@ namespace Crystalfly.Core.Tests.Snapshots;
 public sealed class NamedSnapshotServiceTests
 {
     [Fact]
-    public async Task Create_and_restore_preserve_named_snapshot_permanently_and_restore_exact_directory()
+    public async Task Create_and_restore_only_save_files_without_changing_other_instance_data()
     {
         using var test = new TestDirectory();
         var storage = test.CreateDirectory("version", ".crystalfly");
         var instance = test.CreateDirectory(
             "version", ".crystalfly", "instances", "practice", "local-low");
         await test.WriteAsync(instance, "user1.dat", "before-boss");
+        await test.WriteAsync(instance, "user1.dat.bak1", "before-boss-backup");
         await test.WriteAsync(instance, "settings.json", "settings-before");
         var service = CreateService(storage);
 
         var snapshot = await service.CreateAsync("practice", "Before Watcher Knights");
+        Assert.True(File.Exists(Path.Combine(snapshot.SnapshotPath, "user1.dat")));
+        Assert.True(File.Exists(Path.Combine(snapshot.SnapshotPath, "user1.dat.bak1")));
+        Assert.False(File.Exists(Path.Combine(snapshot.SnapshotPath, "settings.json")));
+
         await File.WriteAllTextAsync(Path.Combine(instance, "user1.dat"), "after-boss");
+        await File.WriteAllTextAsync(Path.Combine(instance, "user1.dat.bak1"), "after-boss-backup");
+        await File.WriteAllTextAsync(Path.Combine(instance, "settings.json"), "settings-after");
+        await test.WriteAsync(instance, "user2.dat", "new-slot");
         await test.WriteAsync(instance, "later-file.json", "remove-on-restore");
 
         await service.RestoreAsync("practice", snapshot.Id);
 
         Assert.Equal("before-boss", await File.ReadAllTextAsync(Path.Combine(instance, "user1.dat")));
-        Assert.Equal("settings-before", await File.ReadAllTextAsync(Path.Combine(instance, "settings.json")));
-        Assert.False(File.Exists(Path.Combine(instance, "later-file.json")));
+        Assert.Equal(
+            "before-boss-backup",
+            await File.ReadAllTextAsync(Path.Combine(instance, "user1.dat.bak1")));
+        Assert.False(File.Exists(Path.Combine(instance, "user2.dat")));
+        Assert.Equal("settings-after", await File.ReadAllTextAsync(Path.Combine(instance, "settings.json")));
+        Assert.True(File.Exists(Path.Combine(instance, "later-file.json")));
         Assert.True(Directory.Exists(snapshot.SnapshotPath));
         Assert.Equal(snapshot, Assert.Single(await service.ListAsync("practice")));
     }
@@ -51,43 +64,70 @@ public sealed class NamedSnapshotServiceTests
     }
 
     [Fact]
-    public async Task Restore_replaces_current_file_with_snapshot_directory()
+    public async Task Restore_legacy_snapshot_ignores_non_save_files()
     {
         using var test = new TestDirectory();
         var storage = test.CreateDirectory("version", ".crystalfly");
         var instance = test.CreateDirectory(
             "version", ".crystalfly", "instances", "practice", "local-low");
-        await test.WriteAsync(instance, "slot", "user1.dat", "snapshot-save");
+        await test.WriteAsync(instance, "user1.dat", "snapshot-save");
         var service = CreateService(storage);
-        var snapshot = await service.CreateAsync("practice", "Directory save");
-        Directory.Delete(Path.Combine(instance, "slot"), recursive: true);
-        await File.WriteAllTextAsync(Path.Combine(instance, "slot"), "current-file");
+        var snapshot = await service.CreateAsync("practice", "Legacy snapshot");
+        await test.WriteAsync(snapshot.SnapshotPath, "settings.json", "legacy-settings");
+        var legacySnapshot = snapshot with
+        {
+            Sha256 = await LocalLowDirectory.HashFilesAsync(
+                snapshot.SnapshotPath,
+                includeLogs: false,
+                CancellationToken.None)
+        };
+        await AtomicJsonStore.WriteAsync(
+            Path.Combine(Path.GetDirectoryName(snapshot.SnapshotPath)!, "snapshot.json"),
+            legacySnapshot);
+        await File.WriteAllTextAsync(Path.Combine(instance, "user1.dat"), "current-save");
+        await File.WriteAllTextAsync(Path.Combine(instance, "settings.json"), "current-settings");
 
         await service.RestoreAsync("practice", snapshot.Id);
 
-        Assert.True(Directory.Exists(Path.Combine(instance, "slot")));
-        Assert.Equal(
-            "snapshot-save",
-            await File.ReadAllTextAsync(Path.Combine(instance, "slot", "user1.dat")));
+        Assert.Equal("snapshot-save", await File.ReadAllTextAsync(Path.Combine(instance, "user1.dat")));
+        Assert.Equal("current-settings", await File.ReadAllTextAsync(Path.Combine(instance, "settings.json")));
     }
 
     [Fact]
-    public async Task Restore_replaces_current_directory_with_snapshot_file()
+    public async Task Restore_removes_current_save_when_snapshot_slot_is_empty()
     {
         using var test = new TestDirectory();
         var storage = test.CreateDirectory("version", ".crystalfly");
         var instance = test.CreateDirectory(
             "version", ".crystalfly", "instances", "practice", "local-low");
-        await File.WriteAllTextAsync(Path.Combine(instance, "slot"), "snapshot-save");
+        await test.WriteAsync(instance, "settings.json", "keep-settings");
         var service = CreateService(storage);
-        var snapshot = await service.CreateAsync("practice", "File save");
-        File.Delete(Path.Combine(instance, "slot"));
-        await test.WriteAsync(instance, "slot", "user1.dat", "current-save");
+        var snapshot = await service.CreateAsync("practice", "Directory save");
+        await File.WriteAllTextAsync(Path.Combine(instance, "user1.dat"), "current-save");
 
         await service.RestoreAsync("practice", snapshot.Id);
 
-        Assert.True(File.Exists(Path.Combine(instance, "slot")));
-        Assert.Equal("snapshot-save", await File.ReadAllTextAsync(Path.Combine(instance, "slot")));
+        Assert.False(File.Exists(Path.Combine(instance, "user1.dat")));
+        Assert.Equal("keep-settings", await File.ReadAllTextAsync(Path.Combine(instance, "settings.json")));
+    }
+
+    [Fact]
+    public async Task Restore_replaces_current_save_directory_with_snapshot_file()
+    {
+        using var test = new TestDirectory();
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        var instance = test.CreateDirectory(
+            "version", ".crystalfly", "instances", "practice", "local-low");
+        await File.WriteAllTextAsync(Path.Combine(instance, "user1.dat"), "snapshot-save");
+        var service = CreateService(storage);
+        var snapshot = await service.CreateAsync("practice", "File save");
+        File.Delete(Path.Combine(instance, "user1.dat"));
+        await test.WriteAsync(instance, "user1.dat", "nested", "current-save");
+
+        await service.RestoreAsync("practice", snapshot.Id);
+
+        Assert.True(File.Exists(Path.Combine(instance, "user1.dat")));
+        Assert.Equal("snapshot-save", await File.ReadAllTextAsync(Path.Combine(instance, "user1.dat")));
     }
 
     [Fact]

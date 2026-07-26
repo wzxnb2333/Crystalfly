@@ -48,11 +48,7 @@ public sealed class NamedSnapshotService
         var finalDataPath = Path.Combine(snapshotRoot, "data");
         try
         {
-            await LocalLowDirectory.CopyAsync(
-                sourcePath,
-                stagingDataPath,
-                includeLogs: false,
-                cancellationToken);
+            CopySaveFiles(sourcePath, stagingDataPath, cancellationToken);
             var hash = await LocalLowDirectory.HashFilesAsync(
                 stagingDataPath,
                 includeLogs: false,
@@ -131,15 +127,13 @@ public sealed class NamedSnapshotService
         var stagingPath = instancePath + $".snapshot-{operationId}-staging";
         try
         {
-            await LocalLowDirectory.CopyAsync(
-                snapshot.SnapshotPath,
-                stagingPath,
-                includeLogs: false,
-                cancellationToken);
-            await RequireHashAsync(stagingPath, snapshot.Sha256, cancellationToken);
+            CopySaveFiles(snapshot.SnapshotPath, stagingPath, cancellationToken);
             var stagedFiles = LocalLowDirectory.EnumerateRelativeFiles(stagingPath)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var removals = LocalLowDirectory.EnumerateRelativeFiles(instancePath)
+                .Where(path => IsSaveFile(path) || stagedFiles.Any(save => path.StartsWith(
+                    save + "/",
+                    StringComparison.OrdinalIgnoreCase)))
                 .Where(path => !stagedFiles.Contains(path));
             var recoveries = await FileTransaction.RecoverPendingAsync(
                 Path.Combine(storagePath, "transactions"),
@@ -155,7 +149,6 @@ public sealed class NamedSnapshotService
                 "restore-named-snapshot",
                 removals,
                 cancellationToken);
-            await RequireHashAsync(instancePath, snapshot.Sha256, cancellationToken);
         }
         finally
         {
@@ -302,6 +295,42 @@ public sealed class NamedSnapshotService
         {
             throw new InvalidDataException($"Named snapshot hash mismatch for '{path}'.");
         }
+    }
+
+    private static void CopySaveFiles(
+        string sourcePath,
+        string destinationPath,
+        CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(destinationPath);
+        foreach (var relativePath in LocalLowDirectory.EnumerateRelativeFiles(sourcePath)
+            .Where(IsSaveFile)
+            .Order(StringComparer.OrdinalIgnoreCase))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var source = LocalLowDirectory.ResolveUnderRoot(sourcePath, relativePath);
+            var destination = LocalLowDirectory.ResolveUnderRoot(destinationPath, relativePath);
+            File.Copy(source, destination, overwrite: true);
+        }
+    }
+
+    private static bool IsSaveFile(string relativePath)
+    {
+        if (relativePath.Contains('/') || relativePath.Contains('\\') || relativePath.Length < 9
+            || !relativePath.StartsWith("user", StringComparison.OrdinalIgnoreCase)
+            || relativePath[4] is < '1' or > '4'
+            || !relativePath.AsSpan(5).StartsWith(".dat", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        if (relativePath.Length == 9)
+        {
+            return true;
+        }
+        var suffix = relativePath.AsSpan(9);
+        return suffix.StartsWith(".bak", StringComparison.OrdinalIgnoreCase)
+            && suffix.Length > 4
+            && suffix[4..].IndexOfAnyExceptInRange('0', '9') < 0;
     }
 
     private static void ValidateHash(string hash)

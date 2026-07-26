@@ -46,7 +46,7 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 - 通过 SteamKit2 扫码登录并下载 public 分支历史 manifest；同一文件最多十六路并发下载 Chunk，完成后生成 `steam_appid.txt` 以直接启动对应实例，refresh token 仅以当前 Windows 用户的 DPAPI 加密保存。
 - 设置页可在 GitHub 直连与 GitHub 镜像间切换并分别测试延迟；镜像仅代理官方 GitHub 目录和 GitHub 托管安装包，Steam、自定义目录及其他下载地址保持原线路，包校验规则不变。
 - 启动前切换实例 LocalLow，退出后写回，并恢复原共享数据。
-- 创建永久命名“存档快照”；快照仅包含实例的非日志 LocalLow，事务临时恢复点成功后自动清理。
+- 创建永久命名“存档快照”；快照只包含实例根目录的 `user1.dat` 至 `user4.dat` 及对应备份，恢复时保留 Mod 全局设置和其他 LocalLow 数据。
 - 在实例设置中编辑当前实例隔离的 `AppConfig.ini`；未知配置项会原样保留，写入采用原子替换。
 - 在当前实例或其命名快照中编辑 `user1.dat` 至 `user4.dat`；解密和展开异步执行，空存档会显示明确状态，不会阻塞主窗口。
 - 在实例详情创建追加或精确 Mod 预设，支持复制、导入导出、分享码、按依赖顺序应用，以及恢复应用前启停和安装状态；固定 Mod 及其传递依赖不会被精确模式停用。
@@ -208,7 +208,7 @@ The current stable release is `0.6.5`. GitHub Releases provide a Windows x64 por
 - Uses SteamKit2 for QR authentication and public manifest downloads, with up to sixteen concurrent chunk requests per file. Completed instances receive `steam_appid.txt` for direct launch. Refresh tokens are protected with Windows DPAPI for the current user.
 - Lets users switch between direct GitHub access and a GitHub mirror and test each route latency. Only official GitHub catalogs and GitHub-hosted packages are proxied; Steam, custom catalogs, and other download URLs keep their original route, with the same package verification.
 - Swaps per-instance LocalLow data before launch, captures it after exit, then restores the original shared data.
-- Creates persistent named save snapshots containing only non-log LocalLow data, plus dedicated speedrun copies with template-specific tools and a pre-launch report.
+- Creates persistent named save snapshots containing only root `user1.dat` through `user4.dat` files and their backups; restore preserves Mod global settings and other LocalLow data.
 - Edits the selected instance's isolated `AppConfig.ini` while preserving unknown settings and committing changes through atomic replacement.
 - Edits only `user1.dat` through `user4.dat` from the selected instance or one of its named snapshots. Save decoding and expansion run asynchronously, and empty save sets show an explicit state instead of blocking the window.
 - Creates append or exact Mod presets bound to one build and Loader, with dependency-ordered apply, local JSON import/export, share codes, and restoration of the pre-apply install and enabled state.

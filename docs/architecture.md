@@ -228,11 +228,13 @@ launch instead of guessing.
 
 Named snapshots are manual, per-instance copies under
 `instances/<instance-id>/snapshots`. Each snapshot stores immutable metadata and
-a deterministic directory SHA-256. Creation and restore use the same runtime
-mutex and process check as launch. Restore verifies the stored snapshot before
-touching the instance, replaces its files through the shared recoverable file
-transaction, supports file/directory type changes, and retains the named snapshot
-permanently after successful restore.
+a deterministic directory SHA-256 for root save slots `user1.dat` through
+`user4.dat` and their backup files. Creation and restore use the same runtime
+mutex and process check as launch. Restore verifies the stored snapshot, overlays
+only those save files through the shared recoverable file transaction, preserves
+all other instance LocalLow data, and retains the named snapshot permanently.
+Legacy snapshots are still verified in full, but their non-save files are ignored
+during restore.
 
 ## Speedrun trust
 
