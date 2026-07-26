@@ -234,9 +234,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     public partial bool IsInstalledModGraphVisible { get; set; }
 
-    [ObservableProperty]
-    public partial bool IsFullDependencyGraph { get; set; }
-
     public ObservableCollection<string> UnusedDependencySuggestions { get; } = [];
 
     public ObservableCollection<SettingOption<ModStatusFilter>> ModStatusOptions { get; } = [];
@@ -2658,8 +2655,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         if (IsInstalledModGraphVisible)
         {
-            if (IsFullDependencyGraph) InstalledModGraph.Select(value?.Id);
-            else RebuildInstalledModGraph();
+            InstalledModGraph.Select(value?.Id);
         }
     }
 
@@ -2896,20 +2892,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         RebuildInstalledModGraph();
     }
 
-    [RelayCommand]
-    private void ShowFocusedDependencyGraph()
-    {
-        IsFullDependencyGraph = false;
-        RebuildInstalledModGraph();
-    }
-
-    [RelayCommand]
-    private void ShowAllDependencyGraph()
-    {
-        IsFullDependencyGraph = true;
-        RebuildInstalledModGraph();
-    }
-
     private void RebuildInstalledModGraph()
     {
         var selectedId = SelectedInstalledMod?.Id
@@ -2961,17 +2943,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
         }
 
-        if (!IsFullDependencyGraph && selectedId is not null)
-        {
-            var visibleIds = FindDependencyComponent(selectedId, edges);
-            definitions = definitions
-                .Where(pair => visibleIds.Contains(pair.Key))
-                .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
-            edges = edges
-                .Where(edge => visibleIds.Contains(edge.SourceId) && visibleIds.Contains(edge.TargetId))
-                .ToList();
-        }
-
         var graph = DependencyGraphModel.Create(definitions.Values, edges, selectedId);
         graph.NodeSelected = id =>
         {
@@ -2983,42 +2954,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
         };
         InstalledModGraph = graph;
-    }
-
-    private static HashSet<string> FindDependencyComponent(
-        string selectedId,
-        IReadOnlyList<DependencyGraphEdgeDefinition> edges)
-    {
-        var neighbors = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var edge in edges)
-        {
-            if (!neighbors.TryGetValue(edge.SourceId, out var sourceNeighbors))
-            {
-                sourceNeighbors = [];
-                neighbors[edge.SourceId] = sourceNeighbors;
-            }
-            if (!neighbors.TryGetValue(edge.TargetId, out var targetNeighbors))
-            {
-                targetNeighbors = [];
-                neighbors[edge.TargetId] = targetNeighbors;
-            }
-            sourceNeighbors.Add(edge.TargetId);
-            targetNeighbors.Add(edge.SourceId);
-        }
-
-        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { selectedId };
-        var pending = new Queue<string>([selectedId]);
-        while (pending.TryDequeue(out var current) && neighbors.TryGetValue(current, out var adjacent))
-        {
-            foreach (var next in adjacent)
-            {
-                if (result.Add(next))
-                {
-                    pending.Enqueue(next);
-                }
-            }
-        }
-        return result;
     }
 
     private void ApplyMarketFilters()

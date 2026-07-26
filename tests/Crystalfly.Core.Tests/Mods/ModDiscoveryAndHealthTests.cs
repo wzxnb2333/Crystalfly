@@ -67,6 +67,34 @@ public sealed class ModDiscoveryAndHealthTests : IDisposable
     }
 
     [Fact]
+    public async Task Discovery_ignores_resource_only_files_inside_managed_mod_directory()
+    {
+        const string installRoot = "hollow_knight_Data/Managed/Mods/Custom Knight";
+        const string entryFile = installRoot + "/Custom Knight.dll";
+        var instanceRoot = Path.Combine(root, "instance-custom-knight-skins");
+        var receiptsRoot = Path.Combine(root, "state-custom-knight-skins", "mods");
+        var entryPath = await WriteAsync(instanceRoot, entryFile, "managed-entry");
+        var receipt = Receipt(
+            "hkmod:Custom Knight",
+            "Custom Knight",
+            "modding-api-77",
+            installRoot,
+            entryFile,
+            await HashAsync(entryPath));
+        await WriteReceiptAsync(receiptsRoot, receipt);
+        await WriteAsync(
+            instanceRoot,
+            installRoot + "/Skins/Default/AreaBackgrounds/FINAL_BOSS.png",
+            "user-skin");
+
+        var result = await new ModDiscoveryService(instanceRoot, receiptsRoot)
+            .DiscoverAsync("modding-api-77");
+
+        Assert.Equal(receipt.Id, Assert.Single(result.Mods).Id);
+        Assert.Empty(result.ExternalMods);
+    }
+
+    [Fact]
     public async Task Takeover_hashes_external_files_preserves_disabled_placement_and_blocks_automatic_update()
     {
         var instanceRoot = Path.Combine(root, "instance");
@@ -189,7 +217,7 @@ public sealed class ModDiscoveryAndHealthTests : IDisposable
 
         await File.WriteAllTextAsync(filePath, "healthy");
         await WriteAsync(
-            instanceRoot, "hollow_knight_Data/Managed/Mods/Test/extra.txt", "extra");
+            instanceRoot, "hollow_knight_Data/Managed/Mods/Test/extra.dll", "extra");
         Assert.Equal(ModHealthStatus.ExtraFile, (await service.AssessAsync(receipt, [receipt])).Status);
 
         await WriteAsync(
@@ -213,6 +241,57 @@ public sealed class ModDiscoveryAndHealthTests : IDisposable
 
         var empty = receipt with { Id = "empty", Files = [], EntryFiles = [] };
         Assert.Equal(ModHealthStatus.Indeterminate, (await service.AssessAsync(empty, [empty])).Status);
+    }
+
+    [Fact]
+    public async Task Health_ignores_user_customized_image_assets()
+    {
+        const string installRoot = "hollow_knight_Data/Managed/Mods/Custom Knight";
+        const string trackedTexture = installRoot + "/Skins/Default/Health.png";
+        const string addedTexture = installRoot + "/Skins/Default/AreaBackgrounds/ABYSS.png";
+        var instanceRoot = Path.Combine(root, "instance-user-customized-assets");
+        var originalTexture = await WriteAsync(instanceRoot, trackedTexture, "original");
+        var receipt = Receipt(
+            "hkmod:Custom Knight",
+            "Custom Knight",
+            "modding-api-77",
+            installRoot,
+            trackedTexture,
+            await HashAsync(originalTexture));
+
+        await File.WriteAllTextAsync(originalTexture, "user-customized");
+        await WriteAsync(instanceRoot, addedTexture, "skin-background");
+
+        var report = await new ModHealthService(instanceRoot).AssessAsync(receipt, [receipt]);
+
+        Assert.Equal(ModHealthStatus.Healthy, report.Status);
+        Assert.Empty(report.ModifiedFiles);
+        Assert.Empty(report.ExtraFiles);
+    }
+
+    [Fact]
+    public async Task Health_ignores_untracked_resource_files_inside_managed_mod_directory()
+    {
+        const string installRoot = "hollow_knight_Data/Managed/Mods/Custom Knight";
+        const string entryFile = installRoot + "/CustomKnight.dll";
+        var instanceRoot = Path.Combine(root, "instance-custom-knight-resource-files");
+        var entryPath = await WriteAsync(instanceRoot, entryFile, "managed-entry");
+        var receipt = Receipt(
+            "hkmod:Custom Knight",
+            "Custom Knight",
+            "modding-api-77",
+            installRoot,
+            entryFile,
+            await HashAsync(entryPath));
+
+        await WriteAsync(instanceRoot, installRoot + "/Skins/Default/skin-config.json", "{}");
+        await WriteAsync(instanceRoot, installRoot + "/Skins/Default/skin-settings.json", "{}");
+        await WriteAsync(instanceRoot, installRoot + "/Skins/Default/Swap/replace.txt", "replace");
+
+        var report = await new ModHealthService(instanceRoot).AssessAsync(receipt, [receipt]);
+
+        Assert.Equal(ModHealthStatus.Healthy, report.Status);
+        Assert.Empty(report.ExtraFiles);
     }
 
     [Fact]
@@ -243,14 +322,14 @@ public sealed class ModDiscoveryAndHealthTests : IDisposable
             ],
             EntryFiles = [$"{installRoot}/Missing.dll", $"{installRoot}/Modified.dll"]
         };
-        await WriteAsync(instanceRoot, $"{installRoot}/Extra.txt", "extra");
+        await WriteAsync(instanceRoot, $"{installRoot}/Extra.dll", "extra");
 
         var report = await new ModHealthService(instanceRoot).AssessAsync(receipt, [receipt]);
 
         Assert.Equal(ModHealthStatus.CriticalFileMissing, report.Status);
         Assert.Equal([$"{installRoot}/Missing.dll"], report.MissingFiles);
         Assert.Equal([$"{installRoot}/Modified.dll"], report.ModifiedFiles);
-        Assert.Equal([$"{installRoot}/Extra.txt"], report.ExtraFiles);
+        Assert.Equal([$"{installRoot}/Extra.dll"], report.ExtraFiles);
         Assert.Equal(await HashAsync(modifiedPath), report.CurrentFileSha256ByPath[$"{installRoot}/Modified.dll"]);
     }
 

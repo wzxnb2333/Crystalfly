@@ -144,6 +144,11 @@ public sealed class ModDiscoveryService
         ISet<string> usedIds,
         ICollection<ModDiscoveryEntry> results)
     {
+        if (entry.EntryFiles.Count == 0)
+        {
+            return;
+        }
+
         var uniqueId = entry.Id;
         for (var suffix = 2; !usedIds.Add(uniqueId); suffix++)
         {

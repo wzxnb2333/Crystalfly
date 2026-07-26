@@ -161,6 +161,22 @@ public sealed class MainWindowStructureTests
     }
 
     [Fact]
+    public void Installed_mod_dependency_graph_has_no_selected_component_scope_controls()
+    {
+        var document = LoadMainWindow();
+        var manageGrid = FindSectionRoot(document, "IsManagePage");
+        var graphFrame = manageGrid.Descendants(Avalonia + "Border")
+            .Single(border => HasClass(border, "cfp-dependency-graph-frame"));
+
+        Assert.DoesNotContain(graphFrame.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "ShowFocusedDependencyGraphCommand"));
+        Assert.DoesNotContain(graphFrame.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "ShowAllDependencyGraphCommand"));
+        Assert.DoesNotContain(graphFrame.Descendants(Avalonia + "StackPanel"), panel =>
+            HasClass(panel, "cfp-graph-scope"));
+    }
+
+    [Fact]
     public void Download_fab_and_github_latency_controls_match_layout_contract()
     {
         var document = LoadMainWindow();

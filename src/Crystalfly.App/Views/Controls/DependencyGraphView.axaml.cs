@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels.DependencyGraph;
 
 namespace Crystalfly.App.Views.Controls;
@@ -32,7 +33,10 @@ public partial class DependencyGraphView : UserControl
     {
         base.OnPointerPressed(eventArgs);
         var point = eventArgs.GetCurrentPoint(Viewport);
-        if (!point.Properties.IsMiddleButtonPressed)
+        if (!point.Properties.IsLeftButtonPressed
+            || eventArgs.Source is Button
+            || eventArgs.Source is Avalonia.Visual visual
+            && visual.FindAncestorOfType<Button>() is not null)
         {
             return;
         }
@@ -74,11 +78,6 @@ public partial class DependencyGraphView : UserControl
     protected override void OnPointerWheelChanged(PointerWheelEventArgs eventArgs)
     {
         base.OnPointerWheelChanged(eventArgs);
-        if (!eventArgs.KeyModifiers.HasFlag(KeyModifiers.Control))
-        {
-            return;
-        }
-
         ZoomAt(eventArgs.GetPosition(Viewport), eventArgs.Delta.Y > 0 ? ZoomStep : -ZoomStep);
         eventArgs.Handled = true;
     }

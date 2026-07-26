@@ -1424,7 +1424,7 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
-    public void Installed_mod_graph_defaults_to_selected_component_and_can_expand_to_the_instance()
+    public void Installed_mod_graph_always_shows_the_complete_instance()
     {
         var viewModel = CreateViewModel();
         var library = new InstalledModItemViewModel(
@@ -1447,14 +1447,13 @@ public sealed class MainViewModelStateTests : IDisposable
         viewModel.ShowInstalledModGraphCommand.Execute(null);
 
         Assert.True(viewModel.IsInstalledModGraphVisible);
-        Assert.Equal(["feature", "library"], viewModel.InstalledModGraph.Nodes.Select(node => node.Id).Order());
+        Assert.Equal(["feature", "isolated", "library"], viewModel.InstalledModGraph.Nodes.Select(node => node.Id).Order());
         var edge = Assert.Single(viewModel.InstalledModGraph.Edges);
         Assert.Equal("library", edge.Source.Id);
         Assert.Equal("feature", edge.Target.Id);
 
-        viewModel.ShowAllDependencyGraphCommand.Execute(null);
+        viewModel.SelectedInstalledMod = library;
 
-        Assert.True(viewModel.IsFullDependencyGraph);
         Assert.Equal(3, viewModel.InstalledModGraph.Nodes.Count);
     }
 

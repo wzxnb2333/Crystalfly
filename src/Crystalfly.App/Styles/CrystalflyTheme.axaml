@@ -540,5 +540,5 @@
     <Style Selector="Button.cfp-dependency-node.warning Border.cfp-dependency-node-accent"><Setter Property="Background" Value="{DynamicResource CfWarningBrush}"/></Style>
     <Style Selector="Button.cfp-dependency-node.unknown Border.cfp-dependency-node-accent"><Setter Property="Background" Value="{DynamicResource CfMutedTextBrush}"/></Style>
     <Style Selector="TextBlock.cfp-dependency-action"><Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}"/><Setter Property="MaxWidth" Value="96"/></Style>
-    <Style Selector="Button.cfp-graph-toggle.active, Button.cfp-graph-scope.active"><Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}"/><Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}"/></Style>
+    <Style Selector="Button.cfp-graph-toggle.active"><Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}"/><Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}"/></Style>
 </Styles>

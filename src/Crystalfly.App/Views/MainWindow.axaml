@@ -1283,28 +1283,10 @@
                                 Classes="cfp-list-frame cfp-dependency-graph-frame"
                                 IsVisible="{Binding IsInstalledModGraphVisible}">
                             <Grid RowDefinitions="Auto,*" RowSpacing="8">
-                                <Grid Margin="12,10,12,0" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <Grid Margin="12,10,12,0">
                                     <TextBlock Classes="cfp-row-title"
                                                Text="{Binding Loc[DependencyGraph]}"
                                                VerticalAlignment="Center" />
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
-                                        <Button Classes="cfp-secondary cfp-graph-scope"
-                                                Classes.active="{Binding IsFullDependencyGraph, Converter={x:Static converters:BoolConverters.Not}}"
-                                                Command="{Binding ShowFocusedDependencyGraphCommand}">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <LucideIcon Kind="Scan" Size="14" />
-                                                <TextBlock Text="{Binding Loc[DependencyGraphFocus]}" />
-                                            </StackPanel>
-                                        </Button>
-                                        <Button Classes="cfp-secondary cfp-graph-scope"
-                                                Classes.active="{Binding IsFullDependencyGraph}"
-                                                Command="{Binding ShowAllDependencyGraphCommand}">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <LucideIcon Kind="Network" Size="14" />
-                                                <TextBlock Text="{Binding Loc[DependencyGraphAll]}" />
-                                            </StackPanel>
-                                        </Button>
-                                    </StackPanel>
                                 </Grid>
                                 <controls:DependencyGraphView Grid.Row="1"
                                                               Margin="8"
