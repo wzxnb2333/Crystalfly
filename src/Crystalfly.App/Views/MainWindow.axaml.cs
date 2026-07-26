@@ -1723,8 +1723,9 @@ public partial class MainWindow : Window
         }
     }
 
-    private static OverlayDialogOptions CreateOverlayOptions() => new()
+    private OverlayDialogOptions CreateOverlayOptions() => new()
     {
+        TopLevelHashCode = GetHashCode(),
         CanLightDismiss = false,
         CanDragMove = false,
         IsCloseButtonVisible = true,

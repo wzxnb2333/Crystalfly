@@ -238,6 +238,51 @@ public sealed class ThemeRenderingTests
     }
 
     [AvaloniaFact]
+    public async Task Confirmation_overlay_targets_the_window_that_opened_it()
+    {
+        var firstWindow = new MainWindow { Width = 900, Height = 600 };
+        var secondWindow = new MainWindow { Width = 900, Height = 600 };
+        var applicationDataRoot = Path.Combine(
+            Path.GetTempPath(),
+            "crystalfly-ui",
+            Guid.NewGuid().ToString("N"));
+        await using var viewModel = new MainViewModel(applicationDataRoot);
+        firstWindow.Show();
+        secondWindow.Show();
+        var result = secondWindow.ShowConfirmationAsync(
+            "Restore",
+            "Restore snapshot?",
+            "Snapshot",
+            viewModel);
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            Assert.Empty(firstWindow.GetVisualDescendants().OfType<CustomDialogControl>());
+            var dialog = Assert.Single(secondWindow.GetVisualDescendants().OfType<CustomDialogControl>());
+            var cancel = dialog.GetVisualDescendants().OfType<Button>()
+                .Single(button => AutomationProperties.GetName(button) == viewModel.Loc["Cancel"]);
+            cancel.Command!.Execute(cancel.CommandParameter);
+            Assert.False(await result.WaitAsync(TimeSpan.FromSeconds(1)));
+        }
+        finally
+        {
+            if (firstWindow.IsVisible)
+            {
+                await CloseWindowAsync(firstWindow);
+            }
+            if (secondWindow.IsVisible)
+            {
+                await CloseWindowAsync(secondWindow);
+            }
+            if (Directory.Exists(applicationDataRoot))
+            {
+                Directory.Delete(applicationDataRoot, recursive: true);
+            }
+        }
+    }
+
+    [AvaloniaFact]
     public void Dark_danger_hover_keeps_white_text_readable()
     {
         Assert.True(Application.Current!.TryGetResource(
