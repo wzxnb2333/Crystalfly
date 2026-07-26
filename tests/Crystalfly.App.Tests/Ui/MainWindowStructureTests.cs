@@ -138,7 +138,7 @@ public sealed class MainWindowStructureTests
             HasClass(row, "cfp-installed-mod-row") && HasBinding(row, "Classes.selected", "IsSelected"));
 
         var quickActions = manageGrid.Descendants(Avalonia + "WrapPanel").Single(panel => HasClass(panel, "cfp-mod-quick-actions"));
-        Assert.Equal(4, quickActions.Elements(Avalonia + "Button").Count());
+        Assert.Equal(6, quickActions.Elements(Avalonia + "Button").Count());
         Assert.DoesNotContain(manageGrid.Descendants(Avalonia + "Border"), border => HasClass(border, "cfp-mod-bulk-card"));
 
         var theme = File.ReadAllText(Path.Combine(

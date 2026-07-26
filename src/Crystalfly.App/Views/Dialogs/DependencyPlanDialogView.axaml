@@ -1,14 +1,14 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Crystalfly.App.ViewModels.Dialogs"
-             xmlns:converters="using:Avalonia.Data.Converters"
              xmlns:controls="using:Crystalfly.App.Views.Controls"
+             xmlns:converters="using:Avalonia.Data.Converters"
              xmlns:u="https://irihi.tech/ursa"
              x:Class="Crystalfly.App.Views.Dialogs.DependencyPlanDialogView"
              x:DataType="vm:DependencyPlanDialogViewModel"
-             Width="620"
-             MinWidth="480"
-             MaxHeight="640">
+             Width="760"
+             MinWidth="520"
+             MaxHeight="680">
     <UserControl.KeyBindings>
         <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
     </UserControl.KeyBindings>
@@ -20,77 +20,10 @@
         <TextBlock Grid.Row="1"
                    Text="{Binding Message}"
                    TextWrapping="Wrap" />
-        <ScrollViewer Grid.Row="2"
-                      MaxHeight="420"
-                      VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding Nodes}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:DependencyPlanNodeViewModel">
-                        <Grid ColumnDefinitions="Auto,*">
-                            <controls:DependencyTreeGuide Connectors="{Binding Connectors}"
-                                                          LineBrush="{DynamicResource CfBorderBrush}"
-                                                          VerticalAlignment="Stretch" />
-                            <Border Grid.Column="1"
-                                    Classes="cfp-card"
-                                    Padding="12,10"
-                                    Margin="0,0,0,6">
-                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                                    <Grid Width="16"
-                                          Height="16"
-                                          VerticalAlignment="Top"
-                                          Margin="0,1,0,0">
-                                        <LucideIcon Kind="Target"
-                                                    Size="16"
-                                                    Foreground="{DynamicResource CfAccentBrush}"
-                                                    IsVisible="{Binding ShowTargetIcon}" />
-                                        <LucideIcon Kind="TriangleAlert"
-                                                    Size="16"
-                                                    Foreground="{DynamicResource CfErrorBrush}"
-                                                    IsVisible="{Binding IsUnresolved}" />
-                                        <LucideIcon Kind="Package"
-                                                    Size="16"
-                                                    Foreground="{DynamicResource CfMutedTextBrush}"
-                                                    IsVisible="{Binding ShowDependencyIcon}" />
-                                    </Grid>
-                                    <StackPanel Grid.Column="1" Spacing="3">
-                                        <TextBlock Classes="cfp-row-title"
-                                                   Text="{Binding PrimaryName}"
-                                                   TextWrapping="Wrap" />
-                                        <TextBlock Classes="cfp-caption"
-                                                   Text="{Binding SecondaryName}"
-                                                   TextWrapping="Wrap"
-                                                   IsVisible="{Binding SecondaryName, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-                                        <TextBlock Classes="cfp-caption"
-                                                   Text="{Binding ModId}"
-                                                   TextWrapping="Wrap" />
-                                        <TextBlock Classes="cfp-caption"
-                                                   Text="{Binding InstallRoot}"
-                                                   TextWrapping="Wrap"
-                                                   IsVisible="{Binding InstallRoot, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2"
-                                                HorizontalAlignment="Right"
-                                                Spacing="4">
-                                        <Border Classes="cfp-badge"
-                                                IsVisible="{Binding IsTarget}">
-                                            <TextBlock Classes="cfp-caption" Text="{Binding TargetLabel}" />
-                                        </Border>
-                                        <TextBlock Classes="cfp-meta"
-                                                   Text="{Binding Status}"
-                                                   TextAlignment="Right" />
-                                        <TextBlock Classes="cfp-caption"
-                                                   Foreground="{DynamicResource CfErrorBrush}"
-                                                   Text="{Binding UnresolvedLabel}"
-                                                   TextAlignment="Right"
-                                                   IsVisible="{Binding IsUnresolved}" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </Grid>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
+        <controls:DependencyGraphView Grid.Row="2"
+                                      MinHeight="280"
+                                      MaxHeight="420"
+                                      DataContext="{Binding Graph}" />
         <StackPanel Grid.Row="3"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"

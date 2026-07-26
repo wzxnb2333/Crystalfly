@@ -14,6 +14,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Crystalfly.App.ViewModels.DependencyGraph;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views.Dialogs;
@@ -1054,18 +1055,15 @@ public partial class MainWindow : Window
 
     private static IReadOnlyList<DependencyPlanNodeViewModel> BuildPresetApplyNodes(MainViewModel viewModel) =>
         viewModel.PresetApplySteps.Select(step => new DependencyPlanNodeViewModel(
-            step.Action,
-            string.Join(" · ", new[] { step.State, step.Version, step.LoaderId }
-                .Where(value => !string.IsNullOrWhiteSpace(value))),
             step.ModId,
-            step.Step.Reason,
+            step.ModId,
+            string.Join(" · ", new[] { step.Version, step.LoaderId }
+                .Where(value => !string.IsNullOrWhiteSpace(value))),
             step.State,
-            depth: 0,
-            isTarget: false,
-            isUnresolved: step.IsUnresolved || step.IsBlocked,
-            unresolvedLabel: step.IsBlocked
-                ? viewModel.Loc["PresetStateBlocked"]
-                : viewModel.Loc["PresetStateUnresolved"])).ToArray();
+            step.IsUnresolved || step.IsBlocked
+                ? DependencyGraphNodeState.Attention
+                : DependencyGraphNodeState.Normal,
+            step.Action)).ToArray();
 
     private async void ToggleHoveredInstalledMod(object? sender, RoutedEventArgs eventArgs)
     {
@@ -1209,7 +1207,7 @@ public partial class MainWindow : Window
                 nodes,
                 viewModel.Loc["Confirm"],
                 viewModel.Loc["Cancel"],
-                nodes.Any(node => !node.IsUnresolved),
+                plan.Items.Any(item => item.Action != ModDependencyRepairAction.Unresolved),
                 isDangerous: false);
             var confirmed = await OverlayDialog.ShowCustomAsync<
                 DependencyPlanDialogView,
@@ -1234,17 +1232,15 @@ public partial class MainWindow : Window
         {
             installed.TryGetValue(node.ModId, out var item);
             return new DependencyPlanNodeViewModel(
-                item?.PrimaryName ?? node.ReceiptName,
-                item?.SecondaryName ?? string.Empty,
                 node.ModId,
-                node.InstallRoot,
-                node.Kind == Crystalfly.Core.Mods.ModRemovalImpactKind.WillRemove
+                item?.PrimaryName ?? node.ReceiptName,
+                item?.SecondaryName ?? node.ModId,
+                node.Enabled ? viewModel.Loc["Enabled"] : viewModel.Loc["Disabled"],
+                DependencyGraphNodeState.Attention,
+                node.Kind == ModRemovalImpactKind.WillRemove
                     ? viewModel.Loc["WillDelete"]
                     : viewModel.Loc["DependenciesWillBeMissing"],
-                node.Depth,
-                node.Kind == Crystalfly.Core.Mods.ModRemovalImpactKind.WillRemove,
-                isUnresolved: false,
-                parentModId: node.RelatedToModId);
+                node.RelatedToModId is null ? null : [node.RelatedToModId]);
         }).ToArray();
         var dialog = new DependencyPlanDialogViewModel(
             bulk ? viewModel.Loc["ConfirmBulkUninstallTitle"] : viewModel.Loc["ConfirmModUninstallTitle"],
@@ -1337,111 +1333,72 @@ public partial class MainWindow : Window
         ModDependencyRepairPlan plan)
     {
         var installed = viewModel.InstalledMods.ToDictionary(mod => mod.Id, StringComparer.OrdinalIgnoreCase);
-        var items = plan.Items.ToDictionary(item => item.ModId, StringComparer.OrdinalIgnoreCase);
-        var children = plan.Items
-            .SelectMany(item => item.RequiredByModIds.Select(parent => (Parent: parent, Item: item)))
-            .GroupBy(link => link.Parent, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                group => group.Key,
-                group => group.Select(link => link.Item).ToArray(),
-                StringComparer.OrdinalIgnoreCase);
-        var nodes = new List<DependencyPlanNodeViewModel>();
-        var rendered = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var roots = plan.Items.SelectMany(item => item.RequiredByModIds)
-            .Where(id => !items.ContainsKey(id))
+        var repairItems = plan.Items.ToDictionary(item => item.ModId, StringComparer.OrdinalIgnoreCase);
+        var prerequisitesByRequiredMod = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in plan.Items)
+        {
+            foreach (var requiredById in item.RequiredByModIds)
+            {
+                if (!prerequisitesByRequiredMod.TryGetValue(requiredById, out var prerequisites))
+                {
+                    prerequisites = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    prerequisitesByRequiredMod[requiredById] = prerequisites;
+                }
+                prerequisites.Add(item.ModId);
+            }
+        }
+
+        var allIds = repairItems.Keys
+            .Concat(prerequisitesByRequiredMod.Keys)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        foreach (var rootId in roots)
+            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase);
+        return allIds.Select(id =>
         {
-            installed.TryGetValue(rootId, out var root);
-            nodes.Add(NewNode(
-                root?.PrimaryName ?? rootId,
-                root?.SecondaryName ?? string.Empty,
-                rootId,
-                root?.InstallRoot ?? string.Empty,
-                root is null ? viewModel.Loc["Missing"] : root.IsEnabled ? viewModel.Loc["Enabled"] : viewModel.Loc["Disabled"],
-                0,
-                isTarget: true,
-                isUnresolved: false,
-                parentModId: null));
-            AppendChildren(rootId, 1, new HashSet<string>(StringComparer.OrdinalIgnoreCase) { rootId });
-        }
-        foreach (var item in plan.Items.Where(item => !rendered.Contains(item.ModId)))
-        {
-            AppendItem(item, 0, new HashSet<string>(StringComparer.OrdinalIgnoreCase), null);
-        }
-        return nodes;
-
-        void AppendChildren(string parentId, int depth, HashSet<string> path)
-        {
-            if (!children.TryGetValue(parentId, out var childItems))
+            installed.TryGetValue(id, out var current);
+            prerequisitesByRequiredMod.TryGetValue(id, out var prerequisites);
+            if (!repairItems.TryGetValue(id, out var item))
             {
-                return;
+                return new DependencyPlanNodeViewModel(
+                    id,
+                    current?.PrimaryName ?? id,
+                    current?.SecondaryName ?? string.Empty,
+                    current is null ? viewModel.Loc["Missing"] : current.IsEnabled ? viewModel.Loc["Enabled"] : viewModel.Loc["Disabled"],
+                    current is null
+                        ? DependencyGraphNodeState.Missing
+                        : current.IsExternal
+                            ? DependencyGraphNodeState.External
+                            : current.IsEnabled
+                                ? DependencyGraphNodeState.Normal
+                                : DependencyGraphNodeState.Disabled,
+                    PrerequisiteIds: prerequisites?.ToArray());
             }
-            foreach (var child in childItems)
-            {
-                AppendItem(child, depth, path, parentId);
-            }
-        }
 
-        void AppendItem(
-            ModDependencyRepairPlanItem item,
-            int depth,
-            IReadOnlySet<string> parentPath,
-            string? parentModId)
-        {
-            if (parentPath.Contains(item.ModId))
-            {
-                return;
-            }
-            rendered.Add(item.ModId);
-            installed.TryGetValue(item.ModId, out var current);
-            var currentStatus = current is null
-                ? viewModel.Loc["Missing"]
-                : current.IsEnabled ? viewModel.Loc["Enabled"] : viewModel.Loc["Disabled"];
-            var actionStatus = item.Action switch
+            var action = item.Action switch
             {
                 ModDependencyRepairAction.ReEnable => viewModel.Loc["WillReEnable"],
                 ModDependencyRepairAction.DownloadAndInstall => viewModel.Loc["WillDownloadAndInstall"],
                 _ => viewModel.Loc["CannotRepair"]
             };
-            nodes.Add(NewNode(
+            var state = item.Action == ModDependencyRepairAction.Unresolved
+                ? DependencyGraphNodeState.Attention
+                : current is null
+                    ? DependencyGraphNodeState.Missing
+                    : current.IsExternal
+                        ? DependencyGraphNodeState.External
+                        : current.IsEnabled
+                            ? DependencyGraphNodeState.Normal
+                            : DependencyGraphNodeState.Disabled;
+            return new DependencyPlanNodeViewModel(
+                item.ModId,
                 current?.PrimaryName ?? item.Name,
                 current?.SecondaryName ?? string.Empty,
-                item.ModId,
-                current?.InstallRoot ?? string.Empty,
-                $"{currentStatus} · {actionStatus}",
-                depth,
-                isTarget: false,
-                isUnresolved: item.Action == ModDependencyRepairAction.Unresolved,
-                parentModId: parentModId));
-            var path = new HashSet<string>(parentPath, StringComparer.OrdinalIgnoreCase) { item.ModId };
-            AppendChildren(item.ModId, depth + 1, path);
-        }
-
-        DependencyPlanNodeViewModel NewNode(
-            string primaryName,
-            string secondaryName,
-            string modId,
-            string installRoot,
-            string status,
-            int depth,
-            bool isTarget,
-            bool isUnresolved,
-            string? parentModId) => new(
-                primaryName,
-                secondaryName,
-                modId,
-                installRoot,
-                status,
-                depth,
-                isTarget,
-                isUnresolved,
-                viewModel.Loc["Target"],
-                viewModel.Loc["Unresolved"],
-                parentModId);
+                current is null ? viewModel.Loc["Missing"] : current.IsEnabled ? viewModel.Loc["Enabled"] : viewModel.Loc["Disabled"],
+                state,
+                action,
+                prerequisites?.ToArray());
+        }).ToArray();
     }
+
     private async void ConfirmUninstallLoader(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is not MainViewModel viewModel || viewModel.SelectedInstance is null)

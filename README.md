@@ -21,7 +21,7 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 ![实例详情](docs/screenshots/crystalfly-instance-detail-900x600-zh.jpg)
 ![实例配置编辑](docs/screenshots/crystalfly-instance-config-1280x720-zh.jpg)
 ![实例存档编辑](docs/screenshots/crystalfly-save-editor-1280x720-zh.jpg)
-![依赖影响树](docs/screenshots/crystalfly-dependency-tree-1280x720-zh.jpg)
+![依赖关系图](docs/screenshots/crystalfly-dependency-graph-1280x720-zh.jpg)
 
 ## 功能
 
@@ -184,7 +184,7 @@ The current stable release is `0.6.5`. GitHub Releases provide a Windows x64 por
 ![Instance details](docs/screenshots/crystalfly-instance-detail-900x600-zh.jpg)
 ![Instance configuration editor](docs/screenshots/crystalfly-instance-config-1280x720-zh.jpg)
 ![Instance save editor](docs/screenshots/crystalfly-save-editor-1280x720-zh.jpg)
-![Dependency-impact tree](docs/screenshots/crystalfly-dependency-tree-1280x720-zh.jpg)
+![Dependency graph](docs/screenshots/crystalfly-dependency-graph-1280x720-zh.jpg)
 
 ### Highlights
 

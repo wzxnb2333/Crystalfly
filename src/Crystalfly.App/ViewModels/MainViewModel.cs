@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.Input;
 using Crystalfly.App.Downloads;
 using Crystalfly.App.Updates;
 using Crystalfly.App.Runtime;
+using Crystalfly.App.ViewModels.DependencyGraph;
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.Core.Catalog;
 using Crystalfly.Core.Configuration;
@@ -227,6 +228,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public ObservableCollection<InstalledModItemViewModel> VisibleInstalledMods { get; } = [];
 
+    [ObservableProperty]
+    public partial DependencyGraphModel InstalledModGraph { get; set; } = DependencyGraphModel.Create([], []);
+
+    [ObservableProperty]
+    public partial bool IsInstalledModGraphVisible { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsFullDependencyGraph { get; set; }
+
     public ObservableCollection<string> UnusedDependencySuggestions { get; } = [];
 
     public ObservableCollection<SettingOption<ModStatusFilter>> ModStatusOptions { get; } = [];
@@ -256,6 +266,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public bool HasSelectedMods => InstalledMods.Any(mod => mod.IsSelected);
 
     public int SelectedModCount => InstalledMods.Count(mod => mod.IsSelected);
+    public bool IsInstalledModListVisible => !IsInstalledModGraphVisible;
+
+    public bool IsInstalledModBulkBarVisible => IsInstalledModListVisible && HasSelectedMods;
+
 
     public bool HasModDependencyProblems => InstalledMods.Count > 0 && !LaunchPreflight.DependenciesReady;
 
@@ -2630,6 +2644,24 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ApplyMarketFilters();
 
     partial void OnSelectedModStatusChanged(ModStatusFilter value) => ApplyModFilters();
+    partial void OnIsInstalledModGraphVisibleChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsInstalledModListVisible));
+        OnPropertyChanged(nameof(IsInstalledModBulkBarVisible));
+        if (value)
+        {
+            RebuildInstalledModGraph();
+        }
+    }
+
+    partial void OnSelectedInstalledModChanged(InstalledModItemViewModel? value)
+    {
+        if (IsInstalledModGraphVisible)
+        {
+            if (IsFullDependencyGraph) InstalledModGraph.Select(value?.Id);
+            else RebuildInstalledModGraph();
+        }
+    }
 
     partial void OnIsOfflineModeChanged(bool value)
     {
@@ -2854,6 +2886,141 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
+    [RelayCommand]
+    private void ShowInstalledModList() => IsInstalledModGraphVisible = false;
+
+    [RelayCommand]
+    private void ShowInstalledModGraph()
+    {
+        IsInstalledModGraphVisible = true;
+        RebuildInstalledModGraph();
+    }
+
+    [RelayCommand]
+    private void ShowFocusedDependencyGraph()
+    {
+        IsFullDependencyGraph = false;
+        RebuildInstalledModGraph();
+    }
+
+    [RelayCommand]
+    private void ShowAllDependencyGraph()
+    {
+        IsFullDependencyGraph = true;
+        RebuildInstalledModGraph();
+    }
+
+    private void RebuildInstalledModGraph()
+    {
+        var selectedId = SelectedInstalledMod?.Id
+            ?? InstalledMods.FirstOrDefault(mod => mod.HasHealthIssue)?.Id
+            ?? InstalledMods.FirstOrDefault()?.Id;
+        var definitions = new Dictionary<string, DependencyGraphNodeDefinition>(StringComparer.OrdinalIgnoreCase);
+        var edges = new List<DependencyGraphEdgeDefinition>();
+        foreach (var mod in InstalledMods)
+        {
+            var state = mod.IsExternal
+                ? DependencyGraphNodeState.External
+                : !mod.IsEnabled
+                    ? DependencyGraphNodeState.Disabled
+                    : mod.HasHealthIssue
+                        ? DependencyGraphNodeState.Attention
+                        : mod.IsLocal
+                            ? DependencyGraphNodeState.Local
+                            : DependencyGraphNodeState.Normal;
+            var status = mod.IsExternal
+                ? Loc["DependencyRelationshipUnknown"]
+                : !mod.IsEnabled
+                    ? Loc["Disabled"]
+                    : mod.HasHealthIssue
+                        ? mod.HealthDisplayName
+                        : mod.OwnershipDisplayName;
+            definitions[mod.Id] = new(
+                mod.Id,
+                mod.PrimaryName,
+                mod.SecondaryName,
+                status,
+                state);
+        }
+
+        foreach (var mod in InstalledMods.Where(mod => mod.Receipt is not null))
+        {
+            foreach (var dependencyId in mod.Receipt!.Dependencies.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (!definitions.ContainsKey(dependencyId))
+                {
+                    var display = ProjectMarketMod(dependencyId);
+                    definitions[dependencyId] = new(
+                        dependencyId,
+                        display?.PrimaryName ?? dependencyId,
+                        display?.SecondaryName ?? string.Empty,
+                        Loc["Missing"],
+                        DependencyGraphNodeState.Missing);
+                }
+                edges.Add(new DependencyGraphEdgeDefinition(dependencyId, mod.Id));
+            }
+        }
+
+        if (!IsFullDependencyGraph && selectedId is not null)
+        {
+            var visibleIds = FindDependencyComponent(selectedId, edges);
+            definitions = definitions
+                .Where(pair => visibleIds.Contains(pair.Key))
+                .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+            edges = edges
+                .Where(edge => visibleIds.Contains(edge.SourceId) && visibleIds.Contains(edge.TargetId))
+                .ToList();
+        }
+
+        var graph = DependencyGraphModel.Create(definitions.Values, edges, selectedId);
+        graph.NodeSelected = id =>
+        {
+            var selected = InstalledMods.FirstOrDefault(mod =>
+                string.Equals(mod.Id, id, StringComparison.OrdinalIgnoreCase));
+            if (selected is not null && !ReferenceEquals(SelectedInstalledMod, selected))
+            {
+                SelectedInstalledMod = selected;
+            }
+        };
+        InstalledModGraph = graph;
+    }
+
+    private static HashSet<string> FindDependencyComponent(
+        string selectedId,
+        IReadOnlyList<DependencyGraphEdgeDefinition> edges)
+    {
+        var neighbors = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var edge in edges)
+        {
+            if (!neighbors.TryGetValue(edge.SourceId, out var sourceNeighbors))
+            {
+                sourceNeighbors = [];
+                neighbors[edge.SourceId] = sourceNeighbors;
+            }
+            if (!neighbors.TryGetValue(edge.TargetId, out var targetNeighbors))
+            {
+                targetNeighbors = [];
+                neighbors[edge.TargetId] = targetNeighbors;
+            }
+            sourceNeighbors.Add(edge.TargetId);
+            targetNeighbors.Add(edge.SourceId);
+        }
+
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { selectedId };
+        var pending = new Queue<string>([selectedId]);
+        while (pending.TryDequeue(out var current) && neighbors.TryGetValue(current, out var adjacent))
+        {
+            foreach (var next in adjacent)
+            {
+                if (result.Add(next))
+                {
+                    pending.Enqueue(next);
+                }
+            }
+        }
+        return result;
+    }
+
     private void ApplyMarketFilters()
     {
         VisibleMarketMods.Clear();
@@ -2981,6 +3148,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 string.Equals(mod.Id, focusedId, StringComparison.OrdinalIgnoreCase));
         ApplyModFilters();
         OnModSelectionChanged();
+        if (IsInstalledModGraphVisible) RebuildInstalledModGraph();
     }
 
     private void RebuildMarketOptions(
@@ -3303,6 +3471,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         OnPropertyChanged(nameof(HasSelectedMods));
         OnPropertyChanged(nameof(SelectedModCount));
+        OnPropertyChanged(nameof(IsInstalledModBulkBarVisible));
     }
 
     internal void SelectInstalledMod(
@@ -3618,6 +3787,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             UpdateSelectedMarketInstallationState();
             OnModSelectionChanged();
             ApplyModFilters();
+            if (IsInstalledModGraphVisible) RebuildInstalledModGraph();
             Snapshots.Clear();
             foreach (var snapshot in snapshots)
             {

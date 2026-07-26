@@ -1,4 +1,5 @@
 using System.Reflection;
+using Crystalfly.App.ViewModels.DependencyGraph;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -42,7 +43,7 @@ public sealed class DocumentationScreenshotTests
         new("crystalfly-mod-presets-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.ModPresets),
         new("crystalfly-instance-config-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.InstanceConfig),
         new("crystalfly-save-editor-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.SaveEditor),
-        new("crystalfly-dependency-tree-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.DependencyTree)
+        new("crystalfly-dependency-graph-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.DependencyGraph)
     ];
 
     [AvaloniaFact]
@@ -88,9 +89,9 @@ public sealed class DocumentationScreenshotTests
             {
                 fixture.FocusExternalMod();
             }
-            else if (capture.State == ScreenshotState.DependencyTree)
+            else if (capture.State == ScreenshotState.DependencyGraph)
             {
-                await fixture.OpenDependencyTreeAsync();
+                await fixture.OpenDependencyGraphAsync();
             }
 
             Dispatcher.UIThread.RunJobs();
@@ -339,7 +340,7 @@ public sealed class DocumentationScreenshotTests
                     fixture.ViewModel.SaveEditor.Entries,
                     entry => entry.Path == "playerData.geo" && entry.Value == "1250");
                 break;
-            case ScreenshotState.DependencyTree:
+            case ScreenshotState.DependencyGraph:
                 Assert.Single(fixture.Window.GetVisualDescendants().OfType<CustomDialogControl>());
                 Assert.Contains(fixture.ViewModel.Loc["ConfirmModUninstallTitle"], visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["DependencyImpact"], visibleText);
@@ -409,7 +410,7 @@ public sealed class DocumentationScreenshotTests
                     or ScreenshotState.ModPresets
                     or ScreenshotState.InstanceConfig
                     or ScreenshotState.SaveEditor
-                    or ScreenshotState.DependencyTree => "Manage",
+                    or ScreenshotState.DependencyGraph => "Manage",
                 _ => "Launch"
             };
 
@@ -427,7 +428,7 @@ public sealed class DocumentationScreenshotTests
                 or ScreenshotState.ModPresets
                 or ScreenshotState.InstanceConfig
                 or ScreenshotState.SaveEditor
-                or ScreenshotState.DependencyTree)
+                or ScreenshotState.DependencyGraph)
             {
                 ViewModel.SelectedInstance = Instance;
                 for (var attempt = 0; attempt < 100 && ViewModel.IsLoadingInstanceDetails; attempt++)
@@ -497,7 +498,7 @@ public sealed class DocumentationScreenshotTests
                 await PrepareSaveEditorAsync();
             }
 
-            if (state == ScreenshotState.DependencyTree)
+            if (state == ScreenshotState.DependencyGraph)
             {
                 ViewModel.CurrentManageTab = "Mods";
             }
@@ -563,41 +564,41 @@ public sealed class DocumentationScreenshotTests
             ViewModel.SaveEditor = editor;
         }
 
-        public async Task OpenDependencyTreeAsync()
+        public async Task OpenDependencyGraphAsync()
         {
             var nodes = new[]
             {
                 new DependencyPlanNodeViewModel(
+                    "hkmod:DebugMod",
                     "调试模组",
                     "DebugMod",
-                    "hkmod:DebugMod",
-                    "hollow_knight_Data/Managed/Mods/DebugMod",
+                    ViewModel.Loc["Enabled"],
+                    DependencyGraphNodeState.Attention,
                     ViewModel.Loc["WillDelete"],
-                    0,
-                    isTarget: true,
-                    isUnresolved: false,
-                    targetLabel: ViewModel.Loc["Target"]),
+                    PrerequisiteIds: ["hkmod:Satchel"]),
+
+
                 new DependencyPlanNodeViewModel(
-                    "Satchel",
-                    "Satchel",
                     "hkmod:Satchel",
-                    "hollow_knight_Data/Managed/Mods/Satchel",
+                    "Satchel",
+                    "Satchel",
+                    ViewModel.Loc["Enabled"],
+                    DependencyGraphNodeState.Attention,
                     ViewModel.Loc["DependenciesWillBeMissing"],
-                    1,
-                    isTarget: false,
-                    isUnresolved: false,
-                    parentModId: "hkmod:DebugMod"),
+                    PrerequisiteIds: ["hkmod:CommonUtilities"]),
+
+
                 new DependencyPlanNodeViewModel(
+                    "hkmod:CommonUtilities",
                     "共享工具库",
                     "Common Utilities",
-                    "hkmod:CommonUtilities",
-                    "hollow_knight_Data/Managed/Mods/CommonUtilities",
-                    ViewModel.Loc["DependenciesWillBeMissing"],
-                    2,
-                    isTarget: false,
-                    isUnresolved: true,
-                    unresolvedLabel: ViewModel.Loc["Unresolved"],
-                    parentModId: "hkmod:Satchel")
+                    ViewModel.Loc["Missing"],
+                    DependencyGraphNodeState.Missing,
+                    ViewModel.Loc["DependenciesWillBeMissing"])
+
+
+
+
             };
             var dialog = new DependencyPlanDialogViewModel(
                 ViewModel.Loc["ConfirmModUninstallTitle"],
@@ -845,6 +846,6 @@ public sealed class DocumentationScreenshotTests
         ModPresets,
         InstanceConfig,
         SaveEditor,
-        DependencyTree
+        DependencyGraph
     }
 }

@@ -1,4 +1,5 @@
 using System.Reflection;
+using Crystalfly.App.ViewModels.DependencyGraph;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views;
@@ -58,7 +59,7 @@ public sealed class MainWindowCodeBehindTests : IDisposable
     }
 
     [Fact]
-    public async Task Dependency_repair_nodes_show_required_by_hierarchy_current_state_and_localized_labels()
+    public async Task Dependency_repair_nodes_project_prerequisites_current_state_and_actions()
     {
         await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"));
         viewModel.Loc.Apply(UiLanguage.SimplifiedChinese);
@@ -77,17 +78,17 @@ public sealed class MainWindowCodeBehindTests : IDisposable
 
         var nodes = BuildDependencyRepairNodes(viewModel, plan);
 
-        Assert.Equal(["feature", "middle", "base"], nodes.Select(node => node.ModId));
-        Assert.Equal([0, 1, 2], nodes.Select(node => node.Depth));
-        Assert.Equal([null, "feature", "middle"], nodes.Select(node => node.ParentModId));
-        Assert.True(nodes[0].IsTarget);
-        Assert.Contains(viewModel.Loc["Enabled"], nodes[0].Status, StringComparison.Ordinal);
-        Assert.Contains(viewModel.Loc["Disabled"], nodes[1].Status, StringComparison.Ordinal);
-        Assert.Contains(viewModel.Loc["WillReEnable"], nodes[1].Status, StringComparison.Ordinal);
-        Assert.Contains(viewModel.Loc["Missing"], nodes[2].Status, StringComparison.Ordinal);
-        Assert.Contains(viewModel.Loc["WillDownloadAndInstall"], nodes[2].Status, StringComparison.Ordinal);
-        Assert.Equal(viewModel.Loc["Target"], GetNodeLabel(nodes[0], "TargetLabel"));
-        Assert.Equal(viewModel.Loc["Unresolved"], GetNodeLabel(nodes[2], "UnresolvedLabel"));
+        var byId = nodes.ToDictionary(node => node.ModId, StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(["middle"], byId["feature"].PrerequisiteIds);
+        Assert.Equal(["base"], byId["middle"].PrerequisiteIds);
+        Assert.Null(byId["base"].PrerequisiteIds);
+        Assert.Equal(DependencyGraphNodeState.Normal, byId["feature"].State);
+        Assert.Equal(DependencyGraphNodeState.Disabled, byId["middle"].State);
+        Assert.Equal(DependencyGraphNodeState.Missing, byId["base"].State);
+        Assert.Equal(viewModel.Loc["WillReEnable"], byId["middle"].Action);
+        Assert.Equal(viewModel.Loc["WillDownloadAndInstall"], byId["base"].Action);
+        Assert.Equal(viewModel.Loc["Enabled"], byId["feature"].Status);
+        Assert.Equal(viewModel.Loc["Missing"], byId["base"].Status);
     }
 
     [Fact]
@@ -120,13 +121,13 @@ public sealed class MainWindowCodeBehindTests : IDisposable
 
         var nodes = BuildPresetApplyNodes(viewModel);
 
-        Assert.Equal(["安装", "未解决"], nodes.Select(node => node.PrimaryName));
+        Assert.Equal(["hkmod:benchmark", "LocalOnly"], nodes.Select(node => node.PrimaryName));
         Assert.Equal(["将更改", "需要本地文件"], nodes.Select(node => node.Status));
         Assert.Contains("2.4.0", nodes[0].SecondaryName, StringComparison.Ordinal);
         Assert.Contains("modding-api-77", nodes[0].SecondaryName, StringComparison.Ordinal);
-        Assert.False(nodes[0].IsUnresolved);
-        Assert.True(nodes[1].IsUnresolved);
-        Assert.Equal(viewModel.Loc["PresetStateUnresolved"], nodes[1].UnresolvedLabel);
+        Assert.Equal("安装", nodes[0].Action);
+        Assert.Equal("未解决", nodes[1].Action);
+        Assert.Equal([DependencyGraphNodeState.Normal, DependencyGraphNodeState.Attention], nodes.Select(node => node.State));
     }
 
     private static string ResolveSafeInstanceFolder(string root, string relativePath)

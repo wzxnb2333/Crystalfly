@@ -3,6 +3,7 @@
         xmlns:vm="using:Crystalfly.App.ViewModels"
         xmlns:models="using:Crystalfly.Core.Models"
         xmlns:mv="using:MarkView.Avalonia"
+        xmlns:controls="using:Crystalfly.App.Views.Controls"
         xmlns:converters="using:Avalonia.Data.Converters"
         xmlns:u="https://irihi.tech/ursa"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -1239,13 +1240,26 @@
                                 <TextBlock Classes="cfp-meta" Text="{Binding SelectedModCount}" />
                             </StackPanel>
                             <WrapPanel Grid.Column="1" Classes="cfp-mod-quick-actions" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Classes="cfp-icon cfp-quick-action cfp-graph-toggle"
+                                        Classes.active="{Binding IsInstalledModListVisible}"
+                                        Command="{Binding ShowInstalledModListCommand}"
+                                        ToolTip.Tip="{Binding Loc[DependencyList]}"
+                                        AutomationProperties.Name="{Binding Loc[DependencyList]}"
+                                        Content="{LucideIconContent List, 16}" />
+                                <Button Classes="cfp-icon cfp-quick-action cfp-graph-toggle"
+                                        Classes.active="{Binding IsInstalledModGraphVisible}"
+                                        Command="{Binding ShowInstalledModGraphCommand}"
+                                        ToolTip.Tip="{Binding Loc[DependencyGraph]}"
+                                        AutomationProperties.Name="{Binding Loc[DependencyGraph]}"
+                                        Content="{LucideIconContent Network, 16}" />
                                 <Button Classes="cfp-icon cfp-quick-action" Click="OpenInstalledModRoot" ToolTip.Tip="{Binding Loc[OpenFolder]}" AutomationProperties.Name="{Binding Loc[OpenFolder]}" Content="{LucideIconContent FolderOpen, 16}" />
                                 <Button Classes="cfp-icon cfp-quick-action" Click="ImportLocalModPackage" ToolTip.Tip="{Binding Loc[ImportLocalMod]}" AutomationProperties.Name="{Binding Loc[ImportLocalMod]}" Content="{LucideIconContent PackagePlus, 16}" />
                                 <Button Classes="cfp-icon cfp-quick-action" Command="{Binding OpenModMarketForSelectedInstanceCommand}" ToolTip.Tip="{Binding Loc[ModMarket]}" AutomationProperties.Name="{Binding Loc[ModMarket]}" Content="{LucideIconContent Store, 16}" />
                                 <Button Classes="cfp-icon cfp-quick-action" Command="{Binding SelectAllInstalledModsCommand}" ToolTip.Tip="{Binding Loc[SelectAll]}" AutomationProperties.Name="{Binding Loc[SelectAll]}" Content="{LucideIconContent ListChecks, 16}" />
                             </WrapPanel>
                         </Grid>
-                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8"
+                              IsVisible="{Binding IsInstalledModListVisible}">
                             <TextBox Classes="cfp-input" Text="{Binding ModSearchText, Mode=TwoWay}" PlaceholderText="{Binding Loc[FilterMods]}" AutomationProperties.Name="{Binding Loc[FilterMods]}" />
                             <ComboBox Grid.Column="1" Width="160" Classes="cfp-input" ItemsSource="{Binding ModStatusOptions}" SelectedItem="{Binding SelectedModStatusOption, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[FilterAll]}">
                                 <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
@@ -1265,7 +1279,41 @@
                                 </StackPanel>
                             </Border>
                         </StackPanel>
-                        <Border Grid.Row="3" Classes="cfp-list-frame">
+                        <Border Grid.Row="3"
+                                Classes="cfp-list-frame cfp-dependency-graph-frame"
+                                IsVisible="{Binding IsInstalledModGraphVisible}">
+                            <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                                <Grid Margin="12,10,12,0" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <TextBlock Classes="cfp-row-title"
+                                               Text="{Binding Loc[DependencyGraph]}"
+                                               VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                        <Button Classes="cfp-secondary cfp-graph-scope"
+                                                Classes.active="{Binding IsFullDependencyGraph, Converter={x:Static converters:BoolConverters.Not}}"
+                                                Command="{Binding ShowFocusedDependencyGraphCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <LucideIcon Kind="Scan" Size="14" />
+                                                <TextBlock Text="{Binding Loc[DependencyGraphFocus]}" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Classes="cfp-secondary cfp-graph-scope"
+                                                Classes.active="{Binding IsFullDependencyGraph}"
+                                                Command="{Binding ShowAllDependencyGraphCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <LucideIcon Kind="Network" Size="14" />
+                                                <TextBlock Text="{Binding Loc[DependencyGraphAll]}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                                <controls:DependencyGraphView Grid.Row="1"
+                                                              Margin="8"
+                                                              MinHeight="340"
+                                                              DataContext="{Binding InstalledModGraph}" />
+                            </Grid>
+                        </Border>
+                        <Border Grid.Row="3" Classes="cfp-list-frame"
+                                IsVisible="{Binding IsInstalledModListVisible}">
                             <ListBox x:Name="InstalledModsList" Classes="cfp-list cfp-installed-mod-list" ItemsSource="{Binding VisibleInstalledMods}" SelectedItem="{Binding SelectedInstalledMod, Mode=TwoWay}" KeyDown="OnInstalledModsKeyDown">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:InstalledModItemViewModel">
@@ -1298,7 +1346,7 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
                         </Border>
-                        <Border Grid.Row="4" Classes="cfp-mod-bulk-bar" IsVisible="{Binding HasSelectedMods}">
+                        <Border Grid.Row="4" Classes="cfp-mod-bulk-bar" IsVisible="{Binding IsInstalledModBulkBarVisible}">
                             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
                                 <TextBlock Classes="cfp-row-title" Text="{Binding SelectedModCount}" VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="1" Classes="cfp-meta" Text="{Binding Loc[SelectedMods]}" VerticalAlignment="Center" />

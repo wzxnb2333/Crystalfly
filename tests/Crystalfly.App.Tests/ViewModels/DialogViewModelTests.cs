@@ -1,4 +1,5 @@
 using Crystalfly.App.ViewModels.Dialogs;
+using Crystalfly.App.ViewModels.DependencyGraph;
 using Crystalfly.Core.Runtime;
 
 namespace Crystalfly.App.Tests.ViewModels;
@@ -46,12 +47,24 @@ public sealed class DialogViewModelTests
     }
 
     [Fact]
-    public void Dependency_nodes_expose_indent_and_dialog_respects_confirmation_state()
+    public void Dependency_dialog_projects_graph_and_respects_confirmation_state()
     {
         var nodes = new[]
         {
-            new DependencyPlanNodeViewModel("Feature", "功能", "hkmod:feature", "C:/Mods/Feature", "Enabled", 0, true, false),
-            new DependencyPlanNodeViewModel("Library", "前置库", "hkmod:library", "C:/Mods/Library", "Missing", 2, false, true)
+            new DependencyPlanNodeViewModel(
+                "feature",
+                "Feature",
+                "功能",
+                "Enabled",
+                DependencyGraphNodeState.Normal,
+                "Will delete",
+                ["library"]),
+            new DependencyPlanNodeViewModel(
+                "library",
+                "Library",
+                "前置库",
+                "Missing",
+                DependencyGraphNodeState.Missing)
         };
         var dialog = new DependencyPlanDialogViewModel(
             "Dependency impact",
@@ -64,17 +77,11 @@ public sealed class DialogViewModelTests
         object? result = null;
         dialog.RequestClose += (_, value) => result = value;
 
-        Assert.Equal(0, nodes[0].Indent);
-        Assert.Equal(32, nodes[1].Indent);
-        var targetLabel = typeof(DependencyPlanNodeViewModel).GetProperty("TargetLabel");
-        var unresolvedLabel = typeof(DependencyPlanNodeViewModel).GetProperty("UnresolvedLabel");
-        Assert.NotNull(targetLabel);
-        Assert.NotNull(unresolvedLabel);
-        Assert.Equal("Target", targetLabel.GetValue(nodes[0]));
-        Assert.Equal("Unresolved", unresolvedLabel.GetValue(nodes[1]));
         Assert.Same(nodes, dialog.Nodes);
         Assert.True(dialog.IsDangerous);
         Assert.False(dialog.ConfirmCommand.CanExecute(null));
+        Assert.Contains(dialog.Graph.Edges, edge => edge.Source.Id == "library" && edge.Target.Id == "feature");
+        Assert.Equal(DependencyGraphNodeState.Missing, Assert.Single(dialog.Graph.Nodes, node => node.Id == "library").State);
         dialog.ConfirmCommand.Execute(null);
         Assert.Null(result);
 
@@ -83,69 +90,42 @@ public sealed class DialogViewModelTests
     }
 
     [Fact]
-    public void Dependency_dialog_assigns_tree_connectors_and_node_icons()
+    public void Dependency_dialog_projects_real_relationships_into_a_graph()
     {
         var nodes = new[]
         {
             new DependencyPlanNodeViewModel(
+                "feature",
                 "Feature",
                 string.Empty,
-                "feature",
-                string.Empty,
                 "Enabled",
-                0,
-                isTarget: true,
-                isUnresolved: false),
+                DependencyGraphNodeState.Normal,
+                PrerequisiteIds: ["library"]),
+
             new DependencyPlanNodeViewModel(
-                "Middle",
-                string.Empty,
-                "middle",
-                string.Empty,
-                "Disabled",
-                1,
-                isTarget: false,
-                isUnresolved: false,
-                parentModId: "feature"),
-            new DependencyPlanNodeViewModel(
-                "Base",
-                string.Empty,
-                "base",
+                "library",
+                "Library",
                 string.Empty,
                 "Missing",
-                2,
-                isTarget: false,
-                isUnresolved: true,
-                parentModId: "middle"),
-            new DependencyPlanNodeViewModel(
-                "Optional",
-                string.Empty,
-                "optional",
-                string.Empty,
-                "Enabled",
-                1,
-                isTarget: false,
-                isUnresolved: false,
-                parentModId: "feature")
-        };
+                DependencyGraphNodeState.Missing)
 
-        _ = new DependencyPlanDialogViewModel(
-            "Dependencies",
-            "Review",
+
+
+        };
+        var dialog = new DependencyPlanDialogViewModel(
+            "Dependency impact",
+            "Review affected mods",
             nodes,
-            "Confirm",
+            "Delete",
             "Cancel",
             canConfirm: true,
-            isDangerous: false);
+            isDangerous: true);
 
-        Assert.Empty(nodes[0].Connectors);
-        Assert.Equal([TreeConnectorKind.Branch], nodes[1].Connectors);
-        Assert.Equal(
-            [TreeConnectorKind.Continue, TreeConnectorKind.LastBranch],
-            nodes[2].Connectors);
-        Assert.Equal([TreeConnectorKind.LastBranch], nodes[3].Connectors);
-        Assert.True(nodes[0].ShowTargetIcon);
-        Assert.True(nodes[1].ShowDependencyIcon);
-        Assert.False(nodes[2].ShowDependencyIcon);
+        Assert.Contains(dialog.Graph.Edges, edge => edge.Source.Id == "library" && edge.Target.Id == "feature");
+        var missing = Assert.Single(dialog.Graph.Nodes, node => node.Id == "library");
+        Assert.True(missing.IsMissing);
+        Assert.False(missing.IsProblem);
+
     }
 
     [Fact]

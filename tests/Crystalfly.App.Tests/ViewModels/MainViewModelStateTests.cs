@@ -1424,6 +1424,41 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public void Installed_mod_graph_defaults_to_selected_component_and_can_expand_to_the_instance()
+    {
+        var viewModel = CreateViewModel();
+        var library = new InstalledModItemViewModel(
+            Receipt("library", "1.0.0", enabled: true),
+            null,
+            static () => { });
+        var feature = new InstalledModItemViewModel(
+            Receipt("feature", "1.0.0", enabled: true) with { Dependencies = ["library"] },
+            null,
+            static () => { });
+        var isolated = new InstalledModItemViewModel(
+            Receipt("isolated", "1.0.0", enabled: true),
+            null,
+            static () => { });
+        viewModel.InstalledMods.Add(library);
+        viewModel.InstalledMods.Add(feature);
+        viewModel.InstalledMods.Add(isolated);
+        viewModel.SelectedInstalledMod = feature;
+
+        viewModel.ShowInstalledModGraphCommand.Execute(null);
+
+        Assert.True(viewModel.IsInstalledModGraphVisible);
+        Assert.Equal(["feature", "library"], viewModel.InstalledModGraph.Nodes.Select(node => node.Id).Order());
+        var edge = Assert.Single(viewModel.InstalledModGraph.Edges);
+        Assert.Equal("library", edge.Source.Id);
+        Assert.Equal("feature", edge.Target.Id);
+
+        viewModel.ShowAllDependencyGraphCommand.Execute(null);
+
+        Assert.True(viewModel.IsFullDependencyGraph);
+        Assert.Equal(3, viewModel.InstalledModGraph.Nodes.Count);
+    }
+
+    [Fact]
     public void Mod_market_filters_recent_additions_from_activity_catalog()
     {
         var viewModel = CreateViewModel();
