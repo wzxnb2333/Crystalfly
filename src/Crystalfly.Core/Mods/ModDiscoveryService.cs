@@ -98,6 +98,7 @@ public sealed class ModDiscoveryService
             })
             .Where(file => !owned.Contains(file.RelativePath))
             .GroupBy(file => file.Name, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Any(file => IsEntryFile(file.RelativePath)))
             .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase);
         foreach (var group in flatFiles)
         {
@@ -127,7 +128,7 @@ public sealed class ModDiscoveryService
                 .Where(path => !owned.Contains(path))
                 .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
-            if (files.Length == 0)
+            if (!files.Any(IsEntryFile))
             {
                 continue;
             }

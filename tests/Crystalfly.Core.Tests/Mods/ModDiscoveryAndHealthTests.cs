@@ -67,6 +67,31 @@ public sealed class ModDiscoveryAndHealthTests : IDisposable
     }
 
     [Fact]
+    public async Task Discovery_does_not_treat_managed_mod_assets_as_external_mods()
+    {
+        var instanceRoot = Path.Combine(root, "instance-assets");
+        var receiptsRoot = Path.Combine(root, "state-assets", "mods");
+        var dll = await WriteAsync(
+            instanceRoot, "hollow_knight_Data/Managed/Mods/Custom Knight/CustomKnight.dll", "assembly");
+        var customKnight = Receipt(
+            "custom-knight", "Custom Knight", "modding-api-77",
+            "hollow_knight_Data/Managed/Mods/Custom Knight",
+            "hollow_knight_Data/Managed/Mods/Custom Knight/CustomKnight.dll",
+            await HashAsync(dll));
+        await WriteReceiptAsync(receiptsRoot, customKnight);
+        await WriteAsync(
+            instanceRoot,
+            "hollow_knight_Data/Managed/Mods/Custom Knight/Skins/Default/Charms/Charm_12.png",
+            "skin");
+
+        var result = await new ModDiscoveryService(instanceRoot, receiptsRoot)
+            .DiscoverAsync("modding-api-77");
+
+        Assert.Equal("custom-knight", Assert.Single(result.InstalledReceipts).Id);
+        Assert.Empty(result.ExternalMods);
+    }
+
+    [Fact]
     public async Task Takeover_hashes_external_files_preserves_disabled_placement_and_blocks_automatic_update()
     {
         var instanceRoot = Path.Combine(root, "instance");
