@@ -48,6 +48,7 @@ public partial class MainWindow : Window
     private readonly WindowToastManager toastManager;
     private readonly SemaphoreSlim externalCommandGate = new(1, 1);
     private Action<string>? toastRequestedHandler;
+    private Action? graphModRemovalRequestedHandler;
     private MainViewModel? toastViewModel;
     private bool externalCommandReady;
 
@@ -610,16 +611,35 @@ public partial class MainWindow : Window
                 toastViewModel.ToastRequested -= toastRequestedHandler;
             }
             toastViewModel.PropertyChanged -= OnToastViewModelPropertyChanged;
+            if (graphModRemovalRequestedHandler is not null)
+            {
+                toastViewModel.GraphModRemovalRequested -= graphModRemovalRequestedHandler;
+            }
         }
 
         toastRequestedHandler = null;
+        graphModRemovalRequestedHandler = null;
         toastViewModel = DataContext as MainViewModel;
         if (toastViewModel is not null)
         {
             var owner = toastViewModel;
             toastRequestedHandler = message => ShowToast(owner, message, NotificationType.Success);
+            graphModRemovalRequestedHandler = () => _ = ConfirmGraphModRemovalAsync(owner);
             toastViewModel.ToastRequested += toastRequestedHandler;
             toastViewModel.PropertyChanged += OnToastViewModelPropertyChanged;
+            toastViewModel.GraphModRemovalRequested += graphModRemovalRequestedHandler;
+        }
+    }
+
+    private async Task ConfirmGraphModRemovalAsync(MainViewModel viewModel)
+    {
+        try
+        {
+            await ConfirmModRemovalAsync(viewModel, bulk: false);
+        }
+        catch (InvalidOperationException exception)
+        {
+            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
         }
     }
 
@@ -693,7 +713,12 @@ public partial class MainWindow : Window
                 toastViewModel.ToastRequested -= toastRequestedHandler;
             }
             toastViewModel.PropertyChanged -= OnToastViewModelPropertyChanged;
+            if (graphModRemovalRequestedHandler is not null)
+            {
+                toastViewModel.GraphModRemovalRequested -= graphModRemovalRequestedHandler;
+            }
             toastRequestedHandler = null;
+            graphModRemovalRequestedHandler = null;
             toastViewModel = null;
         }
     }

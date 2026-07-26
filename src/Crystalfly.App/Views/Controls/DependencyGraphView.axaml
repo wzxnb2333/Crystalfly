@@ -94,6 +94,7 @@
                 <Button Classes="cfp-icon" Click="OnZoomIn" ToolTip.Tip="放大 / Zoom in" AutomationProperties.Name="放大 / Zoom in" Content="{LucideIconContent Plus, 15}" />
                 <Button Classes="cfp-icon" Click="OnFit" ToolTip.Tip="适应视图 / Fit view" AutomationProperties.Name="适应视图 / Fit view" Content="{LucideIconContent Scan, 15}" />
                 <Button Classes="cfp-icon" Click="OnReset" ToolTip.Tip="重置视图 / Reset view" AutomationProperties.Name="重置视图 / Reset view" Content="{LucideIconContent RotateCcw, 15}" />
+                <Button Classes="cfp-icon" Click="OnRestoreAutomaticLayout" ToolTip.Tip="恢复自动布局 / Restore automatic layout" AutomationProperties.Name="恢复自动布局 / Restore automatic layout" Content="{LucideIconContent WandSparkles, 15}" />
             </StackPanel>
         </Border>
 

@@ -192,6 +192,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public event Action<string>? ToastRequested;
 
+    public event Action? GraphModRemovalRequested;
+
     public ObservableCollection<InstanceItemViewModel> Instances { get; } = [];
 
     public ObservableCollection<InstanceItemViewModel> VisibleInstances { get; } = [];
@@ -1898,9 +1900,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         var modId = SelectedInstalledMod.Id;
         var enabled = !SelectedInstalledMod.Enabled;
-        await RunInstanceMutationAsync(record => enabled
-            ? CreateModManager(record).SetEnabledAsync(modId, enabled: true)
-            : CreateModManager(record).DisableIgnoringDependentsAsync(modId));
+        await SetInstalledModsEnabledAsync([modId], enabled);
     }
 
     [RelayCommand]
@@ -2130,29 +2130,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             return;
         }
-        var installed = GetManagedModReceipts();
-        var selectedIds = selected.Select(mod => mod.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var disabledExternalDependencies = selected
-            .SelectMany(mod => mod.Dependencies)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(id => installed.FirstOrDefault(mod => string.Equals(mod.Id, id, StringComparison.OrdinalIgnoreCase)))
-            .Where(mod => mod is not null && !mod.Enabled && !selectedIds.Contains(mod.Id))
-            .Select(mod => mod!.Name)
-            .ToArray();
-        if (disabledExternalDependencies.Length > 0)
-        {
-            ErrorMessage = $"{Loc["DependencyProblem"]}: {string.Join(", ", disabledExternalDependencies)}";
-            return;
-        }
-        var order = InstalledModDependencyGraph.OrderDependentsFirst(installed, selectedIds).Reverse().ToArray();
-        await RunInstanceMutationAsync(async record =>
-        {
-            var manager = CreateModManager(record);
-            foreach (var mod in order.Where(mod => !mod.Enabled))
-            {
-                await manager.SetEnabledAsync(mod.Id, enabled: true);
-            }
-        });
+        await SetInstalledModsEnabledAsync(selected.Select(mod => mod.Id), enabled: true);
     }
 
     [RelayCommand]
@@ -2163,15 +2141,57 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             return;
         }
+        await SetInstalledModsEnabledAsync(selected.Select(mod => mod.Id), enabled: false);
+    }
+
+    private Task SetInstalledModsEnabledAsync(IEnumerable<string> requestedIds, bool enabled)
+    {
+        var selectedIds = requestedIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var installed = GetManagedModReceipts();
-        var selectedIds = selected.Select(mod => mod.Id).ToArray();
+        var selected = installed
+            .Where(mod => selectedIds.Contains(mod.Id))
+            .ToArray();
+        if (selected.Length == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (enabled)
+        {
+            var disabledDependencies = selected
+                .SelectMany(mod => mod.Dependencies)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(id => installed.FirstOrDefault(mod => string.Equals(mod.Id, id, StringComparison.OrdinalIgnoreCase)))
+                .Where(mod => mod is not null && !mod.Enabled && !selectedIds.Contains(mod.Id))
+                .Select(mod => mod!.Name)
+                .ToArray();
+            if (disabledDependencies.Length > 0)
+            {
+                ErrorMessage = $"{Loc["DependencyProblem"]}: {string.Join(", ", disabledDependencies)}";
+                return Task.CompletedTask;
+            }
+        }
+
         var order = InstalledModDependencyGraph.OrderDependentsFirst(installed, selectedIds);
-        await RunInstanceMutationAsync(async record =>
+        if (enabled)
+        {
+            order = order.Reverse().ToArray();
+        }
+        return RunInstanceMutationAsync(async record =>
         {
             var manager = CreateModManager(record);
-            foreach (var mod in order.Where(mod => mod.Enabled))
+            foreach (var mod in order.Where(mod => mod.Enabled != enabled))
             {
-                await manager.DisableIgnoringDependentsAsync(mod.Id);
+                if (enabled)
+                {
+                    await manager.SetEnabledAsync(mod.Id, enabled: true);
+                }
+                else
+                {
+                    await manager.DisableIgnoringDependentsAsync(mod.Id);
+                }
             }
         });
     }
@@ -2922,7 +2942,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 mod.PrimaryName,
                 mod.SecondaryName,
                 status,
-                state);
+                state,
+                CanToggle: mod.CanToggle,
+                ToggleActionLabel: mod.IsEnabled ? Loc["Disable"] : Loc["Enable"],
+                CanDelete: mod.CanUninstall);
         }
 
         foreach (var mod in InstalledMods.Where(mod => mod.Receipt is not null))
@@ -2954,6 +2977,99 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
         };
         InstalledModGraph = graph;
+        if (SelectedInstance is not { } instance)
+        {
+            return;
+        }
+
+        graph.NodePositionCommitted = () => _ = SaveInstalledModGraphLayoutAsync(graph, instance.Id);
+        graph.AutomaticLayoutRestored = () => _ = ClearInstalledModGraphLayoutAsync(graph, instance.Id);
+        graph.NodeToggleRequested = id => _ = ToggleInstalledModFromGraphAsync(id);
+        graph.NodeDeleteRequested = RequestInstalledModRemovalFromGraph;
+        _ = ApplyInstalledModGraphLayoutAsync(graph, instance.Id);
+    }
+
+    private async Task ApplyInstalledModGraphLayoutAsync(DependencyGraphModel graph, string instanceId)
+    {
+        var layout = await DependencyGraphLayoutStore.TryReadAsync(GetInstalledModGraphLayoutPath(instanceId));
+        if (layout is null
+            || !ReferenceEquals(InstalledModGraph, graph)
+            || !string.Equals(SelectedInstance?.Id, instanceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var applied = graph.ApplySavedPositions(layout.Positions);
+        if (applied.HadExpiredNodes)
+        {
+            await SaveInstalledModGraphLayoutAsync(graph, instanceId);
+        }
+    }
+
+    private async Task SaveInstalledModGraphLayoutAsync(DependencyGraphModel graph, string instanceId)
+    {
+        if (!ReferenceEquals(InstalledModGraph, graph)
+            || !string.Equals(SelectedInstance?.Id, instanceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        try
+        {
+            await DependencyGraphLayoutStore.WriteAsync(
+                GetInstalledModGraphLayoutPath(instanceId),
+                new DependencyGraphLayout { Positions = new(graph.GetPositions(), StringComparer.OrdinalIgnoreCase) });
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+        }
+    }
+
+    private async Task ClearInstalledModGraphLayoutAsync(DependencyGraphModel graph, string instanceId)
+    {
+        if (!ReferenceEquals(InstalledModGraph, graph)
+            || !string.Equals(SelectedInstance?.Id, instanceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        try
+        {
+            await DependencyGraphLayoutStore.WriteAsync(
+                GetInstalledModGraphLayoutPath(instanceId),
+                new DependencyGraphLayout());
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+        }
+    }
+
+    private async Task ToggleInstalledModFromGraphAsync(string modId)
+    {
+        var mod = InstalledMods.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, modId, StringComparison.OrdinalIgnoreCase));
+        if (mod is null || !mod.CanToggle)
+        {
+            return;
+        }
+
+        SelectedInstalledMod = mod;
+        await SetInstalledModsEnabledAsync([mod.Id], enabled: !mod.IsEnabled);
+    }
+
+    private void RequestInstalledModRemovalFromGraph(string modId)
+    {
+        var mod = InstalledMods.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, modId, StringComparison.OrdinalIgnoreCase));
+        if (mod is null || !mod.CanUninstall)
+        {
+            return;
+        }
+
+        SelectedInstalledMod = mod;
+        GraphModRemovalRequested?.Invoke();
     }
 
     private void ApplyMarketFilters()
@@ -4148,6 +4264,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private string GetInstanceStateRoot(string instanceId) =>
         Path.Combine(paths.GetVersionDataRoot(VersionRoot), "instances", instanceId);
+
+    private string GetInstalledModGraphLayoutPath(string instanceId) =>
+        Path.Combine(GetInstanceStateRoot(instanceId), "dependency-graph.layout.json");
 
     private static string GetSharedLocalLowPath() => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

@@ -9,6 +9,7 @@ namespace Crystalfly.App.Views.Controls;
 public sealed class DependencyGraphEdges : Control
 {
     private IReadOnlyList<DependencyGraphEdgeViewModel>? subscribedEdges;
+    private IReadOnlyList<DependencyGraphNodeViewModel>? subscribedNodes;
     public static readonly StyledProperty<IReadOnlyList<DependencyGraphEdgeViewModel>?> EdgesProperty =
         AvaloniaProperty.Register<DependencyGraphEdges, IReadOnlyList<DependencyGraphEdgeViewModel>?>(nameof(Edges));
 
@@ -114,6 +115,13 @@ public sealed class DependencyGraphEdges : Control
                 edge.PropertyChanged -= OnEdgeChanged;
             }
         }
+        if (subscribedNodes is not null)
+        {
+            foreach (var node in subscribedNodes)
+            {
+                node.PropertyChanged -= OnNodeChanged;
+            }
+        }
         if (newEdges is not null)
         {
             foreach (var edge in newEdges)
@@ -121,9 +129,23 @@ public sealed class DependencyGraphEdges : Control
                 edge.PropertyChanged += OnEdgeChanged;
             }
         }
+        var newNodes = newEdges?
+            .SelectMany(edge => new[] { edge.Source, edge.Target })
+            .Distinct()
+            .ToArray();
+        if (newNodes is not null)
+        {
+            foreach (var node in newNodes)
+            {
+                node.PropertyChanged += OnNodeChanged;
+            }
+        }
         subscribedEdges = newEdges;
+        subscribedNodes = newNodes;
         InvalidateVisual();
     }
 
     private void OnEdgeChanged(object? sender, PropertyChangedEventArgs eventArgs) => InvalidateVisual();
+
+    private void OnNodeChanged(object? sender, PropertyChangedEventArgs eventArgs) => InvalidateVisual();
 }

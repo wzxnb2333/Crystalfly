@@ -21,7 +21,10 @@ public sealed record DependencyGraphNodeDefinition(
     string SecondaryName,
     string Status,
     DependencyGraphNodeState State,
-    string? Action = null);
+    string? Action = null,
+    bool CanToggle = false,
+    string? ToggleActionLabel = null,
+    bool CanDelete = false);
 
 public sealed record DependencyGraphEdgeDefinition(string SourceId, string TargetId);
 
@@ -35,6 +38,9 @@ public sealed partial class DependencyGraphNodeViewModel : ObservableObject
         Status = definition.Status;
         State = definition.State;
         Action = definition.Action;
+        CanToggle = definition.CanToggle;
+        ToggleActionLabel = definition.ToggleActionLabel;
+        CanDelete = definition.CanDelete;
     }
 
     public string Id { get; }
@@ -49,9 +55,17 @@ public sealed partial class DependencyGraphNodeViewModel : ObservableObject
 
     public string? Action { get; }
 
-    public double X { get; internal set; }
+    public bool CanToggle { get; }
 
-    public double Y { get; internal set; }
+    public string? ToggleActionLabel { get; }
+
+    public bool CanDelete { get; }
+
+    [ObservableProperty]
+    public partial double X { get; private set; }
+
+    [ObservableProperty]
+    public partial double Y { get; private set; }
 
     public bool IsMissing => State == DependencyGraphNodeState.Missing;
 
@@ -90,6 +104,12 @@ public sealed partial class DependencyGraphNodeViewModel : ObservableObject
         OnPropertyChanged(nameof(IsWarning));
         OnPropertyChanged(nameof(IsUnknown));
     }
+
+    internal void SetPosition(double x, double y)
+    {
+        X = x;
+        Y = y;
+    }
 }
 
 public sealed partial class DependencyGraphEdgeViewModel(
@@ -115,9 +135,10 @@ public sealed partial class DependencyGraphModel : ObservableObject
     public const double NodeHeight = 82;
     private const double HorizontalGap = 96;
     private const double VerticalGap = 18;
-    private const double Padding = 28;
+    public const double CanvasPadding = 28;
     private readonly Dictionary<string, DependencyGraphNodeViewModel> nodesById;
     private readonly IReadOnlyList<DependencyGraphEdgeViewModel> edges;
+    private readonly Dictionary<string, DependencyGraphNodePosition> automaticPositions = new(StringComparer.OrdinalIgnoreCase);
 
     private DependencyGraphModel(
         IReadOnlyList<DependencyGraphNodeViewModel> nodes,
@@ -140,6 +161,14 @@ public sealed partial class DependencyGraphModel : ObservableObject
     public bool HasNodes => Nodes.Count != 0;
 
     public Action<string>? NodeSelected { get; set; }
+
+    public Action? NodePositionCommitted { get; set; }
+
+    public Action? AutomaticLayoutRestored { get; set; }
+
+    public Action<string>? NodeToggleRequested { get; set; }
+
+    public Action<string>? NodeDeleteRequested { get; set; }
 
     public static DependencyGraphModel Create(
         IEnumerable<DependencyGraphNodeDefinition> nodeDefinitions,
@@ -209,6 +238,83 @@ public sealed partial class DependencyGraphModel : ObservableObject
         NodeSelected?.Invoke(node.Id);
     }
 
+    public DependencyGraphLayoutApplicationResult ApplySavedPositions(
+        IReadOnlyDictionary<string, DependencyGraphNodePosition> positions)
+    {
+        ArgumentNullException.ThrowIfNull(positions);
+        var appliedCount = 0;
+        var hadExpiredNodes = false;
+        foreach (var (id, position) in positions)
+        {
+            if (!nodesById.TryGetValue(id, out var node))
+            {
+                hadExpiredNodes = true;
+                continue;
+            }
+            if (!double.IsFinite(position.X) || !double.IsFinite(position.Y))
+            {
+                hadExpiredNodes = true;
+                continue;
+            }
+
+            node.SetPosition(Math.Max(CanvasPadding, position.X), Math.Max(CanvasPadding, position.Y));
+            appliedCount++;
+        }
+        RecalculateBounds();
+        return new DependencyGraphLayoutApplicationResult(appliedCount, hadExpiredNodes);
+    }
+
+    public bool MoveNode(string id, double x, double y)
+    {
+        if (!nodesById.TryGetValue(id, out var node)
+            || !double.IsFinite(x)
+            || !double.IsFinite(y))
+        {
+            return false;
+        }
+
+        node.SetPosition(Math.Max(CanvasPadding, x), Math.Max(CanvasPadding, y));
+        RecalculateBounds();
+        return true;
+    }
+
+    public IReadOnlyDictionary<string, DependencyGraphNodePosition> GetPositions() =>
+        Nodes.ToDictionary(
+            node => node.Id,
+            node => new DependencyGraphNodePosition(node.X, node.Y),
+            StringComparer.OrdinalIgnoreCase);
+
+    public void RestoreAutomaticLayout()
+    {
+        foreach (var node in Nodes)
+        {
+            if (automaticPositions.TryGetValue(node.Id, out var position))
+            {
+                node.SetPosition(position.X, position.Y);
+            }
+        }
+        RecalculateBounds();
+        AutomaticLayoutRestored?.Invoke();
+    }
+
+    public void RequestNodeToggle(DependencyGraphNodeViewModel? node)
+    {
+        if (node?.CanToggle == true)
+        {
+            NodeToggleRequested?.Invoke(node.Id);
+        }
+    }
+
+    public void RequestNodeDelete(DependencyGraphNodeViewModel? node)
+    {
+        if (node?.CanDelete == true)
+        {
+            NodeDeleteRequested?.Invoke(node.Id);
+        }
+    }
+
+    public void CommitNodePosition() => NodePositionCommitted?.Invoke();
+
     private void Layout()
     {
         var cycleIds = FindCycleIds(Nodes, edges);
@@ -255,8 +361,7 @@ public sealed partial class DependencyGraphModel : ObservableObject
             layerById[edge.Target.Id] = Math.Max(layerById[edge.Target.Id], 1);
         }
 
-        var maxX = Padding;
-        var maxY = Padding;
+        automaticPositions.Clear();
         foreach (var layer in Nodes.GroupBy(node => layerById[node.Id]).OrderBy(group => group.Key))
         {
             var row = 0;
@@ -264,17 +369,29 @@ public sealed partial class DependencyGraphModel : ObservableObject
                 .OrderBy(node => node.PrimaryName, StringComparer.CurrentCulture)
                 .ThenBy(node => node.Id, StringComparer.OrdinalIgnoreCase))
             {
-                node.X = Padding + layer.Key * (NodeWidth + HorizontalGap);
-                node.Y = Padding + row++ * (NodeHeight + VerticalGap);
-                maxX = Math.Max(maxX, node.X + NodeWidth);
-                maxY = Math.Max(maxY, node.Y + NodeHeight);
+                node.SetPosition(
+                    CanvasPadding + layer.Key * (NodeWidth + HorizontalGap),
+                    CanvasPadding + row++ * (NodeHeight + VerticalGap));
+                automaticPositions[node.Id] = new DependencyGraphNodePosition(node.X, node.Y);
             }
         }
-        Width = maxX + Padding;
-        Height = maxY + Padding;
+        RecalculateBounds();
+        OnPropertyChanged(nameof(HasNodes));
+    }
+
+    private void RecalculateBounds()
+    {
+        var maxX = CanvasPadding;
+        var maxY = CanvasPadding;
+        foreach (var node in Nodes)
+        {
+            maxX = Math.Max(maxX, node.X + NodeWidth);
+            maxY = Math.Max(maxY, node.Y + NodeHeight);
+        }
+        Width = maxX + CanvasPadding;
+        Height = maxY + CanvasPadding;
         OnPropertyChanged(nameof(Width));
         OnPropertyChanged(nameof(Height));
-        OnPropertyChanged(nameof(HasNodes));
     }
 
     private HashSet<string> FindConnectedIds(string selectedId)

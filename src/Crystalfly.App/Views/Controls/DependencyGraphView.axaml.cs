@@ -1,10 +1,12 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels.DependencyGraph;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Crystalfly.App.Views.Controls;
 
@@ -18,16 +20,147 @@ public partial class DependencyGraphView : UserControl
     private Point lastPointerPosition;
     private IPointer? panningPointer;
 
+    private const double NodeDragThreshold = 4;
+    private DependencyGraphModel? nodeDragGraph;
+    private DependencyGraphNodeViewModel? nodeDragNode;
+    private IPointer? nodeDragPointer;
+    private Point nodeDragPointerStart;
+    private Point nodeDragGraphStart;
+    private Point nodeDragNodeStart;
+    private bool isNodeDragActive;
     public DependencyGraphView()
     {
         InitializeComponent();
         DataContextChanged += (_, _) => Dispatcher.UIThread.Post(FitToView, DispatcherPriority.Loaded);
         SizeChanged += (_, _) => Dispatcher.UIThread.Post(FitToView, DispatcherPriority.Render);
+        AddHandler(PointerPressedEvent, OnGraphPointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerMovedEvent, OnGraphPointerMoved, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerReleasedEvent, OnGraphPointerReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(ContextRequestedEvent, OnGraphContextRequested, RoutingStrategies.Tunnel, handledEventsToo: true);
     }
 
     internal double Scale => scale;
 
     internal Vector Translation => translation;
+
+    private void OnGraphPointerPressed(object? sender, PointerPressedEventArgs eventArgs)
+    {
+        if (!eventArgs.GetCurrentPoint(Viewport).Properties.IsLeftButtonPressed
+            || DataContext is not DependencyGraphModel graph
+            || !TryGetGraphNode(eventArgs.Source, out _, out var node))
+        {
+            return;
+        }
+
+        nodeDragGraph = graph;
+        nodeDragNode = node;
+        nodeDragPointer = eventArgs.Pointer;
+        nodeDragPointerStart = eventArgs.GetPosition(Viewport);
+        nodeDragGraphStart = ToGraphPoint(nodeDragPointerStart);
+        nodeDragNodeStart = new Point(node.X, node.Y);
+        isNodeDragActive = false;
+    }
+
+    private void OnGraphPointerMoved(object? sender, PointerEventArgs eventArgs)
+    {
+        if (nodeDragPointer != eventArgs.Pointer
+            || nodeDragGraph is null
+            || nodeDragNode is null)
+        {
+            return;
+        }
+
+        var viewportPosition = eventArgs.GetPosition(Viewport);
+        if (!isNodeDragActive)
+        {
+            var delta = viewportPosition - nodeDragPointerStart;
+            if (Math.Abs(delta.X) < NodeDragThreshold && Math.Abs(delta.Y) < NodeDragThreshold)
+            {
+                return;
+            }
+
+            isNodeDragActive = true;
+            nodeDragGraph.Select(nodeDragNode.Id);
+            nodeDragGraph.NodeSelected?.Invoke(nodeDragNode.Id);
+            eventArgs.Pointer.Capture(this);
+        }
+
+        var graphPosition = ToGraphPoint(viewportPosition);
+        nodeDragGraph.MoveNode(
+            nodeDragNode.Id,
+            nodeDragNodeStart.X + graphPosition.X - nodeDragGraphStart.X,
+            nodeDragNodeStart.Y + graphPosition.Y - nodeDragGraphStart.Y);
+        eventArgs.Handled = true;
+    }
+
+    private void OnGraphPointerReleased(object? sender, PointerReleasedEventArgs eventArgs)
+    {
+        if (nodeDragPointer != eventArgs.Pointer)
+        {
+            return;
+        }
+
+        if (isNodeDragActive)
+        {
+            nodeDragGraph?.CommitNodePosition();
+            eventArgs.Pointer.Capture(null);
+            eventArgs.Handled = true;
+        }
+        ClearNodeDrag();
+    }
+
+    private void OnGraphContextRequested(object? sender, ContextRequestedEventArgs eventArgs)
+    {
+        if (DataContext is not DependencyGraphModel graph
+            || !TryGetGraphNode(eventArgs.Source, out var button, out var node))
+        {
+            return;
+        }
+
+        graph.Select(node.Id);
+        graph.NodeSelected?.Invoke(node.Id);
+        if (!node.CanToggle && !node.CanDelete)
+        {
+            button.ContextMenu = null;
+            return;
+        }
+
+        var menu = new ContextMenu();
+        if (node.CanToggle)
+        {
+            var toggle = new MenuItem { Header = node.ToggleActionLabel };
+            toggle.Click += (_, _) => graph.RequestNodeToggle(node);
+            menu.Items.Add(toggle);
+        }
+        if (node.CanDelete)
+        {
+            var delete = new MenuItem { Header = "删除 / Delete" };
+            delete.Click += (_, _) => graph.RequestNodeDelete(node);
+            menu.Items.Add(delete);
+        }
+        button.ContextMenu = menu;
+    }
+
+    private Point ToGraphPoint(Point point) => (point - translation) / scale;
+
+    private static bool TryGetGraphNode(
+        object? source,
+        [NotNullWhen(true)] out Button? button,
+        [NotNullWhen(true)] out DependencyGraphNodeViewModel? node)
+    {
+        button = source as Button
+            ?? (source as Avalonia.Visual)?.FindAncestorOfType<Button>();
+        node = button?.DataContext as DependencyGraphNodeViewModel;
+        return button is not null && node is not null;
+    }
+
+    private void ClearNodeDrag()
+    {
+        nodeDragGraph = null;
+        nodeDragNode = null;
+        nodeDragPointer = null;
+        isNodeDragActive = false;
+    }
 
     protected override void OnPointerPressed(PointerPressedEventArgs eventArgs)
     {
@@ -116,6 +249,9 @@ public partial class DependencyGraphView : UserControl
     private void OnFit(object? sender, Avalonia.Interactivity.RoutedEventArgs eventArgs) => FitToView();
 
     private void OnReset(object? sender, Avalonia.Interactivity.RoutedEventArgs eventArgs) => ResetViewport();
+
+    private void OnRestoreAutomaticLayout(object? sender, Avalonia.Interactivity.RoutedEventArgs eventArgs) =>
+        (DataContext as DependencyGraphModel)?.RestoreAutomaticLayout();
 
     private void ZoomAt(Point anchor, double delta)
     {
