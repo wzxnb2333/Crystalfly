@@ -107,6 +107,20 @@ public sealed class NamedSnapshotService
         return snapshots.OrderBy(snapshot => snapshot.CreatedAt).ToArray();
     }
 
+    public async Task DeleteAsync(
+        string instanceId,
+        string snapshotId,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateSegment(instanceId, nameof(instanceId));
+        ValidateSegment(snapshotId, nameof(snapshotId));
+        using var guard = HollowKnightProcessGuard.Acquire(mutexName, processProbe);
+        var snapshotRoot = Path.Combine(GetSnapshotsRoot(instanceId), snapshotId);
+        await Task.Run(
+            () => LocalLowDirectory.DeleteIfExists(snapshotRoot),
+            cancellationToken);
+    }
+
     public async Task RestoreAsync(
         string instanceId,
         string snapshotId,

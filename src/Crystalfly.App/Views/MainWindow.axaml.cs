@@ -1672,6 +1672,24 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void ConfirmDeleteSnapshot(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel || viewModel.SelectedSnapshot is null)
+        {
+            return;
+        }
+        var confirmed = await ShowConfirmationAsync(
+            viewModel.Loc["ConfirmSnapshotDeleteTitle"],
+            viewModel.Loc["ConfirmSnapshotDeleteMessage"],
+            viewModel.SelectedSnapshot.Name,
+            viewModel,
+            isDangerous: true);
+        if (confirmed)
+        {
+            await viewModel.DeleteSnapshotCommand.ExecuteAsync(null);
+        }
+    }
+
     private async void OpenMarketInstallDialog(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is not MainViewModel viewModel || viewModel.SelectedMarketMod is not { } mod)

@@ -2379,6 +2379,27 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     [RelayCommand]
+    private async Task DeleteSnapshotAsync()
+    {
+        if (SelectedInstance is null || SelectedSnapshot is null)
+        {
+            ErrorMessage = Loc["SelectSnapshot"];
+            return;
+        }
+        var snapshotId = SelectedSnapshot.Id;
+        var deleted = false;
+        await RunInstanceMutationAsync(async record =>
+        {
+            await CreateSnapshotService().DeleteAsync(record.Id, snapshotId);
+            deleted = true;
+        });
+        if (deleted && SelectedSnapshot?.Id == snapshotId)
+        {
+            SelectedSnapshot = null;
+        }
+    }
+
+    [RelayCommand]
     private async Task EditSaveAsync(string? snapshotId)
     {
         var selected = SelectedInstance;

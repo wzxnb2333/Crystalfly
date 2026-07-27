@@ -927,21 +927,38 @@
                                                        IsVisible="{Binding Snapshots.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}" />
                                         </Grid>
                                     </Border>
-                                    <Button Classes="cfp-secondary"
-                                            Click="ConfirmRestoreSnapshot"
-                                            HorizontalAlignment="Right">
-                                        <Button.IsEnabled>
-                                            <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
-                                                <Binding Path="SelectedSnapshot" Converter="{x:Static converters:ObjectConverters.IsNotNull}" />
-                                                <Binding Path="IsBusy" Converter="{x:Static converters:BoolConverters.Not}" />
-                                                <Binding Path="IsGameRunning" Converter="{x:Static converters:BoolConverters.Not}" />
-                                            </MultiBinding>
-                                        </Button.IsEnabled>
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <LucideIcon Kind="ArchiveRestore" Size="16" />
-                                            <TextBlock Text="{Binding Loc[Restore]}" />
-                                        </StackPanel>
-                                    </Button>
+                                    <StackPanel Orientation="Horizontal"
+                                                HorizontalAlignment="Right"
+                                                Spacing="8">
+                                        <Button Classes="cfp-secondary danger"
+                                                Click="ConfirmDeleteSnapshot">
+                                            <Button.IsEnabled>
+                                                <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
+                                                    <Binding Path="SelectedSnapshot" Converter="{x:Static converters:ObjectConverters.IsNotNull}" />
+                                                    <Binding Path="IsBusy" Converter="{x:Static converters:BoolConverters.Not}" />
+                                                    <Binding Path="IsGameRunning" Converter="{x:Static converters:BoolConverters.Not}" />
+                                                </MultiBinding>
+                                            </Button.IsEnabled>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <LucideIcon Kind="Trash2" Size="16" />
+                                                <TextBlock Text="{Binding Loc[DeleteSnapshot]}" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Classes="cfp-secondary"
+                                                Click="ConfirmRestoreSnapshot">
+                                            <Button.IsEnabled>
+                                                <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
+                                                    <Binding Path="SelectedSnapshot" Converter="{x:Static converters:ObjectConverters.IsNotNull}" />
+                                                    <Binding Path="IsBusy" Converter="{x:Static converters:BoolConverters.Not}" />
+                                                    <Binding Path="IsGameRunning" Converter="{x:Static converters:BoolConverters.Not}" />
+                                                </MultiBinding>
+                                            </Button.IsEnabled>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <LucideIcon Kind="ArchiveRestore" Size="16" />
+                                                <TextBlock Text="{Binding Loc[Restore]}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
                                 </StackPanel>
 
                                 <StackPanel Spacing="12"

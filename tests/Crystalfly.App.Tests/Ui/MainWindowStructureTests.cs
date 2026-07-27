@@ -428,6 +428,18 @@ public sealed class MainWindowStructureTests
         Assert.DoesNotContain("!control.GetVisualDescendants()", code, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Snapshot_page_exposes_confirmed_delete_action()
+    {
+        var document = LoadMainWindow();
+        var snapshots = document.Descendants(Avalonia + "StackPanel").Single(panel =>
+            ((string?)panel.Attribute("IsVisible"))?.Contains("ConverterParameter=Snapshots", StringComparison.Ordinal) == true);
+
+        Assert.Contains(snapshots.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ConfirmDeleteSnapshot"
+            && HasClass(button, "danger"));
+    }
+
     private static XDocument LoadMainWindow() => XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Crystalfly.App", "Views", "MainWindow.axaml"));
 
     private static string FindRepositoryRoot()
