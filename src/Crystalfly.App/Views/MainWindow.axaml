@@ -505,7 +505,7 @@
                               MaxWidth="1920"
                               HorizontalAlignment="Stretch">
                             <StackPanel Spacing="16"
-                                        Classes="cfp-tab-panel"
+                                        Classes="cfp-tab-panel cfp-subpage"
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Overview}">
                                 <StackPanel Spacing="4">
                                     <TextBlock Classes="cfp-page-title" Text="{Binding Loc[Overview]}" />
@@ -527,7 +527,7 @@
                             </StackPanel>
 
                             <StackPanel Spacing="16"
-                                        Classes="cfp-tab-panel"
+                                        Classes="cfp-tab-panel cfp-subpage"
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Loader}">
                                 <StackPanel Spacing="4">
                                     <TextBlock Classes="cfp-page-title" Text="{Binding Loc[Loader]}" />
@@ -661,17 +661,18 @@
                             </StackPanel>
 
                             <StackPanel Spacing="16"
-                                        Classes="cfp-tab-panel"
+                                        Classes="cfp-tab-panel cfp-subpage"
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Presets}">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <StackPanel Spacing="4">
-                                        <TextBlock Classes="cfp-page-title" Text="{Binding Loc[ModPresets]}" />
-                                        <TextBlock Classes="cfp-meta" Text="{Binding Loc[ModPresetsHint]}" TextWrapping="Wrap" />
+                                        <TextBlock Classes="cfp-page-title" Text="{Binding Loc[ModPacks]}" />
+                                        <TextBlock Classes="cfp-meta" Text="{Binding Loc[ModPacksHint]}" TextWrapping="Wrap" />
                                     </StackPanel>
                                     <Button Grid.Column="1"
                                             Classes="cfp-secondary"
                                             Command="{Binding RestorePresetStateCommand}"
-                                            IsEnabled="{Binding HasPresetRestorePoint}">
+                                            IsEnabled="{Binding HasPresetRestorePoint}"
+                                            IsVisible="{Binding HasPresetRestorePoint}">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <LucideIcon Kind="Undo2" Size="16" />
                                             <TextBlock Text="{Binding Loc[RestorePresetState]}" />
@@ -679,67 +680,82 @@
                                     </Button>
                                 </Grid>
 
-                                <Grid ColumnDefinitions="252,*" ColumnSpacing="16" MinHeight="380">
-                                    <StackPanel Grid.Column="0" Spacing="12">
-                                        <Border Classes="cfp-card">
-                                            <StackPanel Spacing="10">
-                                                <TextBox Classes="cfp-input"
-                                                         Text="{Binding PresetName, Mode=TwoWay}"
-                                                         PlaceholderText="{Binding Loc[PresetName]}"
-                                                         AutomationProperties.Name="{Binding Loc[PresetName]}" />
-                                                <ComboBox Classes="cfp-input"
-                                                          ItemsSource="{Binding PresetModeOptions}"
-                                                          SelectedItem="{Binding SelectedPresetModeOption, Mode=TwoWay}"
-                                                          AutomationProperties.Name="{Binding Loc[PresetMode]}">
-                                                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
-                                                </ComboBox>
-                                                <Button Classes="cfp-accent" Command="{Binding CreatePresetCommand}">
-                                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                                        <LucideIcon Kind="Plus" Size="16" />
-                                                        <TextBlock Text="{Binding Loc[CreatePreset]}" />
-                                                    </StackPanel>
-                                                </Button>
+                                <Grid ColumnDefinitions="264,*" ColumnSpacing="16" MinHeight="380">
+                                    <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
+                                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <TextBlock Classes="cfp-meta" Text="{Binding Loc[LocalModPacks]}" />
+                                                <TextBlock Classes="cfp-caption" Text="{Binding ModPresets.Count, StringFormat='({0})'}" />
                                             </StackPanel>
-                                        </Border>
-                                        <Border Classes="cfp-list-frame">
+                                            <Button Grid.Column="1"
+                                                    Classes="cfp-icon"
+                                                    Click="ShowCreateModPackDialog"
+                                                    ToolTip.Tip="{Binding Loc[CreateModPack]}"
+                                                    AutomationProperties.Name="{Binding Loc[CreateModPack]}"
+                                                    Content="{LucideIconContent Plus, 16}" />
+                                            <Button Grid.Column="2"
+                                                    Classes="cfp-icon"
+                                                    Click="ImportPresetFile"
+                                                    ToolTip.Tip="{Binding Loc[ImportPreset]}"
+                                                    AutomationProperties.Name="{Binding Loc[ImportPreset]}"
+                                                    Content="{LucideIconContent Import, 16}" />
+                                        </Grid>
+                                        <TextBox Grid.Row="1"
+                                                 Classes="cfp-input"
+                                                 Text="{Binding ModPackSearchText, Mode=TwoWay}"
+                                                 PlaceholderText="{Binding Loc[SearchModPacks]}"
+                                                 AutomationProperties.Name="{Binding Loc[SearchModPacks]}" />
+                                        <Border Grid.Row="2" Classes="cfp-list-frame">
                                             <Grid>
                                                 <ListBox Classes="cfp-list cfp-preset-list"
-                                                         MinHeight="220"
-                                                         ItemsSource="{Binding ModPresets}"
+                                                         MinHeight="260"
+                                                         ItemsSource="{Binding VisibleModPacks}"
                                                          SelectedItem="{Binding SelectedPreset, Mode=TwoWay}">
                                                     <ListBox.ItemTemplate>
                                                         <DataTemplate x:DataType="models:ModPreset">
                                                             <StackPanel Spacing="3">
                                                                 <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                                                <WrapPanel>
-                                                                    <TextBlock Classes="cfp-caption" Text="{Binding ApplyMode}" />
-                                                                    <TextBlock Classes="cfp-caption" Margin="8,0,0,0" Text="{Binding Entries.Count}" />
-                                                                </WrapPanel>
+                                                                <TextBlock Classes="cfp-caption" TextTrimming="CharacterEllipsis">
+                                                                    <Run Text="{Binding GameBuildId}" />
+                                                                    <Run Text=" · " />
+                                                                    <Run Text="{Binding LoaderId}" />
+                                                                </TextBlock>
+                                                                <TextBlock Classes="cfp-caption">
+                                                                    <Run Text="{Binding Entries.Count}" />
+                                                                    <Run Text=" " />
+                                                                    <Run Text="{Binding #Root.DataContext.Loc[Mods]}" />
+                                                                </TextBlock>
                                                             </StackPanel>
                                                         </DataTemplate>
                                                     </ListBox.ItemTemplate>
                                                 </ListBox>
                                                 <TextBlock Margin="20"
                                                            Classes="cfp-meta"
-                                                           Text="{Binding Loc[NoPresetsAction]}"
+                                                           Text="{Binding Loc[NoMatchingModPacks]}"
                                                            TextWrapping="Wrap"
                                                            TextAlignment="Center"
                                                            VerticalAlignment="Center"
-                                                           IsVisible="{Binding ModPresets.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}" />
+                                                           IsVisible="{Binding VisibleModPacks.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}" />
                                             </Grid>
                                         </Border>
-                                    </StackPanel>
+                                        <Button Grid.Row="3"
+                                                Classes="cfp-secondary"
+                                                HorizontalAlignment="Stretch"
+                                                Click="ShowImportSharedModPackDialog">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                                                <LucideIcon Kind="CloudDownload" Size="16" />
+                                                <TextBlock Text="{Binding Loc[ImportSharedPreset]}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
 
-                                    <StackPanel Grid.Column="1" Spacing="12">
-                                        <Border Classes="cfp-card" IsVisible="{Binding HasSelectedPreset}">
-                                            <StackPanel Spacing="12">
+                                    <Grid Grid.Column="1">
+                                        <Border Classes="cfp-card" VerticalAlignment="Top" IsVisible="{Binding HasSelectedPreset}">
+                                            <StackPanel Spacing="14">
                                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                                     <StackPanel Spacing="3">
                                                         <TextBlock Classes="cfp-section-title" Text="{Binding SelectedPreset.Name}" TextTrimming="CharacterEllipsis" />
-                                                        <WrapPanel>
-                                                            <TextBlock Classes="cfp-meta" Text="{Binding SelectedPreset.GameBuildId}" />
-                                                            <TextBlock Classes="cfp-meta" Margin="8,0,0,0" Text="{Binding SelectedPreset.LoaderId}" />
-                                                        </WrapPanel>
+                                                        <TextBlock Classes="cfp-meta" Text="{Binding Loc[ModPackSummary]}" />
                                                     </StackPanel>
                                                     <Button Grid.Column="1" Classes="cfp-accent" Click="ConfirmApplyPreset">
                                                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -748,75 +764,74 @@
                                                         </StackPanel>
                                                     </Button>
                                                 </Grid>
-                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                                    <TextBox Classes="cfp-input"
-                                                             Text="{Binding PresetName, Mode=TwoWay}"
-                                                             AutomationProperties.Name="{Binding Loc[PresetName]}" />
-                                                    <ComboBox Grid.Column="1"
-                                                              Width="132"
-                                                              Classes="cfp-input"
-                                                              ItemsSource="{Binding PresetModeOptions}"
-                                                              SelectedItem="{Binding SelectedPresetModeOption, Mode=TwoWay}"
-                                                              AutomationProperties.Name="{Binding Loc[PresetMode]}">
-                                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
-                                                    </ComboBox>
+                                                <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+                                                    <TextBlock Classes="cfp-caption" Text="{Binding Loc[GameBuild]}" />
+                                                    <TextBlock Grid.Column="1" Classes="cfp-row-title" Text="{Binding SelectedPreset.GameBuildId}" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Row="1" Classes="cfp-caption" Text="{Binding Loc[Loader]}" />
+                                                    <TextBlock Grid.Row="1" Grid.Column="1" Classes="cfp-row-title" Text="{Binding SelectedPreset.LoaderId}" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Row="2" Classes="cfp-caption" Text="{Binding Loc[PresetMode]}" />
+                                                    <TextBlock Grid.Row="2" Grid.Column="1" Classes="cfp-row-title" Text="{Binding SelectedPresetModeOption.Name}" />
+                                                    <TextBlock Grid.Row="3" Classes="cfp-caption" Text="{Binding Loc[ModCount]}" />
+                                                    <TextBlock Grid.Row="3" Grid.Column="1" Classes="cfp-row-title" Text="{Binding SelectedPresetEntryCount}" />
                                                 </Grid>
                                                 <WrapPanel Orientation="Horizontal">
                                                     <Button Classes="cfp-secondary" Command="{Binding RecaptureSelectedPresetCommand}" Margin="0,0,8,8" Content="{Binding Loc[RecapturePreset]}" />
                                                     <Button Classes="cfp-secondary" Click="ExportSelectedPreset" Margin="0,0,8,8" Content="{Binding Loc[ExportPreset]}" />
-                                                    <Button Classes="cfp-secondary" Command="{Binding ShareSelectedPresetCommand}" Margin="0,0,8,8" Content="{Binding Loc[SharePreset]}" />
-                                                    <Button Classes="cfp-secondary" Click="ConfirmDeletePreset" Margin="0,0,8,8" Content="{Binding Loc[DeletePreset]}" />
+                                                    <Button Classes="cfp-secondary" Click="ShareAndCopyPresetLink" Margin="0,0,8,8" Content="{Binding Loc[SharePreset]}" />
+                                                    <Button Classes="cfp-secondary" Click="ShowCopyModPackDialog" Margin="0,0,8,8" Content="{Binding Loc[CopyPreset]}" />
+                                                    <Button Classes="cfp-secondary danger" Click="ConfirmDeletePreset" Margin="0,0,8,8" Content="{Binding Loc[DeletePreset]}" />
                                                 </WrapPanel>
-                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+
+                                                <Button Classes="cfp-secondary"
+                                                        Command="{Binding ToggleSelectedPresetEntriesCommand}"
+                                                        HorizontalAlignment="Stretch">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                                        <LucideIcon Kind="List" Size="16" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Loc[ViewModPackContents]}" HorizontalAlignment="Left" />
+                                                        <TextBlock Grid.Column="2" Classes="cfp-caption" Text="{Binding SelectedPresetEntryCount}" />
+                                                    </Grid>
+                                                </Button>
+
+                                                <StackPanel Spacing="10" IsVisible="{Binding IsSelectedPresetEntriesExpanded}">
                                                     <TextBox Classes="cfp-input"
-                                                             Text="{Binding PresetCopyName, Mode=TwoWay}"
-                                                             AutomationProperties.Name="{Binding Loc[CopyPreset]}" />
-                                                    <Button Grid.Column="1" Classes="cfp-secondary" Command="{Binding CopySelectedPresetCommand}" Content="{Binding Loc[CopyPreset]}" />
-                                                </Grid>
-                                                <TextBlock Classes="cfp-meta" Text="{Binding Loc[PresetEntries]}" />
-                                                <Border Classes="cfp-list-frame" MaxHeight="180">
-                                                    <ItemsControl ItemsSource="{Binding SelectedPreset.Entries}">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate x:DataType="models:ModPresetEntry">
-                                                                <Grid ColumnDefinitions="*,Auto" Margin="10,7" ColumnSpacing="10">
-                                                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                                                    <TextBlock Grid.Column="1" Classes="cfp-caption" Text="{Binding Version}" />
-                                                                </Grid>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
-                                                </Border>
+                                                             Text="{Binding ModPackEntrySearchText, Mode=TwoWay}"
+                                                             PlaceholderText="{Binding Loc[SearchModPackContents]}"
+                                                             AutomationProperties.Name="{Binding Loc[SearchModPackContents]}" />
+                                                    <Border Classes="cfp-list-frame" MaxHeight="260">
+                                                        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                                                            <ItemsControl ItemsSource="{Binding VisibleSelectedModPackEntries}">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate x:DataType="models:ModPresetEntry">
+                                                                        <Grid ColumnDefinitions="*,Auto" Margin="10,7" ColumnSpacing="10">
+                                                                            <StackPanel Spacing="2">
+                                                                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                                                <TextBlock Classes="cfp-caption" Text="{Binding Id}" TextTrimming="CharacterEllipsis" />
+                                                                            </StackPanel>
+                                                                            <TextBlock Grid.Column="1" Classes="cfp-caption" Text="{Binding Version}" VerticalAlignment="Center" />
+                                                                        </Grid>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                        </ScrollViewer>
+                                                    </Border>
+                                                </StackPanel>
                                             </StackPanel>
                                         </Border>
 
-                                        <Border Classes="cfp-card">
-                                            <StackPanel Spacing="10">
-                                                <WrapPanel Orientation="Horizontal">
-                                                    <Button Classes="cfp-secondary" Click="ImportPresetFile" Margin="0,0,8,8" Content="{Binding Loc[ImportPreset]}" />
-                                                </WrapPanel>
-                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                                    <TextBox Classes="cfp-input"
-                                                             Text="{Binding PresetShareCode, Mode=TwoWay}"
-                                                             PlaceholderText="{Binding Loc[PresetShareCode]}"
-                                                             AutomationProperties.Name="{Binding Loc[PresetShareCode]}" />
-                                                    <Button Grid.Column="1" Classes="cfp-secondary" Command="{Binding ImportSharedPresetCommand}" Content="{Binding Loc[ImportSharedPreset]}" />
-                                                </Grid>
-                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding HasLastPresetShare}">
-                                                    <TextBlock Classes="cfp-caption"
-                                                               Text="{Binding LastPresetShareUrl}"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               VerticalAlignment="Center"
-                                                               ToolTip.Tip="{Binding LastPresetShareUrl}" />
-                                                    <Button Grid.Column="1" Classes="cfp-icon" Click="CopyPresetShareLink" ToolTip.Tip="{Binding Loc[PresetShareLink]}" AutomationProperties.Name="{Binding Loc[PresetShareLink]}" Content="{LucideIconContent Copy, 15}" />
-                                                </Grid>
+                                        <Border Classes="cfp-card" VerticalAlignment="Top" IsVisible="{Binding HasSelectedPreset, Converter={x:Static converters:BoolConverters.Not}}">
+                                            <StackPanel Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="360">
+                                                <LucideIcon Kind="PackageOpen" Size="28" HorizontalAlignment="Center" />
+                                                <TextBlock Classes="cfp-section-title" Text="{Binding Loc[NoModPackSelected]}" TextAlignment="Center" />
+                                                <TextBlock Classes="cfp-meta" Text="{Binding Loc[NoModPackSelectedHint]}" TextWrapping="Wrap" TextAlignment="Center" />
+                                                <Button Classes="cfp-accent" Click="ShowCreateModPackDialog" Content="{Binding Loc[CreateModPack]}" HorizontalAlignment="Center" />
                                             </StackPanel>
                                         </Border>
-                                    </StackPanel>
+                                    </Grid>
                                 </Grid>
                             </StackPanel>
 
                             <StackPanel Spacing="16"
-                                        Classes="cfp-tab-panel"
+                                        Classes="cfp-tab-panel cfp-subpage"
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Snapshots}">
                                 <StackPanel Spacing="16"
                                             IsVisible="{Binding IsEditingSave, Converter={x:Static converters:BoolConverters.Not}}">
@@ -1036,7 +1051,7 @@
                             </StackPanel>
 
                             <StackPanel Spacing="16"
-                                        Classes="cfp-tab-panel"
+                                        Classes="cfp-tab-panel cfp-subpage"
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Logs}">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <TextBlock Grid.Column="0" Classes="cfp-page-title" Text="{Binding Loc[Logs]}" />
@@ -1095,7 +1110,7 @@
 
                             <StackPanel Name="GameConfigPanel"
                                         Spacing="16"
-                                        Classes="cfp-tab-panel"
+                                        Classes="cfp-tab-panel cfp-subpage"
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Config}">
                                 <StackPanel Spacing="4">
                                     <TextBlock Classes="cfp-page-title" Text="{Binding Loc[Config]}" />
@@ -1226,7 +1241,7 @@
                         </Grid>
                     </ScrollViewer>
                     <Grid Grid.Column="1"
-                          Classes="cfp-mods-workspace cfp-tab-panel"
+                          Classes="cfp-mods-workspace cfp-tab-panel cfp-subpage"
                           Margin="24"
                           MaxWidth="1920"
                           HorizontalAlignment="Stretch"
@@ -1419,7 +1434,7 @@
                                   IsVisible="{Binding IsGameVersionsDownloadSection}"
                                   HorizontalContentAlignment="Stretch"
                                   HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Classes="cfp-workspace"
+                        <StackPanel Classes="cfp-workspace cfp-subpage"
                                     Margin="24"
                                     Spacing="16"
                                     MaxWidth="1920"
@@ -1512,7 +1527,7 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <Grid Grid.Column="1" IsVisible="{Binding IsModMarketDownloadSection}">
+                    <Grid Grid.Column="1" Classes="cfp-subpage" IsVisible="{Binding IsModMarketDownloadSection}">
                         <Grid IsVisible="{Binding IsMarketList}" RowDefinitions="Auto,*">
                             <StackPanel Grid.Row="0" Margin="24,16,24,8" Spacing="8">
                                 <StackPanel Spacing="4">
@@ -1787,7 +1802,7 @@
                                   IsVisible="{Binding IsDownloadQueueSection}"
                                   HorizontalContentAlignment="Stretch"
                                   HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Classes="cfp-workspace"
+                        <StackPanel Classes="cfp-workspace cfp-subpage"
                                     Margin="24"
                                     Spacing="16"
                                     MaxWidth="1200"
@@ -1967,7 +1982,7 @@
                                     Spacing="16"
                                     MaxWidth="1200"
                                     HorizontalAlignment="Stretch">
-                            <StackPanel Spacing="16" IsVisible="{Binding IsGeneralSettingsSection}">
+                            <StackPanel Spacing="16" Classes="cfp-subpage" IsVisible="{Binding IsGeneralSettingsSection}">
                                 <Border Classes="cfp-card">
                                     <StackPanel Spacing="12">
                                         <TextBlock Classes="cfp-section-title" Text="{Binding Loc[VersionRoot]}" />
@@ -2008,7 +2023,7 @@
                                 </Border>
                             </StackPanel>
 
-                            <StackPanel Spacing="16" IsVisible="{Binding IsNetworkSettingsSection}">
+                            <StackPanel Spacing="16" Classes="cfp-subpage" IsVisible="{Binding IsNetworkSettingsSection}">
                                 <Border Classes="cfp-card">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                         <StackPanel Spacing="3"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[OfflineMode]}" /><TextBlock Classes="cfp-caption" Text="{Binding Loc[OfflineModeHint]}" TextWrapping="Wrap" /></StackPanel>
@@ -2030,7 +2045,7 @@
                                 </Border>
                             </StackPanel>
 
-                            <StackPanel Spacing="16" IsVisible="{Binding IsCatalogSettingsSection}">
+                            <StackPanel Spacing="16" Classes="cfp-subpage" IsVisible="{Binding IsCatalogSettingsSection}">
                                 <Border Classes="cfp-card">
                                     <StackPanel Spacing="6">
                                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -2065,7 +2080,7 @@
                                 </Border>
                             </StackPanel>
 
-                            <StackPanel Spacing="16" IsVisible="{Binding IsUpdatesSettingsSection}">
+                            <StackPanel Spacing="16" Classes="cfp-subpage" IsVisible="{Binding IsUpdatesSettingsSection}">
                                 <Border Classes="cfp-card">
                                     <StackPanel Spacing="10">
                                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -2086,7 +2101,7 @@
                                 </Border>
                             </StackPanel>
 
-                            <StackPanel Spacing="16" IsVisible="{Binding IsAboutSettingsSection}">
+                            <StackPanel Spacing="16" Classes="cfp-subpage" IsVisible="{Binding IsAboutSettingsSection}">
                                 <Border Classes="cfp-card">
                                     <StackPanel Spacing="16">
                                         <StackPanel Spacing="4"><TextBlock Classes="cfp-section-title" Text="{Binding Loc[AboutTitle]}" /><TextBlock Classes="cfp-meta" Text="{Binding Loc[AboutDescription]}" TextWrapping="Wrap" /></StackPanel>

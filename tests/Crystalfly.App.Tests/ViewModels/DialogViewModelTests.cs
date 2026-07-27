@@ -1,5 +1,6 @@
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.ViewModels.DependencyGraph;
+using Crystalfly.Core.Models;
 using Crystalfly.Core.Runtime;
 
 namespace Crystalfly.App.Tests.ViewModels;
@@ -44,6 +45,31 @@ public sealed class DialogViewModelTests
         dialog.Close();
 
         Assert.Equal([null, null], results);
+    }
+
+    [Fact]
+    public void Mod_pack_editor_trims_name_and_returns_selected_apply_mode()
+    {
+        var dialog = new ModPackEditorDialogViewModel(
+            "New Mod Pack",
+            "Capture current Mods",
+            "  Practice  ",
+            ModPresetApplyMode.Append,
+            "Name",
+            "Mode",
+            "Append",
+            "Exact",
+            "Create",
+            "Cancel");
+        object? result = null;
+        dialog.RequestClose += (_, value) => result = value;
+        dialog.SelectedMode = dialog.ModeOptions.Single(option => option.Value == ModPresetApplyMode.Exact);
+
+        dialog.ConfirmCommand.Execute(null);
+
+        Assert.Equal(new ModPackEditorDialogResult("Practice", ModPresetApplyMode.Exact), result);
+        dialog.Name = "   ";
+        Assert.False(dialog.ConfirmCommand.CanExecute(null));
     }
 
     [Fact]

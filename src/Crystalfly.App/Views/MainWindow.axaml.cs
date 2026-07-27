@@ -19,6 +19,7 @@ using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views.Dialogs;
 using Crystalfly.App.Runtime;
+using Crystalfly.Core.Models;
 using Crystalfly.Core.Mods;
 using Crystalfly.Core.Runtime;
 using Irihi.Avalonia.Shared.Contracts;
@@ -38,6 +39,10 @@ public partial class MainWindow : Window
     private readonly List<TranslateTransform> knightWalkTransforms = [];
     private readonly List<LoadingContainer> knightLoadingHosts = [];
     private readonly List<Control> entranceAnimationTargets = [];
+    private readonly Dictionary<Control, long> entranceAnimationGenerations = [];
+    private readonly Dictionary<Control, ITransform?> entranceAnimationBaseTransforms = [];
+    private readonly Dictionary<Control, TranslateTransform> entranceAnimationTransforms = [];
+    private long entranceAnimationGeneration;
     private DispatcherTimer? knightWalkTimer;
     private int knightWalkFrame;
     private Task? disposeBeforeCloseTask;
@@ -267,9 +272,9 @@ public partial class MainWindow : Window
         {
             entranceAnimationTargets.Add(control);
             control.PropertyChanged += OnEntranceTargetPropertyChanged;
-            if (control.IsVisible)
+            if (control.IsVisible && control.Classes.Contains("cfp-page"))
             {
-                _ = RunEntranceAnimationAsync(control);
+                QueueEntranceAnimation(control);
             }
         }
 
@@ -277,10 +282,9 @@ public partial class MainWindow : Window
     }
 
     private static bool IsEntranceAnimationTarget(Control control) =>
-        control.Classes.Contains("cfp-tab-panel")
+        control.Classes.Contains("cfp-subpage")
         || control.Classes.Contains("cfp-mod-bulk-bar")
-        || (control.Classes.Contains("cfp-page")
-            && !control.GetVisualDescendants().OfType<Control>().Any(descendant => descendant.Classes.Contains("cfp-tab-panel")));
+        || control.Classes.Contains("cfp-page");
 
     private void ConfigureMicroInteractionTransitions()
     {
@@ -301,22 +305,47 @@ public partial class MainWindow : Window
         }
     }
 
-    private static void OnEntranceTargetPropertyChanged(
+    private void OnEntranceTargetPropertyChanged(
         object? sender,
         AvaloniaPropertyChangedEventArgs eventArgs)
     {
         if (eventArgs.Property == Visual.IsVisibleProperty
             && sender is Control { IsVisible: true } control)
         {
-            _ = RunEntranceAnimationAsync(control);
+            QueueEntranceAnimation(control);
         }
     }
 
-    private static async Task RunEntranceAnimationAsync(Control control)
+    private void QueueEntranceAnimation(Control control)
+    {
+        var generation = Interlocked.Increment(ref entranceAnimationGeneration);
+        entranceAnimationGenerations[control] = generation;
+        _ = RunEntranceAnimationAfterLayoutAsync(control, generation);
+    }
+
+    private async Task RunEntranceAnimationAfterLayoutAsync(Control control, long generation)
+    {
+        await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Render);
+        if (!control.IsVisible
+            || !entranceAnimationGenerations.TryGetValue(control, out var latestGeneration)
+            || latestGeneration != generation)
+        {
+            return;
+        }
+
+        await RunEntranceAnimationAsync(control, generation);
+    }
+
+    private async Task RunEntranceAnimationAsync(Control control, long generation)
     {
         control.Opacity = 0;
-        var existingRenderTransform = control.RenderTransform;
+        if (!entranceAnimationBaseTransforms.TryGetValue(control, out var existingRenderTransform))
+        {
+            existingRenderTransform = control.RenderTransform;
+            entranceAnimationBaseTransforms[control] = existingRenderTransform;
+        }
         var entranceTransform = new TranslateTransform { Y = PageEntranceOffset };
+        entranceAnimationTransforms[control] = entranceTransform;
         control.RenderTransform = entranceTransform;
         var animation = new Animation
         {
@@ -363,11 +392,19 @@ public partial class MainWindow : Window
         }
         finally
         {
-            if (ReferenceEquals(control.RenderTransform, entranceTransform))
+            if (entranceAnimationTransforms.TryGetValue(control, out var latestTransform)
+                && ReferenceEquals(latestTransform, entranceTransform))
             {
-                control.RenderTransform = existingRenderTransform;
+                if (ReferenceEquals(control.RenderTransform, entranceTransform))
+                {
+                    control.RenderTransform = existingRenderTransform;
+                }
+                entranceAnimationTransforms.Remove(control);
+                entranceAnimationBaseTransforms.Remove(control);
             }
-            if (control.IsVisible)
+            if (control.IsVisible
+                && entranceAnimationGenerations.TryGetValue(control, out var latestGeneration)
+                && latestGeneration == generation)
             {
                 control.Opacity = 1;
             }
@@ -393,6 +430,9 @@ public partial class MainWindow : Window
             target.PropertyChanged -= OnEntranceTargetPropertyChanged;
         }
         entranceAnimationTargets.Clear();
+        entranceAnimationGenerations.Clear();
+        entranceAnimationTransforms.Clear();
+        entranceAnimationBaseTransforms.Clear();
         if (knightWalkTimer is not null)
         {
             knightWalkTimer.Stop();
@@ -1026,6 +1066,110 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void ShowCreateModPackDialog(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var dialog = new ModPackEditorDialogViewModel(
+            viewModel.Loc["CreateModPack"],
+            viewModel.Loc["CreateModPackHint"],
+            string.Empty,
+            ModPresetApplyMode.Append,
+            viewModel.Loc["PresetName"],
+            viewModel.Loc["PresetMode"],
+            viewModel.Loc["PresetModeAppend"],
+            viewModel.Loc["PresetModeExact"],
+            viewModel.Loc["Confirm"],
+            viewModel.Loc["Cancel"]);
+        var result = await OverlayDialog.ShowCustomAsync<
+            ModPackEditorDialogView,
+            ModPackEditorDialogViewModel,
+            ModPackEditorDialogResult?>(dialog, OverlayHostId, CreateOverlayOptions());
+        if (result is null)
+        {
+            return;
+        }
+
+        viewModel.PresetName = result.Name;
+        viewModel.SelectedPresetModeOption = viewModel.PresetModeOptions.First(option => option.Value == result.ApplyMode);
+        await viewModel.CreatePresetCommand.ExecuteAsync(null);
+    }
+
+    private async void ShowCopyModPackDialog(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel { SelectedPreset: { } preset } viewModel)
+        {
+            return;
+        }
+
+        var dialog = new TextInputDialogViewModel(
+            viewModel.Loc["CopyPreset"],
+            viewModel.Loc["CopyModPackHint"],
+            $"{preset.Name} - {viewModel.Loc["CopySuffix"]}",
+            viewModel.Loc["PresetName"],
+            viewModel.Loc["Confirm"],
+            viewModel.Loc["Cancel"]);
+        var name = await OverlayDialog.ShowCustomAsync<
+            TextInputDialogView,
+            TextInputDialogViewModel,
+            string?>(dialog, OverlayHostId, CreateOverlayOptions());
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        viewModel.PresetCopyName = name;
+        await viewModel.CopySelectedPresetCommand.ExecuteAsync(null);
+    }
+
+    private async void ShowImportSharedModPackDialog(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var dialog = new TextInputDialogViewModel(
+            viewModel.Loc["ImportSharedPreset"],
+            viewModel.Loc["ImportSharedPresetHint"],
+            string.Empty,
+            viewModel.Loc["PresetShareCode"],
+            viewModel.Loc["ImportSharedPreset"],
+            viewModel.Loc["Cancel"]);
+        var code = await OverlayDialog.ShowCustomAsync<
+            TextInputDialogView,
+            TextInputDialogViewModel,
+            string?>(dialog, OverlayHostId, CreateOverlayOptions());
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return;
+        }
+
+        viewModel.PresetShareCode = code;
+        await viewModel.ImportSharedPresetCommand.ExecuteAsync(null);
+    }
+
+    private async void ShareAndCopyPresetLink(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        await viewModel.ShareSelectedPresetCommand.ExecuteAsync(null);
+        if (viewModel.ErrorMessage is null && await TryCopyPresetShareLinkAsync(viewModel))
+        {
+            ShowToast(viewModel, viewModel.Loc["PresetShareLinkCopied"], NotificationType.Success);
+        }
+        else if (viewModel.ErrorMessage is null)
+        {
+            ShowToast(viewModel, viewModel.Loc["PresetShared"], NotificationType.Success);
+        }
+    }
+
     private async void ConfirmDeletePreset(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is not MainViewModel { SelectedPreset: { } preset } viewModel)
@@ -1095,24 +1239,24 @@ public partial class MainWindow : Window
         await viewModel.ExportSelectedPresetToFileAsync(path);
     }
 
-    private async void CopyPresetShareLink(object? sender, RoutedEventArgs eventArgs)
+    private async Task<bool> TryCopyPresetShareLinkAsync(MainViewModel viewModel)
     {
-        if (DataContext is not MainViewModel viewModel
-            || Clipboard is null
+        if (Clipboard is null
             || !Uri.TryCreate(viewModel.LastPresetShareUrl, UriKind.Absolute, out var link)
             || link.Scheme != Uri.UriSchemeHttps)
         {
-            return;
+            return false;
         }
 
         try
         {
             await Clipboard.SetTextAsync(link.AbsoluteUri);
-            ShowToast(viewModel, viewModel.Loc["PresetShareLinkCopied"], NotificationType.Success);
+            return true;
         }
         catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException)
         {
             viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            return false;
         }
     }
 

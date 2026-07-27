@@ -2758,6 +2758,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Snapshots.Clear();
         ModPresets.Clear();
         SelectedPreset = null;
+        VisibleModPacks.Clear();
+        VisibleSelectedModPackEntries.Clear();
         HasPresetRestorePoint = false;
         UpdateSelectedMarketInstallationState();
         currentLoaderInspection = new LoaderInspection
@@ -3854,6 +3856,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 ? ModPresets.FirstOrDefault()
                 : ModPresets.FirstOrDefault(preset => preset.Id == selectedPresetId)
                     ?? ModPresets.FirstOrDefault();
+            RefreshModPackWorkspace();
             HasPresetRestorePoint = hasPresetRestorePoint;
             InstanceLogs.Clear();
             foreach (var log in logs)

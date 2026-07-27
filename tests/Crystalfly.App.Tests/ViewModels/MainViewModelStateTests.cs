@@ -2647,6 +2647,38 @@ public sealed class MainViewModelStateTests : IDisposable
         return Assert.IsType<string>(method.Invoke(viewModel, [version]));
     }
 
+    [Fact]
+    public async Task Mod_pack_workspace_filters_lists_without_losing_the_selected_pack()
+    {
+        await using var viewModel = CreateViewModel();
+        var practice = new ModPreset
+        {
+            Id = "practice",
+            Name = "Practice Pack",
+            GameBuildId = "1.5.78.11833",
+            LoaderId = "modding-api-77",
+            ApplyMode = ModPresetApplyMode.Append,
+            Entries =
+            [
+                new ModPresetEntry { Id = "hkmod:Helper", Name = "Helper", Version = "1.0.0" },
+                new ModPresetEntry { Id = "hkmod:Benchwarp", Name = "Benchwarp", Version = "3.2.0" }
+            ]
+        };
+        var speedrun = practice with { Id = "speedrun", Name = "Speedrun Pack", Entries = [] };
+        viewModel.ModPresets.Add(practice);
+        viewModel.ModPresets.Add(speedrun);
+        viewModel.SelectedPreset = practice;
+
+        viewModel.ModPackSearchText = "speedrun";
+        viewModel.ModPackEntrySearchText = "helper";
+        viewModel.ToggleSelectedPresetEntriesCommand.Execute(null);
+
+        Assert.Equal(speedrun, Assert.Single(viewModel.VisibleModPacks));
+        Assert.Equal(practice, viewModel.SelectedPreset);
+        Assert.Equal("hkmod:Helper", Assert.Single(viewModel.VisibleSelectedModPackEntries).Id);
+        Assert.True(viewModel.IsSelectedPresetEntriesExpanded);
+    }
+
     private MainViewModel CreateViewModel() => new(applicationData.CreateDirectory("app-data"));
 
     public void Dispose() => applicationData.Dispose();

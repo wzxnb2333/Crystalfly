@@ -364,8 +364,9 @@ public sealed class MainWindowStructureTests
         Assert.Contains(presets.Descendants(Avalonia + "Button"), button =>
             (string?)button.Attribute("Click") == "ExportSelectedPreset");
         Assert.Contains(presets.Descendants(Avalonia + "Button"), button =>
-            (string?)button.Attribute("Click") == "CopyPresetShareLink"
-                && HasBinding(button, "IsVisible", "HasLastPresetShare") == false);
+            (string?)button.Attribute("Click") == "ShareAndCopyPresetLink");
+        Assert.DoesNotContain(presets.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "LastPresetShareUrl"));
 
         var code = File.ReadAllText(Path.Combine(
             FindRepositoryRoot(),
@@ -377,10 +378,54 @@ public sealed class MainWindowStructureTests
         Assert.Contains("private async void ConfirmDeletePreset", code, StringComparison.Ordinal);
         Assert.Contains("private async void ImportPresetFile", code, StringComparison.Ordinal);
         Assert.Contains("private async void ExportSelectedPreset", code, StringComparison.Ordinal);
-        Assert.Contains("private async void CopyPresetShareLink", code, StringComparison.Ordinal);
+        Assert.Contains("private async void ShareAndCopyPresetLink", code, StringComparison.Ordinal);
         Assert.Contains("PresetApplySteps", code, StringComparison.Ordinal);
         Assert.Contains("FilePickerSaveOptions", code, StringComparison.Ordinal);
         Assert.Contains("Clipboard.SetTextAsync", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Mod_pack_workspace_uses_compact_master_detail_layout_and_subpage_markers()
+    {
+        var document = LoadMainWindow();
+        var packs = document.Descendants(Avalonia + "StackPanel").Single(panel =>
+            ((string?)panel.Attribute("IsVisible"))?.Contains("ConverterParameter=Presets", StringComparison.Ordinal) == true);
+
+        Assert.True(HasClass(packs, "cfp-subpage"));
+        Assert.Contains(packs.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", "ModPacks"));
+        Assert.Contains(packs.Descendants(Avalonia + "TextBox"), textBox => HasBinding(textBox, "Text", "ModPackSearchText"));
+        Assert.Contains(packs.Descendants(Avalonia + "ListBox"), listBox => HasBinding(listBox, "ItemsSource", "VisibleModPacks"));
+        Assert.Contains(packs.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ShowCreateModPackDialog");
+        Assert.Contains(packs.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ImportPresetFile");
+        Assert.Contains(packs.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ConfirmApplyPreset");
+        Assert.Contains(packs.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ShowCopyModPackDialog");
+        Assert.Contains(packs.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ShowImportSharedModPackDialog");
+        Assert.Contains(packs.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "ToggleSelectedPresetEntriesCommand"));
+        Assert.Contains(packs.Descendants(Avalonia + "ItemsControl"), items =>
+            HasBinding(items, "ItemsSource", "VisibleSelectedModPackEntries"));
+
+        foreach (var visibility in new[] { "IsDownloadsPage", "IsSettingsPage" })
+        {
+            var page = FindSectionRoot(document, visibility);
+            Assert.Contains(page.Descendants(Avalonia + "StackPanel"), panel => HasClass(panel, "cfp-subpage"));
+        }
+
+        var code = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Views",
+            "MainWindow.axaml.cs"));
+        Assert.Contains("DispatcherPriority.Render", code, StringComparison.Ordinal);
+        Assert.Contains("entranceAnimationGeneration", code, StringComparison.Ordinal);
+        Assert.Contains("control.Classes.Contains(\"cfp-page\")", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("!control.GetVisualDescendants()", code, StringComparison.Ordinal);
     }
 
     private static XDocument LoadMainWindow() => XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Crystalfly.App", "Views", "MainWindow.axaml"));

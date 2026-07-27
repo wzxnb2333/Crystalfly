@@ -49,7 +49,7 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 - 创建永久命名“存档快照”；快照仅包含实例的非日志 LocalLow，事务临时恢复点成功后自动清理。
 - 在实例设置中编辑当前实例隔离的 `AppConfig.ini`；未知配置项会原样保留，写入采用原子替换。
 - 在当前实例或其命名快照中编辑 `user1.dat` 至 `user4.dat`；解密和展开异步执行，空存档会显示明确状态，不会阻塞主窗口。
-- 在实例详情创建追加或精确 Mod 预设，支持复制、导入导出、分享码、按依赖顺序应用，以及恢复应用前启停和安装状态；固定 Mod 及其传递依赖不会被精确模式停用。
+- 在实例详情创建追加或精确整合包，支持复制、导入导出、分享码、按依赖顺序应用，以及恢复应用前启停和安装状态；固定 Mod 及其传递依赖不会被精确模式停用。
 - 创建独立速通副本，按模板部署速通工具，并在每次启动前写出验证报告。
 - 支持严格校验的 `crystalfly://` 外部命令和单实例转发；安装包会注册协议，所有修改状态的外部命令均先展示摘要并确认。
 - 每天检查一次 Ed25519 签名稳定更新清单，支持立即更新、稍后和跳过版本；安装模式静默运行 Inno 安装包，便携模式使用同卷备份与替换并保留 `Data`。
@@ -82,7 +82,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 
 1. 在“设置”中选择版本根目录，例如 `D:\HK_ver`。
 2. Crystalfly 只扫描直接子目录，并忽略 `<版本根目录>\.crystalfly`。
-3. 从启动页打开实例选择，选中实例后可进入设置管理 Loader、游戏配置、“已安装 Mod”、“Mod 预设”和“存档快照”；当前实例及快照的四个存档槽可在“存档快照”中编辑。
+3. 从启动页打开实例选择，选中实例后可进入设置管理 Loader、游戏配置、“已安装 Mod”、“整合包”和“存档快照”；当前实例及快照的四个存档槽可在“存档快照”中编辑。
 4. 需要下载游戏时进入“下载 → 游戏版本”；需要查找在线 Mod 时进入“下载 → Mod 市场”；进度、速度、取消与重试位于“下载 → 下载队列”。
 5. 启动游戏时不要同时运行其他《空洞骑士》进程。
 
@@ -96,7 +96,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 
 实例的“已安装 Mod”页只管理当前实例内的 Mod，可按名称、ID 或版本搜索，并按全部、启用、停用、本地和可更新状态筛选。每项提供信息、打开目录、启停和卸载快捷操作；进入多选后可全选、取消选择，并批量启用、停用、更新或卸载。卸载前会展示依赖影响树；依赖修复会列出需要重新启用或下载安装的项目，无法安全修复时明确阻止操作。本地 Mod 不提供自动更新。
 
-“Mod 预设”保存精确游戏构建、Loader 和受管理 Mod 版本。本地或外部 Mod 只记录名称与文件哈希，不包含文件、下载地址或本地路径。追加模式只安装或启用缺失项；精确模式还停用未列出且未固定的 Mod。应用计划进入现有下载队列，前置、启用和停用保持依赖顺序；恢复点在队列真正开始修改实例时捕获，整个预设组与同一实例的其他修改互斥，恢复写入前会完成固定项、收据和文件健康预检。预设 JSON 上限为 128 KiB、1000 个条目，可本地导入导出或使用 12 位分享码；离线时本地导入导出仍可使用。
+“整合包”保存精确游戏构建、Loader 和受管理 Mod 版本。本地或外部 Mod 只记录名称与文件哈希，不包含文件、下载地址或本地路径。追加模式只安装或启用缺失项；精确模式还停用未列出且未固定的 Mod。应用计划进入现有下载队列，前置、启用和停用保持依赖顺序；恢复点在队列真正开始修改实例时捕获，整个整合包组与同一实例的其他修改互斥，恢复写入前会完成固定项、收据和文件健康预检。整合包 JSON 上限为 128 KiB、1000 个条目，可本地导入导出或使用 12 位分享码；离线时本地导入导出仍可使用。
 
 Loader 兼容按精确包 ID 判断，不会把所有 Modding API 或 BepInEx 版本视为等价。Crystalfly 安装的 Loader 可修复和卸载；手动安装且能确认版本的 BepInEx 标记为外部所有，仅允许安装完全匹配的插件，不会修复、卸载、覆盖或接管 BepInEx 本体。手动安装的 Modding API 因缺少原版程序集备份会保持 `Drifted`。
 
@@ -229,7 +229,7 @@ When the UI is Simplified Chinese, the market also loads Crystalfly's independen
 
 The Installed Mods page includes receipt-backed and external Mods and can filter enabled, disabled, local, external, pinned, updateable, or unhealthy entries. External Mods stay read-only until explicit takeover. Managed Mods support health inspection and exact-version repair; local takeovers support re-import or accepting current hashes. Pinning protects entries from batch uninstall and dependency cleanup. Uninstall previews a dependency-impact tree and only suggests unused dependencies instead of deleting them automatically.
 
-Mod Presets store an exact game build, Loader, and managed Mod versions. Local or external entries contain only names and file hashes, never files, download URLs, or local paths. Append mode installs or enables missing entries; exact mode also disables unlisted, unpinned Mods while retaining every transitive dependency of an enabled pinned Mod. Plans run through the existing queue in dependency order, and the restore point is captured when execution is about to modify the instance. The complete preset group excludes other mutations of that instance, and restore validates pinned entries, receipts, and file health before writing. Preset JSON is limited to 128 KiB and 1,000 entries. Local JSON sharing remains available offline; the hosted service uses 12-character share codes.
+Mod Packs store an exact game build, Loader, and managed Mod versions. Local or external entries contain only names and file hashes, never files, download URLs, or local paths. Append mode installs or enables missing entries; exact mode also disables unlisted, unpinned Mods while retaining every transitive dependency of an enabled pinned Mod. Plans run through the existing queue in dependency order, and the restore point is captured when execution is about to modify the instance. The complete Mod Pack group excludes other mutations of that instance, and restore validates pinned entries, receipts, and file health before writing. Mod Pack JSON is limited to 128 KiB and 1,000 entries. Local JSON sharing remains available offline; the hosted service uses 12-character share codes.
 
 Compatibility uses the exact loader package ID rather than treating every Modding API or BepInEx release as interchangeable. Crystalfly-managed loaders can be repaired or removed. A manually installed BepInEx with a verifiable version is detected as externally owned: matching plugins may be installed, but Crystalfly never repairs, removes, overwrites, or takes ownership of the BepInEx installation. Manually installed Modding API remains `Drifted` because no trusted vanilla assembly backup exists.
 

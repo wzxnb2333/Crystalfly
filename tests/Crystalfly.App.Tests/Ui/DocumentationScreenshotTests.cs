@@ -40,7 +40,9 @@ public sealed class DocumentationScreenshotTests
         new("crystalfly-mod-install-overlay-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.MarketInstall),
         new("crystalfly-instance-detail-900x600-zh.jpg", 900, 600, 1d, ScreenshotState.InstanceDetail),
         new("crystalfly-installed-mod-health-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.InstalledModHealth),
-        new("crystalfly-mod-presets-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.ModPresets),
+        new("crystalfly-mod-packs-900x600-zh.jpg", 900, 600, 1d, ScreenshotState.ModPresets),
+        new("crystalfly-mod-packs-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.ModPresets),
+        new("crystalfly-mod-packs-1920x1080-zh.jpg", 1920, 1080, 1.5d, ScreenshotState.ModPresets),
         new("crystalfly-instance-config-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.InstanceConfig),
         new("crystalfly-save-editor-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.SaveEditor),
         new("crystalfly-dependency-graph-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.DependencyGraph)
@@ -316,11 +318,12 @@ public sealed class DocumentationScreenshotTests
             case ScreenshotState.ModPresets:
                 Assert.Contains(fixture.ViewModel.Loc["ModPresets"], visibleText);
                 Assert.Contains("日常练习 · 全量 Mod", visibleText);
-                Assert.Contains("DebugMod", visibleText);
-                Assert.Contains("ScreenShakeModifier", visibleText);
+                Assert.Contains("1.5.78.11833", visibleText);
+                Assert.Contains("modding-api-77", visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["ApplyPreset"], visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["SharePreset"], visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["ImportSharedPreset"], visibleText);
+                Assert.DoesNotContain("ScreenShakeModifier", visibleText);
                 break;
             case ScreenshotState.InstanceConfig:
                 Assert.Contains(fixture.ViewModel.Loc["Config"], visibleText);
