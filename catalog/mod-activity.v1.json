@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-21T16:00:42.0000000+00:00",
-  "sourceRevision": "8d8221f8ae65a587f8d08d5f1cbaa3e900ebdec5",
+  "generatedAt": "2026-07-26T19:55:47.0000000+00:00",
+  "sourceRevision": "e372719a3d23be41949c389934b9adcb9a2f32b8",
   "entries": [
     {
       "id": "hkmod:AbsRad Configurable Attacks",
@@ -76,7 +76,7 @@
     {
       "id": "hkmod:AlphabetRando",
       "addedAt": "2026-02-13T08:42:21.0000000+00:00",
-      "updatedAt": "2026-03-28T21:51:45.0000000+00:00"
+      "updatedAt": "2026-07-22T15:16:28.0000000+00:00"
     },
     {
       "id": "hkmod:AlreadyEnoughPlayMaker",
@@ -136,7 +136,7 @@
     {
       "id": "hkmod:Architect",
       "addedAt": "2025-06-17T15:45:52.0000000+00:00",
-      "updatedAt": "2026-07-19T18:59:21.0000000+00:00"
+      "updatedAt": "2026-07-24T16:10:07.0000000+00:00"
     },
     {
       "id": "hkmod:ArchitectLegacy",
@@ -441,7 +441,7 @@
     {
       "id": "hkmod:Charm Rebalanced",
       "addedAt": "2026-05-15T17:48:07.0000000+00:00",
-      "updatedAt": "2026-07-21T16:00:42.0000000+00:00"
+      "updatedAt": "2026-07-23T15:44:40.0000000+00:00"
     },
     {
       "id": "hkmod:CharmPatch",
@@ -831,7 +831,7 @@
     {
       "id": "hkmod:Double Enemies",
       "addedAt": "2026-06-27T09:32:51.0000000+00:00",
-      "updatedAt": "2026-07-14T22:00:53.0000000+00:00"
+      "updatedAt": "2026-07-24T20:42:01.0000000+00:00"
     },
     {
       "id": "hkmod:DoubleJumpFix",
@@ -1112,6 +1112,11 @@
       "id": "hkmod:FrogCore",
       "addedAt": "2021-10-08T06:04:37.0000000+00:00",
       "updatedAt": "2024-01-05T14:02:59.0000000+00:00"
+    },
+    {
+      "id": "hkmod:FsmMaster",
+      "addedAt": "2026-07-22T15:14:32.0000000+00:00",
+      "updatedAt": "2026-07-22T15:14:32.0000000+00:00"
     },
     {
       "id": "hkmod:FsmSeer",
@@ -2056,7 +2061,7 @@
     {
       "id": "hkmod:MyHK",
       "addedAt": "2025-08-27T18:10:52.0000000+00:00",
-      "updatedAt": "2026-01-13T05:55:32.0000000+00:00"
+      "updatedAt": "2026-07-23T15:35:19.0000000+00:00"
     },
     {
       "id": "hkmod:MylaFlower",
@@ -2221,7 +2226,7 @@
     {
       "id": "hkmod:Pale Court Charms",
       "addedAt": "2025-07-26T13:15:42.0000000+00:00",
-      "updatedAt": "2026-03-08T02:39:40.0000000+00:00"
+      "updatedAt": "2026-07-24T17:34:25.0000000+00:00"
     },
     {
       "id": "hkmod:Pale Prince",
@@ -3242,6 +3247,11 @@
       "id": "hkmod:ZoteCollectorHelper",
       "addedAt": "2023-08-04T18:58:47.0000000+00:00",
       "updatedAt": "2025-08-26T08:25:41.0000000+00:00"
+    },
+    {
+      "id": "hkmod:modthatclosesthegamewhenitopens",
+      "addedAt": "2026-07-26T19:55:47.0000000+00:00",
+      "updatedAt": "2026-07-26T19:55:47.0000000+00:00"
     },
     {
       "id": "hkmod:niaPfohtaP (PoP Upside Down)",
