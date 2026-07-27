@@ -243,7 +243,7 @@ public partial class MainViewModel
         CurrentManageTab = "Overview";
         catalog = EmbeddedCatalog.Load();
         ApplyLanguage(settings.Language);
-        ApplyTheme(settings.Theme);
+        ApplyTheme(settings.Theme, settings.AccentColor);
         InitializeApplicationUpdateSettings();
         await QueueSettingsSave();
         RebuildSettingOptions();
