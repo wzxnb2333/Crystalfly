@@ -16,6 +16,8 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         Assert.Equal(UiTheme.System, defaults.Theme);
         Assert.Equal(GitHubDownloadRoute.Direct, defaults.GitHubDownloadRoute);
         Assert.False(defaults.OfflineMode);
+        Assert.Empty(defaults.GameDirectories);
+        Assert.False(defaults.GameDirectoryDiscoveryCompleted);
 
         var expected = defaults with
         {
@@ -25,6 +27,16 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
             Theme = UiTheme.Dark,
             GitHubDownloadRoute = GitHubDownloadRoute.Mirror,
             OfflineMode = true,
+            GameDirectories =
+            [
+                new GameDirectoryRegistration
+                {
+                    Path = @"D:\HK_ver",
+                    DisplayName = "HK versions",
+                    Source = GameDirectorySourceKind.Managed
+                }
+            ],
+            GameDirectoryDiscoveryCompleted = true,
             ModHealthAcknowledgements =
             [
                 new ModHealthAcknowledgement { Fingerprint = new string('A', 64) }
@@ -48,11 +60,51 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
 
         var actual = await CrystalflySettingsStore.LoadAsync(path);
         Assert.Equal(
-            expected with { CustomCatalogs = [], ModHealthAcknowledgements = [] },
-            actual with { CustomCatalogs = [], ModHealthAcknowledgements = [] });
+            expected with { CustomCatalogs = [], GameDirectories = [], ModHealthAcknowledgements = [] },
+            actual with { CustomCatalogs = [], GameDirectories = [], ModHealthAcknowledgements = [] });
         Assert.Equal(expected.CustomCatalogs, actual.CustomCatalogs);
         Assert.Equal(expected.CustomModLinks, actual.CustomModLinks);
         Assert.Equal(expected.ModHealthAcknowledgements, actual.ModHealthAcknowledgements);
+        Assert.Equal(expected.GameDirectories.ToArray(), actual.GameDirectories.ToArray());
+    }
+
+    [Fact]
+    public async Task Load_migrates_existing_version_root_to_managed_game_directory()
+    {
+        var versionRoot = Directory.CreateDirectory(Path.Combine(root, "HK versions")).FullName;
+        var path = Path.Combine(root, "legacy-version-root.json");
+        await File.WriteAllTextAsync(
+            path,
+            $$"""
+            {"schemaVersion":1,"versionRoot":{{System.Text.Json.JsonSerializer.Serialize(versionRoot)}},"gameDirectories":[]}
+            """);
+
+        var settings = await CrystalflySettingsStore.LoadAsync(path);
+
+        var registration = Assert.Single(settings.GameDirectories);
+        Assert.Equal(Path.GetFullPath(versionRoot), registration.Path);
+        Assert.Equal("HK versions", registration.DisplayName);
+        Assert.Equal(GameDirectorySourceKind.Managed, registration.Source);
+        Assert.True(settings.GameDirectoryDiscoveryCompleted);
+    }
+
+    [Fact]
+    public async Task Load_does_not_migrate_missing_legacy_version_root()
+    {
+        var versionRoot = Path.Combine(root, "missing");
+        var path = Path.Combine(root, "legacy-missing-root.json");
+        Directory.CreateDirectory(root);
+        await File.WriteAllTextAsync(
+            path,
+            $$"""
+            {"schemaVersion":1,"versionRoot":{{System.Text.Json.JsonSerializer.Serialize(versionRoot)}},"gameDirectories":[]}
+            """);
+
+        var settings = await CrystalflySettingsStore.LoadAsync(path);
+
+        Assert.Empty(settings.GameDirectories);
+        Assert.False(settings.GameDirectoryDiscoveryCompleted);
+        Assert.Equal(versionRoot, settings.VersionRoot);
     }
     [Fact]
     public async Task Load_legacy_settings_without_route_uses_direct_GitHub()
@@ -71,7 +123,6 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         Assert.False(settings.OfflineMode);
         Assert.Empty(settings.ModHealthAcknowledgements);
     }
-
 
     public void Dispose()
     {

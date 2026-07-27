@@ -145,6 +145,34 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Initialize_keeps_missing_registered_directory_visible_and_uses_existing_fallback()
+    {
+        using var test = new TestDirectory();
+        var applicationDataRoot = test.CreateDirectory("app-data");
+        var missingRoot = Path.Combine(Path.GetDirectoryName(applicationDataRoot)!, "missing");
+        var existingRoot = test.CreateDirectory("existing");
+        await CrystalflySettingsStore.SaveAsync(
+            Path.Combine(applicationDataRoot, "settings.json"),
+            new CrystalflySettings
+            {
+                VersionRoot = missingRoot,
+                GameDirectoryDiscoveryCompleted = true,
+                GameDirectories =
+                [
+                    new GameDirectoryRegistration { Path = missingRoot, DisplayName = "Missing" },
+                    new GameDirectoryRegistration { Path = existingRoot, DisplayName = "Existing" }
+                ]
+            });
+
+        await using var viewModel = new MainViewModel(applicationDataRoot);
+        await viewModel.InitializeAsync();
+
+        Assert.Equal(2, viewModel.GameDirectories.Count);
+        Assert.Equal(existingRoot, viewModel.SelectedGameDirectory?.Path);
+        Assert.Equal(viewModel.Loc["ScanFailed"], viewModel.GameDirectories[0].ScanStatus);
+    }
+
+    [Fact]
     public async Task Initialize_applies_persisted_global_offline_mode()
     {
         using var test = new TestDirectory();

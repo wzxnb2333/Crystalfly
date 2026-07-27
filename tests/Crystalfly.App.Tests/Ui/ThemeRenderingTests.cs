@@ -601,7 +601,7 @@ public sealed class ThemeRenderingTests
     }
 
     [AvaloniaFact]
-    public async Task Main_window_uses_two_Ursa_path_pickers_and_a_quick_mod_import_action()
+    public async Task Main_window_keeps_the_mod_pack_file_picker_and_quick_mod_import_action()
     {
         var applicationDataRoot = Path.Combine(
             Path.GetTempPath(),
@@ -621,34 +621,15 @@ public sealed class ThemeRenderingTests
         try
         {
             var pickers = window.GetLogicalDescendants().OfType<PathPicker>().ToArray();
-            Assert.Equal(2, pickers.Length);
-            var folder = Assert.Single(pickers, picker => picker.UsePickerType == UsePickerTypes.OpenFolder);
-            var file = Assert.Single(pickers, picker => picker.UsePickerType == UsePickerTypes.OpenFile);
-            Assert.Same(viewModel.ApplyVersionRootCommand, folder.Command);
+            var file = Assert.Single(pickers);
+            Assert.Equal(UsePickerTypes.OpenFile, file.UsePickerType);
             Assert.Contains("*.json", file.FileFilter, StringComparison.Ordinal);
             var modImport = Assert.Single(window.GetLogicalDescendants().OfType<Button>(), button =>
                 AutomationProperties.GetName(button) == viewModel.Loc["ImportLocalMod"]);
             Assert.Contains("cfp-quick-action", modImport.Classes);
-            Assert.All(pickers, picker => Assert.True(picker.IsOmitCommandOnCancel));
-            Assert.All(pickers, picker =>
-                Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(picker))));
-
-            folder.SelectedPathsText = selectedRoot;
-            Dispatcher.UIThread.RunJobs();
-            Assert.Equal(selectedRoot, viewModel.VersionRoot);
-
-            folder.Command!.Execute(Array.Empty<Avalonia.Platform.Storage.IStorageItem>());
-            for (var attempt = 0; attempt < 100 && viewModel.ApplyVersionRootCommand.IsRunning; attempt++)
-            {
-                Dispatcher.UIThread.RunJobs();
-                await Task.Delay(10);
-            }
-
-            Assert.False(viewModel.ApplyVersionRootCommand.IsRunning);
+            Assert.True(file.IsOmitCommandOnCancel);
+            Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(file)));
             Assert.Null(viewModel.ErrorMessage);
-            var settings = await CrystalflySettingsStore.LoadAsync(
-                Path.Combine(applicationDataRoot, "settings.json"));
-            Assert.Equal(Path.GetFullPath(selectedRoot), settings.VersionRoot);
         }
         finally
         {
