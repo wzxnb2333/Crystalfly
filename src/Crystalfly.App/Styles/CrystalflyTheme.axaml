@@ -436,6 +436,14 @@
         <Setter Property="MinHeight" Value="0" />
     </Style>
 
+    <Style Selector="ListBox.cfp-market-list > ListBoxItem:pointerover,
+                     ListBox.cfp-market-list > ListBoxItem:selected,
+                     ListBox.cfp-market-list > ListBoxItem:selected:pointerover,
+                     ListBox.cfp-market-list > ListBoxItem:selected:pressed">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+    </Style>
+
     <Style Selector="Border.cfp-market-source">
         <Setter Property="Padding" Value="8,6" />
     </Style>

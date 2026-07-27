@@ -183,6 +183,50 @@ public sealed class ThemeRenderingTests
     }
 
     [AvaloniaFact]
+    public void Mod_market_list_item_keeps_its_outer_background_transparent()
+    {
+        var list = new ListBox
+        {
+            Width = 400,
+            Height = 80,
+            ItemsSource = new[] { "Market item" },
+            SelectedIndex = 0
+        };
+        list.Classes.Add("cfp-list");
+        list.Classes.Add("cfp-market-list");
+
+        var window = ShowInWindow(list);
+        try
+        {
+            var item = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
+            Assert.Equal(Colors.Transparent, Assert.IsAssignableFrom<ISolidColorBrush>(item.Background).Color);
+
+            list.SelectedIndex = -1;
+            Dispatcher.UIThread.RunJobs();
+            var point = item.TranslatePoint(
+                new Point(item.Bounds.Width / 2, item.Bounds.Height / 2),
+                window);
+            Assert.NotNull(point);
+            window.MouseMove(point!.Value);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(Colors.Transparent, Assert.IsAssignableFrom<ISolidColorBrush>(item.Background).Color);
+
+            list.SelectedIndex = 0;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(Colors.Transparent, Assert.IsAssignableFrom<ISolidColorBrush>(item.Background).Color);
+
+            window.MouseDown(point.Value, MouseButton.Left, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(Colors.Transparent, Assert.IsAssignableFrom<ISolidColorBrush>(item.Background).Color);
+            window.MouseUp(point.Value, MouseButton.Left, RawInputModifiers.None);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Dangerous_confirmation_overlay_disables_confirm_and_cancel_returns_false()
     {
         var window = new MainWindow { Width = 900, Height = 600 };
