@@ -79,6 +79,53 @@ public sealed class DownloadQueueServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Steam_sign_out_pauses_active_download_until_login_resumes_it()
+    {
+        var loggedOn = true;
+        var firstAttemptStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var attempts = 0;
+        var catalogExecutor = new ControlledExecutor();
+        var executor = new SteamDownloadQueueExecutor(
+            catalogExecutor,
+            async (request, _, cancellationToken) =>
+            {
+                if (Interlocked.Increment(ref attempts) == 1)
+                {
+                    firstAttemptStarted.TrySetResult();
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                }
+                Directory.CreateDirectory(request.StagingDirectory);
+                await File.WriteAllTextAsync(Path.Combine(request.StagingDirectory, "hollow_knight.exe"), "game", cancellationToken);
+                await File.WriteAllTextAsync(Path.Combine(request.StagingDirectory, "steam_appid.txt"), "367520", cancellationToken);
+                return new Crystalfly.Steam.Downloads.SteamDownloadResult(
+                    367520, 367521, 42, request.StagingDirectory, ["hollow_knight.exe", "steam_appid.txt"], 4);
+            },
+            _ => null,
+            () => loggedOn,
+            TimeSpan.FromMilliseconds(10));
+        await using var queue = CreateQueue(executor);
+        await queue.InitializeAsync();
+        var group = SteamDownloadQueueGroupFactory.CreateCustomManifest(
+            42, "Historical", Path.Combine(root, "versions"), "target");
+
+        await queue.EnqueueAsync(group);
+        await firstAttemptStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        loggedOn = false;
+        await queue.PauseSteamDownloadsAsync();
+        await WaitUntilAsync(() => queue.Groups.Single().Stage == "Waiting for Steam login");
+
+        Assert.Equal(DownloadQueueGroupState.Pending, Assert.Single(queue.Groups).State);
+        Assert.Equal(DownloadQueueItemState.Pending, Assert.Single(queue.Groups).Items.Single().State);
+
+        loggedOn = true;
+        await queue.ResumeSteamDownloadsAsync();
+        await queue.WaitForIdleAsync();
+
+        Assert.Equal(2, attempts);
+        Assert.Equal(DownloadQueueGroupState.Completed, Assert.Single(queue.Groups).State);
+    }
+
+    [Fact]
     public async Task Items_in_one_group_run_in_dependency_order()
     {
         var executor = new ControlledExecutor();

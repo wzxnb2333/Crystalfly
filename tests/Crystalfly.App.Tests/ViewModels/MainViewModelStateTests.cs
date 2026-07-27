@@ -209,6 +209,31 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public void Download_build_search_keeps_every_catalog_build_and_matches_manifest_ids()
+    {
+        using var test = new TestDirectory();
+        var viewModel = new MainViewModel(test.CreateDirectory("app-data"));
+        var builds = Enumerable.Range(1, 6).Select(index => new GameBuild
+        {
+            Id = $"build-{index}",
+            DisplayVersion = $"1.5.{index}",
+            ManifestId = (1000 + index).ToString(CultureInfo.InvariantCulture),
+            ExecutableSha256 = new string('A', 64),
+            GlobalGameManagersSha256 = new string('B', 64)
+        }).ToArray();
+        SetPrivateField(viewModel, "catalog", new GameCatalog { Builds = builds });
+        var populate = typeof(MainViewModel).GetMethod("PopulateDownloadBuilds", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(populate);
+        populate.Invoke(viewModel, null);
+
+        Assert.Equal(7, viewModel.DownloadBuilds.Count);
+        viewModel.DownloadBuildSearchText = "1005";
+
+        var match = Assert.Single(viewModel.VisibleDownloadBuilds);
+        Assert.Equal("build-5", match.BuildId);
+    }
+
+    [Fact]
     public async Task Background_catalog_failure_does_not_escape_disposal()
     {
         using var test = new TestDirectory();
@@ -231,7 +256,7 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
-    public async Task Refresh_runs_version_directory_discovery_off_the_calling_thread()
+    public async Task Refresh_returns_while_version_directory_discovery_is_still_running()
     {
         using var test = new TestDirectory();
         var versionRoot = test.CreateDirectory("versions");
@@ -239,36 +264,54 @@ public sealed class MainViewModelStateTests : IDisposable
         {
             VersionRoot = versionRoot
         };
-        var callingThread = Environment.CurrentManagedThreadId;
-        var discoveryThread = 0;
         var discoveryStarted = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
-        var releaseDiscovery = new TaskCompletionSource<IReadOnlyList<InstanceRecord>>(
+        var releaseDiscovery = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
         SetPrivateField(
             viewModel,
             "instanceDiscovery",
             new Func<string, GameCatalog, CancellationToken, Task<IReadOnlyList<InstanceRecord>>>(
-                async (_, _, cancellationToken) =>
+                (_, _, cancellationToken) =>
                 {
-                    discoveryThread = Environment.CurrentManagedThreadId;
                     discoveryStarted.TrySetResult();
-                    return await releaseDiscovery.Task.WaitAsync(cancellationToken);
+                    releaseDiscovery.Task.Wait(cancellationToken);
+                    return Task.FromResult<IReadOnlyList<InstanceRecord>>([]);
                 }));
+
+        Task? refresh = null;
+        var refreshReturned = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var invokeThread = new Thread(() =>
+        {
+            try
+            {
+                refresh = InvokeRefreshAsync(viewModel);
+                refreshReturned.TrySetResult();
+            }
+            catch (Exception exception)
+            {
+                refreshReturned.TrySetException(exception);
+            }
+        })
+        {
+            IsBackground = true
+        };
 
         try
         {
-            var refresh = InvokeRefreshAsync(viewModel);
+            invokeThread.Start();
             await discoveryStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await refreshReturned.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-            Assert.NotEqual(callingThread, discoveryThread);
-
-            releaseDiscovery.TrySetResult([]);
+            releaseDiscovery.TrySetResult();
+            Assert.NotNull(refresh);
             await refresh.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(invokeThread.Join(TimeSpan.FromSeconds(5)));
         }
         finally
         {
-            releaseDiscovery.TrySetResult([]);
+            releaseDiscovery.TrySetResult();
         }
     }
 
@@ -1421,6 +1464,40 @@ public sealed class MainViewModelStateTests : IDisposable
 
         Assert.Single(viewModel.VisibleMarketMods);
         Assert.Equal("debugmod", viewModel.VisibleMarketMods[0].Id);
+    }
+
+    [Fact]
+    public void Installed_mod_graph_always_shows_the_complete_instance()
+    {
+        var viewModel = CreateViewModel();
+        var library = new InstalledModItemViewModel(
+            Receipt("library", "1.0.0", enabled: true),
+            null,
+            static () => { });
+        var feature = new InstalledModItemViewModel(
+            Receipt("feature", "1.0.0", enabled: true) with { Dependencies = ["library"] },
+            null,
+            static () => { });
+        var isolated = new InstalledModItemViewModel(
+            Receipt("isolated", "1.0.0", enabled: true),
+            null,
+            static () => { });
+        viewModel.InstalledMods.Add(library);
+        viewModel.InstalledMods.Add(feature);
+        viewModel.InstalledMods.Add(isolated);
+        viewModel.SelectedInstalledMod = feature;
+
+        viewModel.ShowInstalledModGraphCommand.Execute(null);
+
+        Assert.True(viewModel.IsInstalledModGraphVisible);
+        Assert.Equal(["feature", "isolated", "library"], viewModel.InstalledModGraph.Nodes.Select(node => node.Id).Order());
+        var edge = Assert.Single(viewModel.InstalledModGraph.Edges);
+        Assert.Equal("library", edge.Source.Id);
+        Assert.Equal("feature", edge.Target.Id);
+
+        viewModel.SelectedInstalledMod = library;
+
+        Assert.Equal(3, viewModel.InstalledModGraph.Nodes.Count);
     }
 
     [Fact]
@@ -2593,6 +2670,38 @@ public sealed class MainViewModelStateTests : IDisposable
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(method);
         return Assert.IsType<string>(method.Invoke(viewModel, [version]));
+    }
+
+    [Fact]
+    public async Task Mod_pack_workspace_filters_lists_without_losing_the_selected_pack()
+    {
+        await using var viewModel = CreateViewModel();
+        var practice = new ModPreset
+        {
+            Id = "practice",
+            Name = "Practice Pack",
+            GameBuildId = "1.5.78.11833",
+            LoaderId = "modding-api-77",
+            ApplyMode = ModPresetApplyMode.Append,
+            Entries =
+            [
+                new ModPresetEntry { Id = "hkmod:Helper", Name = "Helper", Version = "1.0.0" },
+                new ModPresetEntry { Id = "hkmod:Benchwarp", Name = "Benchwarp", Version = "3.2.0" }
+            ]
+        };
+        var speedrun = practice with { Id = "speedrun", Name = "Speedrun Pack", Entries = [] };
+        viewModel.ModPresets.Add(practice);
+        viewModel.ModPresets.Add(speedrun);
+        viewModel.SelectedPreset = practice;
+
+        viewModel.ModPackSearchText = "speedrun";
+        viewModel.ModPackEntrySearchText = "helper";
+        viewModel.ToggleSelectedPresetEntriesCommand.Execute(null);
+
+        Assert.Equal(speedrun, Assert.Single(viewModel.VisibleModPacks));
+        Assert.Equal(practice, viewModel.SelectedPreset);
+        Assert.Equal("hkmod:Helper", Assert.Single(viewModel.VisibleSelectedModPackEntries).Id);
+        Assert.True(viewModel.IsSelectedPresetEntriesExpanded);
     }
 
     private MainViewModel CreateViewModel() => new(applicationData.CreateDirectory("app-data"));

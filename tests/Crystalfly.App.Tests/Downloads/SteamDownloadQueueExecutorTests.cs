@@ -43,6 +43,38 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
     }
 
     [Fact]
+    public void Factory_creates_a_stable_custom_manifest_item()
+    {
+        Directory.CreateDirectory(root);
+
+        DownloadQueueGroup group = SteamDownloadQueueGroupFactory.CreateCustomManifest(
+            42,
+            "Unverified historical build",
+            root,
+            "historical");
+
+        DownloadQueueItem item = Assert.Single(group.Items);
+        Assert.Equal("steam:manifest", item.PackageId);
+        Assert.Equal("42", item.PackagePath);
+        Assert.Equal("Unverified historical build", item.Name);
+        Assert.Equal("historical", group.TargetInstanceName);
+    }
+
+    [Fact]
+    public void Factory_rejects_a_zero_custom_manifest() =>
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            SteamDownloadQueueGroupFactory.CreateCustomManifest(0, "Historical", root, "historical"));
+
+    [Fact]
+    public void Factory_rejects_an_existing_custom_manifest_destination()
+    {
+        Directory.CreateDirectory(Path.Combine(root, "historical"));
+
+        Assert.Throws<IOException>(() =>
+            SteamDownloadQueueGroupFactory.CreateCustomManifest(42, "Historical", root, "historical"));
+    }
+
+    [Fact]
     public void Different_instances_of_same_manifest_are_not_deduplicated()
     {
         Directory.CreateDirectory(root);
@@ -413,6 +445,38 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
 
         InstanceRecord instance = await InstanceSidecar.LoadAsync(group.TargetInstanceRoot);
         Assert.Equal("steam-public-42", instance.BuildId);
+    }
+
+    [Fact]
+    public async Task Known_custom_manifest_uses_the_catalog_build_identity()
+    {
+        Directory.CreateDirectory(root);
+        var executor = CreateExecutor(SuccessfulDownload(42), manifest => manifest == 42 ? "known-build" : null);
+        DownloadQueueGroup group = SteamDownloadQueueGroupFactory.CreateCustomManifest(
+            42, "Known historical build", root, "target");
+        DownloadQueueItem item = Assert.Single(group.Items);
+
+        await executor.TransferAsync(group, item, new ProgressCapture(_ => { }), networkGate, CancellationToken.None);
+        await executor.InstallAsync(group, item, CancellationToken.None);
+
+        InstanceRecord instance = await InstanceSidecar.LoadAsync(group.TargetInstanceRoot);
+        Assert.Equal("known-build", instance.BuildId);
+    }
+
+    [Fact]
+    public async Task Unknown_custom_manifest_uses_an_unverified_manifest_identity()
+    {
+        Directory.CreateDirectory(root);
+        var executor = CreateExecutor(SuccessfulDownload(42));
+        DownloadQueueGroup group = SteamDownloadQueueGroupFactory.CreateCustomManifest(
+            42, "Unverified historical build", root, "target");
+        DownloadQueueItem item = Assert.Single(group.Items);
+
+        await executor.TransferAsync(group, item, new ProgressCapture(_ => { }), networkGate, CancellationToken.None);
+        await executor.InstallAsync(group, item, CancellationToken.None);
+
+        InstanceRecord instance = await InstanceSidecar.LoadAsync(group.TargetInstanceRoot);
+        Assert.Equal("steam-manifest-42", instance.BuildId);
     }
 
     [Fact]

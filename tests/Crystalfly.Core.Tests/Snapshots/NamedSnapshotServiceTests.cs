@@ -108,6 +108,49 @@ public sealed class NamedSnapshotServiceTests
     }
 
     [Fact]
+    public async Task Delete_removes_only_the_selected_instance_snapshot()
+    {
+        using var test = new TestDirectory();
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        var practice = test.CreateDirectory(
+            "version", ".crystalfly", "instances", "practice", "local-low");
+        var race = test.CreateDirectory(
+            "version", ".crystalfly", "instances", "race", "local-low");
+        await test.WriteAsync(practice, "user1.dat", "practice-save");
+        await test.WriteAsync(race, "user1.dat", "race-save");
+        var service = CreateService(storage);
+        var practiceSnapshot = await service.CreateAsync("practice", "Practice");
+        var raceSnapshot = await service.CreateAsync("race", "Race");
+
+        await service.DeleteAsync("practice", practiceSnapshot.Id);
+
+        Assert.Empty(await service.ListAsync("practice"));
+        Assert.Equal(raceSnapshot, Assert.Single(await service.ListAsync("race")));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(practiceSnapshot.SnapshotPath)));
+    }
+
+    [Fact]
+    public async Task Delete_is_blocked_when_hollow_knight_process_is_running()
+    {
+        using var test = new TestDirectory();
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        var instance = test.CreateDirectory(
+            "version", ".crystalfly", "instances", "practice", "local-low");
+        await test.WriteAsync(instance, "user1.dat", "save");
+        var service = CreateService(storage);
+        var snapshot = await service.CreateAsync("practice", "Blocked");
+        service = new NamedSnapshotService(
+            storage,
+            UniqueMutexName(),
+            new StubProcessProbe(isRunning: true));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.DeleteAsync("practice", snapshot.Id));
+
+        Assert.True(Directory.Exists(Path.GetDirectoryName(snapshot.SnapshotPath)));
+    }
+
+    [Fact]
     public async Task List_save_slots_returns_only_root_user1_through_user4_for_selected_instance()
     {
         using var test = new TestDirectory();

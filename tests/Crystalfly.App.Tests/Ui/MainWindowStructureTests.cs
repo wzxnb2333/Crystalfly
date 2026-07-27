@@ -96,7 +96,41 @@ public sealed class MainWindowStructureTests
         Assert.Contains("SubscribeEntranceAnimations();", code, StringComparison.Ordinal);
         Assert.Contains("AreClientAreaAnimationsEnabled()", code, StringComparison.Ordinal);
         Assert.Contains("TimeSpan.FromMilliseconds(180)", code, StringComparison.Ordinal);
+        Assert.Contains("PageEntranceOffset", code, StringComparison.Ordinal);
+        Assert.Contains("TranslateTransform.YProperty", code, StringComparison.Ordinal);
+        Assert.Contains("IsEntranceAnimationTarget", code, StringComparison.Ordinal);
+        Assert.Contains("ConfigureMicroInteractionTransitions", code, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(120)", code, StringComparison.Ordinal);
         Assert.Contains("Visual.OpacityProperty", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Shared_rails_stretch_navigation_to_their_inner_edges()
+    {
+        var document = LoadMainWindow();
+        foreach (var section in new[] { "IsManagePage", "IsDownloadsPage", "IsSettingsPage" })
+        {
+            var rail = FindSectionRoot(document, section)
+                .Descendants(Avalonia + "Border")
+                .Single(border => HasClass(border, "cfp-rail"));
+            var nav = rail.Descendants(Avalonia + "StackPanel")
+                .Single(panel => HasClass(panel, "cfp-manage-nav"));
+
+            Assert.Equal("8,16", (string?)rail.Attribute("Padding"));
+            Assert.NotEmpty(nav.Elements(Avalonia + "Button"));
+            Assert.All(nav.Elements(Avalonia + "Button"), button => Assert.True(HasClass(button, "cfp-local-nav")));
+        }
+
+        var theme = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Styles",
+            "CrystalflyTheme.axaml"));
+        Assert.Contains("StackPanel.cfp-manage-nav", theme, StringComparison.Ordinal);
+        Assert.Contains("<Setter Property=\"HorizontalAlignment\" Value=\"Stretch\" />", theme, StringComparison.Ordinal);
+        Assert.DoesNotContain("Grid.cfp-manage-nav", theme, StringComparison.Ordinal);
+        Assert.DoesNotContain("Border.cfp-download-rail Button.cfp-local-nav TextBlock", theme, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -135,10 +169,12 @@ public sealed class MainWindowStructureTests
         Assert.Contains(modList.Descendants(Avalonia + "TextBlock"), text => HasClass(text, "cfp-installed-mod-name") && HasBinding(text, "Classes.disabled", "IsEnabled"));
         Assert.Contains(modList.Descendants(Avalonia + "StackPanel"), panel => HasClass(panel, "cfp-installed-mod-actions"));
         Assert.Contains(modList.Descendants(Avalonia + "Grid"), row =>
-            HasClass(row, "cfp-installed-mod-row") && HasBinding(row, "Classes.selected", "IsSelected"));
+            HasClass(row, "cfp-installed-mod-row")
+            && HasBinding(row, "Classes.selected", "IsSelected")
+            && (string?)row.Attribute("Background") == "Transparent");
 
         var quickActions = manageGrid.Descendants(Avalonia + "WrapPanel").Single(panel => HasClass(panel, "cfp-mod-quick-actions"));
-        Assert.Equal(4, quickActions.Elements(Avalonia + "Button").Count());
+        Assert.Equal(6, quickActions.Elements(Avalonia + "Button").Count());
         Assert.DoesNotContain(manageGrid.Descendants(Avalonia + "Border"), border => HasClass(border, "cfp-mod-bulk-card"));
 
         var theme = File.ReadAllText(Path.Combine(
@@ -158,6 +194,22 @@ public sealed class MainWindowStructureTests
         Assert.All(iconOnlyButtons, button => Assert.False(
             string.IsNullOrWhiteSpace((string?)button.Attribute("AutomationProperties.Name")),
             $"Icon-only button is missing an automation name: {button}"));
+    }
+
+    [Fact]
+    public void Installed_mod_dependency_graph_has_no_selected_component_scope_controls()
+    {
+        var document = LoadMainWindow();
+        var manageGrid = FindSectionRoot(document, "IsManagePage");
+        var graphFrame = manageGrid.Descendants(Avalonia + "Border")
+            .Single(border => HasClass(border, "cfp-dependency-graph-frame"));
+
+        Assert.DoesNotContain(graphFrame.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "ShowFocusedDependencyGraphCommand"));
+        Assert.DoesNotContain(graphFrame.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "ShowAllDependencyGraphCommand"));
+        Assert.DoesNotContain(graphFrame.Descendants(Avalonia + "StackPanel"), panel =>
+            HasClass(panel, "cfp-graph-scope"));
     }
 
     [Fact]
@@ -312,8 +364,9 @@ public sealed class MainWindowStructureTests
         Assert.Contains(presets.Descendants(Avalonia + "Button"), button =>
             (string?)button.Attribute("Click") == "ExportSelectedPreset");
         Assert.Contains(presets.Descendants(Avalonia + "Button"), button =>
-            (string?)button.Attribute("Click") == "CopyPresetShareLink"
-                && HasBinding(button, "IsVisible", "HasLastPresetShare") == false);
+            (string?)button.Attribute("Click") == "ShareAndCopyPresetLink");
+        Assert.DoesNotContain(presets.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "LastPresetShareUrl"));
 
         var code = File.ReadAllText(Path.Combine(
             FindRepositoryRoot(),
@@ -325,10 +378,66 @@ public sealed class MainWindowStructureTests
         Assert.Contains("private async void ConfirmDeletePreset", code, StringComparison.Ordinal);
         Assert.Contains("private async void ImportPresetFile", code, StringComparison.Ordinal);
         Assert.Contains("private async void ExportSelectedPreset", code, StringComparison.Ordinal);
-        Assert.Contains("private async void CopyPresetShareLink", code, StringComparison.Ordinal);
+        Assert.Contains("private async void ShareAndCopyPresetLink", code, StringComparison.Ordinal);
         Assert.Contains("PresetApplySteps", code, StringComparison.Ordinal);
         Assert.Contains("FilePickerSaveOptions", code, StringComparison.Ordinal);
         Assert.Contains("Clipboard.SetTextAsync", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Mod_pack_workspace_uses_compact_master_detail_layout_and_subpage_markers()
+    {
+        var document = LoadMainWindow();
+        var packs = document.Descendants(Avalonia + "StackPanel").Single(panel =>
+            ((string?)panel.Attribute("IsVisible"))?.Contains("ConverterParameter=Presets", StringComparison.Ordinal) == true);
+
+        Assert.True(HasClass(packs, "cfp-subpage"));
+        Assert.Contains(packs.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", "ModPacks"));
+        Assert.Contains(packs.Descendants(Avalonia + "TextBox"), textBox => HasBinding(textBox, "Text", "ModPackSearchText"));
+        Assert.Contains(packs.Descendants(Avalonia + "ListBox"), listBox => HasBinding(listBox, "ItemsSource", "VisibleModPacks"));
+        Assert.Contains(packs.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ShowCreateModPackDialog");
+        Assert.Contains(packs.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ImportPresetFile");
+        Assert.Contains(packs.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ConfirmApplyPreset");
+        Assert.Contains(packs.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ShowCopyModPackDialog");
+        Assert.Contains(packs.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ShowImportSharedModPackDialog");
+        Assert.Contains(packs.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "ToggleSelectedPresetEntriesCommand"));
+        Assert.Contains(packs.Descendants(Avalonia + "ItemsControl"), items =>
+            HasBinding(items, "ItemsSource", "VisibleSelectedModPackEntries"));
+
+        foreach (var visibility in new[] { "IsDownloadsPage", "IsSettingsPage" })
+        {
+            var page = FindSectionRoot(document, visibility);
+            Assert.Contains(page.Descendants(Avalonia + "StackPanel"), panel => HasClass(panel, "cfp-subpage"));
+        }
+
+        var code = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Views",
+            "MainWindow.axaml.cs"));
+        Assert.Contains("DispatcherPriority.Render", code, StringComparison.Ordinal);
+        Assert.Contains("entranceAnimationGeneration", code, StringComparison.Ordinal);
+        Assert.Contains("control.Classes.Contains(\"cfp-page\")", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("!control.GetVisualDescendants()", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Snapshot_page_exposes_confirmed_delete_action()
+    {
+        var document = LoadMainWindow();
+        var snapshots = document.Descendants(Avalonia + "StackPanel").Single(panel =>
+            ((string?)panel.Attribute("IsVisible"))?.Contains("ConverterParameter=Snapshots", StringComparison.Ordinal) == true);
+
+        Assert.Contains(snapshots.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "ConfirmDeleteSnapshot"
+            && HasClass(button, "danger"));
     }
 
     private static XDocument LoadMainWindow() => XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Crystalfly.App", "Views", "MainWindow.axaml"));

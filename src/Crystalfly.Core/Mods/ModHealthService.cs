@@ -35,6 +35,10 @@ public sealed class ModHealthService
             {
                 var path = pathPolicy.ResolveUnderOwnedRoot(file.RelativePath, installRoot);
                 pathPolicy.EnsureNoReparsePoints(path.FullPath);
+                if (!IsModAssembly(file.RelativePath))
+                {
+                    continue;
+                }
                 if (!File.Exists(path.FullPath))
                 {
                     missing.Add(file.RelativePath);
@@ -60,7 +64,7 @@ public sealed class ModHealthService
             var extra = extraFiles.Count != 0
                 ? extraFiles
                     .Select(pathPolicy.ToRelativePath)
-                    .Where(path => !owned.Contains(path))
+                    .Where(path => !owned.Contains(path) && IsModAssembly(path))
                     .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
                     .ToArray()
                 : [];
@@ -168,6 +172,9 @@ public sealed class ModHealthService
                 ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
             Detail = detail
         };
+
+    private static bool IsModAssembly(string relativePath) =>
+        string.Equals(Path.GetExtension(relativePath), ".dll", StringComparison.OrdinalIgnoreCase);
 
     private static async Task<string> HashFileAsync(string path, CancellationToken cancellationToken)
     {

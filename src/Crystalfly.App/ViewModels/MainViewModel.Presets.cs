@@ -20,6 +20,10 @@ public partial class MainViewModel
 
     public ObservableCollection<SettingOption<ModPresetApplyMode>> PresetModeOptions { get; } = [];
 
+    public ObservableCollection<ModPreset> VisibleModPacks { get; } = [];
+
+    public ObservableCollection<ModPresetEntry> VisibleSelectedModPackEntries { get; } = [];
+
     public ObservableCollection<PresetApplyStepItemViewModel> PresetApplySteps { get; } = [];
 
     [ObservableProperty]
@@ -50,6 +54,15 @@ public partial class MainViewModel
     [ObservableProperty]
     public partial bool HasPresetRestorePoint { get; set; }
 
+    [ObservableProperty]
+    private string modPackSearchText = string.Empty;
+
+    [ObservableProperty]
+    private string modPackEntrySearchText = string.Empty;
+
+    [ObservableProperty]
+    private bool isSelectedPresetEntriesExpanded;
+
     public bool HasSelectedPreset => SelectedPreset is not null;
 
     public int SelectedPresetEntryCount => SelectedPreset?.Entries.Count ?? 0;
@@ -59,6 +72,12 @@ public partial class MainViewModel
     public string LastPresetShareUrl => HasLastPresetShare
         ? new Uri(PresetShareServiceUri, $"share/{LastPresetShareCode}").AbsoluteUri
         : string.Empty;
+
+    [RelayCommand]
+    private void ToggleSelectedPresetEntries()
+    {
+        IsSelectedPresetEntriesExpanded = !IsSelectedPresetEntriesExpanded;
+    }
 
     [RelayCommand]
     private async Task CreatePresetAsync()
@@ -185,7 +204,6 @@ public partial class MainViewModel
                 lifetimeCancellation.Token);
             LastPresetShareCode = result.Code;
             LastPresetDeleteToken = result.DeleteToken;
-            ToastRequested?.Invoke(Loc["PresetShared"]);
         }
         catch (Exception exception) when (exception is HttpRequestException
             or InvalidDataException
@@ -354,6 +372,7 @@ public partial class MainViewModel
             ? ModPresets.FirstOrDefault()
             : ModPresets.FirstOrDefault(preset => preset.Id == selectedId)
                 ?? ModPresets.FirstOrDefault();
+        RefreshModPackWorkspace();
         HasPresetRestorePoint = await service.HasRestorePointAsync(cancellationToken);
     }
 
@@ -408,12 +427,52 @@ public partial class MainViewModel
 
     partial void OnSelectedPresetChanged(ModPreset? value)
     {
+        RefreshModPackWorkspace();
         PresetName = value?.Name ?? string.Empty;
         PresetCopyName = value is null ? string.Empty : $"{value.Name} - {Loc["CopySuffix"]}";
         if (PresetModeOptions.Count != 0)
         {
             SelectedPresetModeOption = PresetModeOptions.First(option =>
                 option.Value == (value?.ApplyMode ?? ModPresetApplyMode.Append));
+        }
+    }
+
+    partial void OnModPackSearchTextChanged(string value) => RefreshVisibleModPacks();
+
+    partial void OnModPackEntrySearchTextChanged(string value) => RefreshVisibleSelectedModPackEntries();
+
+    private void RefreshModPackWorkspace()
+    {
+        RefreshVisibleModPacks();
+        RefreshVisibleSelectedModPackEntries();
+    }
+
+    private void RefreshVisibleModPacks()
+    {
+        var search = ModPackSearchText.Trim();
+        VisibleModPacks.Clear();
+        foreach (var preset in ModPresets.Where(preset => string.IsNullOrWhiteSpace(search)
+            || preset.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)))
+        {
+            VisibleModPacks.Add(preset);
+        }
+    }
+
+    private void RefreshVisibleSelectedModPackEntries()
+    {
+        var search = ModPackEntrySearchText.Trim();
+        VisibleSelectedModPackEntries.Clear();
+        if (SelectedPreset is null)
+        {
+            return;
+        }
+
+        foreach (var entry in SelectedPreset.Entries.Where(entry => string.IsNullOrWhiteSpace(search)
+            || entry.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)
+            || (entry.Id?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (entry.Version?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)))
+        {
+            VisibleSelectedModPackEntries.Add(entry);
         }
     }
 }

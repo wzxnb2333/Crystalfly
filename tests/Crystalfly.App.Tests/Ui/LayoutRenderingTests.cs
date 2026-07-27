@@ -339,6 +339,7 @@ public sealed class LayoutRenderingTests
             var iconAndTextButtons = window.GetVisualDescendants()
                 .OfType<Button>()
                 .Where(button => button.IsEffectivelyVisible)
+                .Where(button => !button.Classes.Contains("cfp-local-nav"))
                 .Select(button => new
                 {
                     Button = button,

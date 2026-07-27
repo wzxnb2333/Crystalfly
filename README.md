@@ -2,7 +2,7 @@
 
 Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。启动页是实例选择与管理的唯一入口；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
 
-> 当前稳定版：`0.6.5`。GitHub Release 提供 Windows x64 便携包和安装包。
+> 当前稳定版：`0.6.6`。GitHub Release 提供 Windows x64 便携包和安装包。
 
 [English](#english)
 
@@ -21,7 +21,7 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 ![实例详情](docs/screenshots/crystalfly-instance-detail-900x600-zh.jpg)
 ![实例配置编辑](docs/screenshots/crystalfly-instance-config-1280x720-zh.jpg)
 ![实例存档编辑](docs/screenshots/crystalfly-save-editor-1280x720-zh.jpg)
-![依赖影响树](docs/screenshots/crystalfly-dependency-tree-1280x720-zh.jpg)
+![依赖关系图](docs/screenshots/crystalfly-dependency-graph-1280x720-zh.jpg)
 
 ## 功能
 
@@ -43,13 +43,13 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 - 支持固定 Mod；批量卸载和无用前置建议会跳过固定项，单独卸载前需先取消固定。
 - 全局离线模式会断开 Steam 登录会话，使目录、翻译、自定义目录、Mod 和 Steam 下载只使用已验证缓存；网络队列等待恢复在线，不影响本地实例管理。
 - 在实例日志页查看 BepInEx、Modding API 和 `Player.log` 的最新内容及来源路径。
-- 通过 SteamKit2 扫码登录并下载 public 分支历史 manifest；同一文件最多十六路并发下载 Chunk，完成后生成 `steam_appid.txt` 以直接启动对应实例，refresh token 仅以当前 Windows 用户的 DPAPI 加密保存。
+- 通过 SteamKit2 扫码登录下载 public 分支与任意手动输入的 Windows Depot Manifest；未验证历史版本仅允许原版启动，目录后续收录相同文件指纹时会自动升级为正式构建。同一文件最多十六路并发下载 Chunk，完成后生成 `steam_appid.txt`，refresh token 仅以当前 Windows 用户的 DPAPI 加密保存。
 - 设置页可在 GitHub 直连与 GitHub 镜像间切换并分别测试延迟；镜像仅代理官方 GitHub 目录和 GitHub 托管安装包，Steam、自定义目录及其他下载地址保持原线路，包校验规则不变。
 - 启动前切换实例 LocalLow，退出后写回，并恢复原共享数据。
 - 创建永久命名“存档快照”；快照仅包含实例的非日志 LocalLow，事务临时恢复点成功后自动清理。
 - 在实例设置中编辑当前实例隔离的 `AppConfig.ini`；未知配置项会原样保留，写入采用原子替换。
 - 在当前实例或其命名快照中编辑 `user1.dat` 至 `user4.dat`；解密和展开异步执行，空存档会显示明确状态，不会阻塞主窗口。
-- 在实例详情创建追加或精确 Mod 预设，支持复制、导入导出、分享码、按依赖顺序应用，以及恢复应用前启停和安装状态；固定 Mod 及其传递依赖不会被精确模式停用。
+- 在实例详情创建追加或精确整合包，支持复制、导入导出、分享码、按依赖顺序应用，以及恢复应用前启停和安装状态；固定 Mod 及其传递依赖不会被精确模式停用。
 - 创建独立速通副本，按模板部署速通工具，并在每次启动前写出验证报告。
 - 支持严格校验的 `crystalfly://` 外部命令和单实例转发；安装包会注册协议，所有修改状态的外部命令均先展示摘要并确认。
 - 每天检查一次 Ed25519 签名稳定更新清单，支持立即更新、稍后和跳过版本；安装模式静默运行 Inno 安装包，便携模式使用同卷备份与替换并保留 `Data`。
@@ -82,7 +82,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 
 1. 在“设置”中选择版本根目录，例如 `D:\HK_ver`。
 2. Crystalfly 只扫描直接子目录，并忽略 `<版本根目录>\.crystalfly`。
-3. 从启动页打开实例选择，选中实例后可进入设置管理 Loader、游戏配置、“已安装 Mod”、“Mod 预设”和“存档快照”；当前实例及快照的四个存档槽可在“存档快照”中编辑。
+3. 从启动页打开实例选择，选中实例后可进入设置管理 Loader、游戏配置、“已安装 Mod”、“整合包”和“存档快照”；当前实例及快照的四个存档槽可在“存档快照”中编辑。
 4. 需要下载游戏时进入“下载 → 游戏版本”；需要查找在线 Mod 时进入“下载 → Mod 市场”；进度、速度、取消与重试位于“下载 → 下载队列”。
 5. 启动游戏时不要同时运行其他《空洞骑士》进程。
 
@@ -96,7 +96,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 
 实例的“已安装 Mod”页只管理当前实例内的 Mod，可按名称、ID 或版本搜索，并按全部、启用、停用、本地和可更新状态筛选。每项提供信息、打开目录、启停和卸载快捷操作；进入多选后可全选、取消选择，并批量启用、停用、更新或卸载。卸载前会展示依赖影响树；依赖修复会列出需要重新启用或下载安装的项目，无法安全修复时明确阻止操作。本地 Mod 不提供自动更新。
 
-“Mod 预设”保存精确游戏构建、Loader 和受管理 Mod 版本。本地或外部 Mod 只记录名称与文件哈希，不包含文件、下载地址或本地路径。追加模式只安装或启用缺失项；精确模式还停用未列出且未固定的 Mod。应用计划进入现有下载队列，前置、启用和停用保持依赖顺序；恢复点在队列真正开始修改实例时捕获，整个预设组与同一实例的其他修改互斥，恢复写入前会完成固定项、收据和文件健康预检。预设 JSON 上限为 128 KiB、1000 个条目，可本地导入导出或使用 12 位分享码；离线时本地导入导出仍可使用。
+“整合包”保存精确游戏构建、Loader 和受管理 Mod 版本。本地或外部 Mod 只记录名称与文件哈希，不包含文件、下载地址或本地路径。追加模式只安装或启用缺失项；精确模式还停用未列出且未固定的 Mod。应用计划进入现有下载队列，前置、启用和停用保持依赖顺序；恢复点在队列真正开始修改实例时捕获，整个整合包组与同一实例的其他修改互斥，恢复写入前会完成固定项、收据和文件健康预检。整合包 JSON 上限为 128 KiB、1000 个条目，可本地导入导出或使用 12 位分享码；离线时本地导入导出仍可使用。
 
 Loader 兼容按精确包 ID 判断，不会把所有 Modding API 或 BepInEx 版本视为等价。Crystalfly 安装的 Loader 可修复和卸载；手动安装且能确认版本的 BepInEx 标记为外部所有，仅允许安装完全匹配的插件，不会修复、卸载、覆盖或接管 BepInEx 本体。手动安装的 Modding API 因缺少原版程序集备份会保持 `Drifted`。
 
@@ -151,13 +151,13 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.5'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.6'
 
-# 构建、测试并静默更新固定安装目录（请先关闭 Crystalfly）
-pwsh -NoProfile -File '.\scripts\build-and-install.ps1'
+# 无更新签名的本地构建与固定目录覆盖；不会生成 update-manifest.v1.json。
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '0.6.6' -UnsignedLocal
 ```
 
-脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。发布构建从已忽略的 `.env.update-signing` 读取 `CRYSTALFLY_UPDATE_SIGNING_KEY`，并使用 `tools/Crystalfly.ReleaseTool` 生成签名更新清单；私钥文件不得提交。`build-and-install.ps1` 会从 `Directory.Build.props` 读取版本号，执行完整 Release 构建和测试，验证产物后以管理员权限静默更新 `D:\Program Files\Crystalfly`，最后核对已安装版本。运行中的 Crystalfly 会使流程停止，不会强制关闭程序。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、独立更新程序、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包、`update-manifest.v1.json` 和 `SHA256SUMS.txt`。产物尚未使用 Authenticode 签名；客户端仍会验证更新清单的 Ed25519 签名及资产 SHA-256、大小和版本。详细设计见 [架构文档](docs/architecture.md)。
+脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。发布构建从已忽略的 `.env.update-signing` 读取 `CRYSTALFLY_UPDATE_SIGNING_KEY`，并使用 `tools/Crystalfly.ReleaseTool` 生成签名更新清单；私钥文件不得提交。仅本地验收时可显式传入 `-UnsignedLocal`，此模式不会生成 `update-manifest.v1.json`，不得将其作为公开 Release 上传。`build-and-install.ps1` 会从 `Directory.Build.props` 读取版本号，执行完整 Release 构建和测试，验证产物后以管理员权限静默更新 `D:\Program Files\Crystalfly`，最后核对已安装版本。运行中的 Crystalfly 会使流程停止，不会强制关闭程序。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、独立更新程序、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包、`update-manifest.v1.json` 和 `SHA256SUMS.txt`。产物尚未使用 Authenticode 签名；客户端仍会验证更新清单的 Ed25519 签名及资产 SHA-256、大小和版本。详细设计见 [架构文档](docs/architecture.md)。
 
 ## 许可证
 
@@ -167,7 +167,7 @@ Crystalfly 使用 [GPL-3.0-only](LICENSE)。第三方游戏、Loader 和 Mod 不
 
 Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The Launch page is the only entry point for selecting and managing launchable instances; actual game downloads live under Download → Game Versions.
 
-The current stable release is `0.6.5`. GitHub Releases provide a Windows x64 portable ZIP and Inno Setup installer.
+The current stable release is `0.6.6`. GitHub Releases provide a Windows x64 portable ZIP and Inno Setup installer.
 
 ![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
 ![Select instance](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)
@@ -184,7 +184,7 @@ The current stable release is `0.6.5`. GitHub Releases provide a Windows x64 por
 ![Instance details](docs/screenshots/crystalfly-instance-detail-900x600-zh.jpg)
 ![Instance configuration editor](docs/screenshots/crystalfly-instance-config-1280x720-zh.jpg)
 ![Instance save editor](docs/screenshots/crystalfly-save-editor-1280x720-zh.jpg)
-![Dependency-impact tree](docs/screenshots/crystalfly-dependency-tree-1280x720-zh.jpg)
+![Dependency graph](docs/screenshots/crystalfly-dependency-graph-1280x720-zh.jpg)
 
 ### Highlights
 
@@ -205,7 +205,7 @@ The current stable release is `0.6.5`. GitHub Releases provide a Windows x64 por
 - Provides a global offline mode that disconnects Steam sessions. Catalogs, custom catalogs, and downloads use verified caches only, while queued network work waits for online mode to return.
 - Displays detected BepInEx, Modding API, and `Player.log` files with their source paths and refreshable tail content.
 - Imports local loaders only through a validated Crystalfly manifest and keeps them marked unverified.
-- Uses SteamKit2 for QR authentication and public manifest downloads, with up to sixteen concurrent chunk requests per file. Completed instances receive `steam_appid.txt` for direct launch. Refresh tokens are protected with Windows DPAPI for the current user.
+- Uses SteamKit2 for QR authentication and downloads the public branch plus any user-entered Windows Depot Manifest. Unverified historical versions remain vanilla-only and upgrade automatically when a later catalog entry matches their Manifest and file fingerprint. Each file uses up to sixteen concurrent chunk requests; completed instances receive `steam_appid.txt`, and refresh tokens are protected with Windows DPAPI for the current user.
 - Lets users switch between direct GitHub access and a GitHub mirror and test each route latency. Only official GitHub catalogs and GitHub-hosted packages are proxied; Steam, custom catalogs, and other download URLs keep their original route, with the same package verification.
 - Swaps per-instance LocalLow data before launch, captures it after exit, then restores the original shared data.
 - Creates persistent named save snapshots containing only non-log LocalLow data, plus dedicated speedrun copies with template-specific tools and a pre-launch report.
@@ -229,7 +229,7 @@ When the UI is Simplified Chinese, the market also loads Crystalfly's independen
 
 The Installed Mods page includes receipt-backed and external Mods and can filter enabled, disabled, local, external, pinned, updateable, or unhealthy entries. External Mods stay read-only until explicit takeover. Managed Mods support health inspection and exact-version repair; local takeovers support re-import or accepting current hashes. Pinning protects entries from batch uninstall and dependency cleanup. Uninstall previews a dependency-impact tree and only suggests unused dependencies instead of deleting them automatically.
 
-Mod Presets store an exact game build, Loader, and managed Mod versions. Local or external entries contain only names and file hashes, never files, download URLs, or local paths. Append mode installs or enables missing entries; exact mode also disables unlisted, unpinned Mods while retaining every transitive dependency of an enabled pinned Mod. Plans run through the existing queue in dependency order, and the restore point is captured when execution is about to modify the instance. The complete preset group excludes other mutations of that instance, and restore validates pinned entries, receipts, and file health before writing. Preset JSON is limited to 128 KiB and 1,000 entries. Local JSON sharing remains available offline; the hosted service uses 12-character share codes.
+Mod Packs store an exact game build, Loader, and managed Mod versions. Local or external entries contain only names and file hashes, never files, download URLs, or local paths. Append mode installs or enables missing entries; exact mode also disables unlisted, unpinned Mods while retaining every transitive dependency of an enabled pinned Mod. Plans run through the existing queue in dependency order, and the restore point is captured when execution is about to modify the instance. The complete Mod Pack group excludes other mutations of that instance, and restore validates pinned entries, receipts, and file health before writing. Mod Pack JSON is limited to 128 KiB and 1,000 entries. Local JSON sharing remains available offline; the hosted service uses 12-character share codes.
 
 Compatibility uses the exact loader package ID rather than treating every Modding API or BepInEx release as interchangeable. Crystalfly-managed loaders can be repaired or removed. A manually installed BepInEx with a verifiable version is detected as externally owned: matching plugins may be installed, but Crystalfly never repairs, removes, overwrites, or takes ownership of the BepInEx installation. Manually installed Modding API remains `Drifted` because no trusted vanilla assembly backup exists.
 
@@ -259,13 +259,13 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.5'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.6'
 
-# Build, test, and silently update the fixed install directory after closing Crystalfly.
-pwsh -NoProfile -File '.\scripts\build-and-install.ps1'
+# Build and install locally without an update-signing key; no update manifest is emitted.
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '0.6.6' -UnsignedLocal
 ```
 
-The scripts automatically locate Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. Release builds read `CRYSTALFLY_UPDATE_SIGNING_KEY` from the ignored `.env.update-signing` file and use `tools/Crystalfly.ReleaseTool` to sign the update manifest; never commit the private key file. `build-and-install.ps1` reads the version from `Directory.Build.props`, runs the full Release build and tests, validates the artifacts, then silently updates `D:\Program Files\Crystalfly` with administrator approval and verifies the installed version. It stops when Crystalfly is running and never terminates the process. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, updater helper, portable ZIP, installer, signed `update-manifest.v1.json`, and `SHA256SUMS.txt`. Assets are not Authenticode-signed yet; the client still verifies the Ed25519 manifest signature plus each asset's SHA-256, size, and version.
+The scripts automatically locate Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. Release builds read `CRYSTALFLY_UPDATE_SIGNING_KEY` from the ignored `.env.update-signing` file and use `tools/Crystalfly.ReleaseTool` to sign the update manifest; never commit the private key file. For local verification only, pass `-UnsignedLocal`; this omits `update-manifest.v1.json` and must not be uploaded as a public Release. `build-and-install.ps1` reads the version from `Directory.Build.props`, runs the full Release build and tests, validates the artifacts, then silently updates `D:\Program Files\Crystalfly` with administrator approval and verifies the installed version. It stops when Crystalfly is running and never terminates the process. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, updater helper, portable ZIP, installer, signed `update-manifest.v1.json`, and `SHA256SUMS.txt`. Assets are not Authenticode-signed yet; the client still verifies the Ed25519 manifest signature plus each asset's SHA-256, size, and version.
 
 Application settings use `%LOCALAPPDATA%\Crystalfly`, or `Data` beside the executable when `portable.flag` exists. Per-instance state always stays under `<version-root>\.crystalfly`.
 

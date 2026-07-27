@@ -1,51 +1,17 @@
 using CommunityToolkit.Mvvm.Input;
+using Crystalfly.App.ViewModels.DependencyGraph;
 using Irihi.Avalonia.Shared.Contracts;
 
 namespace Crystalfly.App.ViewModels.Dialogs;
 
-public sealed class DependencyPlanNodeViewModel(
-    string primaryName,
-    string secondaryName,
-    string modId,
-    string installRoot,
-    string status,
-    int depth,
-    bool isTarget,
-    bool isUnresolved,
-    string targetLabel = "Target",
-    string unresolvedLabel = "Unresolved",
-    string? parentModId = null)
-{
-    public string PrimaryName { get; } = primaryName;
-
-    public string SecondaryName { get; } = secondaryName;
-
-    public string ModId { get; } = modId;
-
-    public string InstallRoot { get; } = installRoot;
-
-    public string Status { get; } = status;
-
-    public int Depth { get; } = Math.Max(0, depth);
-
-    public int Indent => Depth * 16;
-
-    public bool IsTarget { get; } = isTarget;
-
-    public bool IsUnresolved { get; } = isUnresolved;
-
-    public string TargetLabel { get; } = targetLabel;
-
-    public string UnresolvedLabel { get; } = unresolvedLabel;
-
-    public string? ParentModId { get; } = parentModId;
-
-    public IReadOnlyList<TreeConnectorKind> Connectors { get; internal set; } = [];
-
-    public bool ShowTargetIcon => IsTarget && !IsUnresolved;
-
-    public bool ShowDependencyIcon => !IsTarget && !IsUnresolved;
-}
+public sealed record DependencyPlanNodeViewModel(
+    string ModId,
+    string PrimaryName,
+    string SecondaryName,
+    string Status,
+    DependencyGraphNodeState State,
+    string? Action = null,
+    IReadOnlyList<string>? PrerequisiteIds = null);
 
 public sealed partial class DependencyPlanDialogViewModel : ViewModelBase, IDialogContext
 {
@@ -61,11 +27,11 @@ public sealed partial class DependencyPlanDialogViewModel : ViewModelBase, IDial
         Title = title;
         Message = message;
         Nodes = nodes;
+        Graph = CreateGraph(nodes);
         ConfirmText = confirmText;
         CancelText = cancelText;
         CanConfirm = canConfirm;
         IsDangerous = isDangerous;
-        DependencyTreeConnectors.Assign(nodes);
     }
 
     public string Title { get; }
@@ -73,6 +39,8 @@ public sealed partial class DependencyPlanDialogViewModel : ViewModelBase, IDial
     public string Message { get; }
 
     public IReadOnlyList<DependencyPlanNodeViewModel> Nodes { get; }
+
+    public DependencyGraphModel Graph { get; }
 
     public string ConfirmText { get; }
 
@@ -96,5 +64,21 @@ public sealed partial class DependencyPlanDialogViewModel : ViewModelBase, IDial
         {
             RequestClose?.Invoke(this, true);
         }
+    }
+
+    private static DependencyGraphModel CreateGraph(IReadOnlyList<DependencyPlanNodeViewModel> nodes)
+    {
+        var knownIds = nodes.Select(node => node.ModId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var definitions = nodes.Select(node => new DependencyGraphNodeDefinition(
+            node.ModId,
+            node.PrimaryName,
+            node.SecondaryName,
+            node.Status,
+            node.State,
+            node.Action));
+        var edges = nodes.SelectMany(node => (node.PrerequisiteIds ?? [])
+            .Where(knownIds.Contains)
+            .Select(prerequisiteId => new DependencyGraphEdgeDefinition(prerequisiteId, node.ModId)));
+        return DependencyGraphModel.Create(definitions, edges);
     }
 }

@@ -1,3 +1,4 @@
+using Crystalfly.Core.Instances;
 using Crystalfly.Core.Models;
 
 namespace Crystalfly.App.ViewModels;
@@ -14,7 +15,7 @@ public sealed record InstanceItemViewModel(
 
     public string RootPath => Record.RootPath;
 
-    public bool IsKnownBuild => Record.BuildId != "unknown";
+    public bool IsKnownBuild => BuildIdentity.IsKnown(Record.BuildId);
 }
 
 public sealed record SettingOption<T>(T Value, string Name);

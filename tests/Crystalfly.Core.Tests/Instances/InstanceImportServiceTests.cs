@@ -38,6 +38,78 @@ public sealed class InstanceImportServiceTests : IDisposable
         Assert.All(instances, instance => Assert.True(File.Exists(InstanceSidecar.GetMarkerPath(instance.RootPath))));
     }
 
+    [Fact]
+    public async Task Discover_upgrades_a_custom_manifest_identity_after_catalog_verification()
+    {
+        var instanceRoot = await CreateGameAsync("historical", "verified");
+        var record = new InstanceRecord
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = "historical",
+            RootPath = instanceRoot,
+            BuildId = "steam-manifest-42",
+            ProvisioningMode = InstanceProvisioningMode.Downloaded,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        await InstanceSidecar.SaveAsync(record);
+        var catalog = new GameCatalog
+        {
+            Builds =
+            [
+                new GameBuild
+                {
+                    Id = "verified-build",
+                    DisplayVersion = "Verified",
+                    ManifestId = "42",
+                    ExecutableSha256 = Hash("verified-exe"),
+                    UnityPlayerSha256 = Hash("verified-unity"),
+                    GlobalGameManagersSha256 = Hash("verified-global")
+                }
+            ]
+        };
+
+        var discovered = await InstanceImportService.DiscoverAsync(root, catalog);
+
+        Assert.Equal("verified-build", Assert.Single(discovered).BuildId);
+        Assert.Equal("verified-build", (await InstanceSidecar.LoadAsync(instanceRoot)).BuildId);
+    }
+
+    [Fact]
+    public async Task Discover_keeps_custom_manifest_identity_when_catalog_fingerprint_does_not_match()
+    {
+        var instanceRoot = await CreateGameAsync("historical-mismatch", "actual");
+        var record = new InstanceRecord
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = "historical-mismatch",
+            RootPath = instanceRoot,
+            BuildId = "steam-manifest-42",
+            ProvisioningMode = InstanceProvisioningMode.Downloaded,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        await InstanceSidecar.SaveAsync(record);
+        var catalog = new GameCatalog
+        {
+            Builds =
+            [
+                new GameBuild
+                {
+                    Id = "verified-build",
+                    DisplayVersion = "Verified",
+                    ManifestId = "42",
+                    ExecutableSha256 = Hash("different-exe"),
+                    UnityPlayerSha256 = Hash("different-unity"),
+                    GlobalGameManagersSha256 = Hash("different-global")
+                }
+            ]
+        };
+
+        var discovered = await InstanceImportService.DiscoverAsync(root, catalog);
+
+        Assert.Equal("steam-manifest-42", Assert.Single(discovered).BuildId);
+        Assert.Equal("steam-manifest-42", (await InstanceSidecar.LoadAsync(instanceRoot)).BuildId);
+    }
+
     private async Task<string> CreateGameAsync(string directory, string content)
     {
         var gameRoot = Directory.CreateDirectory(Path.Combine(root, directory)).FullName;

@@ -1,0 +1,109 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:graph="using:Crystalfly.App.ViewModels.DependencyGraph"
+             xmlns:controls="using:Crystalfly.App.Views.Controls"
+             x:Class="Crystalfly.App.Views.Controls.DependencyGraphView"
+             x:Name="GraphRoot"
+             x:DataType="graph:DependencyGraphModel"
+             MinHeight="260"
+             Focusable="True"
+             ClipToBounds="True">
+    <Grid x:Name="Viewport"
+          Background="{DynamicResource CfSurfaceBrush}"
+          ClipToBounds="True">
+        <Grid x:Name="Surface"
+              Width="{Binding Width}"
+              Height="{Binding Height}"
+              HorizontalAlignment="Left"
+              VerticalAlignment="Top" RenderTransformOrigin="0,0">
+            <controls:DependencyGraphEdges Width="{Binding Width}"
+                                           Height="{Binding Height}"
+                                           Edges="{Binding Edges}"
+                                           LineBrush="{DynamicResource CfBorderBrush}"
+                                           HighlightBrush="{DynamicResource CfAccentBrush}"
+                                           ErrorBrush="{DynamicResource CfErrorBrush}" />
+            <ItemsControl Width="{Binding Width}"
+                          Height="{Binding Height}"
+                          ItemsSource="{Binding Nodes}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Canvas />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemContainerTheme>
+                    <ControlTheme TargetType="ContentPresenter">
+                        <Setter Property="Canvas.Left" Value="{ReflectionBinding X}" />
+                        <Setter Property="Canvas.Top" Value="{ReflectionBinding Y}" />
+                    </ControlTheme>
+                </ItemsControl.ItemContainerTheme>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="graph:DependencyGraphNodeViewModel">
+                        <Button Classes="cfp-dependency-node"
+                                Classes.selected="{Binding IsSelected}"
+                                Classes.dimmed="{Binding IsDimmed}"
+                                Classes.missing="{Binding IsMissing}"
+                                Classes.warning="{Binding IsWarning}"
+                                Classes.problem="{Binding IsProblem}"
+                                Classes.unknown="{Binding IsUnknown}"
+                                Width="228"
+                                Height="82"
+                                Padding="0"
+                                Command="{Binding #GraphRoot.DataContext.SelectNodeCommand}"
+                                CommandParameter="{Binding}"
+                                AutomationProperties.Name="{Binding PrimaryName}"
+                                ToolTip.Tip="{Binding Id}">
+                            <Grid ColumnDefinitions="8,*" RowDefinitions="*,Auto">
+                                <Border Grid.RowSpan="2"
+                                        Classes="cfp-dependency-node-accent" />
+                                <StackPanel Grid.Column="1"
+                                            Margin="11,9,11,3"
+                                            Spacing="2">
+                                    <TextBlock Classes="cfp-row-title"
+                                               Text="{Binding PrimaryName}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Classes="cfp-caption"
+                                               Text="{Binding SecondaryName}"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <Grid Grid.Row="1"
+                                      Grid.Column="1"
+                                      Margin="11,0,11,8"
+                                      ColumnDefinitions="*,Auto"
+                                      ColumnSpacing="8">
+                                    <TextBlock Classes="cfp-meta"
+                                               Text="{Binding Status}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="1"
+                                               Classes="cfp-dependency-action"
+                                               Text="{Binding Action}"
+                                               TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </Grid>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
+
+        <Border Classes="cfp-dependency-toolbar"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="10">
+            <StackPanel Orientation="Horizontal" Spacing="2">
+                <Button Classes="cfp-icon" Click="OnZoomOut" ToolTip.Tip="缩小 / Zoom out" AutomationProperties.Name="缩小 / Zoom out" Content="{LucideIconContent Minus, 15}" />
+                <Button Classes="cfp-icon" Click="OnZoomIn" ToolTip.Tip="放大 / Zoom in" AutomationProperties.Name="放大 / Zoom in" Content="{LucideIconContent Plus, 15}" />
+                <Button Classes="cfp-icon" Click="OnFit" ToolTip.Tip="适应视图 / Fit view" AutomationProperties.Name="适应视图 / Fit view" Content="{LucideIconContent Scan, 15}" />
+                <Button Classes="cfp-icon" Click="OnReset" ToolTip.Tip="重置视图 / Reset view" AutomationProperties.Name="重置视图 / Reset view" Content="{LucideIconContent RotateCcw, 15}" />
+                <Button Classes="cfp-icon" Click="OnRestoreAutomaticLayout" ToolTip.Tip="恢复自动布局 / Restore automatic layout" AutomationProperties.Name="恢复自动布局 / Restore automatic layout" Content="{LucideIconContent WandSparkles, 15}" />
+            </StackPanel>
+        </Border>
+
+        <StackPanel HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="8"
+                    IsVisible="{Binding HasNodes, Converter={x:Static BoolConverters.Not}}">
+            <LucideIcon Kind="Network" Size="24" Foreground="{DynamicResource CfMutedTextBrush}" />
+            <TextBlock Classes="cfp-meta" Text="暂无依赖关系 / No dependency relationships" />
+        </StackPanel>
+    </Grid>
+</UserControl>

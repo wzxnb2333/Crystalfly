@@ -34,6 +34,7 @@ public sealed class DownloadQueueService : IAsyncDisposable
         new(StringComparer.Ordinal);
     private readonly HashSet<string> userCanceledGroups = new(StringComparer.Ordinal);
     private readonly HashSet<string> networkWaitingGroups = new(StringComparer.Ordinal);
+    private readonly HashSet<string> steamLoginWaitingGroups = new(StringComparer.Ordinal);
     private readonly object networkStateSync = new();
     private TaskCompletionSource idle = CompletedSource();
     private Task? dispatcher;
@@ -344,6 +345,104 @@ public sealed class DownloadQueueService : IAsyncDisposable
         if (persistenceFailure is not null)
         {
             ExceptionDispatchInfo.Capture(persistenceFailure).Throw();
+        }
+    }
+
+    public async Task PauseSteamDownloadsAsync(CancellationToken cancellationToken = default)
+    {
+        var cancellations = new List<CancellationTokenSource>();
+        var activeTasks = new List<Task>();
+        await mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            ThrowIfNotReady();
+            lock (sync)
+            {
+                foreach (var group in groups.Where(group =>
+                             (group.State is DownloadQueueGroupState.Pending or DownloadQueueGroupState.Running)
+                             && group.Items.Any(SteamDownloadQueueGroupFactory.IsSteamItem)))
+                {
+                    steamLoginWaitingGroups.Add(group.Id);
+                    if (groupCancellations.TryGetValue(group.Id, out var source))
+                    {
+                        cancellations.Add(source);
+                    }
+                    if (activeGroupTasks.TryGetValue(group.Id, out var active))
+                    {
+                        activeTasks.Add(active);
+                    }
+                }
+            }
+        }
+        finally
+        {
+            mutationGate.Release();
+        }
+
+        foreach (var source in cancellations)
+        {
+            source.Cancel();
+        }
+        if (activeTasks.Count != 0)
+        {
+            await Task.WhenAll(activeTasks).WaitAsync(cancellationToken);
+        }
+        await PersistAsync(cancellationToken);
+        NotifyChanged();
+    }
+
+    public async Task ResumeSteamDownloadsAsync(CancellationToken cancellationToken = default)
+    {
+        var resume = new List<DownloadQueueGroup>();
+        await mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            ThrowIfNotReady();
+            lock (sync)
+            {
+                foreach (var groupId in steamLoginWaitingGroups.ToArray())
+                {
+                    var group = FindGroup(groupId);
+                    if (group.State is DownloadQueueGroupState.Completed or DownloadQueueGroupState.Canceled)
+                    {
+                        steamLoginWaitingGroups.Remove(groupId);
+                        continue;
+                    }
+                    if (activeGroupTasks.ContainsKey(groupId))
+                    {
+                        continue;
+                    }
+                    ResetInterruptedGroup(group);
+                    groupCancellations[group.Id] =
+                        CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+                    steamLoginWaitingGroups.Remove(group.Id);
+                    if (pendingGroups++ == 0)
+                    {
+                        idle = NewSource();
+                        idleFailure = null;
+                    }
+                    resume.Add(group);
+                }
+            }
+            foreach (var group in resume)
+            {
+                if (!channel.Writer.TryWrite(group))
+                {
+                    throw new InvalidOperationException("Download queue is closed.");
+                }
+            }
+            if (resume.Count != 0)
+            {
+                await PersistAsync(cancellationToken);
+            }
+        }
+        finally
+        {
+            mutationGate.Release();
+        }
+        if (resume.Count != 0)
+        {
+            NotifyChanged();
         }
     }
 
@@ -686,6 +785,10 @@ public sealed class DownloadQueueService : IAsyncDisposable
                 if (userCanceledGroups.Contains(group.Id))
                 {
                     CancelGroup(group);
+                }
+                else if (steamLoginWaitingGroups.Contains(group.Id))
+                {
+                    PauseForSteamLogin(group);
                 }
                 else if (cancellationToken.IsCancellationRequested)
                 {
@@ -1140,6 +1243,23 @@ public sealed class DownloadQueueService : IAsyncDisposable
         prepare.BytesPerSecond = 0;
         prepare.Error = null;
         prepare.CompletedAt = null;
+    }
+
+    private static void PauseForSteamLogin(DownloadQueueGroup group)
+    {
+        ResetInterruptedGroup(group);
+        foreach (var item in group.Items.Where(item => !IsTerminal(item.State)))
+        {
+            item.State = DownloadQueueItemState.Pending;
+            item.Stage = "Waiting for Steam login";
+            item.BytesPerSecond = 0;
+            item.Error = null;
+        }
+        group.State = DownloadQueueGroupState.Pending;
+        group.Stage = "Waiting for Steam login";
+        group.Error = null;
+        group.CompletedAt = null;
+        UpdateGroupProgress(group);
     }
 
     private static void PauseForNetwork(DownloadQueueGroup group)

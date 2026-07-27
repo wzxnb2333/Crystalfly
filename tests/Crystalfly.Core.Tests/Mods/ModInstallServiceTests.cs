@@ -28,6 +28,8 @@ public sealed class ModInstallServiceTests : IDisposable
 
     [Theory]
     [InlineData("unknown", InstancePurpose.General)]
+    [InlineData("steam-manifest-42", InstancePurpose.General)]
+    [InlineData("steam-public-42", InstancePurpose.General)]
     [InlineData("1.5.78.11833", InstancePurpose.OfficialSpeedrun)]
     public async Task Unknown_build_and_official_speedrun_instances_are_blocked(
         string buildId,

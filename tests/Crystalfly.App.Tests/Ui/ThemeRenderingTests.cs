@@ -183,6 +183,50 @@ public sealed class ThemeRenderingTests
     }
 
     [AvaloniaFact]
+    public void Mod_market_list_item_keeps_its_outer_background_transparent()
+    {
+        var list = new ListBox
+        {
+            Width = 400,
+            Height = 80,
+            ItemsSource = new[] { "Market item" },
+            SelectedIndex = 0
+        };
+        list.Classes.Add("cfp-list");
+        list.Classes.Add("cfp-market-list");
+
+        var window = ShowInWindow(list);
+        try
+        {
+            var item = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
+            Assert.Equal(Colors.Transparent, Assert.IsAssignableFrom<ISolidColorBrush>(item.Background).Color);
+
+            list.SelectedIndex = -1;
+            Dispatcher.UIThread.RunJobs();
+            var point = item.TranslatePoint(
+                new Point(item.Bounds.Width / 2, item.Bounds.Height / 2),
+                window);
+            Assert.NotNull(point);
+            window.MouseMove(point!.Value);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(Colors.Transparent, Assert.IsAssignableFrom<ISolidColorBrush>(item.Background).Color);
+
+            list.SelectedIndex = 0;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(Colors.Transparent, Assert.IsAssignableFrom<ISolidColorBrush>(item.Background).Color);
+
+            window.MouseDown(point.Value, MouseButton.Left, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(Colors.Transparent, Assert.IsAssignableFrom<ISolidColorBrush>(item.Background).Color);
+            window.MouseUp(point.Value, MouseButton.Left, RawInputModifiers.None);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Dangerous_confirmation_overlay_disables_confirm_and_cancel_returns_false()
     {
         var window = new MainWindow { Width = 900, Height = 600 };
@@ -230,6 +274,51 @@ public sealed class ThemeRenderingTests
         {
             window.Close();
             await viewModel.DisposeAsync();
+            if (Directory.Exists(applicationDataRoot))
+            {
+                Directory.Delete(applicationDataRoot, recursive: true);
+            }
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Confirmation_overlay_targets_the_window_that_opened_it()
+    {
+        var firstWindow = new MainWindow { Width = 900, Height = 600 };
+        var secondWindow = new MainWindow { Width = 900, Height = 600 };
+        var applicationDataRoot = Path.Combine(
+            Path.GetTempPath(),
+            "crystalfly-ui",
+            Guid.NewGuid().ToString("N"));
+        await using var viewModel = new MainViewModel(applicationDataRoot);
+        firstWindow.Show();
+        secondWindow.Show();
+        var result = secondWindow.ShowConfirmationAsync(
+            "Restore",
+            "Restore snapshot?",
+            "Snapshot",
+            viewModel);
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            Assert.Empty(firstWindow.GetVisualDescendants().OfType<CustomDialogControl>());
+            var dialog = Assert.Single(secondWindow.GetVisualDescendants().OfType<CustomDialogControl>());
+            var cancel = dialog.GetVisualDescendants().OfType<Button>()
+                .Single(button => AutomationProperties.GetName(button) == viewModel.Loc["Cancel"]);
+            cancel.Command!.Execute(cancel.CommandParameter);
+            Assert.False(await result.WaitAsync(TimeSpan.FromSeconds(1)));
+        }
+        finally
+        {
+            if (firstWindow.IsVisible)
+            {
+                await CloseWindowAsync(firstWindow);
+            }
+            if (secondWindow.IsVisible)
+            {
+                await CloseWindowAsync(secondWindow);
+            }
             if (Directory.Exists(applicationDataRoot))
             {
                 Directory.Delete(applicationDataRoot, recursive: true);

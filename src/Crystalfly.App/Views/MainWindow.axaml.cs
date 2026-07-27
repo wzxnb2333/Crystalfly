@@ -14,10 +14,12 @@ using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Crystalfly.App.ViewModels.DependencyGraph;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views.Dialogs;
 using Crystalfly.App.Runtime;
+using Crystalfly.Core.Models;
 using Crystalfly.Core.Mods;
 using Crystalfly.Core.Runtime;
 using Irihi.Avalonia.Shared.Contracts;
@@ -37,6 +39,10 @@ public partial class MainWindow : Window
     private readonly List<TranslateTransform> knightWalkTransforms = [];
     private readonly List<LoadingContainer> knightLoadingHosts = [];
     private readonly List<Control> entranceAnimationTargets = [];
+    private readonly Dictionary<Control, long> entranceAnimationGenerations = [];
+    private readonly Dictionary<Control, ITransform?> entranceAnimationBaseTransforms = [];
+    private readonly Dictionary<Control, TranslateTransform> entranceAnimationTransforms = [];
+    private long entranceAnimationGeneration;
     private DispatcherTimer? knightWalkTimer;
     private int knightWalkFrame;
     private Task? disposeBeforeCloseTask;
@@ -47,6 +53,7 @@ public partial class MainWindow : Window
     private readonly WindowToastManager toastManager;
     private readonly SemaphoreSlim externalCommandGate = new(1, 1);
     private Action<string>? toastRequestedHandler;
+    private Action? graphModRemovalRequestedHandler;
     private MainViewModel? toastViewModel;
     private bool externalCommandReady;
 
@@ -251,6 +258,8 @@ public partial class MainWindow : Window
     }
 
     private static readonly TimeSpan PageEntranceDuration = TimeSpan.FromMilliseconds(180);
+    private static readonly TimeSpan MicroInteractionDuration = TimeSpan.FromMilliseconds(120);
+    private const double PageEntranceOffset = 6d;
 
     private void SubscribeEntranceAnimations()
     {
@@ -259,34 +268,85 @@ public partial class MainWindow : Window
             return;
         }
 
-        foreach (var control in this.GetVisualDescendants().OfType<Control>().Where(control =>
-                     control.Classes.Contains("cfp-page")
-                     || control.Classes.Contains("cfp-tab-panel")
-                     || control.Classes.Contains("cfp-mod-bulk-bar")))
+        foreach (var control in this.GetVisualDescendants().OfType<Control>().Where(IsEntranceAnimationTarget))
         {
             entranceAnimationTargets.Add(control);
             control.PropertyChanged += OnEntranceTargetPropertyChanged;
-            if (control.IsVisible)
+            if (control.IsVisible && control.Classes.Contains("cfp-page"))
             {
-                _ = RunEntranceAnimationAsync(control);
+                QueueEntranceAnimation(control);
             }
+        }
+
+        ConfigureMicroInteractionTransitions();
+    }
+
+    private static bool IsEntranceAnimationTarget(Control control) =>
+        control.Classes.Contains("cfp-subpage")
+        || control.Classes.Contains("cfp-mod-bulk-bar")
+        || control.Classes.Contains("cfp-page");
+
+    private void ConfigureMicroInteractionTransitions()
+    {
+        foreach (var control in this.GetVisualDescendants().OfType<Control>().Where(control =>
+                     control.Classes.Contains("cfp-local-nav")
+                     || control.Classes.Contains("cfp-installed-mod-actions")
+                     || control.Classes.Contains("cfp-installed-mod-accent")))
+        {
+            control.Transitions = new Transitions
+            {
+                new DoubleTransition
+                {
+                    Property = Visual.OpacityProperty,
+                    Duration = MicroInteractionDuration,
+                    Easing = new CubicEaseOut()
+                }
+            };
         }
     }
 
-    private static void OnEntranceTargetPropertyChanged(
+    private void OnEntranceTargetPropertyChanged(
         object? sender,
         AvaloniaPropertyChangedEventArgs eventArgs)
     {
         if (eventArgs.Property == Visual.IsVisibleProperty
             && sender is Control { IsVisible: true } control)
         {
-            _ = RunEntranceAnimationAsync(control);
+            QueueEntranceAnimation(control);
         }
     }
 
-    private static async Task RunEntranceAnimationAsync(Control control)
+    private void QueueEntranceAnimation(Control control)
+    {
+        var generation = Interlocked.Increment(ref entranceAnimationGeneration);
+        entranceAnimationGenerations[control] = generation;
+        _ = RunEntranceAnimationAfterLayoutAsync(control, generation);
+    }
+
+    private async Task RunEntranceAnimationAfterLayoutAsync(Control control, long generation)
+    {
+        await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Render);
+        if (!control.IsVisible
+            || !entranceAnimationGenerations.TryGetValue(control, out var latestGeneration)
+            || latestGeneration != generation)
+        {
+            return;
+        }
+
+        await RunEntranceAnimationAsync(control, generation);
+    }
+
+    private async Task RunEntranceAnimationAsync(Control control, long generation)
     {
         control.Opacity = 0;
+        if (!entranceAnimationBaseTransforms.TryGetValue(control, out var existingRenderTransform))
+        {
+            existingRenderTransform = control.RenderTransform;
+            entranceAnimationBaseTransforms[control] = existingRenderTransform;
+        }
+        var entranceTransform = new TranslateTransform { Y = PageEntranceOffset };
+        entranceAnimationTransforms[control] = entranceTransform;
+        control.RenderTransform = entranceTransform;
         var animation = new Animation
         {
             Duration = PageEntranceDuration,
@@ -306,13 +366,45 @@ public partial class MainWindow : Window
                 }
             }
         };
+        var motionAnimation = new Animation
+        {
+            Duration = PageEntranceDuration,
+            Easing = new CubicEaseOut(),
+            FillMode = FillMode.Forward,
+            Children =
+            {
+                new KeyFrame
+                {
+                    Cue = new Cue(0),
+                    Setters = { new Setter(TranslateTransform.YProperty, PageEntranceOffset) }
+                },
+                new KeyFrame
+                {
+                    Cue = new Cue(1),
+                    Setters = { new Setter(TranslateTransform.YProperty, 0d) }
+                }
+            }
+        };
+
         try
         {
-            await animation.RunAsync(control);
+            await Task.WhenAll(animation.RunAsync(control), motionAnimation.RunAsync(entranceTransform));
         }
         finally
         {
-            if (control.IsVisible)
+            if (entranceAnimationTransforms.TryGetValue(control, out var latestTransform)
+                && ReferenceEquals(latestTransform, entranceTransform))
+            {
+                if (ReferenceEquals(control.RenderTransform, entranceTransform))
+                {
+                    control.RenderTransform = existingRenderTransform;
+                }
+                entranceAnimationTransforms.Remove(control);
+                entranceAnimationBaseTransforms.Remove(control);
+            }
+            if (control.IsVisible
+                && entranceAnimationGenerations.TryGetValue(control, out var latestGeneration)
+                && latestGeneration == generation)
             {
                 control.Opacity = 1;
             }
@@ -338,6 +430,9 @@ public partial class MainWindow : Window
             target.PropertyChanged -= OnEntranceTargetPropertyChanged;
         }
         entranceAnimationTargets.Clear();
+        entranceAnimationGenerations.Clear();
+        entranceAnimationTransforms.Clear();
+        entranceAnimationBaseTransforms.Clear();
         if (knightWalkTimer is not null)
         {
             knightWalkTimer.Stop();
@@ -609,16 +704,35 @@ public partial class MainWindow : Window
                 toastViewModel.ToastRequested -= toastRequestedHandler;
             }
             toastViewModel.PropertyChanged -= OnToastViewModelPropertyChanged;
+            if (graphModRemovalRequestedHandler is not null)
+            {
+                toastViewModel.GraphModRemovalRequested -= graphModRemovalRequestedHandler;
+            }
         }
 
         toastRequestedHandler = null;
+        graphModRemovalRequestedHandler = null;
         toastViewModel = DataContext as MainViewModel;
         if (toastViewModel is not null)
         {
             var owner = toastViewModel;
             toastRequestedHandler = message => ShowToast(owner, message, NotificationType.Success);
+            graphModRemovalRequestedHandler = () => _ = ConfirmGraphModRemovalAsync(owner);
             toastViewModel.ToastRequested += toastRequestedHandler;
             toastViewModel.PropertyChanged += OnToastViewModelPropertyChanged;
+            toastViewModel.GraphModRemovalRequested += graphModRemovalRequestedHandler;
+        }
+    }
+
+    private async Task ConfirmGraphModRemovalAsync(MainViewModel viewModel)
+    {
+        try
+        {
+            await ConfirmModRemovalAsync(viewModel, bulk: false);
+        }
+        catch (InvalidOperationException exception)
+        {
+            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
         }
     }
 
@@ -692,8 +806,53 @@ public partial class MainWindow : Window
                 toastViewModel.ToastRequested -= toastRequestedHandler;
             }
             toastViewModel.PropertyChanged -= OnToastViewModelPropertyChanged;
+            if (graphModRemovalRequestedHandler is not null)
+            {
+                toastViewModel.GraphModRemovalRequested -= graphModRemovalRequestedHandler;
+            }
             toastRequestedHandler = null;
+            graphModRemovalRequestedHandler = null;
             toastViewModel = null;
+        }
+    }
+    private async void ShowHistoricalManifestDownloadDialog(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var dialog = new HistoricalManifestDialogViewModel(
+            viewModel.DownloadBuilds,
+            viewModel.Loc["HistoricalManifestTitle"],
+            viewModel.Loc["HistoricalManifestHint"],
+            viewModel.Loc["HistoricalManifestId"],
+            viewModel.Loc["HistoricalInstanceName"],
+            viewModel.Loc["HistoricalManifestKnown"],
+            viewModel.Loc["HistoricalManifestUnverified"],
+            viewModel.Loc["InvalidHistoricalManifest"],
+            viewModel.Loc["Confirm"],
+            viewModel.Loc["Cancel"]);
+        var request = await OverlayDialog.ShowCustomAsync<
+            HistoricalManifestDialogView,
+            HistoricalManifestDialogViewModel,
+            HistoricalManifestDownloadRequest?>(dialog, OverlayHostId, CreateOverlayOptions());
+        if (request is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await viewModel.EnqueueCustomSteamManifestAsync(request, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or InvalidOperationException
+            or UnauthorizedAccessException
+            or ArgumentException)
+        {
+            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
         }
     }
 
@@ -947,6 +1106,110 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void ShowCreateModPackDialog(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var dialog = new ModPackEditorDialogViewModel(
+            viewModel.Loc["CreateModPack"],
+            viewModel.Loc["CreateModPackHint"],
+            string.Empty,
+            ModPresetApplyMode.Append,
+            viewModel.Loc["PresetName"],
+            viewModel.Loc["PresetMode"],
+            viewModel.Loc["PresetModeAppend"],
+            viewModel.Loc["PresetModeExact"],
+            viewModel.Loc["Confirm"],
+            viewModel.Loc["Cancel"]);
+        var result = await OverlayDialog.ShowCustomAsync<
+            ModPackEditorDialogView,
+            ModPackEditorDialogViewModel,
+            ModPackEditorDialogResult?>(dialog, OverlayHostId, CreateOverlayOptions());
+        if (result is null)
+        {
+            return;
+        }
+
+        viewModel.PresetName = result.Name;
+        viewModel.SelectedPresetModeOption = viewModel.PresetModeOptions.First(option => option.Value == result.ApplyMode);
+        await viewModel.CreatePresetCommand.ExecuteAsync(null);
+    }
+
+    private async void ShowCopyModPackDialog(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel { SelectedPreset: { } preset } viewModel)
+        {
+            return;
+        }
+
+        var dialog = new TextInputDialogViewModel(
+            viewModel.Loc["CopyPreset"],
+            viewModel.Loc["CopyModPackHint"],
+            $"{preset.Name} - {viewModel.Loc["CopySuffix"]}",
+            viewModel.Loc["PresetName"],
+            viewModel.Loc["Confirm"],
+            viewModel.Loc["Cancel"]);
+        var name = await OverlayDialog.ShowCustomAsync<
+            TextInputDialogView,
+            TextInputDialogViewModel,
+            string?>(dialog, OverlayHostId, CreateOverlayOptions());
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        viewModel.PresetCopyName = name;
+        await viewModel.CopySelectedPresetCommand.ExecuteAsync(null);
+    }
+
+    private async void ShowImportSharedModPackDialog(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var dialog = new TextInputDialogViewModel(
+            viewModel.Loc["ImportSharedPreset"],
+            viewModel.Loc["ImportSharedPresetHint"],
+            string.Empty,
+            viewModel.Loc["PresetShareCode"],
+            viewModel.Loc["ImportSharedPreset"],
+            viewModel.Loc["Cancel"]);
+        var code = await OverlayDialog.ShowCustomAsync<
+            TextInputDialogView,
+            TextInputDialogViewModel,
+            string?>(dialog, OverlayHostId, CreateOverlayOptions());
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return;
+        }
+
+        viewModel.PresetShareCode = code;
+        await viewModel.ImportSharedPresetCommand.ExecuteAsync(null);
+    }
+
+    private async void ShareAndCopyPresetLink(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        await viewModel.ShareSelectedPresetCommand.ExecuteAsync(null);
+        if (viewModel.ErrorMessage is null && await TryCopyPresetShareLinkAsync(viewModel))
+        {
+            ShowToast(viewModel, viewModel.Loc["PresetShareLinkCopied"], NotificationType.Success);
+        }
+        else if (viewModel.ErrorMessage is null)
+        {
+            ShowToast(viewModel, viewModel.Loc["PresetShared"], NotificationType.Success);
+        }
+    }
+
     private async void ConfirmDeletePreset(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is not MainViewModel { SelectedPreset: { } preset } viewModel)
@@ -1016,24 +1279,24 @@ public partial class MainWindow : Window
         await viewModel.ExportSelectedPresetToFileAsync(path);
     }
 
-    private async void CopyPresetShareLink(object? sender, RoutedEventArgs eventArgs)
+    private async Task<bool> TryCopyPresetShareLinkAsync(MainViewModel viewModel)
     {
-        if (DataContext is not MainViewModel viewModel
-            || Clipboard is null
+        if (Clipboard is null
             || !Uri.TryCreate(viewModel.LastPresetShareUrl, UriKind.Absolute, out var link)
             || link.Scheme != Uri.UriSchemeHttps)
         {
-            return;
+            return false;
         }
 
         try
         {
             await Clipboard.SetTextAsync(link.AbsoluteUri);
-            ShowToast(viewModel, viewModel.Loc["PresetShareLinkCopied"], NotificationType.Success);
+            return true;
         }
         catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException)
         {
             viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            return false;
         }
     }
 
@@ -1054,18 +1317,15 @@ public partial class MainWindow : Window
 
     private static IReadOnlyList<DependencyPlanNodeViewModel> BuildPresetApplyNodes(MainViewModel viewModel) =>
         viewModel.PresetApplySteps.Select(step => new DependencyPlanNodeViewModel(
-            step.Action,
-            string.Join(" · ", new[] { step.State, step.Version, step.LoaderId }
-                .Where(value => !string.IsNullOrWhiteSpace(value))),
             step.ModId,
-            step.Step.Reason,
+            step.ModId,
+            string.Join(" · ", new[] { step.Version, step.LoaderId }
+                .Where(value => !string.IsNullOrWhiteSpace(value))),
             step.State,
-            depth: 0,
-            isTarget: false,
-            isUnresolved: step.IsUnresolved || step.IsBlocked,
-            unresolvedLabel: step.IsBlocked
-                ? viewModel.Loc["PresetStateBlocked"]
-                : viewModel.Loc["PresetStateUnresolved"])).ToArray();
+            step.IsUnresolved || step.IsBlocked
+                ? DependencyGraphNodeState.Attention
+                : DependencyGraphNodeState.Normal,
+            step.Action)).ToArray();
 
     private async void ToggleHoveredInstalledMod(object? sender, RoutedEventArgs eventArgs)
     {
@@ -1209,7 +1469,7 @@ public partial class MainWindow : Window
                 nodes,
                 viewModel.Loc["Confirm"],
                 viewModel.Loc["Cancel"],
-                nodes.Any(node => !node.IsUnresolved),
+                plan.Items.Any(item => item.Action != ModDependencyRepairAction.Unresolved),
                 isDangerous: false);
             var confirmed = await OverlayDialog.ShowCustomAsync<
                 DependencyPlanDialogView,
@@ -1234,17 +1494,15 @@ public partial class MainWindow : Window
         {
             installed.TryGetValue(node.ModId, out var item);
             return new DependencyPlanNodeViewModel(
-                item?.PrimaryName ?? node.ReceiptName,
-                item?.SecondaryName ?? string.Empty,
                 node.ModId,
-                node.InstallRoot,
-                node.Kind == Crystalfly.Core.Mods.ModRemovalImpactKind.WillRemove
+                item?.PrimaryName ?? node.ReceiptName,
+                item?.SecondaryName ?? node.ModId,
+                node.Enabled ? viewModel.Loc["Enabled"] : viewModel.Loc["Disabled"],
+                DependencyGraphNodeState.Attention,
+                node.Kind == ModRemovalImpactKind.WillRemove
                     ? viewModel.Loc["WillDelete"]
                     : viewModel.Loc["DependenciesWillBeMissing"],
-                node.Depth,
-                node.Kind == Crystalfly.Core.Mods.ModRemovalImpactKind.WillRemove,
-                isUnresolved: false,
-                parentModId: node.RelatedToModId);
+                node.RelatedToModId is null ? null : [node.RelatedToModId]);
         }).ToArray();
         var dialog = new DependencyPlanDialogViewModel(
             bulk ? viewModel.Loc["ConfirmBulkUninstallTitle"] : viewModel.Loc["ConfirmModUninstallTitle"],
@@ -1337,111 +1595,72 @@ public partial class MainWindow : Window
         ModDependencyRepairPlan plan)
     {
         var installed = viewModel.InstalledMods.ToDictionary(mod => mod.Id, StringComparer.OrdinalIgnoreCase);
-        var items = plan.Items.ToDictionary(item => item.ModId, StringComparer.OrdinalIgnoreCase);
-        var children = plan.Items
-            .SelectMany(item => item.RequiredByModIds.Select(parent => (Parent: parent, Item: item)))
-            .GroupBy(link => link.Parent, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                group => group.Key,
-                group => group.Select(link => link.Item).ToArray(),
-                StringComparer.OrdinalIgnoreCase);
-        var nodes = new List<DependencyPlanNodeViewModel>();
-        var rendered = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var roots = plan.Items.SelectMany(item => item.RequiredByModIds)
-            .Where(id => !items.ContainsKey(id))
+        var repairItems = plan.Items.ToDictionary(item => item.ModId, StringComparer.OrdinalIgnoreCase);
+        var prerequisitesByRequiredMod = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in plan.Items)
+        {
+            foreach (var requiredById in item.RequiredByModIds)
+            {
+                if (!prerequisitesByRequiredMod.TryGetValue(requiredById, out var prerequisites))
+                {
+                    prerequisites = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    prerequisitesByRequiredMod[requiredById] = prerequisites;
+                }
+                prerequisites.Add(item.ModId);
+            }
+        }
+
+        var allIds = repairItems.Keys
+            .Concat(prerequisitesByRequiredMod.Keys)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        foreach (var rootId in roots)
+            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase);
+        return allIds.Select(id =>
         {
-            installed.TryGetValue(rootId, out var root);
-            nodes.Add(NewNode(
-                root?.PrimaryName ?? rootId,
-                root?.SecondaryName ?? string.Empty,
-                rootId,
-                root?.InstallRoot ?? string.Empty,
-                root is null ? viewModel.Loc["Missing"] : root.IsEnabled ? viewModel.Loc["Enabled"] : viewModel.Loc["Disabled"],
-                0,
-                isTarget: true,
-                isUnresolved: false,
-                parentModId: null));
-            AppendChildren(rootId, 1, new HashSet<string>(StringComparer.OrdinalIgnoreCase) { rootId });
-        }
-        foreach (var item in plan.Items.Where(item => !rendered.Contains(item.ModId)))
-        {
-            AppendItem(item, 0, new HashSet<string>(StringComparer.OrdinalIgnoreCase), null);
-        }
-        return nodes;
-
-        void AppendChildren(string parentId, int depth, HashSet<string> path)
-        {
-            if (!children.TryGetValue(parentId, out var childItems))
+            installed.TryGetValue(id, out var current);
+            prerequisitesByRequiredMod.TryGetValue(id, out var prerequisites);
+            if (!repairItems.TryGetValue(id, out var item))
             {
-                return;
+                return new DependencyPlanNodeViewModel(
+                    id,
+                    current?.PrimaryName ?? id,
+                    current?.SecondaryName ?? string.Empty,
+                    current is null ? viewModel.Loc["Missing"] : current.IsEnabled ? viewModel.Loc["Enabled"] : viewModel.Loc["Disabled"],
+                    current is null
+                        ? DependencyGraphNodeState.Missing
+                        : current.IsExternal
+                            ? DependencyGraphNodeState.External
+                            : current.IsEnabled
+                                ? DependencyGraphNodeState.Normal
+                                : DependencyGraphNodeState.Disabled,
+                    PrerequisiteIds: prerequisites?.ToArray());
             }
-            foreach (var child in childItems)
-            {
-                AppendItem(child, depth, path, parentId);
-            }
-        }
 
-        void AppendItem(
-            ModDependencyRepairPlanItem item,
-            int depth,
-            IReadOnlySet<string> parentPath,
-            string? parentModId)
-        {
-            if (parentPath.Contains(item.ModId))
-            {
-                return;
-            }
-            rendered.Add(item.ModId);
-            installed.TryGetValue(item.ModId, out var current);
-            var currentStatus = current is null
-                ? viewModel.Loc["Missing"]
-                : current.IsEnabled ? viewModel.Loc["Enabled"] : viewModel.Loc["Disabled"];
-            var actionStatus = item.Action switch
+            var action = item.Action switch
             {
                 ModDependencyRepairAction.ReEnable => viewModel.Loc["WillReEnable"],
                 ModDependencyRepairAction.DownloadAndInstall => viewModel.Loc["WillDownloadAndInstall"],
                 _ => viewModel.Loc["CannotRepair"]
             };
-            nodes.Add(NewNode(
+            var state = item.Action == ModDependencyRepairAction.Unresolved
+                ? DependencyGraphNodeState.Attention
+                : current is null
+                    ? DependencyGraphNodeState.Missing
+                    : current.IsExternal
+                        ? DependencyGraphNodeState.External
+                        : current.IsEnabled
+                            ? DependencyGraphNodeState.Normal
+                            : DependencyGraphNodeState.Disabled;
+            return new DependencyPlanNodeViewModel(
+                item.ModId,
                 current?.PrimaryName ?? item.Name,
                 current?.SecondaryName ?? string.Empty,
-                item.ModId,
-                current?.InstallRoot ?? string.Empty,
-                $"{currentStatus} · {actionStatus}",
-                depth,
-                isTarget: false,
-                isUnresolved: item.Action == ModDependencyRepairAction.Unresolved,
-                parentModId: parentModId));
-            var path = new HashSet<string>(parentPath, StringComparer.OrdinalIgnoreCase) { item.ModId };
-            AppendChildren(item.ModId, depth + 1, path);
-        }
-
-        DependencyPlanNodeViewModel NewNode(
-            string primaryName,
-            string secondaryName,
-            string modId,
-            string installRoot,
-            string status,
-            int depth,
-            bool isTarget,
-            bool isUnresolved,
-            string? parentModId) => new(
-                primaryName,
-                secondaryName,
-                modId,
-                installRoot,
-                status,
-                depth,
-                isTarget,
-                isUnresolved,
-                viewModel.Loc["Target"],
-                viewModel.Loc["Unresolved"],
-                parentModId);
+                current is null ? viewModel.Loc["Missing"] : current.IsEnabled ? viewModel.Loc["Enabled"] : viewModel.Loc["Disabled"],
+                state,
+                action,
+                prerequisites?.ToArray());
+        }).ToArray();
     }
+
     private async void ConfirmUninstallLoader(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is not MainViewModel viewModel || viewModel.SelectedInstance is null)
@@ -1490,6 +1709,24 @@ public partial class MainWindow : Window
         if (confirmed)
         {
             await viewModel.RestoreSnapshotCommand.ExecuteAsync(null);
+        }
+    }
+
+    private async void ConfirmDeleteSnapshot(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel || viewModel.SelectedSnapshot is null)
+        {
+            return;
+        }
+        var confirmed = await ShowConfirmationAsync(
+            viewModel.Loc["ConfirmSnapshotDeleteTitle"],
+            viewModel.Loc["ConfirmSnapshotDeleteMessage"],
+            viewModel.SelectedSnapshot.Name,
+            viewModel,
+            isDangerous: true);
+        if (confirmed)
+        {
+            await viewModel.DeleteSnapshotCommand.ExecuteAsync(null);
         }
     }
 
@@ -1766,8 +2003,9 @@ public partial class MainWindow : Window
         }
     }
 
-    private static OverlayDialogOptions CreateOverlayOptions() => new()
+    private OverlayDialogOptions CreateOverlayOptions() => new()
     {
+        TopLevelHashCode = GetHashCode(),
         CanLightDismiss = false,
         CanDragMove = false,
         IsCloseButtonVisible = true,

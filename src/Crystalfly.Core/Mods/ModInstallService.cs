@@ -1,3 +1,4 @@
+using Crystalfly.Core.Instances;
 using Crystalfly.Core.Loaders;
 using Crystalfly.Core.Models;
 
@@ -148,7 +149,7 @@ public sealed class ModInstallService
         var loader = await _loaderManager.InspectAsync(cancellationToken);
         string? incompatibility = _instance.Purpose == InstancePurpose.OfficialSpeedrun
             ? "Official speedrun instances cannot be modified."
-            : string.Equals(_instance.BuildId, "unknown", StringComparison.OrdinalIgnoreCase)
+            : !BuildIdentity.IsKnown(_instance.BuildId)
                 ? "Unknown game builds are restricted to vanilla mode."
                 : order.FirstOrDefault(manifest =>
                     !string.Equals(manifest.LoaderId, requiredLoaderId, StringComparison.OrdinalIgnoreCase)
