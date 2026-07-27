@@ -582,6 +582,57 @@ public partial class MainWindow : Window
         viewModel.SetAccentColor(selected);
     }
 
+    private void OnGlobalBackgroundScopeClicked(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.SelectedBackgroundScope = viewModel.BackgroundScopeOptions.First(option =>
+                option.Value == BackgroundEditScope.Global);
+        }
+    }
+
+    private void OnInstanceBackgroundScopeClicked(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel { CanEditInstanceBackground: true } viewModel)
+        {
+            viewModel.SelectedBackgroundScope = viewModel.BackgroundScopeOptions.First(option =>
+                option.Value == BackgroundEditScope.CurrentInstance);
+        }
+    }
+
+    private async void OnSelectBackgroundImageClicked(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = viewModel.Loc["BackgroundSelect"],
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType(viewModel.Loc["BackgroundImage"])
+                {
+                    Patterns = ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp"]
+                }
+            ]
+        });
+        var path = files.FirstOrDefault()?.TryGetLocalPath();
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            await viewModel.SetBackgroundImageAsync(path);
+        }
+    }
+
+    private async void OnRemoveBackgroundImageClicked(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            await viewModel.RemoveBackgroundImageAsync();
+        }
+    }
+
     protected override void OnClosing(WindowClosingEventArgs e)
     {
         if (closeForApplicationUpdate)

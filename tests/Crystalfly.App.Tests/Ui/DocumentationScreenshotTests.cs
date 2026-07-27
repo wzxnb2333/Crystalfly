@@ -21,6 +21,7 @@ using Crystalfly.Core.Runtime;
 using Crystalfly.Core.Saves;
 using Crystalfly.Core.Snapshots;
 using Ursa.Controls;
+using SkiaSharp;
 
 namespace Crystalfly.App.Tests.Ui;
 
@@ -36,6 +37,9 @@ public sealed class DocumentationScreenshotTests
         new("crystalfly-1920x1080-zh.jpg", 1920, 1080, 1.5d, ScreenshotState.Settings),
         new("crystalfly-settings-light-1920x1080-zh.jpg", 1920, 1080, 1.5d, ScreenshotState.Settings, ThemeVariant.Light),
         new("crystalfly-settings-accent-picker-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.SettingsAccentDialog),
+        new("crystalfly-background-global-900x600-zh.jpg", 900, 600, 1d, ScreenshotState.SettingsBackground),
+        new("crystalfly-background-instance-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.SettingsInstanceBackground),
+        new("crystalfly-background-light-1920x1080-zh.jpg", 1920, 1080, 1.5d, ScreenshotState.SettingsBackground, ThemeVariant.Light),
         new("crystalfly-2560x1440-zh.jpg", 2560, 1440, 2d, ScreenshotState.Launch),
         new("crystalfly-mod-market-list-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.MarketList),
         new("crystalfly-mod-market-detail-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.MarketDetail),
@@ -81,6 +85,11 @@ public sealed class DocumentationScreenshotTests
             fixture.Window.DataContext = fixture.ViewModel;
             fixture.Window.SetRenderScaling(capture.RenderScaling);
             Dispatcher.UIThread.RunJobs();
+            if (capture.State is ScreenshotState.SettingsBackground or ScreenshotState.SettingsInstanceBackground)
+            {
+                fixture.ShowBackgroundSettings();
+                Dispatcher.UIThread.RunJobs();
+            }
 
             if (capture.State == ScreenshotState.MarketInstall)
             {
@@ -280,6 +289,12 @@ public sealed class DocumentationScreenshotTests
                 Assert.Contains(fixture.ViewModel.Loc["VersionRoot"], visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["SettingsGeneral"], visibleText);
                 break;
+            case ScreenshotState.SettingsBackground:
+            case ScreenshotState.SettingsInstanceBackground:
+                Assert.True(fixture.ViewModel.HasActiveBackgroundImage);
+                Assert.Contains(fixture.ViewModel.Loc["BackgroundImage"], visibleText);
+                Assert.Contains(fixture.ViewModel.BackgroundScopeStatus, visibleText);
+                break;
             case ScreenshotState.SettingsAccentDialog:
                 Assert.Single(fixture.Window.GetVisualDescendants().OfType<CustomDialogControl>());
                 Assert.Contains(fixture.ViewModel.Loc["AccentColorPickerTitle"], visibleText);
@@ -423,7 +438,9 @@ public sealed class DocumentationScreenshotTests
             {
                 ScreenshotState.GameVersions => "Downloads",
                 ScreenshotState.InstanceSelection => "Versions",
-                ScreenshotState.Settings or ScreenshotState.SettingsAccentDialog => "Settings",
+                ScreenshotState.Settings
+                    or ScreenshotState.SettingsAccentDialog
+                    or ScreenshotState.SettingsBackground or ScreenshotState.SettingsInstanceBackground => "Settings",
                 ScreenshotState.MarketList or ScreenshotState.MarketDetail or ScreenshotState.MarketInstall => "Downloads",
                 ScreenshotState.InstanceDetail
                     or ScreenshotState.InstalledModHealth
@@ -433,6 +450,11 @@ public sealed class DocumentationScreenshotTests
                     or ScreenshotState.DependencyGraph => "Manage",
                 _ => "Launch"
             };
+
+            if (state is ScreenshotState.SettingsBackground or ScreenshotState.SettingsInstanceBackground)
+            {
+                await PrepareBackgroundAsync(state == ScreenshotState.SettingsInstanceBackground);
+            }
 
             if (state is ScreenshotState.MarketList or ScreenshotState.MarketDetail or ScreenshotState.MarketInstall)
             {
@@ -854,6 +876,67 @@ public sealed class DocumentationScreenshotTests
             ViewModel.LastPresetShareCode = "fixture-7F4D2A";
         }
 
+        private async Task PrepareBackgroundAsync(bool useInstanceOverride)
+        {
+            ViewModel.SelectedInstance = Instance;
+            for (var attempt = 0; attempt < 100 && ViewModel.IsLoadingInstanceDetails; attempt++)
+            {
+                await Task.Delay(10);
+            }
+
+            ViewModel.SelectedBackgroundScope = new(
+                BackgroundEditScope.Global,
+                ViewModel.Loc["BackgroundScopeGlobal"]);
+            await ViewModel.SetBackgroundImageAsync(CreateBackgroundImage("global-background.png", false));
+            ViewModel.BackgroundOpacityPercent = 42;
+            await Task.Delay(350);
+
+            if (!useInstanceOverride)
+            {
+                return;
+            }
+
+            ViewModel.SelectedBackgroundScope = new(
+                BackgroundEditScope.CurrentInstance,
+                ViewModel.Loc["BackgroundScopeInstance"]);
+            await ViewModel.SetBackgroundImageAsync(CreateBackgroundImage("instance-background.png", true));
+            ViewModel.BackgroundOpacityPercent = 58;
+            await Task.Delay(350);
+        }
+
+        public void ShowBackgroundSettings()
+        {
+            var card = Window.GetVisualDescendants()
+                .OfType<Border>()
+                .Single(border => AutomationProperties.GetName(border) == ViewModel.Loc["BackgroundImage"]);
+            card.BringIntoView();
+        }
+
+        private string CreateBackgroundImage(string fileName, bool instance)
+        {
+            var path = Path.Combine(root, fileName);
+            using var bitmap = new SKBitmap(1600, 900);
+            using var canvas = new SKCanvas(bitmap);
+            canvas.Clear(instance ? new SKColor(36, 16, 52) : new SKColor(8, 35, 48));
+            using var paint = new SKPaint { IsAntialias = true };
+            paint.Color = instance ? new SKColor(126, 34, 206) : new SKColor(14, 116, 144);
+            canvas.DrawCircle(1280, 180, 360, paint);
+            paint.Color = instance ? new SKColor(190, 24, 93) : new SKColor(15, 108, 189);
+            canvas.DrawRect(0, 600, 1600, 300, paint);
+            paint.Color = new SKColor(255, 255, 255, 42);
+            var crystal = new SKPath();
+            crystal.MoveTo(220, 720);
+            crystal.LineTo(520, 180);
+            crystal.LineTo(760, 720);
+            crystal.Close();
+            canvas.DrawPath(crystal, paint);
+            using var image = SKImage.FromBitmap(bitmap);
+            using var encoded = image.Encode(SKEncodedImageFormat.Png, 92);
+            using var stream = File.Create(path);
+            encoded.SaveTo(stream);
+            return path;
+        }
+
         public async ValueTask DisposeAsync()
         {
             ViewModel.IsBusy = false;
@@ -894,6 +977,8 @@ public sealed class DocumentationScreenshotTests
         LaunchIssuesOverlay,
         Settings,
         SettingsAccentDialog,
+        SettingsBackground,
+        SettingsInstanceBackground,
         MarketList,
         MarketDetail,
         MarketInstall,
