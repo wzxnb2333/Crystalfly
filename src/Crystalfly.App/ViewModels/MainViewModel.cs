@@ -805,7 +805,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             if (Directory.Exists(VersionRoot))
             {
                 await initialInstanceRefresh;
-                await RefreshAsync();
+                await RefreshInstancesAsync(showBusy: false);
             }
         }
         catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
@@ -1169,14 +1169,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     [RelayCommand]
-    private async Task RefreshAsync()
+    private Task RefreshAsync() => RefreshInstancesAsync(showBusy: true);
+
+    private async Task RefreshInstancesAsync(bool showBusy)
     {
         if (!Directory.Exists(VersionRoot))
         {
             return;
         }
 
-        IsBusy = true;
+        if (showBusy)
+        {
+            IsBusy = true;
+        }
         ErrorMessage = null;
         StatusMessage = Loc["StatusChecking"];
         try
@@ -1264,7 +1269,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         finally
         {
-            IsBusy = false;
+            if (showBusy)
+            {
+                IsBusy = false;
+            }
         }
     }
 

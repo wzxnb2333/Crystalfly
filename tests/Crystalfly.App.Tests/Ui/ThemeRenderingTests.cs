@@ -344,7 +344,7 @@ public sealed class ThemeRenderingTests
     }
 
     [AvaloniaFact]
-    public async Task Main_window_binds_global_loading_and_instance_skeleton()
+    public async Task Main_window_binds_global_loading_without_replacing_instance_status_card()
     {
         var applicationDataRoot = Path.Combine(
             Path.GetTempPath(),
@@ -362,7 +362,7 @@ public sealed class ThemeRenderingTests
                 window.FindControl<Control>("GlobalLoadingHost"));
             var loadingMessage = Assert.IsType<TextBlock>(
                 window.FindControl<Control>("GlobalLoadingMessage"));
-            var skeleton = Assert.Single(window.GetLogicalDescendants().OfType<Skeleton>());
+            Assert.Empty(window.GetLogicalDescendants().OfType<Skeleton>());
             Assert.Equal(HorizontalAlignment.Stretch, loading.HorizontalContentAlignment);
             Assert.Equal(VerticalAlignment.Stretch, loading.VerticalContentAlignment);
 
@@ -379,8 +379,6 @@ public sealed class ThemeRenderingTests
 
             Assert.True(loading.IsLoading);
             Assert.Equal("Working", loadingMessage.Text);
-            Assert.True(skeleton.IsLoading);
-            Assert.True(skeleton.IsActive);
             var downloadProgress = Assert.IsType<ProgressBar>(
                 window.FindControl<ProgressBar>("SteamDownloadProgress"));
             Assert.Equal(0.4, downloadProgress.Value);

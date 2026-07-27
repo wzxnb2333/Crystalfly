@@ -252,8 +252,10 @@
                             </StackPanel>
                         </Grid>
 
-                        <u:Skeleton IsLoading="{Binding IsLoadingInstanceDetails}"
-                                    IsActive="{Binding IsLoadingInstanceDetails}">
+                        <ProgressBar Name="InstanceDetailsLoading"
+                                     Height="2"
+                                     IsIndeterminate="True"
+                                     IsVisible="{Binding IsLoadingInstanceDetails}" />
                         <Border Classes="cfp-card" IsVisible="{Binding HasInstance}">
                             <StackPanel Spacing="16">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
@@ -325,7 +327,6 @@
                                 </StackPanel>
                             </StackPanel>
                         </Border>
-                        </u:Skeleton>
 
                         <TextBlock Classes="cfp-meta"
                                    Text="{Binding Loc[ChooseRoot]}"
