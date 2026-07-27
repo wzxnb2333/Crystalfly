@@ -209,6 +209,31 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public void Download_build_search_keeps_every_catalog_build_and_matches_manifest_ids()
+    {
+        using var test = new TestDirectory();
+        var viewModel = new MainViewModel(test.CreateDirectory("app-data"));
+        var builds = Enumerable.Range(1, 6).Select(index => new GameBuild
+        {
+            Id = $"build-{index}",
+            DisplayVersion = $"1.5.{index}",
+            ManifestId = (1000 + index).ToString(CultureInfo.InvariantCulture),
+            ExecutableSha256 = new string('A', 64),
+            GlobalGameManagersSha256 = new string('B', 64)
+        }).ToArray();
+        SetPrivateField(viewModel, "catalog", new GameCatalog { Builds = builds });
+        var populate = typeof(MainViewModel).GetMethod("PopulateDownloadBuilds", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(populate);
+        populate.Invoke(viewModel, null);
+
+        Assert.Equal(7, viewModel.DownloadBuilds.Count);
+        viewModel.DownloadBuildSearchText = "1005";
+
+        var match = Assert.Single(viewModel.VisibleDownloadBuilds);
+        Assert.Equal("build-5", match.BuildId);
+    }
+
+    [Fact]
     public async Task Background_catalog_failure_does_not_escape_disposal()
     {
         using var test = new TestDirectory();

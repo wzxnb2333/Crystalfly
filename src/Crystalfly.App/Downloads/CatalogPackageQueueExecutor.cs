@@ -388,7 +388,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
         {
             throw new InvalidOperationException("Official speedrun instances cannot be modified.");
         }
-        if (string.Equals(instance.BuildId, "unknown", StringComparison.OrdinalIgnoreCase))
+        if (!BuildIdentity.IsKnown(instance.BuildId))
         {
             throw new InvalidOperationException("Unknown game builds are restricted to vanilla mode.");
         }

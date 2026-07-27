@@ -1,3 +1,4 @@
+using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.ViewModels.DependencyGraph;
 using Crystalfly.Core.Models;
@@ -70,6 +71,54 @@ public sealed class DialogViewModelTests
         Assert.Equal(new ModPackEditorDialogResult("Practice", ModPresetApplyMode.Exact), result);
         dialog.Name = "   ";
         Assert.False(dialog.ConfirmCommand.CanExecute(null));
+    }
+    [Fact]
+    public void Historical_manifest_dialog_accepts_only_nonzero_unsigned_ids_and_returns_the_request()
+    {
+        var dialog = new HistoricalManifestDialogViewModel(
+            [new DownloadBuildOption("known-build", "Known build", 42)],
+            "Download historical version",
+            "Use a Windows Depot manifest ID.",
+            "Manifest ID",
+            "Instance name",
+            "Known: {0}",
+            "Unverified historical version · vanilla only",
+            "Invalid manifest ID",
+            "Continue",
+            "Cancel");
+        object? result = null;
+        dialog.RequestClose += (_, value) => result = value;
+
+        dialog.ManifestId = "0";
+        dialog.InstanceName = "Historical";
+        Assert.False(dialog.CanConfirm);
+        Assert.Equal("Invalid manifest ID", dialog.ValidationMessage);
+
+        dialog.ManifestId = "42";
+        Assert.True(dialog.CanConfirm);
+        Assert.True(dialog.IsKnownManifest);
+        Assert.Equal("Known: Known build", dialog.ValidationMessage);
+        dialog.ConfirmCommand.Execute(null);
+
+        Assert.Equal(new HistoricalManifestDownloadRequest(42, "Historical"), result);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("-1")]
+    [InlineData("18446744073709551616")]
+    [InlineData("42.0")]
+    public void Historical_manifest_dialog_rejects_invalid_manifest_text(string manifestId)
+    {
+        var dialog = new HistoricalManifestDialogViewModel(
+            [], "Title", "Message", "Manifest", "Instance", "Known: {0}",
+            "Unverified", "Invalid", "Confirm", "Cancel")
+        {
+            ManifestId = manifestId,
+            InstanceName = "Historical"
+        };
+
+        Assert.False(dialog.CanConfirm);
     }
 
     [Fact]

@@ -223,6 +223,7 @@ public sealed class DocumentationScreenshotTests
         viewModel.VisibleInstances.Add(instance);
         InvokeRebuildMarketCatalog(viewModel);
         viewModel.DownloadBuilds.Add(new("1.5.78.11833", "Hollow Knight 1.5.78.11833", 9207084990026249690));
+        viewModel.VisibleDownloadBuilds.Add(viewModel.DownloadBuilds[0]);
         viewModel.SelectedDownloadBuild = viewModel.DownloadBuilds[0];
         viewModel.LanguageOptions.Add(new(UiLanguage.FollowSystem, viewModel.Loc["FollowSystem"]));
         viewModel.LanguageOptions.Add(new(UiLanguage.SimplifiedChinese, viewModel.Loc["SimplifiedChinese"]));

@@ -300,6 +300,14 @@ public sealed class SteamDownloadQueueExecutor(
             return resolvedBuildId
                 ?? $"steam-public-{manifestId.ToString(CultureInfo.InvariantCulture)}";
         }
+        if (string.Equals(
+                requestedBuildId,
+                SteamDownloadQueueGroupFactory.CustomManifestBuildId,
+                StringComparison.Ordinal))
+        {
+            return resolvedBuildId
+                ?? $"steam-manifest-{manifestId.ToString(CultureInfo.InvariantCulture)}";
+        }
         if (string.IsNullOrWhiteSpace(requestedBuildId)
             || !string.Equals(requestedBuildId, resolvedBuildId, StringComparison.OrdinalIgnoreCase))
         {

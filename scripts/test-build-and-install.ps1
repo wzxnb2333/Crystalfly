@@ -43,6 +43,9 @@ if ($source -notmatch '& pwsh @buildArguments') {
     throw 'Build-and-install must invoke the release build in a child PowerShell process.'
 }
 
+if ($source -notmatch '\[switch\]\$UnsignedLocal' -or $source -notmatch "buildArguments \+= '-UnsignedLocal'") {
+    throw 'Build-and-install must forward the explicit unsigned-local switch.'
+}
 . $installScript
 
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) "Crystalfly.InstallTests\$([Guid]::NewGuid().ToString('N'))"

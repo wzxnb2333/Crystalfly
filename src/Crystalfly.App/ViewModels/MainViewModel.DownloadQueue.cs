@@ -3,6 +3,7 @@ using System.Globalization;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using Crystalfly.App.Downloads;
+using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.Core.Mods;
 using Crystalfly.Core.Runtime;
 using Crystalfly.Steam.Downloads;
@@ -339,6 +340,42 @@ public partial class MainViewModel
             ? Loc["AddedToDownloadQueue"]
             : Loc["QueueTaskAlreadyExists"];
         ToastRequested?.Invoke(DownloadStatus);
+    }
+    internal async Task<bool> EnqueueCustomSteamManifestAsync(
+        HistoricalManifestDownloadRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsSteamSessionLoggedOn())
+        {
+            ErrorMessage = Loc["SteamLoginRequired"];
+            return false;
+        }
+        if (!Directory.Exists(VersionRoot))
+        {
+            ErrorMessage = Loc["ChooseRoot"];
+            return false;
+        }
+        if (request.ManifestId == 0)
+        {
+            ErrorMessage = Loc["InvalidHistoricalManifest"];
+            return false;
+        }
+
+        var known = catalog.Builds.FirstOrDefault(build =>
+            string.Equals(
+                build.ManifestId,
+                request.ManifestId.ToString(CultureInfo.InvariantCulture),
+                StringComparison.Ordinal));
+        var group = SteamDownloadQueueGroupFactory.CreateCustomManifest(
+            request.ManifestId,
+            known?.DisplayVersion ?? $"{Loc["UnverifiedHistoricalBuild"]} · {request.ManifestId}",
+            VersionRoot,
+            request.InstanceName);
+        await downloadQueue.InitializeAsync(cancellationToken);
+        var result = await downloadQueue.EnqueueAsync(group, cancellationToken);
+        DownloadStatus = result.Added ? Loc["AddedToDownloadQueue"] : Loc["QueueTaskAlreadyExists"];
+        ToastRequested?.Invoke(DownloadStatus);
+        return result.Added;
     }
 
     [RelayCommand]

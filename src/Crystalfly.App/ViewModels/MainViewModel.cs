@@ -256,6 +256,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public ObservableCollection<DownloadBuildOption> DownloadBuilds { get; } = [];
 
+    public ObservableCollection<DownloadBuildOption> VisibleDownloadBuilds { get; } = [];
+
     public bool HasInstance => SelectedInstance is not null;
 
     public bool CanNavigate => !IsBusy && !IsGameRunning && !IsExternalCommandRunning;
@@ -725,6 +727,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         await Task.WhenAll(refreshTask, InitializeDownloadQueueAsync());
     }
 
+    [ObservableProperty]
+    private string downloadBuildSearchText = string.Empty;
+
     private void PopulateDownloadBuilds()
     {
         var previousBuildId = SelectedDownloadBuild?.BuildId;
@@ -751,6 +756,25 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                                     previousBuildId,
                                     StringComparison.OrdinalIgnoreCase))
                                 ?? DownloadBuilds[0];
+        ApplyDownloadBuildFilter();
+    }
+
+    partial void OnDownloadBuildSearchTextChanged(string value) => ApplyDownloadBuildFilter();
+
+    private void ApplyDownloadBuildFilter()
+    {
+        var search = DownloadBuildSearchText.Trim();
+        var filtered = string.IsNullOrEmpty(search)
+            ? DownloadBuilds
+            : DownloadBuilds.Where(build =>
+                build.DisplayName.Contains(search, StringComparison.CurrentCultureIgnoreCase)
+                || build.BuildId.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || build.ManifestId?.ToString(CultureInfo.InvariantCulture).Contains(search, StringComparison.Ordinal) == true);
+        VisibleDownloadBuilds.Clear();
+        foreach (var build in filtered)
+        {
+            VisibleDownloadBuilds.Add(build);
+        }
     }
 
     private void PopulateSpeedrunTemplates()
@@ -1077,7 +1101,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             return Loc["OfficialSpeedrunModBlocked"];
         }
-        if (string.Equals(instance.BuildId, "unknown", StringComparison.OrdinalIgnoreCase))
+        if (!BuildIdentity.IsKnown(instance.BuildId))
         {
             return Loc["UnknownBuild"];
         }
@@ -1587,6 +1611,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             IsSteamLoggedIn = true;
             SteamStatus = credential.AccountName;
             QrCodeImage = null;
+            await downloadQueue.ResumeSteamDownloadsAsync(lifetimeCancellation.Token);
         }
         catch (Exception exception)
         {
@@ -1639,6 +1664,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             var credential = await steamSession.ConnectWithStoredTokenAsync(timeout.Token);
             IsSteamLoggedIn = true;
             SteamStatus = credential.AccountName;
+            await downloadQueue.ResumeSteamDownloadsAsync(lifetimeCancellation.Token);
         }
         catch (Exception)
         {
@@ -1664,18 +1690,27 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     [RelayCommand]
-    private void SignOutSteam()
+    private async Task SignOutSteamAsync()
     {
         try
         {
-            steamSession?.SignOut();
+            await downloadQueue.InitializeAsync(lifetimeCancellation.Token);
+            await downloadQueue.PauseSteamDownloadsAsync(lifetimeCancellation.Token);
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is IOException or InvalidOperationException)
         {
             ErrorMessage = $"Steam: {exception.Message}";
         }
         finally
         {
+            try
+            {
+                steamSession?.SignOut();
+            }
+            catch (Exception exception)
+            {
+                ErrorMessage = $"Steam: {exception.Message}";
+            }
             IsSteamLoggedIn = false;
             SteamStatus = "Not signed in";
             QrCodeImage = null;
@@ -3810,7 +3845,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 GetSharedLocalLowPath(),
                 paths.GetVersionDataRoot(VersionRoot));
             var preflight = LaunchPreflightEvaluator.Evaluate(
-                record.BuildId != "unknown",
+                BuildIdentity.IsKnown(record.BuildId),
                 File.Exists(Path.Combine(record.RootPath, "hollow_knight.exe")),
                 loaderState,
                 installed,

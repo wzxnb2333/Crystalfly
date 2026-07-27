@@ -4,11 +4,12 @@ param(
     [ValidateSet('win-x64')]
     [string]$Runtime = 'win-x64',
     [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$')]
-    [string]$Version = '0.6.5',
+    [string]$Version = '0.6.6',
     [string]$IsccPath,
     [string]$SigningKeyPath,
     [string]$ReleaseNotesPath,
-    [string]$PublishedAt
+    [string]$PublishedAt,
+    [switch]$UnsignedLocal
 )
 
 $ErrorActionPreference = 'Stop'
@@ -293,7 +294,11 @@ if ([string]::IsNullOrWhiteSpace($ReleaseNotesPath)) {
 if ([string]::IsNullOrWhiteSpace($PublishedAt)) {
     $PublishedAt = [DateTimeOffset]::UtcNow.ToString('O', [Globalization.CultureInfo]::InvariantCulture)
 }
-foreach ($requiredFile in $SigningKeyPath, $ReleaseNotesPath, $updatePublicKey) {
+$requiredFiles = @($ReleaseNotesPath)
+if (-not $UnsignedLocal) {
+    $requiredFiles += $SigningKeyPath, $updatePublicKey
+}
+foreach ($requiredFile in $requiredFiles) {
     if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) {
         throw "Required release input was not found: '$requiredFile'."
     }
@@ -354,26 +359,33 @@ if (-not (Test-Path -LiteralPath $installer)) {
     throw "Installer was not created at '$installer'."
 }
 
-Invoke-Native 'Signed update manifest' {
-    dotnet run --project $releaseToolProject -c $Configuration --no-build -- sign `
-        --version $Version `
-        --notes $ReleaseNotesPath `
-        --portable $zip `
-        --installer $installer `
-        --private-env $SigningKeyPath `
-        --output $updateManifest `
-        --published-at $PublishedAt `
-        --tag "v$Version"
+$checksumPaths = @($zip, $installer)
+if (-not $UnsignedLocal) {
+    Invoke-Native 'Signed update manifest' {
+        dotnet run --project $releaseToolProject -c $Configuration --no-build -- sign `
+            --version $Version `
+            --notes $ReleaseNotesPath `
+            --portable $zip `
+            --installer $installer `
+            --private-env $SigningKeyPath `
+            --output $updateManifest `
+            --published-at $PublishedAt `
+            --tag "v$Version"
+    }
+    if (-not (Test-Path -LiteralPath $updateManifest -PathType Leaf)) {
+        throw "Signed update manifest was not created at '$updateManifest'."
+    }
+    Invoke-Native 'Signed update manifest verification' {
+        dotnet run --project $releaseToolProject -c $Configuration --no-build -- verify `
+            --manifest $updateManifest `
+            --public-key $updatePublicKey
+    }
+    $checksumPaths += $updateManifest
 }
-if (-not (Test-Path -LiteralPath $updateManifest -PathType Leaf)) {
-    throw "Signed update manifest was not created at '$updateManifest'."
-}
-Invoke-Native 'Signed update manifest verification' {
-    dotnet run --project $releaseToolProject -c $Configuration --no-build -- verify `
-        --manifest $updateManifest `
-        --public-key $updatePublicKey
+elseif (Test-Path -LiteralPath $updateManifest) {
+    Remove-Item -LiteralPath $updateManifest -Force
 }
 
-$hashes = Get-FileHash -Algorithm SHA256 -LiteralPath $zip, $installer, $updateManifest
-Write-ArtifactChecksums -Paths $zip, $installer, $updateManifest -ArtifactsPath $artifacts -OutputPath $checksums
+$hashes = Get-FileHash -Algorithm SHA256 -LiteralPath $checksumPaths
+Write-ArtifactChecksums -Paths $checksumPaths -ArtifactsPath $artifacts -OutputPath $checksums
 $hashes

@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Crystalfly.App.ViewModels.Dialogs"
+             xmlns:u="https://irihi.tech/ursa"
+             x:Class="Crystalfly.App.Views.Dialogs.HistoricalManifestDialogView"
+             x:DataType="vm:HistoricalManifestDialogViewModel"
+             Width="500"
+             MinWidth="400"
+             MaxWidth="560">
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Enter" Command="{Binding ConfirmCommand}" />
+        <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+    </UserControl.KeyBindings>
+
+    <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="12">
+        <TextBlock Classes="cfp-section-title" Text="{Binding Title}" TextWrapping="Wrap" />
+        <TextBlock Grid.Row="1" Text="{Binding Message}" TextWrapping="Wrap" />
+        <TextBox Grid.Row="2"
+                 Text="{Binding ManifestId, Mode=TwoWay}"
+                 PlaceholderText="{Binding ManifestPlaceholder}"
+                 u:FocusHelper.DialogFocusHint="True"
+                 AutomationProperties.Name="{Binding ManifestPlaceholder}" />
+        <StackPanel Grid.Row="3" Spacing="6">
+            <TextBlock Classes="cfp-meta" Text="{Binding ValidationMessage}" TextWrapping="Wrap" />
+            <TextBox Text="{Binding InstanceName, Mode=TwoWay}"
+                     PlaceholderText="{Binding InstanceNamePlaceholder}"
+                     AutomationProperties.Name="{Binding InstanceNamePlaceholder}" />
+            <TextBlock Classes="cfp-caption" Text="AppID 367520 · Windows Depot 367521" />
+        </StackPanel>
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Classes="cfp-secondary" Command="{Binding CancelCommand}" Content="{Binding CancelText}" MinWidth="96" />
+            <Button Classes="cfp-primary" Command="{Binding ConfirmCommand}" Content="{Binding ConfirmText}" IsEnabled="{Binding CanConfirm}" MinWidth="96" />
+        </StackPanel>
+    </Grid>
+</UserControl>

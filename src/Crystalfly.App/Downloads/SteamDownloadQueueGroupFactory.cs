@@ -7,6 +7,7 @@ public static class SteamDownloadQueueGroupFactory
 {
     internal const string PackagePrefix = "steam:";
     internal const string LoaderId = "steam-depot";
+    internal const string CustomManifestBuildId = "manifest";
 
     public static DownloadQueueGroup Create(
         string buildId,
@@ -53,6 +54,31 @@ public static class SteamDownloadQueueGroupFactory
                 }
             ]
         };
+    }
+
+    public static DownloadQueueGroup CreateCustomManifest(
+        ulong manifestId,
+        string displayName,
+        string versionRoot,
+        string instanceName,
+        DateTimeOffset? createdAt = null)
+    {
+        if (manifestId == 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(manifestId));
+        }
+        string targetRoot = InstanceDirectory.ResolveUnderRoot(Path.GetFullPath(versionRoot), instanceName);
+        if (File.Exists(targetRoot) || Directory.Exists(targetRoot))
+        {
+            throw new IOException($"Instance destination already exists: {targetRoot}");
+        }
+        return Create(
+            CustomManifestBuildId,
+            displayName,
+            manifestId,
+            versionRoot,
+            instanceName,
+            createdAt);
     }
 
     public static string GetStagingDirectory(DownloadQueueGroup group)

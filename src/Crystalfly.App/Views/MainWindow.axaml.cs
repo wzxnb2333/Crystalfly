@@ -815,6 +815,46 @@ public partial class MainWindow : Window
             toastViewModel = null;
         }
     }
+    private async void ShowHistoricalManifestDownloadDialog(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var dialog = new HistoricalManifestDialogViewModel(
+            viewModel.DownloadBuilds,
+            viewModel.Loc["HistoricalManifestTitle"],
+            viewModel.Loc["HistoricalManifestHint"],
+            viewModel.Loc["HistoricalManifestId"],
+            viewModel.Loc["HistoricalInstanceName"],
+            viewModel.Loc["HistoricalManifestKnown"],
+            viewModel.Loc["HistoricalManifestUnverified"],
+            viewModel.Loc["InvalidHistoricalManifest"],
+            viewModel.Loc["Confirm"],
+            viewModel.Loc["Cancel"]);
+        var request = await OverlayDialog.ShowCustomAsync<
+            HistoricalManifestDialogView,
+            HistoricalManifestDialogViewModel,
+            HistoricalManifestDownloadRequest?>(dialog, OverlayHostId, CreateOverlayOptions());
+        if (request is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await viewModel.EnqueueCustomSteamManifestAsync(request, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or InvalidOperationException
+            or UnauthorizedAccessException
+            or ArgumentException)
+        {
+            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+        }
+    }
 
     private async void CloneInstanceWithName(object? sender, RoutedEventArgs eventArgs)
     {
