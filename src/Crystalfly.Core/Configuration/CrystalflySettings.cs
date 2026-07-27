@@ -16,6 +16,43 @@ public enum UiTheme
     Dark
 }
 
+public static class AccentColorPalette
+{
+    public const string DefaultColor = "#0F6CBD";
+
+    public static IReadOnlyList<string> Presets { get; } =
+    [
+        DefaultColor,
+        "#4338CA",
+        "#7E22CE",
+        "#BE185D",
+        "#C2410C",
+        "#15803D",
+        "#0E7490"
+    ];
+
+    public static bool TryNormalize(string? value, out string normalized)
+    {
+        var candidate = value?.Trim() ?? string.Empty;
+        if (candidate.StartsWith('#'))
+        {
+            candidate = candidate[1..];
+        }
+
+        if (candidate.Length == 6 && candidate.All(Uri.IsHexDigit))
+        {
+            normalized = $"#{candidate.ToUpperInvariant()}";
+            return true;
+        }
+
+        normalized = DefaultColor;
+        return false;
+    }
+
+    public static string Normalize(string? value) =>
+        TryNormalize(value, out var normalized) ? normalized : DefaultColor;
+}
+
 public enum GitHubDownloadRoute
 {
     Direct,
@@ -39,6 +76,8 @@ public sealed record CrystalflySettings
     public UiLanguage Language { get; init; } = UiLanguage.FollowSystem;
 
     public UiTheme Theme { get; init; } = UiTheme.System;
+
+    public string AccentColor { get; init; } = AccentColorPalette.DefaultColor;
 
     public GitHubDownloadRoute GitHubDownloadRoute { get; init; } = GitHubDownloadRoute.Direct;
 

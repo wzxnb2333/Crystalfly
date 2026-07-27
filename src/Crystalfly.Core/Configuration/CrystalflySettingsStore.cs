@@ -8,7 +8,10 @@ public static class CrystalflySettingsStore
         string path,
         CrystalflySettings settings,
         CancellationToken cancellationToken = default) =>
-        AtomicJsonStore.WriteAsync(path, settings, cancellationToken);
+        AtomicJsonStore.WriteAsync(
+            path,
+            settings with { AccentColor = AccentColorPalette.Normalize(settings.AccentColor) },
+            cancellationToken);
 
     public static async Task<CrystalflySettings> LoadAsync(
         string path,
@@ -20,7 +23,10 @@ public static class CrystalflySettingsStore
         }
 
         var settings = await AtomicJsonStore.ReadAsync<CrystalflySettings>(path, cancellationToken);
-        return MigrateLegacyVersionRoot(settings);
+        return MigrateLegacyVersionRoot(settings with
+        {
+            AccentColor = AccentColorPalette.Normalize(settings.AccentColor)
+        });
     }
 
     private static CrystalflySettings MigrateLegacyVersionRoot(CrystalflySettings settings)

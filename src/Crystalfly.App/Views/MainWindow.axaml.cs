@@ -546,6 +546,44 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void OnAccentColorClicked(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (sender is not Button { DataContext: AccentColorOptionViewModel option }
+            || DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (!option.IsCustom)
+        {
+            viewModel.SetAccentColor(option.Hex);
+            return;
+        }
+
+        var originalColor = viewModel.AccentColor;
+        var dialog = new AccentColorDialogViewModel(
+            viewModel.Loc["AccentColorPickerTitle"],
+            viewModel.Loc["AccentOriginal"],
+            viewModel.Loc["AccentNew"],
+            viewModel.Loc["AccentHex"],
+            viewModel.Loc["AccentInvalid"],
+            viewModel.Loc["Confirm"],
+            viewModel.Loc["Cancel"],
+            originalColor,
+            viewModel.PreviewAccentColor);
+        var selected = await OverlayDialog.ShowCustomAsync<
+            AccentColorDialogView,
+            AccentColorDialogViewModel,
+            string?>(dialog, OverlayHostId, CreateOverlayOptions());
+        if (selected is null)
+        {
+            viewModel.RestoreAccentColor();
+            return;
+        }
+
+        viewModel.SetAccentColor(selected);
+    }
+
     protected override void OnClosing(WindowClosingEventArgs e)
     {
         if (closeForApplicationUpdate)

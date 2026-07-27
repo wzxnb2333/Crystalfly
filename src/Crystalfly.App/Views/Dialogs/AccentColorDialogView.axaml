@@ -1,0 +1,85 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Crystalfly.App.ViewModels.Dialogs"
+             xmlns:u="https://irihi.tech/ursa"
+             x:Class="Crystalfly.App.Views.Dialogs.AccentColorDialogView"
+             x:DataType="vm:AccentColorDialogViewModel"
+             Width="500"
+             MinWidth="440"
+             MaxWidth="560">
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Enter" Command="{Binding ConfirmCommand}" />
+        <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+    </UserControl.KeyBindings>
+
+    <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="16">
+        <TextBlock Classes="cfp-section-title"
+                   Text="{Binding Title}" />
+
+        <ColorView Grid.Row="1"
+                   Color="{Binding SelectedColor, Mode=TwoWay}"
+                   ColorSpectrumShape="Ring"
+                   IsAlphaEnabled="False"
+                   IsColorPaletteVisible="False"
+                   IsColorComponentsVisible="False"
+                   HorizontalAlignment="Center"
+                   MinWidth="360" />
+
+        <Grid Grid.Row="2"
+              ColumnDefinitions="Auto,*,Auto,*"
+              RowDefinitions="Auto,Auto,Auto"
+              ColumnSpacing="10"
+              RowSpacing="8">
+            <TextBlock VerticalAlignment="Center" Text="{Binding OriginalLabel}" />
+            <Border Grid.Column="1"
+                    Height="28"
+                    CornerRadius="6"
+                    BorderBrush="{DynamicResource CfBorderBrush}"
+                    BorderThickness="1"
+                    Background="{Binding OriginalBrush}" />
+            <TextBlock Grid.Column="2"
+                       VerticalAlignment="Center"
+                       Text="{Binding NewLabel}" />
+            <Border Grid.Column="3"
+                    Height="28"
+                    CornerRadius="6"
+                    BorderBrush="{DynamicResource CfBorderBrush}"
+                    BorderThickness="1"
+                    Background="{Binding NewBrush}" />
+
+            <TextBlock Grid.Row="1"
+                       VerticalAlignment="Center"
+                       Text="{Binding HexLabel}" />
+            <TextBox Grid.Row="1"
+                     Grid.Column="1"
+                     Grid.ColumnSpan="3"
+                     Text="{Binding HexText, Mode=TwoWay}"
+                     MaxLength="7"
+                     u:FocusHelper.DialogFocusHint="True"
+                     AutomationProperties.Name="{Binding HexLabel}" />
+            <TextBlock Grid.Row="2"
+                       Grid.Column="1"
+                       Grid.ColumnSpan="3"
+                       Classes="cfp-error-text"
+                       Text="{Binding InvalidColorText}"
+                       IsVisible="{Binding HasValidationError}" />
+        </Grid>
+
+        <StackPanel Grid.Row="3"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Classes="cfp-secondary"
+                    Command="{Binding CancelCommand}"
+                    Content="{Binding CancelText}"
+                    MinWidth="96"
+                    AutomationProperties.Name="{Binding CancelText}" />
+            <Button Classes="cfp-primary"
+                    Command="{Binding ConfirmCommand}"
+                    Content="{Binding ConfirmText}"
+                    IsEnabled="{Binding CanConfirm}"
+                    MinWidth="96"
+                    AutomationProperties.Name="{Binding ConfirmText}" />
+        </StackPanel>
+    </Grid>
+</UserControl>

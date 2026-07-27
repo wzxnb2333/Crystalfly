@@ -1,6 +1,7 @@
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.ViewModels.DependencyGraph;
+using Avalonia.Media;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Runtime;
 
@@ -8,6 +9,62 @@ namespace Crystalfly.App.Tests.ViewModels;
 
 public sealed class DialogViewModelTests
 {
+    [Fact]
+    public void Accent_color_dialog_synchronizes_hex_preview_and_result()
+    {
+        var previews = new List<string>();
+        var dialog = new AccentColorDialogViewModel(
+            "Theme color",
+            "Original",
+            "New",
+            "HEX",
+            "Invalid color",
+            "Confirm",
+            "Cancel",
+            "#0F6CBD",
+            previews.Add);
+        object? result = "unchanged";
+        dialog.RequestClose += (_, value) => result = value;
+
+        dialog.HexText = "be185d";
+
+        Assert.True(dialog.CanConfirm);
+        Assert.Equal("#BE185D", previews[^1]);
+        Assert.Equal(Color.Parse("#BE185D"), dialog.SelectedColor);
+
+        dialog.HexText = "invalid";
+        Assert.False(dialog.CanConfirm);
+        Assert.Equal("#BE185D", previews[^1]);
+
+        dialog.SelectedColor = Color.Parse("#15803D");
+        Assert.Equal("#15803D", dialog.HexText);
+        Assert.Equal("#15803D", previews[^1]);
+        dialog.ConfirmCommand.Execute(null);
+        Assert.Equal("#15803D", result);
+    }
+
+    [Fact]
+    public void Accent_color_dialog_cancel_and_close_return_no_color()
+    {
+        var dialog = new AccentColorDialogViewModel(
+            "Theme color",
+            "Original",
+            "New",
+            "HEX",
+            "Invalid color",
+            "Confirm",
+            "Cancel",
+            "#0F6CBD",
+            _ => { });
+        var results = new List<object?>();
+        dialog.RequestClose += (_, value) => results.Add(value);
+
+        dialog.CancelCommand.Execute(null);
+        dialog.Close();
+
+        Assert.Equal([null, null], results);
+    }
+
     [Fact]
     public void Text_input_trims_confirmed_value_and_rejects_blank_text()
     {

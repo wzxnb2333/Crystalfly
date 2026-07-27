@@ -128,6 +128,7 @@ public sealed class MainViewModelStateTests : IDisposable
 
         viewModel.SelectedLanguage = new(UiLanguage.English, "English");
         viewModel.SelectedTheme = new(UiTheme.Dark, "Dark");
+        viewModel.SetAccentColor("#BE185D");
         viewModel.SelectedGitHubRoute = new(GitHubDownloadRoute.Mirror, "GitHub mirror");
         viewModel.SelectedInstance = new(
             Instance("practice", instanceRoot),
@@ -140,6 +141,7 @@ public sealed class MainViewModelStateTests : IDisposable
             Path.Combine(applicationDataRoot, "settings.json"));
         Assert.Equal(UiLanguage.English, saved.Language);
         Assert.Equal(UiTheme.Dark, saved.Theme);
+        Assert.Equal("#BE185D", saved.AccentColor);
         Assert.Equal(GitHubDownloadRoute.Mirror, saved.GitHubDownloadRoute);
         Assert.Equal("practice", saved.CurrentInstanceId);
     }
@@ -170,6 +172,25 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Equal(2, viewModel.GameDirectories.Count);
         Assert.Equal(existingRoot, viewModel.SelectedGameDirectory?.Path);
         Assert.Equal(viewModel.Loc["ScanFailed"], viewModel.GameDirectories[0].ScanStatus);
+    }
+
+    [Fact]
+    public async Task Accent_color_options_expose_seven_presets_and_one_custom_choice()
+    {
+        var viewModel = CreateViewModel();
+        InvokeRebuildSettingOptions(viewModel);
+
+        Assert.Equal(8, viewModel.AccentColorOptions.Count);
+        Assert.Equal(
+            AccentColorPalette.Presets,
+            viewModel.AccentColorOptions.Where(option => !option.IsCustom).Select(option => option.Hex));
+        Assert.True(viewModel.AccentColorOptions[^1].IsCustom);
+        Assert.True(viewModel.AccentColorOptions[0].IsSelected);
+
+        viewModel.PreviewAccentColor("#FDE68A");
+
+        Assert.True(viewModel.AccentColorOptions[^1].IsSelected);
+        await viewModel.DisposeAsync();
     }
 
     [Fact]
@@ -204,6 +225,16 @@ public sealed class MainViewModelStateTests : IDisposable
                 catalogStarted.TrySetResult();
                 return await releaseCatalog.Task.WaitAsync(cancellationToken);
             }));
+        var backgroundBuildAdded = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        viewModel.DownloadBuilds.CollectionChanged += (_, args) =>
+        {
+            if (args.NewItems?.OfType<DownloadBuildOption>().Any(build =>
+                    build.BuildId == "background-build") == true)
+            {
+                backgroundBuildAdded.TrySetResult();
+            }
+        };
 
         try
         {
@@ -227,8 +258,7 @@ public sealed class MainViewModelStateTests : IDisposable
                     }
                 ]
             });
-            await WaitUntilAsync(() => viewModel.DownloadBuilds.Any(build =>
-                build.BuildId == "background-build"));
+            await backgroundBuildAdded.Task.WaitAsync(TimeSpan.FromSeconds(5));
         }
         finally
         {

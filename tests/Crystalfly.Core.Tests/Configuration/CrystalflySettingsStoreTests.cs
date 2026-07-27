@@ -14,6 +14,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         var defaults = await CrystalflySettingsStore.LoadAsync(path);
         Assert.Equal(UiLanguage.FollowSystem, defaults.Language);
         Assert.Equal(UiTheme.System, defaults.Theme);
+        Assert.Equal(AccentColorPalette.DefaultColor, defaults.AccentColor);
         Assert.Equal(GitHubDownloadRoute.Direct, defaults.GitHubDownloadRoute);
         Assert.False(defaults.OfflineMode);
         Assert.Empty(defaults.GameDirectories);
@@ -25,6 +26,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
             CurrentInstanceId = "practice-1578",
             Language = UiLanguage.SimplifiedChinese,
             Theme = UiTheme.Dark,
+            AccentColor = "7e22ce",
             GitHubDownloadRoute = GitHubDownloadRoute.Mirror,
             OfflineMode = true,
             GameDirectories =
@@ -60,12 +62,19 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
 
         var actual = await CrystalflySettingsStore.LoadAsync(path);
         Assert.Equal(
-            expected with { CustomCatalogs = [], GameDirectories = [], ModHealthAcknowledgements = [] },
+            expected with
+            {
+                AccentColor = "#7E22CE",
+                CustomCatalogs = [],
+                GameDirectories = [],
+                ModHealthAcknowledgements = []
+            },
             actual with { CustomCatalogs = [], GameDirectories = [], ModHealthAcknowledgements = [] });
         Assert.Equal(expected.CustomCatalogs, actual.CustomCatalogs);
         Assert.Equal(expected.CustomModLinks, actual.CustomModLinks);
         Assert.Equal(expected.ModHealthAcknowledgements, actual.ModHealthAcknowledgements);
         Assert.Equal(expected.GameDirectories.ToArray(), actual.GameDirectories.ToArray());
+        Assert.Equal("#7E22CE", actual.AccentColor);
     }
 
     [Fact]
@@ -106,6 +115,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         Assert.False(settings.GameDirectoryDiscoveryCompleted);
         Assert.Equal(versionRoot, settings.VersionRoot);
     }
+
     [Fact]
     public async Task Load_legacy_settings_without_route_uses_direct_GitHub()
     {
@@ -122,6 +132,36 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         Assert.Equal(GitHubDownloadRoute.Direct, settings.GitHubDownloadRoute);
         Assert.False(settings.OfflineMode);
         Assert.Empty(settings.ModHealthAcknowledgements);
+        Assert.Equal(AccentColorPalette.DefaultColor, settings.AccentColor);
+    }
+
+    [Fact]
+    public async Task Load_invalid_accent_color_falls_back_to_default()
+    {
+        var path = Path.Combine(root, "invalid-accent-settings.json");
+        Directory.CreateDirectory(root);
+        await File.WriteAllTextAsync(
+            path,
+            """
+            {"schemaVersion":1,"accentColor":"transparent","customCatalogs":[]}
+            """);
+
+        var settings = await CrystalflySettingsStore.LoadAsync(path);
+
+        Assert.Equal(AccentColorPalette.DefaultColor, settings.AccentColor);
+    }
+
+    [Fact]
+    public void Accent_palette_is_fixed_unique_and_normalizes_hex()
+    {
+        Assert.Equal(
+            ["#0F6CBD", "#4338CA", "#7E22CE", "#BE185D", "#C2410C", "#15803D", "#0E7490"],
+            AccentColorPalette.Presets);
+        Assert.Equal(AccentColorPalette.Presets.Count, AccentColorPalette.Presets.Distinct().Count());
+        Assert.True(AccentColorPalette.TryNormalize("be185d", out var normalized));
+        Assert.Equal("#BE185D", normalized);
+        Assert.False(AccentColorPalette.TryNormalize("#1234", out _));
+        Assert.False(AccentColorPalette.TryNormalize("#00112233", out _));
     }
 
     public void Dispose()
