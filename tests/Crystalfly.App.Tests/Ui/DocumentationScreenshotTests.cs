@@ -34,6 +34,8 @@ public sealed class DocumentationScreenshotTests
         new("crystalfly-launch-issues-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.LaunchIssues),
         new("crystalfly-launch-issues-overlay-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.LaunchIssuesOverlay),
         new("crystalfly-1920x1080-zh.jpg", 1920, 1080, 1.5d, ScreenshotState.Settings),
+        new("crystalfly-settings-light-1920x1080-zh.jpg", 1920, 1080, 1.5d, ScreenshotState.Settings, ThemeVariant.Light),
+        new("crystalfly-settings-accent-picker-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.SettingsAccentDialog),
         new("crystalfly-2560x1440-zh.jpg", 2560, 1440, 2d, ScreenshotState.Launch),
         new("crystalfly-mod-market-list-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.MarketList),
         new("crystalfly-mod-market-detail-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.MarketDetail),
@@ -71,6 +73,7 @@ public sealed class DocumentationScreenshotTests
         foreach (var capture in captures)
         {
             await using var fixture = CreateFixture();
+            Application.Current!.RequestedThemeVariant = capture.ThemeVariant ?? ThemeVariant.Dark;
             await fixture.PrepareAsync(capture.State);
             fixture.Window.Width = capture.Width / capture.RenderScaling;
             fixture.Window.Height = capture.Height / capture.RenderScaling;
@@ -94,6 +97,10 @@ public sealed class DocumentationScreenshotTests
             else if (capture.State == ScreenshotState.DependencyGraph)
             {
                 await fixture.OpenDependencyGraphAsync();
+            }
+            else if (capture.State == ScreenshotState.SettingsAccentDialog)
+            {
+                await fixture.OpenAccentColorDialogAsync();
             }
 
             Dispatcher.UIThread.RunJobs();
@@ -212,6 +219,7 @@ public sealed class DocumentationScreenshotTests
             SteamStatus = "已登录 · crystalfly-fixture"
         };
         viewModel.Loc.Apply(UiLanguage.SimplifiedChinese);
+        InvokeRebuildSettingOptions(viewModel);
         SetPrivateField(viewModel, "catalog", catalog);
         SetPrivateField(viewModel, "officialCatalogResult", new OfficialCatalogLoadResult(
             OfficialCatalogLoadStatus.Remote,
@@ -224,13 +232,6 @@ public sealed class DocumentationScreenshotTests
         InvokeRebuildMarketCatalog(viewModel);
         viewModel.DownloadBuilds.Add(new("1.5.78.11833", "Hollow Knight 1.5.78.11833", 9207084990026249690));
         viewModel.SelectedDownloadBuild = viewModel.DownloadBuilds[0];
-        viewModel.LanguageOptions.Add(new(UiLanguage.FollowSystem, viewModel.Loc["FollowSystem"]));
-        viewModel.LanguageOptions.Add(new(UiLanguage.SimplifiedChinese, viewModel.Loc["SimplifiedChinese"]));
-        viewModel.LanguageOptions.Add(new(UiLanguage.English, viewModel.Loc["English"]));
-        viewModel.ThemeOptions.Add(new(UiTheme.System, viewModel.Loc["System"]));
-        viewModel.ThemeOptions.Add(new(UiTheme.Light, viewModel.Loc["Light"]));
-        viewModel.ThemeOptions.Add(new(UiTheme.Dark, viewModel.Loc["Dark"]));
-
         return new ScreenshotFixture(root, viewModel, new MainWindow(), instance, mod, previousThemeVariant);
     }
 
@@ -277,6 +278,12 @@ public sealed class DocumentationScreenshotTests
             case ScreenshotState.Settings:
                 Assert.Contains(fixture.ViewModel.Loc["VersionRoot"], visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["SettingsGeneral"], visibleText);
+                break;
+            case ScreenshotState.SettingsAccentDialog:
+                Assert.Single(fixture.Window.GetVisualDescendants().OfType<CustomDialogControl>());
+                Assert.Contains(fixture.ViewModel.Loc["AccentColorPickerTitle"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["AccentOriginal"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["AccentNew"], visibleText);
                 break;
             case ScreenshotState.MarketList:
                 Assert.Contains(fixture.ViewModel.Loc["MarketTitle"], visibleText);
@@ -369,6 +376,15 @@ public sealed class DocumentationScreenshotTests
         method.Invoke(viewModel, null);
     }
 
+    private static void InvokeRebuildSettingOptions(MainViewModel viewModel)
+    {
+        var method = typeof(MainViewModel).GetMethod(
+            "RebuildSettingOptions",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        method.Invoke(viewModel, null);
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
@@ -406,7 +422,7 @@ public sealed class DocumentationScreenshotTests
             {
                 ScreenshotState.GameVersions => "Downloads",
                 ScreenshotState.InstanceSelection => "Versions",
-                ScreenshotState.Settings => "Settings",
+                ScreenshotState.Settings or ScreenshotState.SettingsAccentDialog => "Settings",
                 ScreenshotState.MarketList or ScreenshotState.MarketDetail or ScreenshotState.MarketInstall => "Downloads",
                 ScreenshotState.InstanceDetail
                     or ScreenshotState.InstalledModHealth
@@ -633,6 +649,40 @@ public sealed class DocumentationScreenshotTests
             }
         }
 
+        public async Task OpenAccentColorDialogAsync()
+        {
+            var dialog = new AccentColorDialogViewModel(
+                ViewModel.Loc["AccentColorPickerTitle"],
+                ViewModel.Loc["AccentOriginal"],
+                ViewModel.Loc["AccentNew"],
+                ViewModel.Loc["AccentHex"],
+                ViewModel.Loc["AccentInvalid"],
+                ViewModel.Loc["Confirm"],
+                ViewModel.Loc["Cancel"],
+                ViewModel.AccentColor,
+                ViewModel.PreviewAccentColor);
+            _ = OverlayDialog.ShowCustomAsync<
+                AccentColorDialogView,
+                AccentColorDialogViewModel,
+                string?>(
+                dialog,
+                MainWindow.OverlayHostId,
+                new OverlayDialogOptions
+                {
+                    CanLightDismiss = true,
+                    CanDragMove = false,
+                    IsCloseButtonVisible = true,
+                    CanResize = false
+                });
+            for (var attempt = 0;
+                 attempt < 100 && !Window.GetVisualDescendants().OfType<CustomDialogControl>().Any();
+                 attempt++)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Delay(10);
+            }
+        }
+
         public async Task OpenMarketInstallAsync()
         {
             var install = Window.GetVisualDescendants()
@@ -831,7 +881,8 @@ public sealed class DocumentationScreenshotTests
         int Width,
         int Height,
         double RenderScaling,
-        ScreenshotState State);
+        ScreenshotState State,
+        ThemeVariant? ThemeVariant = null);
 
     private enum ScreenshotState
     {
@@ -841,6 +892,7 @@ public sealed class DocumentationScreenshotTests
         LaunchIssues,
         LaunchIssuesOverlay,
         Settings,
+        SettingsAccentDialog,
         MarketList,
         MarketDetail,
         MarketInstall,

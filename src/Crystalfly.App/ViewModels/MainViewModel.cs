@@ -10,6 +10,7 @@ using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Crystalfly.App.Downloads;
+using Crystalfly.App.Theming;
 using Crystalfly.App.Updates;
 using Crystalfly.App.Runtime;
 using Crystalfly.App.ViewModels.DependencyGraph;
@@ -247,6 +248,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public ObservableCollection<SettingOption<UiLanguage>> LanguageOptions { get; } = [];
 
     public ObservableCollection<SettingOption<UiTheme>> ThemeOptions { get; } = [];
+
+    public ObservableCollection<AccentColorOptionViewModel> AccentColorOptions { get; } = [];
 
     public ObservableCollection<SettingOption<GitHubDownloadRoute>> GitHubRouteOptions { get; } = [];
 
@@ -696,7 +699,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         settings = await CrystalflySettingsStore.LoadAsync(settingsPath);
         IsOfflineMode = settings.OfflineMode;
         ApplyLanguage(settings.Language);
-        ApplyTheme(settings.Theme);
+        ApplyTheme(settings.Theme, settings.AccentColor);
         InitializeApplicationUpdateSettings();
         VersionRoot = settings.VersionRoot ?? string.Empty;
         CustomSourcesText = string.Join(
@@ -2880,9 +2883,34 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             return;
         }
         settings = settings with { Theme = value.Value };
-        ApplyTheme(value.Value);
+        ApplyTheme(value.Value, settings.AccentColor);
         _ = QueueSettingsSave();
     }
+
+    internal void PreviewAccentColor(string accentColor)
+    {
+        var normalized = AccentColorPalette.Normalize(accentColor);
+        AccentThemeResources.Apply(normalized);
+        UpdateAccentColorSelection(normalized);
+    }
+
+    internal void SetAccentColor(string accentColor)
+    {
+        var normalized = AccentColorPalette.Normalize(accentColor);
+        PreviewAccentColor(normalized);
+        if (string.Equals(settings.AccentColor, normalized, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        settings = settings with { AccentColor = normalized };
+        OnPropertyChanged(nameof(AccentColor));
+        _ = QueueSettingsSave();
+    }
+
+    internal void RestoreAccentColor() => PreviewAccentColor(settings.AccentColor);
+
+    public string AccentColor => settings.AccentColor;
     partial void OnSelectedGitHubRouteChanged(SettingOption<GitHubDownloadRoute>? value)
     {
         if (value is null || value.Value == settings.GitHubDownloadRoute)
@@ -3293,6 +3321,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ThemeOptions.Add(new(UiTheme.Dark, Loc["Dark"]));
         SelectedLanguage = LanguageOptions.First(option => option.Value == settings.Language);
         SelectedTheme = ThemeOptions.First(option => option.Value == settings.Theme);
+        RebuildAccentColorOptions();
         GitHubRouteOptions.Clear();
         GitHubRouteOptions.Add(new(GitHubDownloadRoute.Direct, Loc["GitHubDirect"]));
         GitHubRouteOptions.Add(new(GitHubDownloadRoute.Mirror, Loc["GitHubMirror"]));
@@ -3668,7 +3697,50 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    private static void ApplyTheme(UiTheme theme)
+    private void RebuildAccentColorOptions()
+    {
+        var names = new[]
+        {
+            Loc["AccentBlue"],
+            Loc["AccentIndigo"],
+            Loc["AccentCrystalPurple"],
+            Loc["AccentRose"],
+            Loc["AccentOrange"],
+            Loc["AccentGreen"],
+            Loc["AccentCyan"]
+        };
+        var selected = AccentColorPalette.Normalize(settings.AccentColor);
+        AccentColorOptions.Clear();
+        for (var index = 0; index < AccentColorPalette.Presets.Count; index++)
+        {
+            var hex = AccentColorPalette.Presets[index];
+            AccentColorOptions.Add(new(
+                names[index],
+                hex,
+                isCustom: false,
+                string.Equals(hex, selected, StringComparison.Ordinal)));
+        }
+
+        AccentColorOptions.Add(new(
+            Loc["AccentCustom"],
+            selected,
+            isCustom: true,
+            !AccentColorPalette.Presets.Contains(selected, StringComparer.Ordinal)));
+    }
+
+    private void UpdateAccentColorSelection(string accentColor)
+    {
+        var isPreset = AccentColorPalette.Presets.Contains(accentColor, StringComparer.Ordinal);
+        foreach (var option in AccentColorOptions)
+        {
+            option.UpdateCustomColor(accentColor);
+            option.IsSelected = option.IsCustom
+                ? !isPreset
+                : string.Equals(option.Hex, accentColor, StringComparison.Ordinal);
+        }
+    }
+
+    private static void ApplyTheme(UiTheme theme, string accentColor)
     {
         if (Application.Current is null)
         {
@@ -3680,6 +3752,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             UiTheme.Dark => ThemeVariant.Dark,
             _ => ThemeVariant.Default
         };
+        AccentThemeResources.Apply(accentColor);
     }
 
     private async Task SaveSettingsAsync()

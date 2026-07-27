@@ -10,6 +10,7 @@
 
     <Application.Styles>
         <semi:SemiTheme />
+        <semi:ColorPickerSemiTheme />
         <semi:UrsaSemiTheme />
         <StyleInclude Source="avares://MarkView.Avalonia/Themes/MarkdownTheme.axaml" />
         <StyleInclude Source="avares://Crystalfly.App/Styles/CrystalflyTheme.axaml" />
