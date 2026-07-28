@@ -267,6 +267,69 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Background_catalog_refresh_does_not_swallow_instance_row_selection()
+    {
+        using var test = new TestDirectory();
+        var applicationDataRoot = test.CreateDirectory("app-data");
+        var versionRoot = test.CreateDirectory("versions");
+        var firstRecord = Instance("first", test.CreateDirectory("versions", "first"));
+        var secondRecord = Instance("second", test.CreateDirectory("versions", "second"));
+        await CrystalflySettingsStore.SaveAsync(
+            Path.Combine(applicationDataRoot, "settings.json"),
+            new CrystalflySettings
+            {
+                VersionRoot = versionRoot,
+                CurrentInstanceId = firstRecord.Id
+            });
+        var releaseCatalog = new TaskCompletionSource<GameCatalog>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var backgroundDiscoveryStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseBackgroundDiscovery = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var discoveryCalls = 0;
+        await using var viewModel = new MainViewModel(applicationDataRoot);
+        SetPrivateField(
+            viewModel,
+            "catalogLoader",
+            new Func<CancellationToken, Task<GameCatalog>>(cancellationToken =>
+                releaseCatalog.Task.WaitAsync(cancellationToken)));
+        SetPrivateField(viewModel, "steamReconnect", new Func<Task>(() => Task.CompletedTask));
+        SetPrivateField(
+            viewModel,
+            "instanceDiscovery",
+            new Func<string, GameCatalog, CancellationToken, Task<IReadOnlyList<InstanceRecord>>>(
+                async (_, _, cancellationToken) =>
+                {
+                    if (Interlocked.Increment(ref discoveryCalls) > 1)
+                    {
+                        backgroundDiscoveryStarted.TrySetResult();
+                        await releaseBackgroundDiscovery.Task.WaitAsync(cancellationToken);
+                    }
+                    return [firstRecord, secondRecord];
+                }));
+
+        try
+        {
+            await viewModel.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            viewModel.CurrentPage = "Versions";
+            var second = viewModel.Instances.Single(instance => instance.Id == secondRecord.Id);
+
+            releaseCatalog.TrySetResult(new GameCatalog());
+            await backgroundDiscoveryStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            viewModel.SelectInstanceForLaunchCommand.Execute(second);
+
+            Assert.Same(second, viewModel.SelectedInstance);
+            Assert.Equal("Launch", viewModel.CurrentPage);
+        }
+        finally
+        {
+            releaseCatalog.TrySetResult(new GameCatalog());
+            releaseBackgroundDiscovery.TrySetResult();
+        }
+    }
+
+    [Fact]
     public void Download_build_search_keeps_every_catalog_build_and_matches_manifest_ids()
     {
         using var test = new TestDirectory();
