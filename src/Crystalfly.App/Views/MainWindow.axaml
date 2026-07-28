@@ -1263,7 +1263,7 @@
                           RowSpacing="12"
                           IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Mods}">
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                            <StackPanel Spacing="3">
+                            <StackPanel Spacing="4">
                                 <TextBlock Classes="cfp-page-title" Text="{Binding Loc[InstalledMods]}" />
                                 <TextBlock Classes="cfp-meta" Text="{Binding SelectedModCount}" />
                             </StackPanel>
@@ -1551,7 +1551,7 @@
 
                     <Grid Grid.Column="1" Classes="cfp-subpage" IsVisible="{Binding IsModMarketDownloadSection}">
                         <Grid IsVisible="{Binding IsMarketList}" RowDefinitions="Auto,*">
-                            <StackPanel Grid.Row="0" Margin="24,16,24,8" Spacing="8">
+                            <StackPanel Grid.Row="0" Margin="24,24,24,8" Spacing="8">
                                 <StackPanel Spacing="4">
                                     <TextBlock Classes="cfp-page-title" Text="{Binding Loc[MarketTitle]}" />
                                     <TextBlock Classes="cfp-meta" Text="{Binding Loc[MarketHint]}" TextWrapping="Wrap" />
