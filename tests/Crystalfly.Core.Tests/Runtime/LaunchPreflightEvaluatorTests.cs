@@ -198,7 +198,6 @@ public sealed class LaunchPreflightEvaluatorTests
 
     [Theory]
     [InlineData(ModHealthStatus.ModifiedFile, LaunchIssueCode.ModModifiedFile)]
-    [InlineData(ModHealthStatus.ExtraFile, LaunchIssueCode.ModExtraFile)]
     [InlineData(ModHealthStatus.Indeterminate, LaunchIssueCode.ModHealthIndeterminate)]
     public void Disabled_mod_noncritical_health_still_produces_warning(
         ModHealthStatus status,
@@ -223,7 +222,6 @@ public sealed class LaunchPreflightEvaluatorTests
 
     [Theory]
     [InlineData(ModHealthStatus.ModifiedFile, LaunchIssueCode.ModModifiedFile)]
-    [InlineData(ModHealthStatus.ExtraFile, LaunchIssueCode.ModExtraFile)]
     [InlineData(ModHealthStatus.UnmanagedExternal, LaunchIssueCode.UnmanagedExternalMod)]
     [InlineData(ModHealthStatus.Indeterminate, LaunchIssueCode.ModHealthIndeterminate)]
     public void Mod_health_warnings_require_confirmation(
@@ -251,7 +249,22 @@ public sealed class LaunchPreflightEvaluatorTests
     }
 
     [Fact]
-    public void Combined_health_report_emits_every_detected_problem()
+    public void Extra_mod_files_remain_health_information_without_interrupting_launch()
+    {
+        var receipt = Receipt("custom-skin", enabled: true);
+        var report = Health(
+            receipt.Id,
+            ModHealthStatus.ExtraFile,
+            extra: ["Mods/custom-skin/Skins/player.png"]);
+
+        var result = EvaluateWithHealth([receipt], [report]);
+
+        Assert.Empty(result.Issues);
+        Assert.True(result.CanLaunchNormally);
+    }
+
+    [Fact]
+    public void Combined_health_report_emits_every_launch_relevant_problem()
     {
         var receipt = Receipt("combined", enabled: true);
         var report = new ModHealthReport
@@ -270,10 +283,10 @@ public sealed class LaunchPreflightEvaluatorTests
 
         var result = EvaluateWithHealth([receipt], [report]);
 
-        Assert.Equal(3, result.Issues.Count);
+        Assert.Equal(2, result.Issues.Count);
         Assert.Contains(result.Issues, issue => issue.Code == LaunchIssueCode.ModCriticalFileMissing);
         Assert.Contains(result.Issues, issue => issue.Code == LaunchIssueCode.ModModifiedFile);
-        Assert.Contains(result.Issues, issue => issue.Code == LaunchIssueCode.ModExtraFile);
+        Assert.DoesNotContain(result.Issues, issue => issue.Code == LaunchIssueCode.ModExtraFile);
     }
 
     [Fact]
@@ -345,7 +358,6 @@ public sealed class LaunchPreflightEvaluatorTests
 
     [Theory]
     [InlineData(ModHealthStatus.ModifiedFile)]
-    [InlineData(ModHealthStatus.ExtraFile)]
     public async Task Current_file_hash_change_invalidates_acknowledgement_through_health_evaluator_chain(
         ModHealthStatus status)
     {
@@ -354,9 +366,7 @@ public sealed class LaunchPreflightEvaluatorTests
             "Crystalfly.Tests",
             Guid.NewGuid().ToString("N"));
         string ownedRelativePath = "Mods/health-mod/main.dll";
-        string warningRelativePath = status == ModHealthStatus.ModifiedFile
-            ? ownedRelativePath
-            : "Mods/health-mod/extra.dll";
+        string warningRelativePath = ownedRelativePath;
         string ownedPath = Path.Combine(instanceRoot, ownedRelativePath.Replace('/', Path.DirectorySeparatorChar));
         string warningPath = Path.Combine(instanceRoot, warningRelativePath.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(ownedPath)!);
