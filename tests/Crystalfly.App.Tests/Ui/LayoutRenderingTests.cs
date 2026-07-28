@@ -462,6 +462,18 @@ public sealed class LayoutRenderingTests
                 "modding-api-77",
                 index))
             .ToArray();
+        var gameDirectory = new GameDirectoryItemViewModel(new GameDirectoryRegistration
+        {
+            Path = Path.GetTempPath(),
+            DisplayName = "Test versions",
+            Source = GameDirectorySourceKind.Managed
+        })
+        {
+            InstanceCount = instances.Length,
+            ScanStatus = viewModel.Loc["ScanReady"]
+        };
+        viewModel.GameDirectories.Add(gameDirectory);
+        viewModel.SelectedGameDirectory = gameDirectory;
         foreach (var instance in instances)
         {
             viewModel.Instances.Add(instance);

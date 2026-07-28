@@ -2,7 +2,7 @@
 
 Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。启动页是实例选择与管理的唯一入口；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
 
-> 当前稳定版：`0.6.6`。GitHub Release 提供 Windows x64 便携包和安装包。
+> 当前开发版：`0.7.0`。本轮提供 Windows x64 本地未签名便携包和安装包，不创建公开 GitHub Release。
 
 [English](#english)
 
@@ -25,7 +25,7 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 
 ## 功能
 
-- 扫描用户选择的版本根目录，并把每个直接子目录作为独立实例。
+- 管理多个游戏目录，并把活动目录自身或其直接子目录识别为独立实例；Steam 安装通过库目录自动发现，确认后才登记或迁移。
 - 启动时在后台扫描实例与版本文件，不等待远程目录或 Steam 自动重连；顶部设置使用文字 Tab，“选择实例”入口与页面切换保持 180ms 淡入并服从系统减少动态效果设置。
 - 使用自绘标题栏和原生可缩放边框；Windows 11 明确请求系统圆角，Windows 10 保持兼容。
 - 识别 `1.2.2.1`、`1.4.3.2`、`1.5.78.11833` 和动态 `latest` 稳定通道。
@@ -81,8 +81,8 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 
 首次使用：
 
-1. 在“设置”中选择版本根目录，例如 `D:\HK_ver`。
-2. Crystalfly 只扫描直接子目录，并忽略 `<版本根目录>\.crystalfly`。
+1. 从启动页进入“选择实例”，扫描 Steam 库或添加自选游戏目录；首次扫描结果需要确认后才登记。
+2. Crystalfly 只检查所选目录自身及其直接子目录，并忽略 `.crystalfly`、重解析点、无权限目录和未完成下载。
 3. 从启动页打开实例选择，选中实例后可进入设置管理 Loader、游戏配置、“已安装 Mod”、“整合包”和“存档快照”；当前实例及快照的四个存档槽可在“存档快照”中编辑。
 4. 需要下载游戏时进入“下载 → 游戏版本”；需要查找在线 Mod 时进入“下载 → Mod 市场”；进度、速度、取消与重试位于“下载 → 下载队列”。
 5. 启动游戏时不要同时运行其他《空洞骑士》进程。
@@ -140,7 +140,7 @@ Loader 兼容按精确包 ID 判断，不会把所有 Modding API 或 BepInEx �
 
 - 安装模式设置：`%LOCALAPPDATA%\Crystalfly`
 - 便携模式设置：程序旁 `Data`（存在 `portable.flag` 时）
-- 实例元数据、缓存、事务、LocalLow 和快照：`<版本根目录>\.crystalfly`
+- 实例元数据、缓存、事务、LocalLow 和快照：`<当前游戏目录>\.crystalfly`
 - 实例标识：`<实例目录>\.crystalfly-instance.json`
 
 首次接管 LocalLow 前会保留完整共享备份。发生崩溃时，事务日志只在能够用阶段和文件哈希证明安全的情况下自动恢复；否则实例进入 `NeedsAttention` 并禁止启动。
@@ -152,10 +152,10 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.6'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.7.0'
 
 # 无更新签名的本地构建与固定目录覆盖；不会生成 update-manifest.v1.json。
-pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '0.6.6' -UnsignedLocal
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '0.7.0' -UnsignedLocal
 ```
 
 脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。发布构建从已忽略的 `.env.update-signing` 读取 `CRYSTALFLY_UPDATE_SIGNING_KEY`，并使用 `tools/Crystalfly.ReleaseTool` 生成签名更新清单；私钥文件不得提交。仅本地验收时可显式传入 `-UnsignedLocal`，此模式不会生成 `update-manifest.v1.json`，不得将其作为公开 Release 上传。`build-and-install.ps1` 会从 `Directory.Build.props` 读取版本号，执行完整 Release 构建和测试，验证产物后以管理员权限静默更新 `D:\Program Files\Crystalfly`，最后核对已安装版本。运行中的 Crystalfly 会使流程停止，不会强制关闭程序。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、独立更新程序、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包、`update-manifest.v1.json` 和 `SHA256SUMS.txt`。产物尚未使用 Authenticode 签名；客户端仍会验证更新清单的 Ed25519 签名及资产 SHA-256、大小和版本。详细设计见 [架构文档](docs/architecture.md)。
@@ -168,7 +168,7 @@ Crystalfly 使用 [GPL-3.0-only](LICENSE)。第三方游戏、Loader 和 Mod 不
 
 Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The Launch page is the only entry point for selecting and managing launchable instances; actual game downloads live under Download → Game Versions.
 
-The current stable release is `0.6.6`. GitHub Releases provide a Windows x64 portable ZIP and Inno Setup installer.
+The current development release is `0.7.0`. This round produces unsigned local Windows x64 portable and installer artifacts without publishing a public GitHub Release.
 
 ![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
 ![Select instance](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)
@@ -189,7 +189,7 @@ The current stable release is `0.6.6`. GitHub Releases provide a Windows x64 por
 
 ### Highlights
 
-- Discovers direct child directories under a user-selected version root and keeps each instance isolated.
+- Manages multiple game directories while keeping one active root for existing operations. It discovers a selected directory itself or its direct children, and finds verified Hollow Knight installs from Steam libraries without taking ownership until confirmation.
 - Scans instance and build files in the background at startup without waiting for the remote catalog or Steam reconnect. Settings is a top text tab, the instance entry is named Select Instance, and page transitions use a reduced-motion-aware 180 ms fade.
 - Uses custom title-bar controls with a native resize border and explicitly requests system-rounded corners on Windows 11 while remaining compatible with Windows 10.
 - Recognizes `1.2.2.1`, `1.4.3.2`, `1.5.78.11833`, and a dynamic stable `latest` channel.
@@ -260,14 +260,14 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.6.6'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.7.0'
 
 # Build and install locally without an update-signing key; no update manifest is emitted.
-pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '0.6.6' -UnsignedLocal
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '0.7.0' -UnsignedLocal
 ```
 
 The scripts automatically locate Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. Release builds read `CRYSTALFLY_UPDATE_SIGNING_KEY` from the ignored `.env.update-signing` file and use `tools/Crystalfly.ReleaseTool` to sign the update manifest; never commit the private key file. For local verification only, pass `-UnsignedLocal`; this omits `update-manifest.v1.json` and must not be uploaded as a public Release. `build-and-install.ps1` reads the version from `Directory.Build.props`, runs the full Release build and tests, validates the artifacts, then silently updates `D:\Program Files\Crystalfly` with administrator approval and verifies the installed version. It stops when Crystalfly is running and never terminates the process. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, updater helper, portable ZIP, installer, signed `update-manifest.v1.json`, and `SHA256SUMS.txt`. Assets are not Authenticode-signed yet; the client still verifies the Ed25519 manifest signature plus each asset's SHA-256, size, and version.
 
-Application settings use `%LOCALAPPDATA%\Crystalfly`, or `Data` beside the executable when `portable.flag` exists. Per-instance state always stays under `<version-root>\.crystalfly`.
+Application settings use `%LOCALAPPDATA%\Crystalfly`, or `Data` beside the executable when `portable.flag` exists. Per-instance state stays under the active game directory's `.crystalfly` folder.
 
 Crystalfly is licensed under [GPL-3.0-only](LICENSE). Hollow Knight, loaders, and mods are not redistributed by this repository and retain their own licenses.
