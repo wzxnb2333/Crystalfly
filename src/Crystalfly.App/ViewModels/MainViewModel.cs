@@ -701,9 +701,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             DateTimeOffset.UtcNow,
             TimeSpan.FromDays(7));
         settings = await CrystalflySettingsStore.LoadAsync(settingsPath);
+        persistedGlobalBackground = settings.BackgroundImage;
         IsOfflineMode = settings.OfflineMode;
         ApplyLanguage(settings.Language);
         ApplyTheme(settings.Theme, settings.AccentColor);
+        RebuildBackgroundScopeOptions();
+        await RefreshBackgroundAppearanceAsync(lifetimeCancellation.Token);
         InitializeApplicationUpdateSettings();
         VersionRoot = settings.VersionRoot ?? string.Empty;
         await InitializeGameDirectoriesAsync();
@@ -2834,6 +2837,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         InstanceLogs.Clear();
         SelectedLogFile = null;
         LaunchPreflight = new(false, false, false, false);
+        QueueBackgroundAppearanceRefresh();
         if (value is not null)
         {
             foreach (var loader in catalog.Loaders.Where(loader => loader.SupportedBuildIds.Contains(value.Record.BuildId)))
@@ -3362,6 +3366,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         SelectedLanguage = LanguageOptions.First(option => option.Value == settings.Language);
         SelectedTheme = ThemeOptions.First(option => option.Value == settings.Theme);
         RebuildAccentColorOptions();
+        RebuildBackgroundScopeOptions();
         GitHubRouteOptions.Clear();
         GitHubRouteOptions.Add(new(GitHubDownloadRoute.Direct, Loc["GitHubDirect"]));
         GitHubRouteOptions.Add(new(GitHubDownloadRoute.Mirror, Loc["GitHubMirror"]));
@@ -4465,6 +4470,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 try
                 {
                     await FlushSettingsSavesAsync();
+                    await DisposeBackgroundAppearanceAsync();
                 }
                 finally
                 {

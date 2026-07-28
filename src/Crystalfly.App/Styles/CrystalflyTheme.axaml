@@ -6,8 +6,11 @@
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="CfWindowBrush" Color="#FBFBFC" />
                     <SolidColorBrush x:Key="CfChromeBrush" Color="#F3F4F6" />
+                    <SolidColorBrush x:Key="CfChromeTranslucentBrush" Color="#D1F3F4F6" />
                     <SolidColorBrush x:Key="CfRailBrush" Color="#F7F7F8" />
+                    <SolidColorBrush x:Key="CfRailTranslucentBrush" Color="#D1F7F7F8" />
                     <SolidColorBrush x:Key="CfSurfaceBrush" Color="#F1F1F3" />
+                    <SolidColorBrush x:Key="CfSurfaceTranslucentBrush" Color="#E0F1F1F3" />
                     <SolidColorBrush x:Key="CfSurfaceHoverBrush" Color="#E7E8EB" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedBrush" Color="#DDEEFF" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedHoverBrush" Color="#CDE5FA" />
@@ -32,8 +35,11 @@
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="CfWindowBrush" Color="#151617" />
                     <SolidColorBrush x:Key="CfChromeBrush" Color="#202123" />
+                    <SolidColorBrush x:Key="CfChromeTranslucentBrush" Color="#D1202123" />
                     <SolidColorBrush x:Key="CfRailBrush" Color="#1B1C1E" />
+                    <SolidColorBrush x:Key="CfRailTranslucentBrush" Color="#D11B1C1E" />
                     <SolidColorBrush x:Key="CfSurfaceBrush" Color="#242628" />
+                    <SolidColorBrush x:Key="CfSurfaceTranslucentBrush" Color="#E0242628" />
                     <SolidColorBrush x:Key="CfSurfaceHoverBrush" Color="#303337" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedBrush" Color="#173D5E" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedHoverBrush" Color="#1E4C73" />
@@ -137,6 +143,24 @@
         <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
         <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Padding" Value="12" />
+    </Style>
+
+    <Style Selector="Window.background-active Border.cfp-topbar">
+        <Setter Property="Background" Value="{DynamicResource CfChromeTranslucentBrush}" />
+    </Style>
+
+    <Style Selector="Window.background-active Border.cfp-rail">
+        <Setter Property="Background" Value="{DynamicResource CfRailTranslucentBrush}" />
+    </Style>
+
+    <Style Selector="Window.background-active Border.cfp-card">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceTranslucentBrush}" />
+    </Style>
+
+    <Style Selector="Button.cfp-background-scope.active">
+        <Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}" />
     </Style>
 
     <Style Selector="Border.cfp-list-frame">

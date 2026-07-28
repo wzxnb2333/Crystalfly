@@ -15,6 +15,7 @@
         x:Name="Root"
         x:DataType="vm:MainViewModel"
         Classes="cfp-window"
+        Classes.background-active="{Binding HasActiveBackgroundImage}"
         Width="1100"
         Height="720"
         MinWidth="900"
@@ -35,6 +36,13 @@
     </Design.DataContext>
 
     <Grid RowDefinitions="Auto,Auto,*">
+        <Image x:Name="ClientBackgroundImage"
+               Grid.RowSpan="3"
+               Source="{Binding ActiveBackgroundImage}"
+               Opacity="{Binding ActiveBackgroundOpacity}"
+               Stretch="UniformToFill"
+               IsVisible="{Binding HasActiveBackgroundImage}"
+               IsHitTestVisible="False" />
         <Border Grid.Row="0"
                 Classes="cfp-topbar"
                 PointerPressed="OnWindowChromePointerPressed">
@@ -2073,6 +2081,97 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                         <TextBlock Classes="cfp-caption" Text="{Binding Loc[AccentColorHint]}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="cfp-card"
+                                        AutomationProperties.Name="{Binding Loc[BackgroundImage]}">
+                                    <StackPanel Spacing="12">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Classes="cfp-row-title" Text="{Binding Loc[BackgroundImage]}" />
+                                                <TextBlock Classes="cfp-caption"
+                                                           Text="{Binding Loc[BackgroundImageHint]}"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                                <Button Classes="cfp-secondary cfp-background-scope"
+                                                        Classes.active="{Binding IsEditingInstanceBackground, Converter={x:Static converters:BoolConverters.Not}}"
+                                                        Click="OnGlobalBackgroundScopeClicked"
+                                                        ToolTip.Tip="{Binding Loc[BackgroundScopeGlobalHint]}"
+                                                        AutomationProperties.Name="{Binding Loc[BackgroundScopeGlobal]}"
+                                                        Content="{Binding Loc[BackgroundScopeGlobal]}" />
+                                                <Button Classes="cfp-secondary cfp-background-scope"
+                                                        Classes.active="{Binding IsEditingInstanceBackground}"
+                                                        IsEnabled="{Binding CanEditInstanceBackground}"
+                                                        Click="OnInstanceBackgroundScopeClicked"
+                                                        ToolTip.Tip="{Binding Loc[BackgroundScopeInstanceHint]}"
+                                                        AutomationProperties.Name="{Binding Loc[BackgroundScopeInstance]}"
+                                                        Content="{Binding Loc[BackgroundScopeInstance]}" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <Grid ColumnDefinitions="320,*" ColumnSpacing="16">
+                                            <Border Width="320"
+                                                    Height="180"
+                                                    CornerRadius="7"
+                                                    ClipToBounds="True"
+                                                    Background="{DynamicResource CfWindowBrush}"
+                                                    BorderBrush="{DynamicResource CfBorderBrush}"
+                                                    BorderThickness="1">
+                                                <Grid>
+                                                    <Image Source="{Binding BackgroundPreviewImage}"
+                                                           Opacity="{Binding BackgroundPreviewOpacity}"
+                                                           Stretch="UniformToFill"
+                                                           IsHitTestVisible="False" />
+                                                    <StackPanel HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                Spacing="6"
+                                                                IsVisible="{Binding HasBackgroundPreviewImage, Converter={x:Static converters:BoolConverters.Not}}">
+                                                        <LucideIcon Kind="Image" Size="24" Foreground="{DynamicResource CfMutedTextBrush}" />
+                                                        <TextBlock Classes="cfp-caption" Text="{Binding Loc[BackgroundPreviewEmpty]}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Spacing="10" VerticalAlignment="Center">
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Classes="cfp-row-title" Text="{Binding BackgroundInstanceName}" />
+                                                    <TextBlock Classes="cfp-caption" Text="{Binding BackgroundScopeStatus}" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <Button Classes="cfp-accent"
+                                                            Click="OnSelectBackgroundImageClicked"
+                                                            ToolTip.Tip="{Binding Loc[BackgroundSelectHint]}"
+                                                            AutomationProperties.Name="{Binding Loc[BackgroundSelect]}">
+                                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                                            <LucideIcon Kind="ImagePlus" Size="15" />
+                                                            <TextBlock Text="{Binding Loc[BackgroundSelect]}" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <Button Classes="cfp-secondary"
+                                                            IsEnabled="{Binding CanRemoveBackgroundImage}"
+                                                            Click="OnRemoveBackgroundImageClicked"
+                                                            ToolTip.Tip="{Binding BackgroundRemoveLabel}"
+                                                            AutomationProperties.Name="{Binding BackgroundRemoveLabel}"
+                                                            Content="{Binding BackgroundRemoveLabel}" />
+                                                </StackPanel>
+                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                    <Slider Minimum="0"
+                                                            Maximum="100"
+                                                            TickFrequency="1"
+                                                            IsSnapToTickEnabled="True"
+                                                            IsEnabled="{Binding CanChangeBackgroundOpacity}"
+                                                            Value="{Binding BackgroundOpacityPercent, Mode=TwoWay}"
+                                                            ToolTip.Tip="{Binding Loc[BackgroundOpacityHint]}"
+                                                            AutomationProperties.Name="{Binding Loc[BackgroundOpacity]}" />
+                                                    <TextBlock Grid.Column="1"
+                                                               Classes="cfp-meta"
+                                                               MinWidth="38"
+                                                               TextAlignment="Right"
+                                                               VerticalAlignment="Center"
+                                                               Text="{Binding BackgroundOpacityPercent, StringFormat={}{0:0}%}" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>

@@ -59,6 +59,38 @@ public enum GitHubDownloadRoute
     Mirror
 }
 
+public sealed record BackgroundImageSettings
+{
+    public const int DefaultOpacityPercent = 35;
+
+    public string FileName { get; init; } = string.Empty;
+
+    public int OpacityPercent { get; init; } = DefaultOpacityPercent;
+
+    public static BackgroundImageSettings? Normalize(BackgroundImageSettings? value)
+    {
+        if (value is null || !IsSafeFileName(value.FileName))
+        {
+            return null;
+        }
+
+        return value with
+        {
+            FileName = value.FileName.Trim(),
+            OpacityPercent = Math.Clamp(value.OpacityPercent, 0, 100)
+        };
+    }
+
+    public static bool IsSafeFileName(string? value)
+    {
+        var candidate = value?.Trim() ?? string.Empty;
+        return candidate.Length > 0
+            && candidate is not "." and not ".."
+            && string.Equals(candidate, Path.GetFileName(candidate), StringComparison.Ordinal)
+            && candidate.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
+    }
+}
+
 public sealed record CrystalflySettings
 {
     public const int CurrentSchemaVersion = 1;
@@ -78,6 +110,8 @@ public sealed record CrystalflySettings
     public UiTheme Theme { get; init; } = UiTheme.System;
 
     public string AccentColor { get; init; } = AccentColorPalette.DefaultColor;
+
+    public BackgroundImageSettings? BackgroundImage { get; init; }
 
     public GitHubDownloadRoute GitHubDownloadRoute { get; init; } = GitHubDownloadRoute.Direct;
 

@@ -10,7 +10,7 @@ public static class CrystalflySettingsStore
         CancellationToken cancellationToken = default) =>
         AtomicJsonStore.WriteAsync(
             path,
-            settings with { AccentColor = AccentColorPalette.Normalize(settings.AccentColor) },
+            Normalize(settings),
             cancellationToken);
 
     public static async Task<CrystalflySettings> LoadAsync(
@@ -23,10 +23,7 @@ public static class CrystalflySettingsStore
         }
 
         var settings = await AtomicJsonStore.ReadAsync<CrystalflySettings>(path, cancellationToken);
-        return MigrateLegacyVersionRoot(settings with
-        {
-            AccentColor = AccentColorPalette.Normalize(settings.AccentColor)
-        });
+        return MigrateLegacyVersionRoot(Normalize(settings));
     }
 
     private static CrystalflySettings MigrateLegacyVersionRoot(CrystalflySettings settings)
@@ -70,4 +67,10 @@ public static class CrystalflySettingsStore
             GameDirectoryDiscoveryCompleted = true
         };
     }
+
+    private static CrystalflySettings Normalize(CrystalflySettings settings) => settings with
+    {
+        AccentColor = AccentColorPalette.Normalize(settings.AccentColor),
+        BackgroundImage = BackgroundImageSettings.Normalize(settings.BackgroundImage)
+    };
 }

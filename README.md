@@ -45,6 +45,7 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 - 在实例日志页查看 BepInEx、Modding API 和 `Player.log` 的最新内容及来源路径。
 - 通过 SteamKit2 扫码登录下载 public 分支与任意手动输入的 Windows Depot Manifest；未验证历史版本仅允许原版启动，目录后续收录相同文件指纹时会自动升级为正式构建。同一文件最多十六路并发下载 Chunk，完成后生成 `steam_appid.txt`，refresh token 仅以当前 Windows 用户的 DPAPI 加密保存。
 - 设置页可在 GitHub 直连与 GitHub 镜像间切换并分别测试延迟；镜像仅代理官方 GitHub 目录和 GitHub 托管安装包，Steam、自定义目录及其他下载地址保持原线路，包校验规则不变。
+- 设置页支持全局背景图片与当前实例独立覆盖，可调节图片不透明度；实例移除独立背景后自动恢复全局背景。
 - 启动前切换实例 LocalLow，退出后写回，并恢复原共享数据。
 - 创建永久命名“存档快照”；快照仅包含实例的非日志 LocalLow，事务临时恢复点成功后自动清理。
 - 在实例设置中编辑当前实例隔离的 `AppConfig.ini`；未知配置项会原样保留，写入采用原子替换。

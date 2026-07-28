@@ -15,6 +15,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         Assert.Equal(UiLanguage.FollowSystem, defaults.Language);
         Assert.Equal(UiTheme.System, defaults.Theme);
         Assert.Equal(AccentColorPalette.DefaultColor, defaults.AccentColor);
+        Assert.Null(defaults.BackgroundImage);
         Assert.Equal(GitHubDownloadRoute.Direct, defaults.GitHubDownloadRoute);
         Assert.False(defaults.OfflineMode);
         Assert.Empty(defaults.GameDirectories);
@@ -27,6 +28,11 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
             Language = UiLanguage.SimplifiedChinese,
             Theme = UiTheme.Dark,
             AccentColor = "7e22ce",
+            BackgroundImage = new BackgroundImageSettings
+            {
+                FileName = "ABCDEF.webp",
+                OpacityPercent = 41
+            },
             GitHubDownloadRoute = GitHubDownloadRoute.Mirror,
             OfflineMode = true,
             GameDirectories =
@@ -75,6 +81,11 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         Assert.Equal(expected.ModHealthAcknowledgements, actual.ModHealthAcknowledgements);
         Assert.Equal(expected.GameDirectories.ToArray(), actual.GameDirectories.ToArray());
         Assert.Equal("#7E22CE", actual.AccentColor);
+        Assert.Equal(new BackgroundImageSettings
+        {
+            FileName = "ABCDEF.webp",
+            OpacityPercent = 41
+        }, actual.BackgroundImage);
     }
 
     [Fact]
@@ -133,6 +144,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         Assert.False(settings.OfflineMode);
         Assert.Empty(settings.ModHealthAcknowledgements);
         Assert.Equal(AccentColorPalette.DefaultColor, settings.AccentColor);
+        Assert.Null(settings.BackgroundImage);
     }
 
     [Fact]
@@ -162,6 +174,52 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         Assert.Equal("#BE185D", normalized);
         Assert.False(AccentColorPalette.TryNormalize("#1234", out _));
         Assert.False(AccentColorPalette.TryNormalize("#00112233", out _));
+    }
+
+    [Theory]
+    [InlineData(-1, 0)]
+    [InlineData(35, 35)]
+    [InlineData(101, 100)]
+    public async Task Background_image_normalizes_opacity(int input, int expected)
+    {
+        var path = Path.Combine(root, $"opacity-{input}.json");
+
+        await CrystalflySettingsStore.SaveAsync(path, new CrystalflySettings
+        {
+            BackgroundImage = new BackgroundImageSettings
+            {
+                FileName = "image.png",
+                OpacityPercent = input
+            }
+        });
+
+        var settings = await CrystalflySettingsStore.LoadAsync(path);
+
+        Assert.Equal(expected, settings.BackgroundImage?.OpacityPercent);
+    }
+
+    [Theory]
+    [InlineData("../image.png")]
+    [InlineData("folder/image.png")]
+    [InlineData("folder\\image.png")]
+    [InlineData(".")]
+    [InlineData("")]
+    public async Task Background_image_rejects_unsafe_file_names(string fileName)
+    {
+        var path = Path.Combine(root, "unsafe.json");
+
+        await CrystalflySettingsStore.SaveAsync(path, new CrystalflySettings
+        {
+            BackgroundImage = new BackgroundImageSettings
+            {
+                FileName = fileName,
+                OpacityPercent = 35
+            }
+        });
+
+        var settings = await CrystalflySettingsStore.LoadAsync(path);
+
+        Assert.Null(settings.BackgroundImage);
     }
 
     public void Dispose()
