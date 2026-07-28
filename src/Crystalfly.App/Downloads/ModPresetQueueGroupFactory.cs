@@ -13,6 +13,7 @@ public static class ModPresetQueueGroupFactory
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(instance);
+        catalog = ModCatalogCompatibility.ProjectForBuild(catalog, instance.BuildId);
         if (plan.IsBlocked)
         {
             throw new InvalidOperationException(

@@ -1588,6 +1588,51 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public void Mod_market_exposes_1578_official_mods_for_latest_api78()
+    {
+        var viewModel = CreateViewModel();
+        var mod = Manifest("hkmod:Benchwarp", "1.0.0") with
+        {
+            LoaderId = "modding-api-77",
+            SupportedBuildIds = ["1.5.78.11833"],
+            SourceName = "HK ModLinks"
+        };
+        SetCatalog(viewModel, new GameCatalog
+        {
+
+            Loaders =
+            [
+                new LoaderManifest
+                {
+                    Id = "modding-api-77",
+                    Name = "Modding API",
+                    Version = "77",
+                    DownloadUrl = "https://example.invalid/api77.zip",
+                    Sha256 = new string('A', 64),
+                    SupportedBuildIds = ["1.5.78.11833"]
+                },
+                new LoaderManifest
+                {
+                    Id = "modding-api-78",
+                    Name = "Modding API",
+                    Version = "78",
+                    DownloadUrl = "https://example.invalid/api78.zip",
+                    Sha256 = new string('B', 64),
+                    SupportedBuildIds = ["1.5.12620.0"]
+                }
+            ],
+            Mods = [mod]
+        });
+        InvokeRebuildMarketCatalog(viewModel);
+
+        viewModel.SelectedMarketBuildOption = new("1.5.12620.0", "1.5.12620.0");
+        viewModel.SelectedMarketLoaderOption = new("modding-api-78", "Modding API 78");
+
+        Assert.Contains(viewModel.MarketBuildOptions, option => option.Value == "1.5.12620.0");
+        Assert.Contains(viewModel.MarketLoaderOptions, option => option.Value == "modding-api-78");
+        Assert.Equal("hkmod:Benchwarp", Assert.Single(viewModel.VisibleMarketMods).Id);
+    }
+    [Fact]
     public void Installed_mod_graph_always_shows_the_complete_instance()
     {
         var viewModel = CreateViewModel();

@@ -1929,7 +1929,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             var loader = await CreateLoaderManager(record).GetReceiptAsync()
                 ?? throw new InvalidOperationException(Loc["LoaderRequired"]);
-            var order = ModDependencyResolver.ResolveInstallOrder(catalog.Mods, [SelectedAvailableMod.Id]);
+            var compatibleMods = ModCatalogCompatibility.ProjectForBuild(catalog.Mods, record.BuildId);
+            var order = ModDependencyResolver.ResolveInstallOrder(compatibleMods, [SelectedAvailableMod.Id]);
             foreach (var mod in order)
             {
                 if (!string.Equals(mod.LoaderId, loader.PackageId, StringComparison.OrdinalIgnoreCase))
@@ -1938,7 +1939,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 }
             }
             await CreateModManager(record).InstallWithDependenciesFromUrisAsync(
-                catalog.Mods,
+                compatibleMods,
                 [SelectedAvailableMod.Id]);
         });
     }
@@ -2029,7 +2030,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         await RunInstanceMutationAsync(async record =>
         {
             var manager = CreateModManager(record);
-            var plan = await manager.GetRepairPlanAsync(selected.Id, catalog.Mods);
+            var plan = await manager.GetRepairPlanAsync(
+                selected.Id,
+                ModCatalogCompatibility.ProjectForBuild(catalog.Mods, record.BuildId));
             switch (plan.Action)
             {
                 case ModRepairAction.Repair when plan.Manifest is not null:
@@ -2328,7 +2331,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         return ModDependencyRepairPlanner.CreatePlan(
             installed,
-            catalog.Mods,
+            ModCatalogCompatibility.ProjectForBuild(catalog.Mods, SelectedInstance.Record.BuildId),
             SelectedInstance.Record.BuildId,
             loaderIds[0]);
     }
@@ -2856,7 +2859,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             {
                 SelectedLoader = AvailableLoaders[0];
             }
-            foreach (var mod in catalog.Mods.Where(mod => mod.SupportedBuildIds.Contains(value.Record.BuildId)))
+            foreach (var mod in ModCatalogCompatibility.ProjectForBuild(catalog.Mods, value.Record.BuildId)
+                         .Where(mod => mod.SupportedBuildIds.Contains(value.Record.BuildId, StringComparer.OrdinalIgnoreCase)))
             {
                 AvailableMods.Add(mod);
             }
@@ -3181,10 +3185,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         VisibleMarketDisplayMods.Clear();
         foreach (var item in MarketDisplayMods.Where(item =>
             item.MatchesSearch(MarketSearchText)
-            && (string.IsNullOrEmpty(SelectedMarketBuildOption?.Value)
-                || item.SupportedBuildIds.Contains(SelectedMarketBuildOption.Value, StringComparer.OrdinalIgnoreCase))
-            && (string.IsNullOrEmpty(SelectedMarketLoaderOption?.Value)
-                || string.Equals(item.LoaderId, SelectedMarketLoaderOption.Value, StringComparison.OrdinalIgnoreCase))
+            && MatchesMarketCompatibility(item)
             && (string.IsNullOrEmpty(SelectedMarketSourceOption?.Value)
                 || string.Equals(item.SourceName, SelectedMarketSourceOption.Value, StringComparison.OrdinalIgnoreCase))
             && (string.IsNullOrEmpty(SelectedMarketTagOption?.Value)
@@ -3201,6 +3202,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
+    private bool MatchesMarketCompatibility(MarketModItemViewModel item)
+    {
+        var buildId = SelectedMarketBuildOption?.Value;
+        var loaderId = SelectedMarketLoaderOption?.Value;
+        if (!string.IsNullOrEmpty(buildId) && !string.IsNullOrEmpty(loaderId))
+        {
+            return ModCatalogCompatibility.Supports(item.Manifest, buildId, loaderId);
+        }
+        return (string.IsNullOrEmpty(buildId)
+                || item.SupportedBuildIds.Contains(buildId, StringComparer.OrdinalIgnoreCase))
+            && (string.IsNullOrEmpty(loaderId)
+                || item.CompatibleLoaderIds.Contains(loaderId, StringComparer.OrdinalIgnoreCase));
+    }
     private void RebuildMarketCatalog()
     {
         var selectedModId = SelectedMarketMod?.Id;
@@ -3233,7 +3247,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             selectedBuild);
         RebuildMarketOptions(
             MarketLoaderOptions,
-            MarketDisplayMods.Select(mod => mod.LoaderId),
+            MarketDisplayMods.SelectMany(mod => mod.CompatibleLoaderIds),
             value => catalog.Loaders.FirstOrDefault(loader =>
                 string.Equals(loader.Id, value, StringComparison.OrdinalIgnoreCase)) is { } loader
                     ? $"{loader.Name} {loader.Version}"
@@ -3276,11 +3290,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var focusedId = SelectedInstalledMod?.Id;
         var items = InstalledMods.ToArray();
+        var compatibleMods = SelectedInstance is null
+            ? catalog.Mods
+            : ModCatalogCompatibility.ProjectForBuild(catalog.Mods, SelectedInstance.Record.BuildId);
         InstalledMods.Clear();
         foreach (var item in items)
         {
             var receipt = item.Receipt;
-            var manifest = catalog.Mods.FirstOrDefault(candidate =>
+            var manifest = compatibleMods.FirstOrDefault(candidate =>
                 string.Equals(candidate.Id, item.Id, StringComparison.OrdinalIgnoreCase));
             InstalledMods.Add(new InstalledModItemViewModel(
                 item.Discovery,
@@ -3972,8 +3989,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     string.Equals(candidate.Id, mod.Id, StringComparison.OrdinalIgnoreCase));
                 var healthReport = modHealthReports.First(report =>
                     string.Equals(report.ModId, mod.Id, StringComparison.OrdinalIgnoreCase));
-                var catalogManifest = catalog.Mods.FirstOrDefault(candidate =>
-                    string.Equals(candidate.Id, mod.Id, StringComparison.OrdinalIgnoreCase));
+                var catalogManifest = ModCatalogCompatibility.ProjectForBuild(catalog.Mods, record.BuildId)
+                    .FirstOrDefault(candidate =>
+                        string.Equals(candidate.Id, mod.Id, StringComparison.OrdinalIgnoreCase));
                 InstalledMods.Add(new InstalledModItemViewModel(
                     mod,
                     receipt,

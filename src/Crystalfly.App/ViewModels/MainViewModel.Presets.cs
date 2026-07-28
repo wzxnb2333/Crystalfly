@@ -414,7 +414,7 @@ public partial class MainViewModel
 
     private ModPresetService CreateModPresetService(InstanceRecord record) => new(
         record,
-        catalog.Mods,
+        ModCatalogCompatibility.ProjectForBuild(catalog.Mods, record.BuildId),
         CreateLoaderManager(record),
         CreateModManager(record),
         Path.Combine(GetInstanceStateRoot(record.Id), "presets"));

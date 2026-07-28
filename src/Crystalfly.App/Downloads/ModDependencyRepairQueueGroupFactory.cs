@@ -13,6 +13,7 @@ public static class ModDependencyRepairQueueGroupFactory
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(instance);
+        catalog = ModCatalogCompatibility.ProjectForBuild(catalog, instance.BuildId);
         if (!string.Equals(plan.BuildId, instance.BuildId, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidDataException("The dependency repair plan does not match the target instance build.");

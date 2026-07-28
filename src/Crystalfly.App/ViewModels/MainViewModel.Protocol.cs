@@ -203,12 +203,13 @@ public partial class MainViewModel
         {
             var manager = CreateModManager(record);
             var installed = await manager.GetInstalledAsync(lifetimeCancellation.Token);
+            var compatibleMods = ModCatalogCompatibility.ProjectForBuild(catalog.Mods, record.BuildId);
             foreach (var receipt in installed.Where(receipt =>
                          receipt.Ownership == ModOwnership.Managed
                          && !receipt.IsLocal
                          && !receipt.Pinned))
             {
-                var manifest = catalog.Mods.SingleOrDefault(candidate =>
+                var manifest = compatibleMods.SingleOrDefault(candidate =>
                     string.Equals(candidate.Id, receipt.Id, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(candidate.Version, receipt.Version, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(candidate.LoaderId, receipt.LoaderId, StringComparison.OrdinalIgnoreCase)

@@ -187,6 +187,41 @@ public sealed class ModInstallServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Evaluate_maps_official_1578_mod_to_api78_on_latest_build()
+    {
+        var instance = Instance(buildId: "1.5.12620.0");
+        var legacy = Manifest("hkmod:feature", "modding-api-77") with
+        {
+            SourceName = "HK ModLinks",
+            SupportedBuildIds = ["1.5.78.11833"]
+        };
+        var service = new ModInstallService(
+            instance,
+            [legacy],
+            [
+                new LoaderManifest
+                {
+                    Id = "modding-api-78",
+                    Name = "Modding API",
+                    Version = "78",
+                    DownloadUrl = "https://example.invalid/api78.zip",
+                    Sha256 = new string('B', 64),
+                    SupportedBuildIds = ["1.5.12620.0"]
+                }
+            ],
+            new LoaderManager(InstanceRoot, Path.Combine(root, "transactions"), LoaderReceiptPath),
+            new ModManager(
+                InstanceRoot,
+                Path.Combine(root, "transactions"),
+                Path.Combine(root, "state", "mods"),
+                Path.Combine(root, "packages")));
+
+        var evaluation = await service.EvaluateAsync("hkmod:feature");
+
+        Assert.Equal(ModInstallReadiness.RequiresLoader, evaluation.Status);
+        Assert.Equal("modding-api-78", evaluation.RequiredLoaderId);
+    }
+    [Fact]
     public async Task CreatePlan_marks_every_pending_item_blocked_when_loader_is_incompatible()
     {
         await WriteManagedLoaderAsync("modding-api-77", LoaderState.ModdingApi);

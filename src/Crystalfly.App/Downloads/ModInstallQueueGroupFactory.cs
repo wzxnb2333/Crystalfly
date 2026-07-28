@@ -13,6 +13,7 @@ public static class ModInstallQueueGroupFactory
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(instance);
+        catalog = ModCatalogCompatibility.ProjectForBuild(catalog, instance.BuildId);
         if (!string.Equals(plan.InstanceId, instance.Id, StringComparison.Ordinal)
             || plan.Items.Count == 0
             || plan.Items[^1].Kind != ModInstallPlanItemKind.Mod
@@ -35,6 +36,8 @@ public static class ModInstallQueueGroupFactory
             TargetInstanceId = instance.Id,
             TargetInstanceName = instance.Name,
             TargetInstanceRoot = instance.RootPath,
+            ExpectedBuildId = instance.BuildId,
+            ExpectedLoaderId = plan.Items[^1].LoaderId,
             CreatedAt = DateTimeOffset.UtcNow,
             Items = plan.Items.Select(item => CreateItem(item, catalog)).ToArray()
         };

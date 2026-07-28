@@ -30,6 +30,68 @@ public sealed class ModInstallQueueGroupFactoryTests
     }
 
     [Fact]
+    public void Resolves_legacy_official_package_for_latest_api78_plan()
+    {
+        var instance = Instance() with { BuildId = "1.5.12620.0" };
+        var catalog = new GameCatalog
+        {
+            Loaders =
+            [
+                new LoaderManifest
+                {
+                    Id = "modding-api-78",
+                    Name = "Modding API",
+                    Version = "78",
+                    DownloadUrl = "https://packages.test/api78.zip",
+                    Sha256 = new string('D', 64),
+                    SupportedBuildIds = ["1.5.12620.0"]
+                }
+            ],
+            Mods =
+            [
+                Mod("hkmod:feature", 30) with
+                {
+                    SourceName = "HK ModLinks",
+                    LoaderId = "modding-api-77"
+                }
+            ]
+        };
+        var plan = new ModInstallPlan
+        {
+            ModId = "hkmod:feature",
+            InstanceId = instance.Id,
+            InstanceName = instance.Name,
+            Items =
+            [
+                new ModInstallPlanItem
+                {
+                    Kind = ModInstallPlanItemKind.Loader,
+                    State = ModInstallPlanItemState.NeedsInstall,
+                    Id = "modding-api-78",
+                    Name = "Modding API",
+                    Version = "78",
+                    LoaderId = "modding-api-78",
+                    Reason = "install"
+                },
+                new ModInstallPlanItem
+                {
+                    Kind = ModInstallPlanItemKind.Mod,
+                    State = ModInstallPlanItemState.NeedsInstall,
+                    Id = "hkmod:feature",
+                    Name = "feature",
+                    Version = "1.0",
+                    LoaderId = "modding-api-78",
+                    Reason = "install"
+                }
+            ]
+        };
+
+        var group = ModInstallQueueGroupFactory.Create(plan, catalog, instance);
+
+        Assert.Equal("modding-api-78", group.ExpectedLoaderId);
+        Assert.Equal("https://packages.test/hkmod:feature.zip", group.Items[^1].DownloadUrl);
+    }
+    [Fact]
     public void Rejects_blocked_or_mismatched_plan()
     {
         var instance = Instance();

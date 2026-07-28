@@ -1,4 +1,5 @@
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Mods;
 
 namespace Crystalfly.App.ViewModels;
 
@@ -28,7 +29,8 @@ public sealed class MarketModItemViewModel
         SourceName = manifest.SourceName;
         Authors = manifest.Authors;
         Integrations = manifest.Integrations;
-        SupportedBuildIds = manifest.SupportedBuildIds;
+        SupportedBuildIds = ModCatalogCompatibility.GetSupportedBuildIds(manifest);
+        CompatibleLoaderIds = ModCatalogCompatibility.GetSupportedLoaderIds(manifest);
         Dependencies = manifest.Dependencies;
         RepositoryUrl = manifest.RepositoryUrl;
         IssuesUrl = manifest.IssuesUrl;
@@ -126,6 +128,8 @@ public sealed class MarketModItemViewModel
     public IReadOnlyList<string> Integrations { get; }
 
     public IReadOnlyList<string> SupportedBuildIds { get; }
+
+    public IReadOnlyList<string> CompatibleLoaderIds { get; }
 
     public IReadOnlyList<string> Dependencies { get; }
 

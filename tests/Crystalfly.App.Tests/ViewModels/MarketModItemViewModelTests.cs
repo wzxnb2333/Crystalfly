@@ -58,6 +58,18 @@ public sealed class MarketModItemViewModelTests
     }
 
     [Fact]
+    public void Official_1578_projection_lists_latest_build_and_api78_compatibility()
+    {
+        var item = new MarketModItemViewModel(
+            Manifest() with { SourceName = "HK ModLinks" },
+            null,
+            new Dictionary<string, string>(),
+            chinese: false);
+
+        Assert.Equal(["1.5.78.11833", "1.5.12620.0"], item.SupportedBuildIds);
+        Assert.Equal(["modding-api-77", "modding-api-78"], item.CompatibleLoaderIds);
+    }
+    [Fact]
     public void Activity_projection_marks_recent_additions_and_updates_against_catalog_cutoff()
     {
         var item = new MarketModItemViewModel(

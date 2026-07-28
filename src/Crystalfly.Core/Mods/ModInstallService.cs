@@ -38,7 +38,7 @@ public sealed class ModInstallService
         ModManager modManager)
     {
         _instance = instance;
-        _catalog = catalog;
+        _catalog = ModCatalogCompatibility.ProjectForBuild(catalog, instance.BuildId);
         _loaders = loaders;
         _loaderManager = loaderManager;
         _modManager = modManager;

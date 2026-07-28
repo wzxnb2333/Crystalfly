@@ -118,7 +118,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
                 "Satisfied"));
             return;
         }
-        var package = ResolvePackage(getCatalog(), item);
+        var package = ResolvePackage(ModCatalogCompatibility.ProjectForBuild(getCatalog(), group.ExpectedBuildId), item);
         var paths = GetPaths(group);
         await PackageInstaller.AcquireVerifiedFileFromUriAsync(
             new Uri(package.DownloadUrl),
@@ -171,7 +171,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
                     return;
                 }
 
-                var catalog = getCatalog();
+                var catalog = ModCatalogCompatibility.ProjectForBuild(getCatalog(), group.ExpectedBuildId);
                 var modManager = new ModManager(
                     paths.InstanceRoot,
                     paths.TransactionRoot,
@@ -254,7 +254,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
                     httpClient);
                 await new ModPresetService(
                         instance,
-                        getCatalog().Mods,
+                        ModCatalogCompatibility.ProjectForBuild(getCatalog(), group.ExpectedBuildId).Mods,
                         presetLoaderManager,
                         context.ModManager,
                         Path.Combine(paths.StateRoot, "presets"))
@@ -267,7 +267,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
             return;
         }
 
-        var catalog = getCatalog();
+        var catalog = ModCatalogCompatibility.ProjectForBuild(getCatalog(), group.ExpectedBuildId);
         var loaderManager = new LoaderManager(
             paths.InstanceRoot,
             paths.TransactionRoot,
@@ -503,7 +503,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
         ModManifest? manifest = null;
         if (item.Kind == DownloadQueueItemKind.Dependency)
         {
-            manifest = ResolveMod(getCatalog(), item).Mod!;
+            manifest = ResolveMod(ModCatalogCompatibility.ProjectForBuild(getCatalog(), group.ExpectedBuildId), item).Mod!;
             if (!manifest.SupportedBuildIds.Contains(group.ExpectedBuildId, StringComparer.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException(
@@ -604,7 +604,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
         ModManifest? manifest = null;
         if (item.Kind == DownloadQueueItemKind.PresetInstall && receipt is null)
         {
-            manifest = ResolveMod(getCatalog(), item).Mod!;
+            manifest = ResolveMod(ModCatalogCompatibility.ProjectForBuild(getCatalog(), group.ExpectedBuildId), item).Mod!;
             if (!manifest.SupportedBuildIds.Contains(group.ExpectedBuildId, StringComparer.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException(
