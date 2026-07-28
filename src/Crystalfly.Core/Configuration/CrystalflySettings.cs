@@ -67,6 +67,10 @@ public sealed record CrystalflySettings
 
     public string? VersionRoot { get; init; }
 
+    public IReadOnlyList<GameDirectoryRegistration> GameDirectories { get; init; } = [];
+
+    public bool GameDirectoryDiscoveryCompleted { get; init; }
+
     public string? CurrentInstanceId { get; init; }
 
     public UiLanguage Language { get; init; } = UiLanguage.FollowSystem;

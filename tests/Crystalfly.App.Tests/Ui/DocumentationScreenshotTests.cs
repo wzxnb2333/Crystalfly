@@ -227,6 +227,18 @@ public sealed class DocumentationScreenshotTests
             "77",
             mods.Length,
             null));
+        var gameDirectory = new GameDirectoryItemViewModel(new GameDirectoryRegistration
+        {
+            Path = versionRoot,
+            DisplayName = "HK Versions",
+            Source = GameDirectorySourceKind.Managed
+        })
+        {
+            InstanceCount = 1,
+            ScanStatus = viewModel.Loc["ScanReady"]
+        };
+        viewModel.GameDirectories.Add(gameDirectory);
+        viewModel.SelectedGameDirectory = gameDirectory;
         viewModel.Instances.Add(instance);
         viewModel.VisibleInstances.Add(instance);
         InvokeRebuildMarketCatalog(viewModel);
@@ -277,7 +289,7 @@ public sealed class DocumentationScreenshotTests
                 Assert.Contains(fixture.ViewModel.Loc["LaunchIssueModModifiedFile"], visibleText);
                 break;
             case ScreenshotState.Settings:
-                Assert.Contains(fixture.ViewModel.Loc["VersionRoot"], visibleText);
+                Assert.DoesNotContain(fixture.ViewModel.Loc["VersionRoot"], visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["SettingsGeneral"], visibleText);
                 break;
             case ScreenshotState.SettingsAccentDialog:

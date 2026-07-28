@@ -75,6 +75,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Task<InstanceDeletionResult>>? instanceDeletionOverride;
     private readonly GitHubRouteLatencyService githubLatencyService;
     private readonly IProtocolRegistrationService protocolRegistrationService;
+    private readonly bool autoRequestGameDirectoryDiscovery;
     private CrystalflySettings settings = new();
     private Task settingsSaveQueue = Task.CompletedTask;
     private Task steamOfflineTransitionTask = Task.CompletedTask;
@@ -155,6 +156,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         this.applicationUpdateCheckOverride = applicationUpdateCheckOverride;
         this.protocolRegistrationService = protocolRegistrationService
             ?? new WindowsProtocolRegistrationService();
+        autoRequestGameDirectoryDiscovery = applicationDataRoot is null;
         paths = applicationDataRoot is null
             ? CrystalflyPaths.Resolve(
                 AppContext.BaseDirectory,
@@ -704,6 +706,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ApplyTheme(settings.Theme, settings.AccentColor);
         InitializeApplicationUpdateSettings();
         VersionRoot = settings.VersionRoot ?? string.Empty;
+        await InitializeGameDirectoriesAsync();
         CustomSourcesText = string.Join(
             Environment.NewLine,
             settings.CustomCatalogs.Select(source => $"{source.Namespace}={source.Url}"));
@@ -728,6 +731,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             StatusMessage = Loc["ChooseRoot"];
         }
         await Task.WhenAll(refreshTask, InitializeDownloadQueueAsync());
+        await CompleteGameDirectoryInitializationAsync();
     }
 
     [ObservableProperty]
@@ -2907,6 +2911,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         RebuildModStatusOptions();
         RebuildMarketCatalog();
         RebuildInstalledModCatalogProjection();
+        RefreshGameDirectoryLabels();
         NotifyPreflightLabels();
         _ = QueueSettingsSave();
     }
