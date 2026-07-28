@@ -24,13 +24,15 @@ public static class LoaderStateDetector
             || File.Exists(Path.Combine(instanceRoot, "doorstop_config.ini"))
             || File.Exists(Path.Combine(instanceRoot, "winhttp.dll"));
         var hasBepInExArtifacts = hasBepInEx
-            || Directory.Exists(bepInExRoot)
-            && Directory.EnumerateFileSystemEntries(bepInExRoot, "*", SearchOption.TopDirectoryOnly).Any();
+            || HasFiles(Path.Combine(bepInExRoot, "core"))
+            || HasFiles(Path.Combine(bepInExRoot, "plugins"))
+            || HasFiles(Path.Combine(bepInExRoot, "patchers"));
         var hasModdingApi = File.Exists(Path.Combine(managed, "MMHOOK_Assembly-CSharp.dll"))
             || (Directory.Exists(managed) && Directory.EnumerateFiles(
                 managed,
                 "MMHOOK_TeamCherry*.dll",
                 SearchOption.TopDirectoryOnly).Any());
+        var hasModdingApiArtifacts = hasModdingApi || HasFiles(Path.Combine(managed, "Mods"));
 
         if (receipt is not null)
         {
@@ -38,8 +40,8 @@ public static class LoaderStateDetector
             {
                 return Inspection(LoaderState.Drifted, receipt);
             }
-            if (receipt.LoaderState == LoaderState.BepInEx && hasModdingApi
-                || receipt.LoaderState == LoaderState.ModdingApi && hasBepInEx)
+            if (receipt.LoaderState == LoaderState.BepInEx && hasModdingApiArtifacts
+                || receipt.LoaderState == LoaderState.ModdingApi && hasBepInExArtifacts)
             {
                 return Inspection(LoaderState.Conflict, receipt);
             }
@@ -60,11 +62,11 @@ public static class LoaderStateDetector
             return Inspection(receipt.LoaderState, receipt);
         }
 
-        if (hasBepInEx && hasModdingApi)
+        if (hasBepInExArtifacts && hasModdingApiArtifacts)
         {
             return External(LoaderState.Conflict);
         }
-        if (!hasBepInExArtifacts && !hasModdingApi)
+        if (!hasBepInExArtifacts && !hasModdingApiArtifacts)
         {
             return new LoaderInspection
             {
@@ -72,7 +74,7 @@ public static class LoaderStateDetector
                 Ownership = LoaderOwnership.None
             };
         }
-        if (hasModdingApi)
+        if (hasModdingApi || !hasBepInEx)
         {
             return External(LoaderState.Drifted);
         }
@@ -114,6 +116,9 @@ public static class LoaderStateDetector
                 ? packageId[bepinExPrefix.Length..]
                 : null;
     }
+
+    private static bool HasFiles(string path) =>
+        Directory.Exists(path) && Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).Any();
 
     private static string? ReadAssemblyVersion(string path)
     {

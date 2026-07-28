@@ -132,10 +132,31 @@ public sealed class LoaderManager
         return await ApplyPackageAsync(
             manifest, null, new Uri(manifest.DownloadUrl), receipt, "repair-loader", cancellationToken);
     }
+    public async Task<InstalledPackageReceipt> RecoverFromUriAsync(
+        LoaderManifest manifest,
+        CancellationToken cancellationToken = default)
+    {
+        if (await GetReceiptAsync(cancellationToken) is not null)
+        {
+            throw new InvalidOperationException("Loader recovery requires a missing receipt.");
+        }
+
+        var loaderState = GetLoaderState(manifest.Id);
+        var inspection = await InspectAsync(cancellationToken);
+        if (inspection.State != LoaderState.Drifted || !CanRecoverOrphanedLoader(loaderState))
+        {
+            throw new InvalidOperationException(
+                "Only an orphaned loader with matching dependent files can be recovered.");
+        }
+
+        return await ApplyPackageAsync(
+            manifest, null, new Uri(manifest.DownloadUrl), null, "recover-loader", cancellationToken);
+    }
 
     public async Task UninstallAsync(CancellationToken cancellationToken = default)
     {
         var receipt = await RequireVerifiedReceiptAsync(cancellationToken);
+        EnsureNoDependentFiles(receipt.LoaderState);
         EnsureBackupRoot(receipt.BackupRoot);
         var targetRoot = GetCommonDirectory(_instanceRoot, Path.GetDirectoryName(_receiptPath)!);
         using var workspace = CreateStateWorkspace(targetRoot, ".crystalfly-loader-uninstall-");
@@ -389,6 +410,66 @@ public sealed class LoaderManager
         }
         return receipt;
     }
+
+    private void EnsureNoDependentFiles(LoaderState loaderState)
+    {
+        var roots = loaderState == LoaderState.BepInEx
+            ? new[]
+            {
+                Path.Combine(_instanceRoot, "BepInEx", "plugins"),
+                Path.Combine(_instanceRoot, "BepInEx", "patchers")
+            }
+            : new[] { Path.Combine(_instanceRoot, "hollow_knight_Data", "Managed", "Mods") };
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            AttributesToSkip = FileAttributes.ReparsePoint
+        };
+        foreach (var root in roots)
+        {
+            if (!Directory.Exists(root))
+            {
+                continue;
+            }
+            if ((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Remove loader-dependent files before changing the loader: '{Normalize(Path.GetRelativePath(_instanceRoot, root))}'.");
+            }
+            var file = Directory.EnumerateFiles(root, "*", options).FirstOrDefault();
+            if (file is not null)
+            {
+                throw new InvalidOperationException(
+                    $"Remove loader-dependent files before changing the loader: '{Normalize(Path.GetRelativePath(_instanceRoot, file))}'.");
+            }
+        }
+    }
+
+    private bool CanRecoverOrphanedLoader(LoaderState loaderState)
+    {
+        if (loaderState == LoaderState.BepInEx)
+        {
+            var root = Path.Combine(_instanceRoot, "BepInEx");
+            return !File.Exists(Path.Combine(root, "core", "BepInEx.dll"))
+                && !HasFiles(Path.Combine(root, "core"))
+                && !File.Exists(Path.Combine(_instanceRoot, "doorstop_config.ini"))
+                && !File.Exists(Path.Combine(_instanceRoot, "winhttp.dll"))
+                && (HasFiles(Path.Combine(root, "plugins"))
+                    || HasFiles(Path.Combine(root, "patchers")));
+        }
+
+        var managed = Path.Combine(_instanceRoot, "hollow_knight_Data", "Managed");
+        return !File.Exists(Path.Combine(managed, "MMHOOK_Assembly-CSharp.dll"))
+            && (!Directory.Exists(managed)
+                || !Directory.EnumerateFiles(
+                    managed,
+                    "MMHOOK_TeamCherry*.dll",
+                    SearchOption.TopDirectoryOnly).Any())
+            && HasFiles(Path.Combine(managed, "Mods"));
+    }
+
+    private static bool HasFiles(string path) =>
+        Directory.Exists(path) && Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).Any();
 
     private string ResolveBackup(InstalledPackageReceipt receipt, string relativePath)
     {

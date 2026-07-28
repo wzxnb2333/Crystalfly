@@ -809,6 +809,153 @@ public sealed class MainViewModelStateTests : IDisposable
             Path.Combine(instanceRoot, LoaderInstalledPath(currentLoaderId))));
         Assert.Equal(originalModFile, await File.ReadAllBytesAsync(modPath));
     }
+    [Fact]
+    public async Task Repair_loader_uses_receipted_manifest_instead_of_selected_target()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "practice");
+        var stateRoot = test.CreateDirectory("versions", ".crystalfly", "instances", "practice");
+        var transactionRoot = test.CreateDirectory("versions", ".crystalfly", "transactions");
+        var packageCacheRoot = test.CreateDirectory("versions", ".crystalfly", "packages");
+        var packageRoot = test.CreateDirectory("packages");
+        var currentPackage = Path.Combine(packageRoot, "current.zip");
+        var targetPackage = Path.Combine(packageRoot, "target.zip");
+        CreateZip(currentPackage, ("MMHOOK_Assembly-CSharp.dll", "current-loader"));
+        CreateZip(targetPackage, ("BepInEx/core/BepInEx.dll", "target-loader"));
+        var currentLoader = LoaderManifestFor("modding-api-77", currentPackage);
+        var targetLoader = LoaderManifestFor("bepinex-5.4.23.4", targetPackage);
+        var loaderReceiptPath = Path.Combine(stateRoot, "loader.json");
+        var manager = new LoaderManager(
+            instanceRoot,
+            transactionRoot,
+            loaderReceiptPath,
+            packageCacheRoot);
+        await manager.InstallFromFileAsync(currentLoader, currentPackage);
+        File.Copy(currentPackage, Path.Combine(packageCacheRoot, $"{currentLoader.Sha256}.zip"));
+        var installedPath = Path.Combine(instanceRoot, LoaderInstalledPath(currentLoader.Id));
+        await File.WriteAllTextAsync(installedPath, "drifted");
+
+        var record = Instance("practice", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot,
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Drifted", 0),
+            SelectedLoader = targetLoader
+        };
+        SetCatalog(viewModel, new GameCatalog { Loaders = [currentLoader, targetLoader] });
+
+        await viewModel.RepairLoaderCommand.ExecuteAsync(null);
+
+        Assert.Null(viewModel.ErrorMessage);
+        Assert.Equal("current-loader", await File.ReadAllTextAsync(installedPath));
+        Assert.Equal(currentLoader.Id, (await manager.GetReceiptAsync())?.PackageId);
+    }
+
+    [Fact]
+    public async Task Repair_orphaned_loader_uses_installed_mod_loader_receipt()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "practice");
+        var stateRoot = test.CreateDirectory("versions", ".crystalfly", "instances", "practice");
+        var packageCacheRoot = test.CreateDirectory("versions", ".crystalfly", "packages");
+        var packageRoot = test.CreateDirectory("packages");
+        var currentPackage = Path.Combine(packageRoot, "current.zip");
+        var targetPackage = Path.Combine(packageRoot, "target.zip");
+        CreateZip(currentPackage, ("BepInEx/core/BepInEx.dll", "current-loader"));
+        CreateZip(targetPackage, ("MMHOOK_Assembly-CSharp.dll", "target-loader"));
+        var currentLoader = LoaderManifestFor("bepinex-5.4.23.4", currentPackage);
+        var targetLoader = LoaderManifestFor("modding-api-77", targetPackage);
+        File.Copy(currentPackage, Path.Combine(packageCacheRoot, $"{currentLoader.Sha256}.zip"));
+        var modRelativePath = "BepInEx/plugins/Sample/mod.dll";
+        var modPath = Path.Combine(instanceRoot, modRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(modPath)!);
+        await File.WriteAllTextAsync(modPath, "managed-mod");
+        var modReceiptRoot = test.CreateDirectory(
+            "versions", ".crystalfly", "instances", "practice", "mods");
+        await AtomicJsonStore.WriteAsync(Path.Combine(modReceiptRoot, "sample.json"),
+            Receipt("sample", "1.0.0", enabled: true) with
+            {
+                LoaderId = currentLoader.Id,
+                InstallRoot = "BepInEx/plugins/Sample",
+                Files =
+                [
+                    new InstalledFileReceipt
+                    {
+                        RelativePath = modRelativePath,
+                        Sha256 = FileSha256(modPath)
+                    }
+                ]
+            });
+
+        var record = Instance("practice", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot,
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Drifted", 1),
+            SelectedLoader = targetLoader
+        };
+        SetCatalog(viewModel, new GameCatalog { Loaders = [currentLoader, targetLoader] });
+
+        SetPrivateField(viewModel, "detailsLoadGeneration", 1L);
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+        Assert.Equal(viewModel.Loc["LoaderReceiptRecoveryAvailable"], viewModel.LoaderVerificationStatus);
+
+        await viewModel.RepairLoaderCommand.ExecuteAsync(null);
+
+        Assert.Null(viewModel.ErrorMessage);
+        Assert.True(File.Exists(Path.Combine(instanceRoot, LoaderInstalledPath(currentLoader.Id))));
+        Assert.True(File.Exists(modPath));
+        var recovered = await AtomicJsonStore.ReadAsync<InstalledPackageReceipt>(Path.Combine(stateRoot, "loader.json"));
+        Assert.Equal(currentLoader.Id, recovered.PackageId);
+    }
+
+    [Fact]
+    public async Task Loader_uninstall_with_managed_mod_receipt_is_blocked_before_loader_changes()
+    {
+        using var test = new TestDirectory();
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "practice");
+        var stateRoot = test.CreateDirectory("versions", ".crystalfly", "instances", "practice");
+        var transactionRoot = test.CreateDirectory("versions", ".crystalfly", "transactions");
+        var packageRoot = test.CreateDirectory("packages");
+        var package = Path.Combine(packageRoot, "loader.zip");
+        CreateZip(package, ("BepInEx/core/BepInEx.dll", "loader"));
+        var loader = LoaderManifestFor("bepinex-5.4.23.4", package);
+        var manager = new LoaderManager(
+            instanceRoot,
+            transactionRoot,
+            Path.Combine(stateRoot, "loader.json"));
+        await manager.InstallFromFileAsync(loader, package);
+        var modPath = Path.Combine(instanceRoot, "BepInEx", "plugins", "Sample", "mod.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(modPath)!);
+        await File.WriteAllTextAsync(modPath, "managed-mod");
+        var modReceiptRoot = test.CreateDirectory(
+            "versions", ".crystalfly", "instances", "practice", "mods");
+        await AtomicJsonStore.WriteAsync(Path.Combine(modReceiptRoot, "sample.json"),
+            Receipt("sample", "1.0.0", enabled: true) with
+            {
+                LoaderId = loader.Id,
+                InstallRoot = "BepInEx/plugins/Sample"
+            });
+        var originalReceipt = await File.ReadAllBytesAsync(Path.Combine(stateRoot, "loader.json"));
+
+        var record = Instance("practice", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot,
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "BepInEx", 1)
+        };
+        SetCatalog(viewModel, new GameCatalog { Loaders = [loader] });
+
+        await viewModel.UninstallLoaderCommand.ExecuteAsync(null);
+
+        Assert.Contains(viewModel.Loc["LoaderUninstallBlockedByMods"], viewModel.ErrorMessage);
+        Assert.Equal(originalReceipt, await File.ReadAllBytesAsync(Path.Combine(stateRoot, "loader.json")));
+        Assert.True(File.Exists(Path.Combine(instanceRoot, LoaderInstalledPath(loader.Id))));
+        Assert.True(File.Exists(modPath));
+    }
 
     [Fact]
     public async Task Dispose_is_idempotent_and_waits_for_running_commands_before_releasing_steam()

@@ -1878,12 +1878,44 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     private async Task RepairLoaderAsync()
     {
-        if (SelectedInstance is null || SelectedLoader is null)
+        if (SelectedInstance is null)
         {
-            ErrorMessage = Loc["SelectLoader"];
+            ErrorMessage = Loc["NoInstance"];
             return;
         }
-        await RunInstanceMutationAsync(record => CreateLoaderManager(record).RepairFromUriAsync(SelectedLoader));
+
+        await RunInstanceMutationAsync(async record =>
+        {
+            var manager = CreateLoaderManager(record);
+            var receipt = await manager.GetReceiptAsync();
+            if (receipt is not null)
+            {
+                var receiptedLoader = FindCatalogLoader(receipt.PackageId, record.BuildId)
+                    ?? throw new InvalidOperationException(Loc["LoaderRepairPackageUnavailable"]);
+                await manager.RepairFromUriAsync(receiptedLoader);
+                return;
+            }
+
+            var loaderIds = (await CreateModManager(record).GetInstalledAsync())
+                .Select(mod => mod.LoaderId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (loaderIds.Length != 1
+                || FindCatalogLoader(loaderIds[0], record.BuildId) is not { } orphanedLoader)
+            {
+                throw new InvalidOperationException(Loc["LoaderRepairIdentityUnknown"]);
+            }
+
+            if (await manager.GetStateAsync() == LoaderState.Vanilla)
+            {
+                await manager.InstallFromUriAsync(orphanedLoader);
+            }
+            else
+            {
+                await manager.RecoverFromUriAsync(orphanedLoader);
+            }
+        });
     }
 
     [RelayCommand]
@@ -1894,7 +1926,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ErrorMessage = Loc["NoInstance"];
             return;
         }
-        await RunInstanceMutationAsync(record => CreateLoaderManager(record).UninstallAsync());
+        await RunInstanceMutationAsync(async record =>
+        {
+            if ((await CreateModManager(record).GetInstalledAsync()).Count != 0)
+            {
+                throw new InvalidOperationException(Loc["LoaderUninstallBlockedByMods"]);
+            }
+            await CreateLoaderManager(record).UninstallAsync();
+        });
     }
 
     [RelayCommand]
@@ -3972,7 +4011,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
             CurrentLoaderState = loaderState;
             currentLoaderInspection = loaderInspection;
-            LoaderVerificationStatus = loaderReceipt is null
+            var orphanedLoaderIds = loaderReceipt is null && loaderState == LoaderState.Drifted
+                ? installed
+                    .Select(mod => mod.LoaderId)
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray()
+                : [];
+            var canRecoverLoaderReceipt = orphanedLoaderIds.Length == 1
+                && FindCatalogLoader(orphanedLoaderIds[0], record.BuildId) is not null;
+            LoaderVerificationStatus = canRecoverLoaderReceipt
+                ? Loc["LoaderReceiptRecoveryAvailable"]
+                : loaderReceipt is null
                 ? loaderState switch
                 {
                     LoaderState.BepInEx or LoaderState.Drifted => Loc["ExternalLoaderBlocked"],
@@ -4396,6 +4446,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         session.QrChallengeChanged -= OnQrChallengeChanged;
         await session.DisposeAsync();
     }
+
+    private LoaderManifest? FindCatalogLoader(string id, string buildId) =>
+        catalog.Loaders.FirstOrDefault(loader =>
+            string.Equals(loader.Id, id, StringComparison.OrdinalIgnoreCase)
+            && loader.SupportedBuildIds.Contains(buildId, StringComparer.OrdinalIgnoreCase));
 
     private LoaderManager CreateLoaderManager(InstanceRecord record)
     {
