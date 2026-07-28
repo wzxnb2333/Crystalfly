@@ -7,19 +7,19 @@
              x:DataType="vm:MarketInstallDialogViewModel"
              Width="600"
              MinWidth="480"
-             MaxHeight="600">
+             MaxHeight="480">
     <UserControl.KeyBindings>
         <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
     </UserControl.KeyBindings>
 
     <Grid Margin="24"
-          RowDefinitions="Auto,Auto,*,Auto,Auto">
+          RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="16">
         <TextBlock Classes="cfp-section-title"
                    Text="{Binding Main.Loc[InstallToInstance]}"
                    TextWrapping="Wrap" />
         <TextBlock Grid.Row="1"
                    Classes="cfp-meta"
-                   Margin="0,4,0,16"
+                   Margin="0,4,0,8"
                    Text="{Binding ModName}"
                    TextWrapping="Wrap" />
         <ScrollViewer Grid.Row="2"
@@ -124,7 +124,7 @@
                    Text="{Binding DialogError}"
                    TextWrapping="Wrap"
                    IsVisible="{Binding DialogError, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-        <StackPanel Grid.Row="4"
+        <StackPanel Grid.Row="5"
                     Margin="0,16,0,0"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"

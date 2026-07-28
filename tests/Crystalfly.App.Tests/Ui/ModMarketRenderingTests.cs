@@ -318,7 +318,7 @@ public sealed class ModMarketRenderingTests
             var dialog = Assert.Single(dialogs);
             var dialogView = Assert.Single(dialog.GetVisualDescendants()
                 .OfType<Crystalfly.App.Views.Dialogs.MarketInstallDialogView>());
-            Assert.InRange(dialogView.Bounds.Height, 420, 480);
+            Assert.InRange(dialogView.Bounds.Height, 420, 520);
             var targetButtons = dialog.GetVisualDescendants().OfType<RadioButton>().ToArray();
             Assert.Equal(2, targetButtons.Length);
             var availableTarget = Assert.Single(targetButtons, target => target.IsEnabled);

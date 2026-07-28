@@ -222,7 +222,7 @@
                               HorizontalContentAlignment="Stretch"
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Classes="cfp-workspace"
-                                Margin="32,24"
+                                Margin="24"
                                 Spacing="16"
                                 MaxWidth="1920"
                                 HorizontalAlignment="Stretch">

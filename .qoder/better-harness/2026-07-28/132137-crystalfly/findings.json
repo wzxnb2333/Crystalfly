@@ -1,0 +1,138 @@
+{
+  "summary": {
+    "projectName": "Crystalfly",
+    "locale": "zh-CN",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 25,
+    "overview": "项目拥有完整的架构文档和测试基础设施，但 CI 门禁未覆盖自动化更新路径，且诊断表面缺乏结构化关联。",
+    "aiAgentPractice": {
+      "inspectedSurfaces": [
+        "Rules",
+        "Workflows"
+      ],
+      "coverageRows": [
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Project"
+          ],
+          "count": 1,
+          "paths": [
+            "AGENTS.md"
+          ]
+        },
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 2,
+          "paths": [
+            ".github/workflows/ci.yml",
+            ".github/workflows/update-mod-activity.yml"
+          ]
+        },
+        {
+          "surface": "Custom Agents",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        }
+      ]
+    },
+    "assignmentSummaries": [],
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "任务理解",
+        "score": 72,
+        "summary": "项目指导文件使意图边界清晰，AGENTS.md 提供完整结构、命令、编码规范，architecture.md 定义子系统边界与信任模型。但未观察到任务片段使用这些资产产生效果。",
+        "findingRefs": []
+      },
+      {
+        "id": "controlled-execution",
+        "label": "可控执行",
+        "score": 70,
+        "summary": "构建、测试、运行和发布命令均已文档化，CI 使用最小权限配置。但缺少诊断/健康检查命令和开发环境状态重置文档，支持操作维度存在缺口。",
+        "findingRefs": [
+          "diagnostic-surface-lacks-correlated-observability"
+        ]
+      },
+      {
+        "id": "change-validation",
+        "label": "改动验证",
+        "score": 74,
+        "summary": "111 个测试文件镜像源模块结构，AGENTS.md 含变更→测试路由表，CI 执行全量测试（含 warnings-as-errors）。但架构约束无机械化执行门禁，日志系统不支持跨操作诊断关联。",
+        "findingRefs": [
+          "no-mechanical-enforcement-of-architecture-constraints",
+          "diagnostic-surface-lacks-correlated-observability"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "可靠交付",
+        "score": 58,
+        "summary": "PR→main的CI门保护完整，运行时事务 journal 提供 rollback 路径。但 weekly catalog 更新 workflow 绕过测试直接 push-to-main，自动化路径缺少风险级审批。",
+        "findingRefs": [
+          "ci-bypass-on-automated-push"
+        ]
+      },
+      {
+        "id": "learning-capture",
+        "label": "经验沉淀",
+        "score": 38,
+        "summary": "2 条 Memory 记录已整理标题元数据（无碰撞），1 份规范文档存在（ui-config-animation-recovery-design.md）。但未观察到重复模式或循环机会，无法评估改进有效性。窗口期证据不足，暂不适用。",
+        "findingRefs": []
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "ci-bypass-on-automated-push",
+      "title": "Catalog 自动更新绕过 CI 测试门禁直接推送至 main",
+      "severity": "Low",
+      "reason": "AGENTS.md 要求 merge gate 为 full solution test run，但 update-mod-activity.yml 在 schedule/dispatch 触发后直接 git push 到当前分支（通常为 main），不经过 build-and-test。虽然仅修改 catalog 文件而非源代码，但建立了绕过唯一机械验证点的自动化路径。",
+      "expectedOutput": [
+        "Update-mod-activity 工作流在执行 git push 前包含 dotnet test 步骤"
+      ],
+      "expectedArtifact": "Workflow updated with pre-commit testing",
+      "aiFixPrompt": "/better-harness fix this issue\n\n为 catalog 自动更新添加前置测试步骤，确保任何代码变更都经过完整 CI 验证。\n\n## 验证\n\n- 运行 `dotnet test Crystalfly.slnx -c Release` 在更新脚本执行前\n- 确认工作流在 commit 前包含测试步骤\n- 考虑添加分支保护规则强制 CI 通过",
+      "dimensionRefs": [
+        "reliable-delivery"
+      ]
+    },
+    {
+      "id": "no-mechanical-enforcement-of-architecture-constraints",
+      "title": "架构不变量（事务状态机、ZIP 安全等）缺少机械化执行门禁",
+      "severity": "Low",
+      "reason": "architecture.md 定义了精确的不变量要求（如 transactions 必须在特定状态执行操作、catalog 信任优先级、SHA-256 验证、ZIP 遍历检查、reparse-point 防护），但 CI pipeline 仅包含编译器 + xUnit 测试。没有 Roslyn analyzer、ArchUnit 式一致性测试、format 检查或静态分析扫描，架构违规仅在恰好被现有测试覆盖时才会被拦截。",
+      "expectedOutput": [
+        "CI pipeline 在 Test 阶段执行架构一致性检查",
+        "所有核心不变量都有对应的测试或分析器验证"
+      ],
+      "expectedArtifact": "Architecture-consistency tests",
+      "aiFixPrompt": "/better-harness fix this issue\n\n添加架构一致性验证机制，确保 core module 的不变量能够被机械执行。\n\n## 验证\n\n- 添加 ArchUnit-like 测试项目或使用 Microsoft.CodeAnalysis.Testing\n- 在 CI 中运行架构一致性检查\n- 至少对关键不变量（事务顺序、hash 验证、路径安全）添加单元测试覆盖",
+      "dimensionRefs": [
+        "change-validation"
+      ]
+    },
+    {
+      "id": "diagnostic-surface-lacks-correlated-observability",
+      "title": "应用程序级诊断表面为扁平文件日志，不支持跨操作的事件关联",
+      "severity": "Low",
+      "reason": "全项目唯一应用层日志机制是 ApplicationLog.Write(path, category, message)——只有时间戳和类别字符串，无级别、无关联 ID、无 DI 集成、无结构化输出（JSON）。异常在 catch 中被静默吞没（IOException、UnauthorizedAccessException 均无处理）。当代理需要调试复杂事务链（如 preset apply → download → transaction → commit）失败时，只能逐行解析无关联的纯文本，定位根因依赖人工推断。",
+      "expectedOutput": [
+        "ApplicationLog 至少添加 CorrelationId 参数支持跨操作关联",
+        "IOException/UnauthorizedAccessException不再被静默吞没",
+        "日志输出至少包含 timestamp + correlationId + level + category + message"
+      ],
+      "expectedArtifact": "Enhanced logging infrastructure",
+      "aiFixPrompt": "/better-harness fix this issue\n\n增强应用层日志系统，使其支持 AI 调试场景下的可观测性需求。\n\n## 验证\n\n- 引入结构化日志（Serilog/NLog）或至少添加 correlation ID\n- 为关键操作链路添加关联 ID 透传\n- 将静默吞没的异常改为记录并向上抛出\n- 验证 Agent 能否通过日志追踪跨方法调用链",
+      "dimensionRefs": [
+        "change-validation",
+        "controlled-execution"
+      ]
+    }
+  ]
+}

@@ -179,6 +179,7 @@
         <Setter Property="Padding" Value="8,5" />
         <Setter Property="MinHeight" Value="36" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
     </Style>
 
     <Style Selector="Button.cfp-nav:pointerover">
@@ -353,8 +354,13 @@
         <Setter Property="CornerRadius" Value="6" />
         <Setter Property="Padding" Value="8,6" />
         <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />
         <Setter Property="MinHeight" Value="36" />
+    </Style>
+
+    <Style Selector="Button.cfp-local-nav > Grid">
+        <Setter Property="Width" Value="144" />
     </Style>
 
     <Style Selector="Button.cfp-local-nav:pointerover">
@@ -381,9 +387,7 @@
         </Setter>
     </Style>
 
-    <Style Selector="Button.cfp-local-nav TextBlock">
-        <Setter Property="MinWidth" Value="109" />
-    </Style>
+
 
     <Style Selector="ListBox.cfp-list">
         <Setter Property="Background" Value="Transparent" />
@@ -534,27 +538,6 @@
     <Style Selector="Button.cfp-download-fab"><Setter Property="CornerRadius" Value="22"/><Setter Property="Padding" Value="0"/><Setter Property="MinHeight" Value="44"/><Setter Property="MinWidth" Value="44"/></Style>
     <Style Selector="Border.cfp-latency-result"><Setter Property="Padding" Value="8,6"/><Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}"/><Setter Property="CornerRadius" Value="6"/></Style>
     <Style Selector="StackPanel.cfp-manage-nav"><Setter Property="HorizontalAlignment" Value="Stretch"/></Style>
-
-    <Style Selector="ListBox.cfp-installed-mod-list > ListBoxItem"><Setter Property="MinHeight" Value="40"/><Setter Property="Padding" Value="5,3"/></Style>
-    <Style Selector="ListBox.cfp-installed-mod-list > ListBoxItem:selected"><Setter Property="Background" Value="Transparent"/></Style>
-    <Style Selector="ListBox.cfp-installed-mod-list > ListBoxItem:selected:pointerover, ListBox.cfp-installed-mod-list > ListBoxItem:selected:pressed"><Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}"/></Style>
-    <Style Selector="Grid.cfp-installed-mod-row.selected"><Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedBrush}"/></Style>
-    <Style Selector="Grid.cfp-installed-mod-row.selected:pointerover"><Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedHoverBrush}"/></Style>
-    <Style Selector="Border.cfp-installed-mod-accent"><Setter Property="Opacity" Value="0"/></Style>
     <Style Selector="Grid.cfp-installed-mod-row.selected Border.cfp-installed-mod-accent"><Setter Property="Opacity" Value="1"/></Style>
-    <Style Selector="Grid.cfp-installed-mod-row.disabled"><Setter Property="Opacity" Value="0.72"/></Style>
-    <Style Selector="Border.cfp-dependency-graph-frame"><Setter Property="Padding" Value="0"/><Setter Property="ClipToBounds" Value="True"/></Style>
-    <Style Selector="Border.cfp-dependency-toolbar"><Setter Property="Padding" Value="3"/><Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="6"/></Style>
-    <Style Selector="Button.cfp-dependency-node"><Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}"/><Setter Property="Foreground" Value="{DynamicResource CfTextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="6"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Stretch"/></Style>
-    <Style Selector="Button.cfp-dependency-node.selected"><Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}"/><Setter Property="BorderThickness" Value="2"/></Style>
-    <Style Selector="Button.cfp-dependency-node.dimmed"><Setter Property="Opacity" Value="0.45"/></Style>
-    <Style Selector="Button.cfp-dependency-node.missing, Button.cfp-dependency-node.problem"><Setter Property="BorderBrush" Value="{DynamicResource CfErrorBrush}"/></Style>
-    <Style Selector="Button.cfp-dependency-node.warning"><Setter Property="BorderBrush" Value="{DynamicResource CfWarningBrush}"/></Style>
-    <Style Selector="Button.cfp-dependency-node.unknown"><Setter Property="BorderBrush" Value="{DynamicResource CfMutedTextBrush}"/></Style>
-    <Style Selector="Border.cfp-dependency-node-accent"><Setter Property="Background" Value="{DynamicResource CfAccentBrush}"/></Style>
-    <Style Selector="Button.cfp-dependency-node.missing Border.cfp-dependency-node-accent, Button.cfp-dependency-node.problem Border.cfp-dependency-node-accent"><Setter Property="Background" Value="{DynamicResource CfErrorBrush}"/></Style>
-    <Style Selector="Button.cfp-dependency-node.warning Border.cfp-dependency-node-accent"><Setter Property="Background" Value="{DynamicResource CfWarningBrush}"/></Style>
-    <Style Selector="Button.cfp-dependency-node.unknown Border.cfp-dependency-node-accent"><Setter Property="Background" Value="{DynamicResource CfMutedTextBrush}"/></Style>
-    <Style Selector="TextBlock.cfp-dependency-action"><Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}"/><Setter Property="MaxWidth" Value="96"/></Style>
-    <Style Selector="Button.cfp-graph-toggle.active"><Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}"/><Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}"/></Style>
+
 </Styles>
