@@ -11,7 +11,7 @@
         <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
     </UserControl.KeyBindings>
 
-    <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="14">
+    <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="16">
         <TextBlock Grid.Row="0"
                    Classes="cfp-section-title"
                    Text="{Binding Title}"
