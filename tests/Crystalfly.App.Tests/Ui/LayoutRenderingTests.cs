@@ -504,7 +504,7 @@ public sealed class LayoutRenderingTests
                 var actionsOrigin = Assert.IsType<Point>(actions.TranslatePoint(default, row));
 
                 Assert.InRange(summaryOrigin.X, 0, 0.5);
-                Assert.InRange(actionsOrigin.X, row.Bounds.Width - 94.5, row.Bounds.Width - 93.5);
+                Assert.InRange(actionsOrigin.X, row.Bounds.Width - 126.5, row.Bounds.Width - 125.5);
                 Assert.InRange(Math.Abs(main.Bounds.Width - row.Bounds.Width), 0, 0.5);
             }
 

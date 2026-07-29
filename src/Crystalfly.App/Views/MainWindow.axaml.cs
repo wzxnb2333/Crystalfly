@@ -1094,6 +1094,19 @@ public partial class MainWindow : Window
         {
             return;
         }
+        await ConfirmDeleteInstanceAsync(viewModel, instance);
+    }
+
+    private async void ConfirmDeleteSelectedInstance(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel { SelectedInstance: { } instance } viewModel)
+        {
+            await ConfirmDeleteInstanceAsync(viewModel, instance);
+        }
+    }
+
+    private async Task ConfirmDeleteInstanceAsync(MainViewModel viewModel, InstanceItemViewModel instance)
+    {
         if (viewModel.SelectedGameDirectory?.IsSteam == true)
         {
             var dialog = new ThreeChoiceDialogViewModel(
@@ -1129,6 +1142,79 @@ public partial class MainWindow : Window
         if (confirmed)
         {
             await viewModel.DeleteInstanceCommand.ExecuteAsync(instance);
+        }
+    }
+
+    private async void RenameSelectedInstance(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance } viewModel)
+        {
+            return;
+        }
+        var dialog = new TextInputDialogViewModel(
+            viewModel.Loc["RenameInstance"],
+            viewModel.Loc["RenameInstanceHint"],
+            instance.Name,
+            viewModel.Loc["HistoricalInstanceName"],
+            viewModel.Loc["Confirm"],
+            viewModel.Loc["Cancel"]);
+        var name = await OverlayDialog.ShowCustomAsync<
+            TextInputDialogView,
+            TextInputDialogViewModel,
+            string?>(dialog, OverlayHostId, CreateOverlayOptions());
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            await viewModel.RenameInstanceCommand.ExecuteAsync(name);
+        }
+    }
+
+    private void OpenSelectedInstanceFolder(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel { SelectedInstance: { } instance } viewModel)
+        {
+            OpenSafeAbsoluteFolder(instance.RootPath, instance.RootPath, create: false, viewModel);
+        }
+    }
+
+    private void OpenSelectedSaveFolder(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || viewModel.GetSelectedInstanceSaveDirectory() is not { } saveDirectory)
+        {
+            return;
+        }
+        OpenSafeAbsoluteFolder(
+            Path.Combine(viewModel.VersionRoot, ".crystalfly"),
+            saveDirectory,
+            create: true,
+            viewModel);
+    }
+
+    private void OpenSelectedModFolder(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance } viewModel
+            || viewModel.GetSelectedInstanceModDirectory() is not { } modDirectory)
+        {
+            return;
+        }
+        OpenSafeAbsoluteFolder(instance.RootPath, modDirectory, create: false, viewModel);
+    }
+
+    private async void ConfirmCompleteInstanceFiles(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance } viewModel)
+        {
+            return;
+        }
+        var confirmed = await ShowConfirmationAsync(
+            viewModel.Loc["CompleteInstanceFiles"],
+            viewModel.Loc["CompleteInstanceFilesHint"],
+            instance.Name,
+            viewModel,
+            isDangerous: false);
+        if (confirmed)
+        {
+            await viewModel.EnqueueSelectedInstanceRepairCommand.ExecuteAsync(null);
         }
     }
 
@@ -1762,6 +1848,49 @@ public partial class MainWindow : Window
         try
         {
             var target = ResolveSafeInstanceFolder(instanceRoot, relativePath);
+            Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is IOException
+            or UnauthorizedAccessException
+            or InvalidOperationException
+            or ArgumentException
+            or Win32Exception)
+        {
+            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+        }
+    }
+
+    private static void OpenSafeAbsoluteFolder(
+        string allowedRoot,
+        string targetPath,
+        bool create,
+        MainViewModel viewModel)
+    {
+        try
+        {
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(allowedRoot));
+            var target = Path.TrimEndingDirectorySeparator(Path.GetFullPath(targetPath));
+            if (!string.Equals(root, target, StringComparison.OrdinalIgnoreCase)
+                && !target.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("The requested folder is outside the selected instance data root.");
+            }
+            if (create)
+            {
+                Directory.CreateDirectory(target);
+            }
+            if (!Directory.Exists(target))
+            {
+                throw new DirectoryNotFoundException($"Directory '{target}' was not found.");
+            }
+            for (var current = new DirectoryInfo(target); current is not null; current = current.Parent)
+            {
+                RejectReparsePoint(current.FullName);
+                if (string.Equals(current.FullName, root, StringComparison.OrdinalIgnoreCase))
+                {
+                    break;
+                }
+            }
             Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
         }
         catch (Exception exception) when (exception is IOException

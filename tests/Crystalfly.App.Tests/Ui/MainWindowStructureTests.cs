@@ -52,7 +52,10 @@ public sealed class MainWindowStructureTests
         Assert.Equal("Stretch", (string?)instanceRow.Attribute("HorizontalAlignment"));
         Assert.Equal("2", (string?)instanceMain.Attribute("Grid.ColumnSpan"));
         Assert.Equal("Left", (string?)instanceSummary.Attribute("HorizontalAlignment"));
-        Assert.Equal("94", (string?)instanceActions.Attribute("Width"));
+        Assert.Equal("126", (string?)instanceActions.Attribute("Width"));
+        Assert.Contains(versionsGrid.Descendants(Avalonia + "Button"), button =>
+            HasClass(button, "cfp-instance-action")
+            && HasBinding(button, "Command", "ToggleFavoriteInstanceCommand"));
         Assert.Contains(versionsGrid.Descendants(Avalonia + "Button"), button => HasClass(button, "cfp-instance-action") && (string?)button.Attribute("Click") == "ConfirmDeleteInstance");
         Assert.Contains(versionsGrid.Descendants(Avalonia + "Button"), button => HasClass(button, "cfp-instance-action") && (string?)button.Attribute("Click") == "CloneInstanceWithName");
         Assert.Contains(versionsGrid.Descendants(Avalonia + "Button"), button => HasClass(button, "cfp-instance-action") && HasBinding(button, "Command", "OpenInstanceSettingsCommand"));

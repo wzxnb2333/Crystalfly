@@ -1357,6 +1357,30 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Favorite_instances_sort_first_within_the_active_directory()
+    {
+        await using var viewModel = CreateViewModel();
+        var alpha = new InstanceItemViewModel(
+            Instance("alpha", applicationData.CreateDirectory("favorite-versions", "alpha")),
+            "1.5.78.11833",
+            "Vanilla",
+            0);
+        var beta = new InstanceItemViewModel(
+            Instance("beta", applicationData.CreateDirectory("favorite-versions", "beta")),
+            "1.5.78.11833",
+            "Vanilla",
+            0);
+        viewModel.Instances.Add(alpha);
+        viewModel.Instances.Add(beta);
+
+        viewModel.ToggleFavoriteInstanceCommand.Execute(beta);
+
+        Assert.True(viewModel.VisibleInstances[0].IsFavorite);
+        Assert.Equal("beta", viewModel.VisibleInstances[0].Id);
+        Assert.False(viewModel.VisibleInstances[1].IsFavorite);
+    }
+
+    [Fact]
     public async Task Delete_instance_runs_condition_check_inside_coordinator_and_selects_next()
     {
         InstanceRecord? deleted = null;

@@ -61,6 +61,75 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
     }
 
     [Fact]
+    public async Task Repair_factory_and_executor_update_existing_instance_without_removing_extra_files()
+    {
+        var instanceRoot = Directory.CreateDirectory(Path.Combine(root, "target")).FullName;
+        Directory.CreateDirectory(Path.Combine(instanceRoot, "hollow_knight_Data"));
+        await File.WriteAllTextAsync(Path.Combine(instanceRoot, "keep.png"), "keep");
+        var instance = new InstanceRecord
+        {
+            Id = "instance-id",
+            Name = "target",
+            RootPath = instanceRoot,
+            BuildId = "known-build",
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        await InstanceSidecar.SaveAsync(instance);
+        var build = new GameBuild
+        {
+            Id = "known-build",
+            DisplayVersion = "1.5.78",
+            DepotId = 367521,
+            ManifestId = "42",
+            ExecutableSha256 = new string('A', 64),
+            GlobalGameManagersSha256 = new string('B', 64)
+        };
+        SteamDownloadRequest? captured = null;
+        var executor = new SteamDownloadQueueExecutor(
+            new RejectingFallbackExecutor(),
+            async (request, _, cancellationToken) =>
+            {
+                captured = request;
+                Directory.CreateDirectory(request.StagingDirectory);
+                await File.WriteAllTextAsync(
+                    Path.Combine(request.StagingDirectory, "hollow_knight.exe"),
+                    "repaired",
+                    cancellationToken);
+                return new SteamDownloadResult(
+                    367520,
+                    367521,
+                    42,
+                    request.StagingDirectory,
+                    ["hollow_knight.exe"],
+                    8);
+            },
+            _ => "known-build",
+            resolveRepairHashes: _ => new Dictionary<string, string>
+            {
+                ["hollow_knight.exe"] = build.ExecutableSha256,
+                ["hollow_knight_Data/globalgamemanagers"] = build.GlobalGameManagersSha256
+            });
+        var group = SteamDownloadQueueGroupFactory.CreateRepair(instance, build);
+        var item = Assert.Single(group.Items);
+
+        await executor.TransferAsync(
+            group,
+            item,
+            new ProgressCapture(_ => { }),
+            networkGate,
+            CancellationToken.None);
+        await executor.InstallAsync(group, item, CancellationToken.None);
+
+        Assert.Equal(DownloadQueueGroupKind.InstanceRepair, group.Kind);
+        Assert.Equal("steam-repair:known-build", item.PackageId);
+        Assert.Equal(instanceRoot, captured?.RepairSourceDirectory);
+        Assert.Equal("repaired", await File.ReadAllTextAsync(Path.Combine(instanceRoot, "hollow_knight.exe")));
+        Assert.Equal("keep", await File.ReadAllTextAsync(Path.Combine(instanceRoot, "keep.png")));
+        Assert.Equal(instance, await InstanceSidecar.LoadAsync(instanceRoot));
+        Assert.False(Directory.Exists(SteamDownloadQueueGroupFactory.GetStagingDirectory(group)));
+    }
+
+    [Fact]
     public void Factory_rejects_a_zero_custom_manifest() =>
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             SteamDownloadQueueGroupFactory.CreateCustomManifest(0, "Historical", root, "historical"));

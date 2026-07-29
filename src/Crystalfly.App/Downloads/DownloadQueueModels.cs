@@ -8,7 +8,8 @@ public enum DownloadQueueGroupKind
     LoaderInstall = 1,
     AssetInstall = 2,
     ModDependencyRepair = 3,
-    ModPresetApply = 4
+    ModPresetApply = 4,
+    InstanceRepair = 5
 }
 
 public enum DownloadQueueGroupState
@@ -31,7 +32,8 @@ public enum DownloadQueueItemKind
     PresetInstall = 5,
     PresetEnable = 6,
     PresetDisable = 7,
-    PresetPrepare = 8
+    PresetPrepare = 8,
+    LoaderRepair = 9
 }
 
 public enum DownloadQueueItemState

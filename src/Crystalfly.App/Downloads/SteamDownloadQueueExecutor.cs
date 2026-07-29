@@ -6,6 +6,7 @@ using Crystalfly.Core.Models;
 using Crystalfly.Core.Networking;
 using Crystalfly.Core.Packages;
 using Crystalfly.Core.Serialization;
+using Crystalfly.Core.Transactions;
 using Crystalfly.Steam.Downloads;
 
 namespace Crystalfly.App.Downloads;
@@ -22,15 +23,20 @@ public sealed class SteamDownloadQueueExecutor(
     Func<bool>? isLoggedOn = null,
     TimeSpan? loginPollInterval = null,
     InstanceOperationCoordinator? operationCoordinator = null,
-    INetworkPolicy? networkPolicy = null) : IDownloadQueueExecutor
+    INetworkPolicy? networkPolicy = null,
+    Func<string, IReadOnlyDictionary<string, string>?>? resolveRepairHashes = null) : IDownloadQueueExecutor
 {
     private readonly SemaphoreSlim steamDownloadGate = new(1, 1);
     private readonly Func<bool> isLoggedOn = isLoggedOn ?? (static () => true);
     private readonly TimeSpan loginPollInterval = loginPollInterval ?? TimeSpan.FromMilliseconds(500);
     private readonly InstanceOperationCoordinator operationCoordinator = operationCoordinator ?? new();
+    private readonly Func<string, IReadOnlyDictionary<string, string>?> resolveRepairHashes =
+        resolveRepairHashes ?? (static _ => null);
 
     public bool RequiresGameExit(DownloadQueueItem item) =>
-        SteamDownloadQueueGroupFactory.IsSteamItem(item)
+        SteamDownloadQueueGroupFactory.IsSteamRepairItem(item)
+            ? true
+            : SteamDownloadQueueGroupFactory.IsSteamItem(item)
             ? false
             : fallback.RequiresGameExit(item);
 
@@ -90,8 +96,17 @@ public sealed class SteamDownloadQueueExecutor(
             await networkGate.WaitAsync(transferCancellation);
             try
             {
+                var repair = SteamDownloadQueueGroupFactory.IsSteamRepairItem(item);
+                var repairHashes = repair
+                    ? resolveRepairHashes(group.ExpectedBuildId)
+                        ?? throw new InvalidDataException("Repair build hashes are unavailable.")
+                    : null;
                 result = await download(
-                    new SteamDownloadRequest(staging, requestedManifest),
+                    new SteamDownloadRequest(
+                        staging,
+                        requestedManifest,
+                        RepairSourceDirectory: repair ? group.TargetInstanceRoot : null,
+                        RepairSha256: repairHashes),
                     value => progress.Report(new PackageTransferProgress(
                         value.CompletedBytes,
                         value.TotalBytes,
@@ -151,8 +166,37 @@ public sealed class SteamDownloadQueueExecutor(
 
         await operationCoordinator.RunAsync(
             group.TargetInstanceId,
-            token => PublishAsync(group, item, token),
+            token => SteamDownloadQueueGroupFactory.IsSteamRepairItem(item)
+                ? PublishRepairAsync(group, item, token)
+                : PublishAsync(group, item, token),
             cancellationToken);
+    }
+
+    private static async Task PublishRepairAsync(
+        DownloadQueueGroup group,
+        DownloadQueueItem item,
+        CancellationToken cancellationToken)
+    {
+        var staging = SteamDownloadQueueGroupFactory.GetStagingDirectory(group);
+        var destination = Path.GetFullPath(group.TargetInstanceRoot);
+        var statePath = Path.Combine(staging, InstanceDirectory.PendingDownloadMarkerFileName);
+        _ = await ReadTransferStateAsync(statePath, group, item, cancellationToken);
+        var instance = await InstanceSidecar.LoadAsync(destination, cancellationToken);
+        if (!string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal)
+            || !string.Equals(instance.BuildId, group.ExpectedBuildId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException("Repair target no longer matches the queued instance.");
+        }
+        File.Delete(statePath);
+        var versionRoot = Directory.GetParent(destination)?.FullName
+            ?? throw new InvalidDataException("Repair target must have a version root.");
+        await FileTransaction.ApplyDirectoryAsync(
+            staging,
+            destination,
+            Path.Combine(versionRoot, ".crystalfly", "transactions"),
+            "repair-game-files",
+            cancellationToken);
+        DeleteDirectory(staging);
     }
 
     private async Task PublishAsync(

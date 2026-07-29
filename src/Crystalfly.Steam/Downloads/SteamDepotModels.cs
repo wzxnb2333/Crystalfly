@@ -13,7 +13,9 @@ public sealed record SteamDepotManifest(ulong Id, IReadOnlyList<SteamDepotFile> 
 public sealed record SteamDownloadRequest(
     string StagingDirectory,
     ulong? ManifestId = null,
-    string Branch = "public");
+    string Branch = "public",
+    string? RepairSourceDirectory = null,
+    IReadOnlyDictionary<string, string>? RepairSha256 = null);
 
 public sealed record SteamDownloadResult(
     uint AppId,

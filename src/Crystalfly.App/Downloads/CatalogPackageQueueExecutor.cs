@@ -40,7 +40,8 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
     }
 
     public bool RequiresGameExit(DownloadQueueItem item) => item.Kind is
-        DownloadQueueItemKind.Loader or DownloadQueueItemKind.Dependency
+        DownloadQueueItemKind.Loader or DownloadQueueItemKind.LoaderRepair
+        or DownloadQueueItemKind.Dependency
         or DownloadQueueItemKind.DependencyReEnable or DownloadQueueItemKind.Mod
         or DownloadQueueItemKind.PresetInstall or DownloadQueueItemKind.PresetEnable
         or DownloadQueueItemKind.PresetDisable or DownloadQueueItemKind.PresetPrepare;
@@ -264,6 +265,24 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
             {
                 await InstallPresetAsync(context, item, cancellationToken);
             }
+            return;
+        }
+
+        if (group.Kind == DownloadQueueGroupKind.InstanceRepair
+            && item.Kind == DownloadQueueItemKind.LoaderRepair)
+        {
+            var repairCatalog = ModCatalogCompatibility.ProjectForBuild(getCatalog(), group.ExpectedBuildId);
+            var repairPackage = ResolvePackage(repairCatalog, item);
+            var repairLoaderManager = new LoaderManager(
+                paths.InstanceRoot,
+                paths.TransactionRoot,
+                Path.Combine(paths.StateRoot, "loader.json"),
+                paths.PackageRoot,
+                httpClient);
+            await repairLoaderManager.RepairFromFileAsync(
+                repairPackage.Loader!,
+                CachePath(paths.PackageRoot, repairPackage.Sha256),
+                cancellationToken);
             return;
         }
 
@@ -647,7 +666,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
 
     private static ResolvedPackage ResolvePackage(GameCatalog catalog, DownloadQueueItem item) => item.Kind switch
     {
-        DownloadQueueItemKind.Loader => ResolveLoader(catalog, item),
+        DownloadQueueItemKind.Loader or DownloadQueueItemKind.LoaderRepair => ResolveLoader(catalog, item),
         DownloadQueueItemKind.Dependency or DownloadQueueItemKind.Mod
             or DownloadQueueItemKind.PresetInstall => ResolveMod(catalog, item),
         _ => throw new NotSupportedException($"Package kind '{item.Kind}' is not supported by this executor.")

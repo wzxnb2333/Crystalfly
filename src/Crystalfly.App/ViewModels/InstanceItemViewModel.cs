@@ -7,7 +7,8 @@ public sealed record InstanceItemViewModel(
     InstanceRecord Record,
     string DisplayVersion,
     string LoaderDisplay,
-    int ModCount)
+    int ModCount,
+    bool IsFavorite = false)
 {
     public string Id => Record.Id;
 

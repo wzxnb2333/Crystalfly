@@ -26,8 +26,15 @@ public sealed class SteamDepotDownloadService(
             request.Branch,
             request.ManifestId,
             cancellationToken);
+        IReadOnlyList<SteamDepotFile> files = request.RepairSourceDirectory is null
+            ? manifest.Files
+            : await SelectRepairFilesAsync(
+                manifest.Files,
+                request.RepairSourceDirectory,
+                request.RepairSha256,
+                cancellationToken);
         string staging = Path.GetFullPath(request.StagingDirectory);
-        string[] targets = manifest.Files
+        string[] targets = files
             .Select(file => DownloadPath.ResolveUnderRoot(staging, file.RelativePath))
             .ToArray();
         string appIdTarget = DownloadPath.ResolveUnderRoot(staging, "steam_appid.txt");
@@ -44,13 +51,13 @@ public sealed class SteamDepotDownloadService(
             File.Delete(appIdTarget + ".crystalfly-part");
         }
 
-        SteamDepotChunk[][] chunksByFile = manifest.Files
+        SteamDepotChunk[][] chunksByFile = files
             .Select(ValidateAndOrderChunks)
             .ToArray();
         long totalBytes = 0;
         try
         {
-            foreach (SteamDepotFile file in manifest.Files)
+            foreach (SteamDepotFile file in files)
                 totalBytes = checked(totalBytes + file.Size);
         }
         catch (OverflowException exception)
@@ -59,11 +66,11 @@ public sealed class SteamDepotDownloadService(
         }
         var aggregator = new DownloadProgressAggregator(totalBytes, progress);
 
-        var completedFiles = new List<string>(manifest.Files.Count);
-        for (int index = 0; index < manifest.Files.Count; index++)
+        var completedFiles = new List<string>(files.Count);
+        for (int index = 0; index < files.Count; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            SteamDepotFile file = manifest.Files[index];
+            SteamDepotFile file = files[index];
             string target = targets[index];
             string partial = target + ".crystalfly-part";
             SteamDepotChunk[] chunks = chunksByFile[index];
@@ -151,7 +158,9 @@ public sealed class SteamDepotDownloadService(
             }
         }
 
-        if (!manifestProvidesAppId)
+        if (!manifestProvidesAppId
+            && (request.RepairSourceDirectory is null
+                || !File.Exists(Path.Combine(request.RepairSourceDirectory, "steam_appid.txt"))))
             await WriteSteamAppIdAsync(appIdTarget, cancellationToken);
 
         return new SteamDownloadResult(
@@ -161,6 +170,52 @@ public sealed class SteamDepotDownloadService(
             staging,
             completedFiles,
             totalBytes);
+    }
+
+    private static async Task<IReadOnlyList<SteamDepotFile>> SelectRepairFilesAsync(
+        IReadOnlyList<SteamDepotFile> manifestFiles,
+        string sourceDirectory,
+        IReadOnlyDictionary<string, string>? repairSha256,
+        CancellationToken cancellationToken)
+    {
+        var source = Path.GetFullPath(sourceDirectory);
+        if (!Directory.Exists(source))
+        {
+            throw new DirectoryNotFoundException($"Repair source '{source}' was not found.");
+        }
+        var expectedHashes = (repairSha256 ?? new Dictionary<string, string>())
+            .ToDictionary(
+                pair => pair.Key.Replace('\\', '/'),
+                pair => pair.Value,
+                StringComparer.OrdinalIgnoreCase);
+        var selected = new List<SteamDepotFile>();
+        foreach (var file in manifestFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var target = DownloadPath.ResolveUnderRoot(source, file.RelativePath);
+            if (!File.Exists(target))
+            {
+                selected.Add(file);
+                continue;
+            }
+            if (!expectedHashes.TryGetValue(file.RelativePath.Replace('\\', '/'), out var expected))
+            {
+                continue;
+            }
+            await using var stream = new FileStream(
+                target,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                81920,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            var actual = Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken));
+            if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
+            {
+                selected.Add(file);
+            }
+        }
+        return selected;
     }
 
     private static SteamDepotChunk[] ValidateAndOrderChunks(SteamDepotFile file)
