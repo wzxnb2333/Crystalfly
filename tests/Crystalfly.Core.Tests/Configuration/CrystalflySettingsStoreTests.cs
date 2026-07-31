@@ -20,6 +20,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         Assert.False(defaults.OfflineMode);
         Assert.Empty(defaults.GameDirectories);
         Assert.False(defaults.GameDirectoryDiscoveryCompleted);
+        Assert.Empty(defaults.FavoriteInstanceIds);
 
         var expected = defaults with
         {
@@ -45,6 +46,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
                 }
             ],
             GameDirectoryDiscoveryCompleted = true,
+            FavoriteInstanceIds = ["practice-1578", "latest"],
             ModHealthAcknowledgements =
             [
                 new ModHealthAcknowledgement { Fingerprint = new string('A', 64) }
@@ -73,13 +75,21 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
                 AccentColor = "#7E22CE",
                 CustomCatalogs = [],
                 GameDirectories = [],
-                ModHealthAcknowledgements = []
+                ModHealthAcknowledgements = [],
+                FavoriteInstanceIds = []
             },
-            actual with { CustomCatalogs = [], GameDirectories = [], ModHealthAcknowledgements = [] });
+            actual with
+            {
+                CustomCatalogs = [],
+                GameDirectories = [],
+                ModHealthAcknowledgements = [],
+                FavoriteInstanceIds = []
+            });
         Assert.Equal(expected.CustomCatalogs, actual.CustomCatalogs);
         Assert.Equal(expected.CustomModLinks, actual.CustomModLinks);
         Assert.Equal(expected.ModHealthAcknowledgements, actual.ModHealthAcknowledgements);
         Assert.Equal(expected.GameDirectories.ToArray(), actual.GameDirectories.ToArray());
+        Assert.Equal(expected.FavoriteInstanceIds.ToArray(), actual.FavoriteInstanceIds.ToArray());
         Assert.Equal("#7E22CE", actual.AccentColor);
         Assert.Equal(new BackgroundImageSettings
         {

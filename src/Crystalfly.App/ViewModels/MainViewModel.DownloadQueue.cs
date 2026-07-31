@@ -4,6 +4,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using Crystalfly.App.Downloads;
 using Crystalfly.App.ViewModels.Dialogs;
+using Crystalfly.Core.Models;
 using Crystalfly.Core.Mods;
 using Crystalfly.Core.Runtime;
 using Crystalfly.Steam.Downloads;
@@ -75,7 +76,26 @@ public partial class MainViewModel
                     StringComparison.Ordinal))?.Id,
             IsSteamSessionLoggedOn,
             operationCoordinator: instanceOperationCoordinator,
-            networkPolicy: networkPolicy);
+            networkPolicy: networkPolicy,
+            resolveRepairHashes: buildId =>
+            {
+                var build = catalog.Builds.FirstOrDefault(candidate =>
+                    string.Equals(candidate.Id, buildId, StringComparison.OrdinalIgnoreCase));
+                if (build is null)
+                {
+                    return null;
+                }
+                var hashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["hollow_knight.exe"] = build.ExecutableSha256,
+                    ["hollow_knight_Data/globalgamemanagers"] = build.GlobalGameManagersSha256
+                };
+                if (build.UnityPlayerSha256 is not null)
+                {
+                    hashes["UnityPlayer.dll"] = build.UnityPlayerSha256;
+                }
+                return hashes;
+            });
         return new DownloadQueueService(
             Path.Combine(paths.ApplicationDataRoot, "download-queue.json"),
             executor,
@@ -341,6 +361,61 @@ public partial class MainViewModel
             : Loc["QueueTaskAlreadyExists"];
         ToastRequested?.Invoke(DownloadStatus);
     }
+
+    [RelayCommand]
+    private async Task EnqueueSelectedInstanceRepairAsync()
+    {
+        if (SelectedInstance is not { } selected)
+        {
+            ErrorMessage = Loc["NoInstance"];
+            return;
+        }
+        var build = catalog.Builds.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, selected.Record.BuildId, StringComparison.OrdinalIgnoreCase));
+        if (build is null)
+        {
+            ErrorMessage = Loc["UnknownBuild"];
+            return;
+        }
+
+        ErrorMessage = null;
+        try
+        {
+            var loaderManager = CreateLoaderManager(selected.Record);
+            var inspection = await loaderManager.InspectAsync(lifetimeCancellation.Token);
+            var receipt = await loaderManager.GetReceiptAsync(lifetimeCancellation.Token);
+            LoaderManifest? loader = null;
+            if (inspection.State != LoaderState.Vanilla)
+            {
+                if (receipt is null)
+                {
+                    throw new InvalidOperationException(Loc["ExternalLoaderBlocked"]);
+                }
+                loader = FindCatalogLoader(receipt.PackageId, selected.Record.BuildId);
+                if (loader is null)
+                {
+                    throw new InvalidOperationException(Loc["LoaderRepairPackageUnavailable"]);
+                }
+            }
+
+            await downloadQueue.InitializeAsync(lifetimeCancellation.Token);
+            var group = SteamDownloadQueueGroupFactory.CreateRepair(selected.Record, build, loader);
+            var result = await downloadQueue.EnqueueAsync(group, lifetimeCancellation.Token);
+            ToastRequested?.Invoke(result.Added
+                ? Loc["AddedToDownloadQueue"]
+                : Loc["QueueTaskAlreadyExists"]);
+        }
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or InvalidOperationException
+            or UnauthorizedAccessException
+            or ArgumentException
+            or System.Text.Json.JsonException)
+        {
+            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+        }
+    }
+
     internal async Task<bool> EnqueueCustomSteamManifestAsync(
         HistoricalManifestDownloadRequest request,
         CancellationToken cancellationToken = default)

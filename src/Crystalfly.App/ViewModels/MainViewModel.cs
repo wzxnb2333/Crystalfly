@@ -538,7 +538,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public partial bool IsGameRunning { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanOpenModFolder))]
     public partial LoaderState CurrentLoaderState { get; set; }
+
+    public bool CanOpenModFolder => CurrentLoaderState is LoaderState.ModdingApi or LoaderState.BepInEx;
 
     [ObservableProperty]
     public partial LoaderManifest? SelectedLoader { get; set; }
@@ -1262,7 +1265,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                         : item.LoaderReceipt.IsVerified
                             ? item.LoaderReceipt.PackageId
                             : $"{item.LoaderReceipt.PackageId} · {Loc["Unverified"]}",
-                    item.ModCount));
+                    item.ModCount,
+                    settings.FavoriteInstanceIds.Contains(item.Record.Id, StringComparer.Ordinal)));
             }
 
             ApplyInstanceFilter();
@@ -1356,6 +1360,64 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     [RelayCommand]
+    private async Task RenameInstanceAsync(string? newName)
+    {
+        if (SelectedInstance is not { } selected || string.IsNullOrWhiteSpace(newName))
+        {
+            return;
+        }
+        if (IsMutationBlocked())
+        {
+            return;
+        }
+
+        IsBusy = true;
+        ErrorMessage = null;
+        try
+        {
+            var instanceId = selected.Id;
+            await instanceOperationCoordinator.RunAsync(
+                instanceId,
+                async cancellationToken =>
+                {
+                    if (new SystemHollowKnightProcessProbe().IsRunning())
+                    {
+                        throw new InvalidOperationException(Loc["CloseGameFirst"]);
+                    }
+                    var conditions = await EvaluateInstanceDeletionConditionsAsync(instanceId, cancellationToken);
+                    if (conditions.HasBlockingQueueTasks)
+                    {
+                        throw new InvalidOperationException(Loc["RenameBlockedDownloads"]);
+                    }
+                    if (!conditions.TransactionsHealthy)
+                    {
+                        throw new InvalidOperationException(Loc["RenameBlockedTransactions"]);
+                    }
+                    await InstanceRenameService.RenameAsync(selected.Record, newName, cancellationToken);
+                },
+                lifetimeCancellation.Token);
+
+            await RefreshInstancesAsync(showBusy: false);
+            SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == instanceId);
+            CurrentManageTab = "Overview";
+            CurrentPage = "Manage";
+            NotifyOperationCompleted();
+        }
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or InvalidOperationException
+            or UnauthorizedAccessException
+            or ArgumentException)
+        {
+            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
     private async Task DeleteInstanceAsync(InstanceItemViewModel? instance)
     {
         if (instance is null || IsMutationBlocked())
@@ -1400,7 +1462,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     : Instances.FirstOrDefault(candidate => candidate.Id == nextId)
                         ?? Instances.FirstOrDefault();
             }
-            settings = settings with { CurrentInstanceId = SelectedInstance?.Id };
+            settings = settings with
+            {
+                CurrentInstanceId = SelectedInstance?.Id,
+                FavoriteInstanceIds = settings.FavoriteInstanceIds
+                    .Where(id => !string.Equals(id, instance.Id, StringComparison.Ordinal))
+                    .ToArray()
+            };
             await QueueSettingsSave();
             CurrentPage = "Launch";
             if (result is { CleanupCompleted: false })
@@ -1450,6 +1518,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     StringComparison.OrdinalIgnoreCase)
                 && group.State is DownloadQueueGroupState.Pending
                     or DownloadQueueGroupState.Running
+                    or DownloadQueueGroupState.WaitingForNetwork
                     or DownloadQueueGroupState.Failed),
             TransactionsHealthy = transactionsHealthy
         };
@@ -1878,12 +1947,44 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     private async Task RepairLoaderAsync()
     {
-        if (SelectedInstance is null || SelectedLoader is null)
+        if (SelectedInstance is null)
         {
-            ErrorMessage = Loc["SelectLoader"];
+            ErrorMessage = Loc["NoInstance"];
             return;
         }
-        await RunInstanceMutationAsync(record => CreateLoaderManager(record).RepairFromUriAsync(SelectedLoader));
+
+        await RunInstanceMutationAsync(async record =>
+        {
+            var manager = CreateLoaderManager(record);
+            var receipt = await manager.GetReceiptAsync();
+            if (receipt is not null)
+            {
+                var receiptedLoader = FindCatalogLoader(receipt.PackageId, record.BuildId)
+                    ?? throw new InvalidOperationException(Loc["LoaderRepairPackageUnavailable"]);
+                await manager.RepairFromUriAsync(receiptedLoader);
+                return;
+            }
+
+            var loaderIds = (await CreateModManager(record).GetInstalledAsync())
+                .Select(mod => mod.LoaderId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (loaderIds.Length != 1
+                || FindCatalogLoader(loaderIds[0], record.BuildId) is not { } orphanedLoader)
+            {
+                throw new InvalidOperationException(Loc["LoaderRepairIdentityUnknown"]);
+            }
+
+            if (await manager.GetStateAsync() == LoaderState.Vanilla)
+            {
+                await manager.InstallFromUriAsync(orphanedLoader);
+            }
+            else
+            {
+                await manager.RecoverFromUriAsync(orphanedLoader);
+            }
+        });
     }
 
     [RelayCommand]
@@ -1894,7 +1995,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ErrorMessage = Loc["NoInstance"];
             return;
         }
-        await RunInstanceMutationAsync(record => CreateLoaderManager(record).UninstallAsync());
+        await RunInstanceMutationAsync(async record =>
+        {
+            if ((await CreateModManager(record).GetInstalledAsync()).Count != 0)
+            {
+                throw new InvalidOperationException(Loc["LoaderUninstallBlockedByMods"]);
+            }
+            await CreateLoaderManager(record).UninstallAsync();
+        });
     }
 
     [RelayCommand]
@@ -2978,13 +3086,49 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
 
+    [RelayCommand]
+    private void ToggleFavoriteInstance(InstanceItemViewModel? instance)
+    {
+        if (instance is null)
+        {
+            return;
+        }
+
+        var updated = instance with { IsFavorite = !instance.IsFavorite };
+        var index = Instances.IndexOf(instance);
+        if (index >= 0)
+        {
+            Instances[index] = updated;
+        }
+        if (SelectedInstance?.Id == instance.Id)
+        {
+            SelectedInstance = updated;
+        }
+        settings = settings with
+        {
+            FavoriteInstanceIds = updated.IsFavorite
+                ? settings.FavoriteInstanceIds
+                    .Append(updated.Id)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray()
+                : settings.FavoriteInstanceIds
+                    .Where(id => !string.Equals(id, updated.Id, StringComparison.Ordinal))
+                    .ToArray()
+        };
+        ApplyInstanceFilter();
+        _ = QueueSettingsSave();
+    }
+
     private void ApplyInstanceFilter()
     {
         VisibleInstances.Clear();
-        foreach (var instance in Instances.Where(instance =>
-            string.IsNullOrWhiteSpace(SearchText)
-            || instance.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
-            || instance.DisplayVersion.Contains(SearchText, StringComparison.OrdinalIgnoreCase)))
+        foreach (var instance in Instances
+                     .Where(instance =>
+                         string.IsNullOrWhiteSpace(SearchText)
+                         || instance.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
+                         || instance.DisplayVersion.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+                     .OrderByDescending(instance => instance.IsFavorite)
+                     .ThenBy(instance => instance.Name, StringComparer.CurrentCultureIgnoreCase))
         {
             VisibleInstances.Add(instance);
         }
@@ -3972,7 +4116,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
             CurrentLoaderState = loaderState;
             currentLoaderInspection = loaderInspection;
-            LoaderVerificationStatus = loaderReceipt is null
+            var orphanedLoaderIds = loaderReceipt is null && loaderState == LoaderState.Drifted
+                ? installed
+                    .Select(mod => mod.LoaderId)
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray()
+                : [];
+            var canRecoverLoaderReceipt = orphanedLoaderIds.Length == 1
+                && FindCatalogLoader(orphanedLoaderIds[0], record.BuildId) is not null;
+            LoaderVerificationStatus = canRecoverLoaderReceipt
+                ? Loc["LoaderReceiptRecoveryAvailable"]
+                : loaderReceipt is null
                 ? loaderState switch
                 {
                     LoaderState.BepInEx or LoaderState.Drifted => Loc["ExternalLoaderBlocked"],
@@ -4397,6 +4552,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         await session.DisposeAsync();
     }
 
+    private LoaderManifest? FindCatalogLoader(string id, string buildId) =>
+        catalog.Loaders.FirstOrDefault(loader =>
+            string.Equals(loader.Id, id, StringComparison.OrdinalIgnoreCase)
+            && loader.SupportedBuildIds.Contains(buildId, StringComparer.OrdinalIgnoreCase));
+
     private LoaderManager CreateLoaderManager(InstanceRecord record)
     {
         var stateRoot = GetInstanceStateRoot(record.Id);
@@ -4414,6 +4574,24 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Path.Combine(GetInstanceStateRoot(record.Id), "mods"),
         Path.Combine(paths.GetVersionDataRoot(VersionRoot), "packages"),
         packageHttpClient);
+
+    public string? GetSelectedInstanceSaveDirectory() => SelectedInstance is null
+        ? null
+        : new LocalLowIsolationService(GetSharedLocalLowPath(), paths.GetVersionDataRoot(VersionRoot))
+            .GetInstanceLocalLowPath(SelectedInstance.Id);
+
+    public string? GetSelectedInstanceModDirectory() => SelectedInstance is null
+        ? null
+        : CurrentLoaderState switch
+        {
+            LoaderState.ModdingApi => Path.Combine(
+                SelectedInstance.RootPath,
+                "hollow_knight_Data",
+                "Managed",
+                "Mods"),
+            LoaderState.BepInEx => Path.Combine(SelectedInstance.RootPath, "BepInEx", "plugins"),
+            _ => null
+        };
 
     private ModInstallService CreateModInstallService(InstanceRecord record) => new(
         record,

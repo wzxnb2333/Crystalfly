@@ -1,11 +1,13 @@
 using System.Globalization;
 using Crystalfly.Core.Instances;
+using Crystalfly.Core.Models;
 
 namespace Crystalfly.App.Downloads;
 
 public static class SteamDownloadQueueGroupFactory
 {
     internal const string PackagePrefix = "steam:";
+    internal const string RepairPackagePrefix = "steam-repair:";
     internal const string LoaderId = "steam-depot";
     internal const string CustomManifestBuildId = "manifest";
 
@@ -81,6 +83,71 @@ public static class SteamDownloadQueueGroupFactory
             createdAt);
     }
 
+    public static DownloadQueueGroup CreateRepair(
+        InstanceRecord instance,
+        GameBuild build,
+        LoaderManifest? loader = null,
+        DateTimeOffset? createdAt = null)
+    {
+        ArgumentNullException.ThrowIfNull(instance);
+        ArgumentNullException.ThrowIfNull(build);
+        if (!ulong.TryParse(build.ManifestId, NumberStyles.None, CultureInfo.InvariantCulture, out var manifestId)
+            || manifestId == 0)
+        {
+            throw new InvalidDataException($"Build '{build.Id}' has no valid Steam manifest ID.");
+        }
+        var target = Path.GetFullPath(instance.RootPath);
+        var id = Guid.NewGuid().ToString("N");
+        var items = new List<DownloadQueueItem>
+        {
+            new()
+            {
+                Id = $"{id}:game-repair",
+                Kind = DownloadQueueItemKind.Asset,
+                PackageId = RepairPackagePrefix + build.Id,
+                Name = build.DisplayVersion,
+                Version = build.DisplayVersion,
+                LoaderId = LoaderId,
+                PackagePath = manifestId.ToString(CultureInfo.InvariantCulture),
+                State = DownloadQueueItemState.Pending,
+                Stage = "Pending"
+            }
+        };
+        if (loader is not null)
+        {
+            items.Add(new DownloadQueueItem
+            {
+                Id = $"{id}:loader-repair",
+                Kind = DownloadQueueItemKind.LoaderRepair,
+                PackageId = loader.Id,
+                Name = loader.Name,
+                Version = loader.Version,
+                LoaderId = loader.Id,
+                DownloadUrl = loader.DownloadUrl,
+                SizeBytes = loader.SizeBytes,
+                Sha256 = loader.Sha256,
+                State = DownloadQueueItemState.Pending,
+                Stage = "Pending"
+            });
+        }
+        return new DownloadQueueGroup
+        {
+            Id = id,
+            DeduplicationKey = $"steam-repair:{instance.Id}",
+            Kind = DownloadQueueGroupKind.InstanceRepair,
+            Name = instance.Name,
+            TargetInstanceId = instance.Id,
+            TargetInstanceName = instance.Name,
+            TargetInstanceRoot = target,
+            ExpectedBuildId = build.Id,
+            ExpectedLoaderId = loader?.Id ?? string.Empty,
+            CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
+            State = DownloadQueueGroupState.Pending,
+            Stage = "Pending",
+            Items = items
+        };
+    }
+
     public static string GetStagingDirectory(DownloadQueueGroup group)
     {
         ArgumentNullException.ThrowIfNull(group);
@@ -104,5 +171,10 @@ public static class SteamDownloadQueueGroupFactory
     internal static bool IsSteamItem(DownloadQueueItem item) =>
         item.Kind == DownloadQueueItemKind.Asset
         && string.Equals(item.LoaderId, LoaderId, StringComparison.Ordinal)
-        && item.PackageId.StartsWith(PackagePrefix, StringComparison.Ordinal);
+        && (item.PackageId.StartsWith(PackagePrefix, StringComparison.Ordinal)
+            || item.PackageId.StartsWith(RepairPackagePrefix, StringComparison.Ordinal));
+
+    internal static bool IsSteamRepairItem(DownloadQueueItem item) =>
+        IsSteamItem(item)
+        && item.PackageId.StartsWith(RepairPackagePrefix, StringComparison.Ordinal);
 }

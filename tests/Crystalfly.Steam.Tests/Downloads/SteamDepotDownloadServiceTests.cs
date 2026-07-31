@@ -155,6 +155,52 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Repair_downloads_missing_files_and_damaged_core_files_only()
+    {
+        var existing = _staging + "-existing";
+        Directory.CreateDirectory(existing);
+        try
+        {
+            byte[] missing = "missing"u8.ToArray();
+            byte[] unchanged = "unchanged"u8.ToArray();
+            byte[] core = "repaired-core"u8.ToArray();
+            await File.WriteAllBytesAsync(Path.Combine(existing, "unchanged.dat"), unchanged);
+            await File.WriteAllTextAsync(Path.Combine(existing, "hollow_knight.exe"), "damaged");
+            var manifest = new SteamDepotManifest(
+                123,
+                [
+                    DepotFile("missing.dat", "chunk-0", missing),
+                    DepotFile("unchanged.dat", "chunk-1", unchanged),
+                    DepotFile("hollow_knight.exe", "chunk-2", core)
+                ]);
+            var source = new MemoryContentClient(manifest, missing, unchanged, core);
+            var downloader = new SteamDepotDownloadService(source);
+
+            var result = await downloader.DownloadAsync(new SteamDownloadRequest(
+                _staging,
+                123,
+                RepairSourceDirectory: existing,
+                RepairSha256: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["hollow_knight.exe"] = Convert.ToHexString(SHA256.HashData(core))
+                }));
+
+            Assert.Equal(2, source.DownloadedChunkCount);
+            Assert.Equal(["missing.dat", "hollow_knight.exe"], result.Files);
+            Assert.True(File.Exists(Path.Combine(_staging, "missing.dat")));
+            Assert.True(File.Exists(Path.Combine(_staging, "hollow_knight.exe")));
+            Assert.False(File.Exists(Path.Combine(_staging, "unchanged.dat")));
+        }
+        finally
+        {
+            if (Directory.Exists(existing))
+            {
+                Directory.Delete(existing, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task NestedFileDownloadCreatesParentBeforeCleaningPartial()
     {
         const string relativePath = "hollow_knight_Data/Plugins/x86_64/D3D12Core.dll";
@@ -330,6 +376,12 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
             123,
             [new SteamDepotFile("game.dat", content.Length, Convert.ToHexString(SHA1.HashData(content)), descriptors)]);
     }
+
+    private static SteamDepotFile DepotFile(string path, string chunkId, byte[] content) => new(
+        path,
+        content.Length,
+        Convert.ToHexString(SHA1.HashData(content)),
+        [new SteamDepotChunk(chunkId, 0, content.Length)]);
 
     private static byte[][] CreateChunks(int count) => Enumerable.Range(0, count)
         .Select(static index => new[] { (byte)index })

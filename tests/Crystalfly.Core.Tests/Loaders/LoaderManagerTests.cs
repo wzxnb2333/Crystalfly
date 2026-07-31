@@ -393,7 +393,7 @@ public sealed class LoaderManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task Uninstall_reports_failure_when_unmanaged_loader_files_prevent_clean_state()
+    public async Task Uninstall_with_unmanaged_mod_files_preserves_loader_and_receipt()
     {
         var manager = CreateManager();
         var package = CreateZip(("BepInEx/core/BepInEx.dll", "loader"));
@@ -401,12 +401,37 @@ public sealed class LoaderManagerTests : IDisposable
         var unmanaged = Path.Combine(InstanceRoot, "BepInEx", "plugins", "manual.dll");
         Directory.CreateDirectory(Path.GetDirectoryName(unmanaged)!);
         await File.WriteAllTextAsync(unmanaged, "manual");
+        var originalReceipt = await File.ReadAllBytesAsync(ReceiptPath);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => manager.UninstallAsync());
 
         Assert.Contains("manual", exception.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(LoaderState.Drifted, await manager.GetStateAsync());
+        Assert.Equal(LoaderState.BepInEx, await manager.GetStateAsync());
+        Assert.Equal(originalReceipt, await File.ReadAllBytesAsync(ReceiptPath));
+        Assert.True(File.Exists(Path.Combine(InstanceRoot, "BepInEx", "core", "BepInEx.dll")));
         Assert.True(File.Exists(unmanaged));
+    }
+
+    [Fact]
+    public async Task Uninstall_ignores_bepinex_runtime_residue_after_loader_files_are_removed()
+    {
+        var manager = CreateManager();
+        var package = CreateZip(("BepInEx/core/BepInEx.dll", "loader"));
+        await manager.InstallFromFileAsync(Manifest("bepinex-5.4.23.4", package), package);
+        var config = Path.Combine(InstanceRoot, "BepInEx", "config", "BepInEx.cfg");
+        var cache = Path.Combine(InstanceRoot, "BepInEx", "cache", "chainloader.dat");
+        var log = Path.Combine(InstanceRoot, "BepInEx", "LogOutput.log");
+        Directory.CreateDirectory(Path.GetDirectoryName(config)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(cache)!);
+        await File.WriteAllTextAsync(config, "config");
+        await File.WriteAllTextAsync(cache, "cache");
+        await File.WriteAllTextAsync(log, "log");
+
+        await manager.UninstallAsync();
+
+        Assert.Equal(LoaderState.Vanilla, await manager.GetStateAsync());
+        Assert.False(File.Exists(ReceiptPath));
+        Assert.True(File.Exists(config));
     }
 
     [Fact]
