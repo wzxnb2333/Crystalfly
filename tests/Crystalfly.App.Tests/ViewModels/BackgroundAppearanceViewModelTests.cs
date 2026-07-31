@@ -183,7 +183,7 @@ public sealed class BackgroundAppearanceViewModelTests : IDisposable
         await using var locked = new FileStream(settingsPath, FileMode.Open, FileAccess.Read, FileShare.None);
 
         viewModel.BackgroundOpacityPercent = 61;
-        await Task.Delay(700);
+        await viewModel.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(30, viewModel.BackgroundOpacityPercent);
         Assert.Equal(0.30, viewModel.ActiveBackgroundOpacity, 3);

@@ -16,10 +16,12 @@ using Crystalfly.App.Views;
 using Crystalfly.App.Views.Dialogs;
 using Crystalfly.Core.Catalog;
 using Crystalfly.Core.Configuration;
+using Crystalfly.Core.Instances;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Runtime;
 using Crystalfly.Core.Saves;
 using Crystalfly.Core.Snapshots;
+using Crystalfly.Core.Speedrun;
 using Ursa.Controls;
 using SkiaSharp;
 
@@ -51,7 +53,10 @@ public sealed class DocumentationScreenshotTests
         new("crystalfly-mod-packs-1920x1080-zh.jpg", 1920, 1080, 1.5d, ScreenshotState.ModPresets),
         new("crystalfly-instance-config-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.InstanceConfig),
         new("crystalfly-save-editor-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.SaveEditor),
-        new("crystalfly-dependency-graph-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.DependencyGraph)
+        new("crystalfly-dependency-graph-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.DependencyGraph),
+        new("crystalfly-speedrun-900x600-zh.jpg", 900, 600, 1d, ScreenshotState.Speedrun),
+        new("crystalfly-speedrun-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.Speedrun),
+        new("crystalfly-speedrun-1920x1080-zh.jpg", 1920, 1080, 1.5d, ScreenshotState.Speedrun)
     ];
 
     [AvaloniaFact]
@@ -197,7 +202,22 @@ public sealed class DocumentationScreenshotTests
             Sha256 = new string('1', 64),
             SupportedBuildIds = ["1.5.78.11833"]
         };
-        var catalog = new GameCatalog { Loaders = [loader], Mods = mods };
+        var speedrunTemplate = new SpeedrunTemplate
+        {
+            Id = "runtime-patches-1578",
+            Name = "RuntimePatches 1.5.78",
+            BuildId = "1.5.78.11833",
+            IsOfficial = true,
+            RulesRevision = RuntimePatchesPolicy.RulesRevision,
+            FileManifestId = "files-runtime-patches-1578",
+            RequiredAssetIds = ["runtime-patches-1578-v1.0.2"]
+        };
+        var catalog = new GameCatalog
+        {
+            Loaders = [loader],
+            Mods = mods,
+            SpeedrunTemplates = [speedrunTemplate]
+        };
         var record = new InstanceRecord
         {
             Id = "practice-1578",
@@ -207,6 +227,47 @@ public sealed class DocumentationScreenshotTests
             CreatedAt = new DateTimeOffset(2026, 7, 19, 12, 0, 0, TimeSpan.Zero)
         };
         var instance = new InstanceItemViewModel(record, "1.5.78.11833", "Modding API v77", 12);
+        var speedrunRoot = Path.Combine(versionRoot, "speedrun-1578");
+        Directory.CreateDirectory(speedrunRoot);
+        File.WriteAllText(Path.Combine(speedrunRoot, "hollow_knight.exe"), "fixture");
+        var speedrunRecord = record with
+        {
+            Id = "speedrun-1578",
+            Name = "1.5.78 RuntimePatches",
+            RootPath = speedrunRoot,
+            Purpose = InstancePurpose.OfficialSpeedrun,
+            ProvisioningMode = InstanceProvisioningMode.FullCopy,
+            LoaderId = null,
+            SpeedrunTemplateId = speedrunTemplate.Id,
+            SpeedrunRulesRevision = speedrunTemplate.RulesRevision
+        };
+        var speedrunInstance = new InstanceItemViewModel(speedrunRecord, "1.5.78", "Vanilla", 0);
+        File.WriteAllText(
+            InstanceSidecar.GetMarkerPath(speedrunRoot),
+            """
+            {
+              "schemaVersion": 1,
+              "instanceId": "speedrun-1578"
+            }
+            """);
+        var speedrunConfigurationPath = Path.Combine(
+            versionRoot,
+            ".crystalfly",
+            "instances",
+            speedrunRecord.Id,
+            "local-low",
+            RuntimePatchesConfiguration.FileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(speedrunConfigurationPath)!);
+        File.WriteAllText(
+            speedrunConfigurationPath,
+            """
+            {
+              "ScreenShakeModifier": false,
+              "MiniSaveStates": false,
+              "FasterIntroSkip": false,
+              "TextMasher": false
+            }
+            """);
         var viewModel = new MainViewModel(
             Path.Combine(root, "app-data"),
             null,
@@ -249,7 +310,11 @@ public sealed class DocumentationScreenshotTests
         viewModel.GameDirectories.Add(gameDirectory);
         viewModel.SelectedGameDirectory = gameDirectory;
         viewModel.Instances.Add(instance);
+        viewModel.Instances.Add(speedrunInstance);
         viewModel.VisibleInstances.Add(instance);
+        viewModel.VisibleInstances.Add(speedrunInstance);
+        viewModel.SpeedrunTemplates.Add(speedrunTemplate);
+        viewModel.SpeedrunInstances.Add(speedrunInstance);
         InvokeRebuildMarketCatalog(viewModel);
         viewModel.DownloadBuilds.Add(new("1.5.78.11833", "Hollow Knight 1.5.78.11833", 9207084990026249690));
         viewModel.VisibleDownloadBuilds.Add(viewModel.DownloadBuilds[0]);
@@ -385,6 +450,14 @@ public sealed class DocumentationScreenshotTests
                 Assert.Contains("调试模组", visibleText);
                 Assert.Contains("Satchel", visibleText);
                 break;
+            case ScreenshotState.Speedrun:
+                Assert.Contains(fixture.ViewModel.Loc["SpeedrunTitle"], visibleText);
+                Assert.Contains("1.5.78 RuntimePatches", visibleText);
+                Assert.Contains("FasterIntroSkip", visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["SpeedrunFeatureUnavailable"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["SpeedrunVerified"], visibleText);
+                Assert.DoesNotContain(fixture.ViewModel.Loc["SpeedrunComingSoon"], visibleText);
+                break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(state), state, null);
         }
@@ -454,6 +527,7 @@ public sealed class DocumentationScreenshotTests
                     or ScreenshotState.SettingsAccentDialog
                     or ScreenshotState.SettingsBackground or ScreenshotState.SettingsInstanceBackground => "Settings",
                 ScreenshotState.MarketList or ScreenshotState.MarketDetail or ScreenshotState.MarketInstall => "Downloads",
+                ScreenshotState.Speedrun => "Speedrun",
                 ScreenshotState.InstanceDetail
                     or ScreenshotState.InstalledModHealth
                     or ScreenshotState.ModPresets
@@ -555,6 +629,16 @@ public sealed class DocumentationScreenshotTests
             if (state == ScreenshotState.DependencyGraph)
             {
                 ViewModel.CurrentManageTab = "Mods";
+            }
+
+            if (state == ScreenshotState.Speedrun)
+            {
+                ViewModel.SelectedSpeedrunInstance = ViewModel.SpeedrunInstances.Single();
+                for (var attempt = 0; attempt < 100 && ViewModel.IsLoadingInstanceDetails; attempt++)
+                {
+                    await Task.Delay(10);
+                }
+                ViewModel.SpeedrunStatus = ViewModel.Loc["SpeedrunVerified"];
             }
         }
 
@@ -676,7 +760,7 @@ public sealed class DocumentationScreenshotTests
                     CanResize = false
                 });
             for (var attempt = 0;
-                 attempt < 100 && !Window.GetVisualDescendants().OfType<CustomDialogControl>().Any();
+                 attempt < 500 && !Window.GetVisualDescendants().OfType<CustomDialogControl>().Any();
                  attempt++)
             {
                 Dispatcher.UIThread.RunJobs();
@@ -999,6 +1083,7 @@ public sealed class DocumentationScreenshotTests
         ModPresets,
         InstanceConfig,
         SaveEditor,
-        DependencyGraph
+        DependencyGraph,
+        Speedrun
     }
 }

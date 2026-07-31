@@ -51,6 +51,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly DpapiRefreshTokenStore tokenStore;
     private readonly SemaphoreSlim settingsSaveLock = new(1, 1);
     private readonly SemaphoreSlim steamConnectionGate = new(1, 1);
+    private readonly SemaphoreSlim runtimePatchesConfigurationSaveLock = new(1, 1);
     private readonly CancellationTokenSource lifetimeCancellation = new();
     private readonly object settingsSaveQueueLock = new();
     private readonly object disposeLock = new();
@@ -93,6 +94,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private Task catalogRefreshTask = Task.CompletedTask;
     private Task steamReconnectTask = Task.CompletedTask;
     private long selectedModContentLoadGeneration;
+    private bool loadingRuntimePatchesConfiguration;
     private CancellationTokenSource? selectedModContentLoadCancellation;
     private Task selectedModContentLoadTask = Task.CompletedTask;
     private OfficialCatalogLoadResult? officialCatalogResult;
@@ -202,6 +204,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public ObservableCollection<InstanceItemViewModel> VisibleInstances { get; } = [];
 
     public ObservableCollection<SpeedrunTemplate> SpeedrunTemplates { get; } = [];
+
+    public ObservableCollection<InstanceItemViewModel> SpeedrunInstances { get; } = [];
+
+    public ObservableCollection<InstanceItemViewModel> SpeedrunSourceInstances { get; } = [];
 
     public ObservableCollection<LoaderManifest> AvailableLoaders { get; } = [];
 
@@ -359,6 +365,42 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public bool IsSpeedrunPage => CurrentPage == "Speedrun";
 
+    public bool HasSelectedSpeedrunInstance => SelectedSpeedrunInstance is not null;
+
+    public bool IsSelectedSpeedrunLegacy => SelectedSpeedrunInstance?.Record.SpeedrunTemplateId is { } templateId
+        && RuntimePatchesPolicy.IsLegacyTemplate(templateId);
+
+    public bool IsSelectedSpeedrunCurrent => SelectedSpeedrunInstance?.Record.SpeedrunTemplateId is { } templateId
+        && RuntimePatchesPolicy.IsCurrentTemplate(templateId);
+
+    public string SelectedSpeedrunTechnicalStatus => SelectedSpeedrunInstance is null
+        ? Loc["SpeedrunNoInstance"]
+        : IsSelectedSpeedrunLegacy
+            ? Loc["SpeedrunTemplateExpired"]
+            : IsSelectedSpeedrunCurrent
+                ? Loc["SpeedrunTechnicalReady"]
+                : Loc["SpeedrunNeedsRebuild"];
+
+    public RuntimePatchesFeature SelectedSpeedrunSupportedFeatures =>
+        SelectedSpeedrunInstance is null
+            ? RuntimePatchesFeature.None
+            : RuntimePatchesPolicy.GetSupportedFeatures(SelectedSpeedrunInstance.Record.BuildId);
+
+    public bool IsScreenShakeModifierAvailable =>
+        SelectedSpeedrunSupportedFeatures.HasFlag(RuntimePatchesFeature.ScreenShakeModifier);
+
+    public bool IsMiniSaveStatesAvailable =>
+        SelectedSpeedrunSupportedFeatures.HasFlag(RuntimePatchesFeature.MiniSaveStates);
+
+    public bool IsFasterIntroSkipAvailable =>
+        SelectedSpeedrunSupportedFeatures.HasFlag(RuntimePatchesFeature.FasterIntroSkip);
+
+    public bool IsTextMasherAvailable =>
+        SelectedSpeedrunSupportedFeatures.HasFlag(RuntimePatchesFeature.TextMasher);
+
+    public bool IsRuntimePatchesConfigurationEditable =>
+        IsSelectedSpeedrunCurrent && !IsGameRunning && !IsBusy;
+
     public bool IsDownloadsPage => CurrentPage == "Downloads";
 
     public bool IsSettingsPage => CurrentPage == "Settings";
@@ -496,6 +538,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(CanCloneInstance))]
     [NotifyPropertyChangedFor(nameof(CanLaunch))]
     [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
+    [NotifyPropertyChangedFor(nameof(IsRuntimePatchesConfigurationEditable))]
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
@@ -535,6 +578,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(CanCloneInstance))]
     [NotifyPropertyChangedFor(nameof(CanLaunch))]
     [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
+    [NotifyPropertyChangedFor(nameof(IsRuntimePatchesConfigurationEditable))]
     public partial bool IsGameRunning { get; set; }
 
     [ObservableProperty]
@@ -621,6 +665,34 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial SpeedrunTemplate? SelectedSpeedrunTemplate { get; set; }
+
+    [ObservableProperty]
+    public partial InstanceItemViewModel? SelectedSpeedrunSourceInstance { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedSpeedrunInstance))]
+    [NotifyPropertyChangedFor(nameof(IsSelectedSpeedrunLegacy))]
+    [NotifyPropertyChangedFor(nameof(IsSelectedSpeedrunCurrent))]
+    [NotifyPropertyChangedFor(nameof(SelectedSpeedrunTechnicalStatus))]
+    [NotifyPropertyChangedFor(nameof(SelectedSpeedrunSupportedFeatures))]
+    [NotifyPropertyChangedFor(nameof(IsScreenShakeModifierAvailable))]
+    [NotifyPropertyChangedFor(nameof(IsMiniSaveStatesAvailable))]
+    [NotifyPropertyChangedFor(nameof(IsFasterIntroSkipAvailable))]
+    [NotifyPropertyChangedFor(nameof(IsTextMasherAvailable))]
+    [NotifyPropertyChangedFor(nameof(IsRuntimePatchesConfigurationEditable))]
+    public partial InstanceItemViewModel? SelectedSpeedrunInstance { get; set; }
+
+    [ObservableProperty]
+    public partial bool RuntimePatchesScreenShakeModifier { get; set; }
+
+    [ObservableProperty]
+    public partial bool RuntimePatchesMiniSaveStates { get; set; }
+
+    [ObservableProperty]
+    public partial bool RuntimePatchesFasterIntroSkip { get; set; }
+
+    [ObservableProperty]
+    public partial bool RuntimePatchesTextMasher { get; set; }
 
     [ObservableProperty]
     public partial int? SelectedLoadNormaliserSeconds { get; set; }
@@ -1272,6 +1344,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ApplyInstanceFilter();
             SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == settings.CurrentInstanceId)
                 ?? Instances.FirstOrDefault();
+            PopulateSpeedrunInstances();
+            SelectedSpeedrunInstance = SpeedrunInstances.FirstOrDefault(instance =>
+                instance.Id == settings.CurrentInstanceId)
+                ?? SpeedrunInstances.FirstOrDefault();
             StatusMessage = Loc["StatusReady"];
         }
         catch (Exception exception) when (exception is IOException
@@ -1288,6 +1364,38 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 IsBusy = false;
             }
         }
+    }
+
+    private void PopulateSpeedrunInstances()
+    {
+        SpeedrunInstances.Clear();
+        foreach (InstanceItemViewModel instance in Instances.Where(instance =>
+                     instance.Record.Purpose == InstancePurpose.OfficialSpeedrun))
+        {
+            SpeedrunInstances.Add(instance);
+        }
+        PopulateSpeedrunSourceInstances();
+    }
+
+    private void PopulateSpeedrunSourceInstances()
+    {
+        string? selectedId = SelectedSpeedrunSourceInstance?.Id;
+        SpeedrunSourceInstances.Clear();
+        if (SelectedSpeedrunTemplate is null)
+        {
+            SelectedSpeedrunSourceInstance = null;
+            return;
+        }
+        foreach (InstanceItemViewModel instance in Instances.Where(instance =>
+                     instance.Record.Purpose == InstancePurpose.General
+                     && string.Equals(instance.Record.BuildId, SelectedSpeedrunTemplate.BuildId, StringComparison.Ordinal)
+                     && instance.ModCount == 0
+                     && string.Equals(instance.LoaderDisplay, LoaderState.Vanilla.ToString(), StringComparison.Ordinal)))
+        {
+            SpeedrunSourceInstances.Add(instance);
+        }
+        SelectedSpeedrunSourceInstance = SpeedrunSourceInstances.FirstOrDefault(instance => instance.Id == selectedId)
+            ?? SpeedrunSourceInstances.FirstOrDefault();
     }
 
     [RelayCommand]
@@ -1426,6 +1534,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
 
         var originalIndex = Instances.IndexOf(instance);
+        bool wasSpeedrunInstance = instance.Record.Purpose == InstancePurpose.OfficialSpeedrun;
         var nextId = Instances
             .Where(candidate => !string.Equals(candidate.Id, instance.Id, StringComparison.Ordinal))
             .ElementAtOrDefault(Math.Min(Math.Max(originalIndex, 0), Math.Max(Instances.Count - 2, 0)))
@@ -1455,12 +1564,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
             Instances.Remove(instance);
             VisibleInstances.Remove(instance);
+            SpeedrunInstances.Remove(instance);
             if (SelectedInstance?.Id == instance.Id)
             {
                 SelectedInstance = nextId is null
                     ? Instances.FirstOrDefault()
                     : Instances.FirstOrDefault(candidate => candidate.Id == nextId)
                         ?? Instances.FirstOrDefault();
+            }
+            if (SelectedSpeedrunInstance?.Id == instance.Id)
+            {
+                SelectedSpeedrunInstance = SpeedrunInstances.FirstOrDefault();
             }
             settings = settings with
             {
@@ -1470,7 +1584,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     .ToArray()
             };
             await QueueSettingsSave();
-            CurrentPage = "Launch";
+            CurrentPage = wasSpeedrunInstance ? "Speedrun" : "Launch";
             if (result is { CleanupCompleted: false })
             {
                 StatusMessage = Loc["DeleteCleanupPending"];
@@ -1584,10 +1698,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     {
                         throw new InvalidOperationException("Hollow Knight is already running.");
                     }
-                    await EnsureTransactionsHealthyAsync();
                     if (record.SpeedrunTemplateId is not null)
                     {
                         await VerifySpeedrunLaunchAsync(record);
+                    }
+                    else
+                    {
+                        await EnsureTransactionsHealthyAsync();
                     }
                     runtimeSession = await InstanceRuntimeSession.StartAsync(isolation, record.Id);
                     process = Process.Start(new ProcessStartInfo(executable)
@@ -2644,6 +2761,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         IsBusy = true;
         ErrorMessage = null;
         string? createdRoot = null;
+        string? createdRuntimePatchesConfigurationPath = null;
         InstanceRecord? createdInstance = null;
         try
         {
@@ -2656,7 +2774,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                         throw new InvalidOperationException(Loc["CloseGameFirst"]);
                     }
                     await EnsureTransactionsHealthyAsync();
-                    var source = await FindVanillaSourceAsync(SelectedSpeedrunTemplate.BuildId)
+                    var source = await FindVanillaSourceAsync(
+                            SelectedSpeedrunTemplate.BuildId,
+                            SelectedSpeedrunSourceInstance?.Id)
                         ?? throw new InvalidOperationException(Loc["NoVanillaSource"]);
                     var name = string.IsNullOrWhiteSpace(SpeedrunEnvironmentName)
                         ? UniqueInstanceName($"{SelectedSpeedrunTemplate.Name} Speedrun")
@@ -2675,7 +2795,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                             InstanceRoot = clone.RootPath,
                             TransactionRoot = Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
                             PackageCacheRoot = Path.Combine(paths.GetVersionDataRoot(VersionRoot), "packages"),
-                            LoadNormaliserSeconds = SelectedLoadNormaliserSeconds,
                             HttpClient = packageHttpClient
                         });
                     }
@@ -2688,8 +2807,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                         LoaderId = null,
                         SpeedrunTemplateId = SelectedSpeedrunTemplate.Id,
                         SpeedrunRulesRevision = SelectedSpeedrunTemplate.RulesRevision,
-                        LoadNormaliserSeconds = SelectedLoadNormaliserSeconds
+                        LoadNormaliserSeconds = null
                     };
+                    var isolation = new LocalLowIsolationService(
+                        GetSharedLocalLowPath(),
+                        paths.GetVersionDataRoot(VersionRoot));
+                    createdRuntimePatchesConfigurationPath = GetRuntimePatchesConfigurationPath(clone);
+                    await isolation.InitializeBaselinesAsync([clone.Id]);
+                    await RuntimePatchesConfiguration.WriteAsync(
+                        createdRuntimePatchesConfigurationPath,
+                        new RuntimePatchesConfiguration());
                     await InstanceSidecar.SaveAsync(clone);
                     createdInstance = clone;
                     createdRoot = null;
@@ -2704,6 +2831,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             SpeedrunEnvironmentName = string.Empty;
             await RefreshAsync();
             SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == clone.Id);
+            SelectedSpeedrunInstance = SpeedrunInstances.FirstOrDefault(instance => instance.Id == clone.Id);
         }
         catch (Exception exception) when (exception is IOException
             or InvalidDataException
@@ -2717,6 +2845,21 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 preserveForRecovery = await SpeedrunEnvironmentProvisioner.RequiresManualRecoveryAsync(
                     Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
                     createdRoot);
+            }
+            if (!preserveForRecovery && createdRuntimePatchesConfigurationPath is not null)
+            {
+                try
+                {
+                    string? configurationDirectory = Path.GetDirectoryName(createdRuntimePatchesConfigurationPath);
+                    if (configurationDirectory is not null && Directory.Exists(configurationDirectory))
+                    {
+                        Directory.Delete(configurationDirectory, recursive: true);
+                    }
+                }
+                catch (Exception cleanupException) when (cleanupException is IOException or UnauthorizedAccessException)
+                {
+                    ErrorMessage = $"{Loc["OperationFailed"]}: {cleanupException.Message}";
+                }
             }
             if (!preserveForRecovery && createdRoot is not null && Directory.Exists(createdRoot))
             {
@@ -2990,6 +3133,176 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
+    [RelayCommand]
+    private async Task ReinstallSpeedrunEnvironmentAsync()
+    {
+        if (SelectedSpeedrunInstance is not { } selected
+            || !IsSelectedSpeedrunCurrent
+            || SelectedSpeedrunTemplate is null
+            || IsMutationBlocked())
+        {
+            return;
+        }
+
+        IsBusy = true;
+        ErrorMessage = null;
+        try
+        {
+            await instanceOperationCoordinator.RunAsync(
+                selected.Id,
+                async _ =>
+                {
+                    await EnsureTransactionsHealthyAsync();
+                    if (new SystemHollowKnightProcessProbe().IsRunning())
+                    {
+                        throw new InvalidOperationException(Loc["CloseGameFirst"]);
+                    }
+                    await new SpeedrunEnvironmentProvisioner().ProvisionAsync(new SpeedrunProvisioningRequest
+                    {
+                        Catalog = catalog,
+                        TemplateId = SelectedSpeedrunTemplate.Id,
+                        InstanceRoot = selected.RootPath,
+                        TransactionRoot = Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
+                        PackageCacheRoot = Path.Combine(paths.GetVersionDataRoot(VersionRoot), "packages"),
+                        HttpClient = packageHttpClient
+                    });
+                    await RuntimePatchesConfiguration.WriteAsync(
+                        GetRuntimePatchesConfigurationPath(selected.Record),
+                        RuntimePatchesPolicy.Normalize(
+                            selected.Record.BuildId,
+                            new RuntimePatchesConfiguration
+                            {
+                                ScreenShakeModifier = RuntimePatchesScreenShakeModifier,
+                                MiniSaveStates = RuntimePatchesMiniSaveStates,
+                                FasterIntroSkip = RuntimePatchesFasterIntroSkip,
+                                TextMasher = RuntimePatchesTextMasher
+                            }));
+                },
+                lifetimeCancellation.Token);
+            SpeedrunStatus = Loc["SpeedrunNeedsVerification"];
+            await RefreshAsync();
+            SelectedSpeedrunInstance = SpeedrunInstances.FirstOrDefault(instance => instance.Id == selected.Id);
+        }
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or InvalidOperationException
+            or UnauthorizedAccessException)
+        {
+            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    partial void OnSelectedSpeedrunInstanceChanged(InstanceItemViewModel? value)
+    {
+        if (value is null)
+        {
+            RuntimePatchesScreenShakeModifier = false;
+            RuntimePatchesMiniSaveStates = false;
+            RuntimePatchesFasterIntroSkip = false;
+            RuntimePatchesTextMasher = false;
+            return;
+        }
+
+        SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == value.Id) ?? value;
+        SelectedSpeedrunTemplate = catalog.SpeedrunTemplates.SingleOrDefault(template =>
+            string.Equals(template.Id, value.Record.SpeedrunTemplateId, StringComparison.Ordinal))
+            ?? catalog.SpeedrunTemplates.SingleOrDefault(template =>
+                RuntimePatchesPolicy.IsLegacyTemplate(value.Record.SpeedrunTemplateId)
+                && string.Equals(template.BuildId, value.Record.BuildId, StringComparison.Ordinal)
+                && RuntimePatchesPolicy.IsCurrentTemplate(template.Id));
+        _ = LoadRuntimePatchesConfigurationAsync(value.Record);
+    }
+
+    private async Task LoadRuntimePatchesConfigurationAsync(InstanceRecord instance)
+    {
+        loadingRuntimePatchesConfiguration = true;
+        try
+        {
+            RuntimePatchesConfiguration configuration = await RuntimePatchesConfiguration.ReadAsync(
+                GetRuntimePatchesConfigurationPath(instance));
+            configuration = RuntimePatchesPolicy.Normalize(instance.BuildId, configuration);
+            RuntimePatchesScreenShakeModifier = configuration.ScreenShakeModifier;
+            RuntimePatchesMiniSaveStates = configuration.MiniSaveStates;
+            RuntimePatchesFasterIntroSkip = configuration.FasterIntroSkip;
+            RuntimePatchesTextMasher = configuration.TextMasher;
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            RuntimePatchesScreenShakeModifier = false;
+            RuntimePatchesMiniSaveStates = false;
+            RuntimePatchesFasterIntroSkip = false;
+            RuntimePatchesTextMasher = false;
+            if (!IsSelectedSpeedrunLegacy)
+            {
+                SpeedrunStatus = $"{Loc["SpeedrunConfigurationInvalid"]}: {exception.Message}";
+            }
+        }
+        finally
+        {
+            loadingRuntimePatchesConfiguration = false;
+        }
+    }
+
+    private async Task SaveRuntimePatchesConfigurationAsync()
+    {
+        if (loadingRuntimePatchesConfiguration
+            || SelectedSpeedrunInstance is not { } selected
+            || !IsSelectedSpeedrunCurrent
+            || IsGameRunning)
+        {
+            return;
+        }
+        if (isGameProcessRunning())
+        {
+            ErrorMessage = Loc["CloseGameFirst"];
+            await LoadRuntimePatchesConfigurationAsync(selected.Record);
+            return;
+        }
+        RuntimePatchesConfiguration configuration = RuntimePatchesPolicy.Normalize(
+            selected.Record.BuildId,
+            new RuntimePatchesConfiguration
+            {
+                ScreenShakeModifier = RuntimePatchesScreenShakeModifier,
+                MiniSaveStates = RuntimePatchesMiniSaveStates,
+                FasterIntroSkip = RuntimePatchesFasterIntroSkip,
+                TextMasher = RuntimePatchesTextMasher
+            });
+        string path = GetRuntimePatchesConfigurationPath(selected.Record);
+        await runtimePatchesConfigurationSaveLock.WaitAsync();
+        try
+        {
+            await RuntimePatchesConfiguration.WriteAsync(path, configuration);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+        }
+        finally
+        {
+            runtimePatchesConfigurationSaveLock.Release();
+        }
+    }
+
+    private string GetRuntimePatchesConfigurationPath(InstanceRecord instance) =>
+        Path.Combine(
+            new LocalLowIsolationService(
+                GetSharedLocalLowPath(),
+                paths.GetVersionDataRoot(VersionRoot))
+                .GetInstanceLocalLowPath(instance.Id),
+            RuntimePatchesConfiguration.FileName);
+
+    partial void OnRuntimePatchesScreenShakeModifierChanged(bool value) => _ = SaveRuntimePatchesConfigurationAsync();
+
+    partial void OnRuntimePatchesMiniSaveStatesChanged(bool value) => _ = SaveRuntimePatchesConfigurationAsync();
+
+    partial void OnRuntimePatchesFasterIntroSkipChanged(bool value) => _ = SaveRuntimePatchesConfigurationAsync();
+
+    partial void OnRuntimePatchesTextMasherChanged(bool value) => _ = SaveRuntimePatchesConfigurationAsync();
+
     partial void OnCurrentManageTabChanged(string value)
     {
         if (value == "Config")
@@ -3020,6 +3333,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         SelectedLoadNormaliserSeconds = value?.RequiresLoadNormaliserSelection == true
             ? value.AllowedLoadNormaliserSeconds.FirstOrDefault()
             : null;
+        PopulateSpeedrunSourceInstances();
     }
 
     partial void OnSelectedLanguageChanged(SettingOption<UiLanguage>? value)
@@ -3574,6 +3888,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         OnPropertyChanged(nameof(SelectedModContentStatusText));
         OnPropertyChanged(nameof(IsProtocolRegistered));
         OnPropertyChanged(nameof(ProtocolRegistrationStatus));
+        OnPropertyChanged(nameof(SelectedSpeedrunTechnicalStatus));
         RefreshApplicationUpdateText();
         NotifyOfficialCatalogLabels();
         if (DownloadQueueGroups.Count > 0)
@@ -4298,11 +4613,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    private async Task<InstanceRecord?> FindVanillaSourceAsync(string buildId)
+    private async Task<InstanceRecord?> FindVanillaSourceAsync(string buildId, string? selectedInstanceId = null)
     {
-        foreach (var candidate in Instances.Where(instance => instance.Record.BuildId == buildId))
+        foreach (var candidate in Instances.Where(instance =>
+                     instance.Record.BuildId == buildId
+                     && (selectedInstanceId is null || instance.Id == selectedInstanceId)))
         {
-            if (await CreateLoaderManager(candidate.Record).GetStateAsync() == LoaderState.Vanilla
+            if (candidate.Record.Purpose == InstancePurpose.General
+                && await CreateLoaderManager(candidate.Record).GetStateAsync() == LoaderState.Vanilla
                 && (await CreateModManager(candidate.Record).GetInstalledAsync()).Count == 0)
             {
                 return candidate.Record;
@@ -4322,6 +4640,35 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var fileManifest = catalog.SpeedrunFileManifests.SingleOrDefault(candidate =>
             string.Equals(candidate.Id, template.FileManifestId, StringComparison.Ordinal))
             ?? throw new InvalidOperationException(Loc["SpeedrunManifestMissing"]);
+        bool hasTransactionIssue;
+        try
+        {
+            var recoveries = await FileTransaction.RecoverPendingAsync(
+                Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
+                lifetimeCancellation.Token);
+            hasTransactionIssue = recoveries.Any(recovery => recovery.State == TransactionState.NeedsAttention);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            hasTransactionIssue = true;
+        }
+        bool hasLocalLowIssue;
+        try
+        {
+            var isolation = new LocalLowIsolationService(
+                GetSharedLocalLowPath(),
+                paths.GetVersionDataRoot(VersionRoot));
+            var recoveries = await isolation.RecoverPendingAsync(lifetimeCancellation.Token);
+            hasLocalLowIssue = recoveries.Any(recovery => recovery.State is
+                TransactionState.Prepared or TransactionState.Applying or TransactionState.NeedsAttention);
+        }
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or InvalidOperationException
+            or UnauthorizedAccessException)
+        {
+            hasLocalLowIssue = true;
+        }
         var result = await new SpeedrunEnvironmentVerifier().VerifyAndWriteReportAsync(
             new SpeedrunVerificationRequest
             {
@@ -4331,12 +4678,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 ExpectedBuild = build,
                 CurrentRulesRevision = template.RulesRevision,
                 FileManifest = fileManifest,
-                LoadNormaliserSeconds = instance.LoadNormaliserSeconds,
+                RuntimePatchesConfigurationPath = GetRuntimePatchesConfigurationPath(instance),
+                HasTransactionIssue = hasTransactionIssue,
+                HasLocalLowIssue = hasLocalLowIssue,
                 ReportsDirectory = Path.Combine(GetInstanceStateRoot(instance.Id), "speedrun-reports")
             });
         SpeedrunStatus = template.IsOfficial
             ? result.Report.IsOfficiallyVerified
-                ? Loc["SpeedrunVerified"]
+                ? result.Report.Issues.Any(issue => issue.Severity == SpeedrunIssueSeverity.RuleWarning)
+                    ? Loc["SpeedrunVerifiedWithWarnings"]
+                    : Loc["SpeedrunVerified"]
                 : Loc["SpeedrunVerificationFailed"]
             : Loc["SpeedrunUnverifiedReport"];
         StatusMessage = $"{SpeedrunStatus} {result.ReportPath}";

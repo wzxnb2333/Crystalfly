@@ -1,8 +1,10 @@
+using Crystalfly.Core.Speedrun;
+
 namespace Crystalfly.Core.Models;
 
 public sealed record SpeedrunVerificationReport
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
@@ -31,6 +33,8 @@ public sealed record SpeedrunVerificationReport
     public bool IsReadyToLaunch { get; init; }
 
     public bool IsOfficiallyVerified { get; init; }
+
+    public RuntimePatchesConfiguration? RuntimePatchesConfiguration { get; init; }
 
     public IReadOnlyList<SpeedrunVerifiedFile> Files { get; init; } = [];
 
@@ -63,9 +67,17 @@ public sealed record SpeedrunVerificationIssue
 {
     public SpeedrunIssueCode Code { get; init; }
 
+    public SpeedrunIssueSeverity Severity { get; init; }
+
     public required string Message { get; init; }
 
     public string? RelativePath { get; init; }
+}
+
+public enum SpeedrunIssueSeverity
+{
+    EnvironmentError,
+    RuleWarning
 }
 
 public enum SpeedrunTemplateSource
@@ -98,5 +110,12 @@ public enum SpeedrunIssueCode
     UnlistedFile,
     MissingFile,
     HashMismatch,
-    GameFingerprintMismatch
+    GameFingerprintMismatch,
+    InvalidRuntimePatchesConfiguration,
+    TransactionNeedsAttention,
+    LocalLowNeedsAttention,
+    ScreenShakeModifierRuleWarning,
+    MiniSaveStatesRuleWarning,
+    FasterIntroSkipRuleWarning,
+    TextMasherRuleWarning
 }

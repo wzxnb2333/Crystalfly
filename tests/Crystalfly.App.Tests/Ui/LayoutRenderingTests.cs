@@ -49,6 +49,7 @@ public sealed class LayoutRenderingTests
                     data.Add(900, 600, darkTheme, english, "Manage", "Presets");
                     data.Add(900, 600, darkTheme, english, "Manage", "Logs");
                     data.Add(900, 600, darkTheme, english, "Downloads", null);
+                    data.Add(900, 600, darkTheme, english, "Speedrun", null);
                     foreach (var tab in new[] { "Overview", "Loader", "Mods", "Presets", "Snapshots", "Logs" })
                     {
                         data.Add(1280, 720, darkTheme, english, "Manage", tab);
@@ -263,7 +264,7 @@ public sealed class LayoutRenderingTests
     }
 
     [AvaloniaFact]
-    public void Speedrun_page_shows_only_the_coming_soon_placeholder()
+    public void Speedrun_page_shows_the_runtime_patches_workspace()
     {
         var viewModel = new MainViewModel(Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N")))
         {
@@ -276,12 +277,26 @@ public sealed class LayoutRenderingTests
 
         try
         {
-            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text =>
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text =>
                 text.IsEffectivelyVisible && text.Text == "仍在开发中");
-            Assert.DoesNotContain(window.GetVisualDescendants().OfType<ListBox>(), list => list.IsEffectivelyVisible);
-            Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBox>(), textBox => textBox.IsEffectivelyVisible);
-            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(), button =>
-                button.IsEffectivelyVisible && button.Command == viewModel.CreateSpeedrunEnvironmentCommand);
+            Assert.Contains(window.GetVisualDescendants().OfType<ListBox>(), list => list.IsEffectivelyVisible);
+            Assert.Contains(window.GetVisualDescendants().OfType<Button>(), button =>
+                button.IsEffectivelyVisible && Equals(button.Content, viewModel.Loc["SpeedrunCreate"]));
+
+            var config = window.GetVisualDescendants()
+                .OfType<Border>()
+                .Single(border => border.Classes.Contains("cfp-speedrun-config"));
+            Assert.False(config.IsEffectivelyVisible);
+
+            var create = window.GetVisualDescendants()
+                .OfType<Border>()
+                .Single(border => border.Classes.Contains("cfp-speedrun-create"));
+            Assert.Equal(2, create.GetVisualDescendants().OfType<ComboBox>().Count(combo => combo.IsEffectivelyVisible));
+            var createButton = create.GetVisualDescendants()
+                .OfType<Button>()
+                .Single(button => button.Classes.Contains("cfp-primary")
+                    && Equals(button.Content, viewModel.Loc["SpeedrunCreate"]));
+            Assert.Equal(HorizontalAlignment.Left, createButton.HorizontalAlignment);
         }
         finally
         {
