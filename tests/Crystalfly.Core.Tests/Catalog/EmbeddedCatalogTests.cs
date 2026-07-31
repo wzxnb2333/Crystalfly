@@ -1,6 +1,7 @@
 using Crystalfly.Core.Catalog;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Serialization;
+using Crystalfly.Core.Speedrun;
 using Json.Schema;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -130,32 +131,64 @@ public sealed class EmbeddedCatalogTests
         Assert.Equal("5B5EBDDA651171E3C5EA6F13FB68FFE2D1B5F8B97A9D6FDE0EED3EA529418748", moddingApi78.Sha256);
         Assert.Equal(["1.5.12620.0"], moddingApi78.SupportedBuildIds);
 
-        var screenShake = catalog.SpeedrunAssets.Single(asset => asset.Id == "screen-shake-modifier-1221");
-        Assert.Equal(2832384, screenShake.SizeBytes);
-        Assert.Equal("EF25E8E55765230B9D12554355BB069189DD0AA0AEDAB684084DAD297D5391FA", screenShake.Sha256);
+        Assert.Collection(
+            catalog.SpeedrunAssets.OrderBy(asset => asset.Id, StringComparer.Ordinal),
+            asset => AssertRuntimePatchesAsset(
+                asset,
+                "runtime-patches-1221-v1.0.2",
+                876481,
+                "5F603C92E1E94F3FA1CBF59CC75AADCBD8E6014F7AC39D4F3F5924F945D85FC6"),
+            asset => AssertRuntimePatchesAsset(
+                asset,
+                "runtime-patches-1432-v1.0.2",
+                1128984,
+                "2ED1D9AE636EA177F97CE5C4565DFA4FA102E22B10F82D49201086A8F706FC3E"),
+            asset => AssertRuntimePatchesAsset(
+                asset,
+                "runtime-patches-1578-v1.0.2",
+                1129878,
+                "5E4380B70C27DA8E512E0C177A9A6C4742A615216330D343535AF8D48BA8AA3D"));
 
-        var race1221 = catalog.SpeedrunTemplates.Single(template => template.Id == "race-1221");
-        Assert.False(race1221.LoadNormaliserAvailable);
-        Assert.Equal(["screen-shake-modifier-1221"], race1221.RequiredAssetIds);
-
-        var single1221 = catalog.SpeedrunTemplates.Single(template => template.Id == "single-run-1221");
-        Assert.Equal(["screen-shake-modifier-1221"], single1221.RequiredAssetIds);
-
-        var single1578 = catalog.SpeedrunTemplates.Single(template => template.Id == "single-run-1578");
-        Assert.Empty(single1578.RequiredAssetIds);
-        Assert.False(single1578.RequiresLoadNormaliserSelection);
-
-        var race1578 = catalog.SpeedrunTemplates.Single(template => template.Id == "race-1578");
-        Assert.Equal(["load-normaliser-1.1"], race1578.RequiredAssetIds);
-        Assert.True(race1578.RequiresLoadNormaliserSelection);
-        Assert.Equal([1, 2, 3, 5], race1578.AllowedLoadNormaliserSeconds);
         Assert.All(catalog.SpeedrunTemplates, template =>
         {
-            Assert.False(template.IsOfficial);
-            Assert.Equal("unverified-2026-07-17", template.RulesRevision);
-            Assert.StartsWith("unverified-", template.FileManifestId, StringComparison.Ordinal);
+            Assert.True(template.IsOfficial);
+            Assert.Equal(RuntimePatchesPolicy.RulesRevision, template.RulesRevision);
+            Assert.Equal($"files-{template.Id}", template.FileManifestId);
+            Assert.Single(template.RequiredAssetIds);
+            Assert.False(template.LoadNormaliserAvailable);
+            Assert.False(template.RequiresLoadNormaliserSelection);
+            Assert.Empty(template.AllowedLoadNormaliserSeconds);
         });
-        Assert.Equal(4, catalog.SpeedrunTemplates.Count);
+        Assert.Equal(
+            ["runtime-patches-1221", "runtime-patches-1432", "runtime-patches-1578"],
+            catalog.SpeedrunTemplates.Select(template => template.Id).Order(StringComparer.Ordinal));
+        Assert.Equal(3, catalog.SpeedrunFileManifests.Count);
+        Assert.Equal(
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["files-runtime-patches-1221"] = "A47DA658E488127B58AEF4469BB8205E90038D0E24ACE12E873B493510DA071F",
+                ["files-runtime-patches-1432"] = "F9EEE63FD3AB9531BF91BDD1EB77B49E873114443C7D85C3124CDF871317BFFD",
+                ["files-runtime-patches-1578"] = "18F7DF2F2DBF3E3E3646F70A74A3360EC294FE9BDDFE2554ECFEB80AD68905CA"
+            },
+            catalog.SpeedrunFileManifests.ToDictionary(
+                manifest => manifest.Id,
+                manifest => Assert.Single(manifest.Files).Sha256,
+                StringComparer.Ordinal));
+        Assert.DoesNotContain(catalog.SpeedrunFileManifests.SelectMany(manifest => manifest.Files),
+            file => file.Sha256.All(character => character == '0'));
+    }
+
+    private static void AssertRuntimePatchesAsset(
+        SpeedrunAsset asset,
+        string id,
+        long sizeBytes,
+        string sha256)
+    {
+        Assert.Equal(id, asset.Id);
+        Assert.Equal("AssemblyPatches", asset.Name);
+        Assert.Equal("1.0.2", asset.Version);
+        Assert.Equal(sizeBytes, asset.SizeBytes);
+        Assert.Equal(sha256, asset.Sha256);
     }
 
     [Fact]

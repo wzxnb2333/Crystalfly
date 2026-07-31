@@ -2,7 +2,7 @@
 
 Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。启动页是实例选择与管理的唯一入口；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
 
-> 当前开发版：`0.7.5`。本轮提供 Windows x64 本地未签名便携包和安装包，不创建公开 GitHub Release。
+> 当前开发版：`0.8.0`。本轮提供 Windows x64 本地未签名便携包和安装包，不创建公开 GitHub Release。
 
 [English](#english)
 
@@ -105,13 +105,13 @@ Loader 兼容按精确包 ID 判断，不会把所有 Modding API 或 BepInEx �
 
 ## 速通环境
 
-四个内置模板会创建专用完整副本，不会临时修改日常或练习实例。当前 catalog 没有完整、可信的规则修订与 Steam 文件白名单，因此模板明确显示“未验证”；不会伪造正式验证标记。规则与文件清单齐备后，远程 catalog 可在不更新客户端的情况下启用正式验证。
+三个内置 RuntimePatches 模板会从用户选定的干净 Vanilla 实例创建完整副本，不修改原实例。客户端固定使用 AssemblyPatches v1.0.2 的 Windows 发布包，并分别验证 ZIP 与内部 `Assembly-CSharp.dll` 的 SHA-256。
 
-- `1.2.2.1` 单跑和比赛模板部署 ScreenShakeModifier，不支持 LoadNormaliser。
-- `1.5.78` 单跑模板不部署 LoadNormaliser；该版本使用游戏内置的屏幕震动设置。
-- 只有 `1.5.78` 比赛模板部署 LoadNormaliser，并可选择 `1`、`2`、`3` 或 `5` 秒。
+- 支持 `1.2.2.1`、`1.4.3.2` 与 `1.5.78`；不安装 Modding API、BepInEx 或 LoadNormaliser。
+- 所有开关默认关闭。`1.2.2.1` 不提供 `FasterIntroSkip`；`1.5.78` 不提供 `ScreenShakeModifier`。
+- `FasterIntroSkip` 与 `MiniSaveStates` 会显示规则警告，但具体分类是否合法仍以 SRC 公告为准。
 
-正式可信模板验证失败时会阻止启动；当前未验证模板仍会生成报告并明确保留未验证状态。
+启动前会检查核心游戏指纹、RuntimePatches DLL、实例隔离配置、Loader/Mod 标记、事务和 LocalLow 状态。技术错误会阻止启动，规则警告不会。PNG、贴图和普通额外文件不参与阻断。旧模板实例保留文件并标记为已过期，需要重新创建。
 
 验证报告是启动前文件完整性的时间点快照，不证明报告写出后文件仍未变化。
 
@@ -152,10 +152,10 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.7.5'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.8.0'
 
 # 无更新签名的本地构建与固定目录覆盖；不会生成 update-manifest.v1.json。
-pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '0.7.5' -UnsignedLocal
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '0.8.0' -UnsignedLocal
 ```
 
 脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。发布构建从已忽略的 `.env.update-signing` 读取 `CRYSTALFLY_UPDATE_SIGNING_KEY`，并使用 `tools/Crystalfly.ReleaseTool` 生成签名更新清单；私钥文件不得提交。仅本地验收时可显式传入 `-UnsignedLocal`，此模式不会生成 `update-manifest.v1.json`，不得将其作为公开 Release 上传。`build-and-install.ps1` 会从 `Directory.Build.props` 读取版本号，执行完整 Release 构建和测试，验证产物后以管理员权限静默更新 `D:\Program Files\Crystalfly`，最后核对已安装版本。运行中的 Crystalfly 会使流程停止，不会强制关闭程序。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、独立更新程序、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包、`update-manifest.v1.json` 和 `SHA256SUMS.txt`。产物尚未使用 Authenticode 签名；客户端仍会验证更新清单的 Ed25519 签名及资产 SHA-256、大小和版本。详细设计见 [架构文档](docs/architecture.md)。
@@ -168,7 +168,7 @@ Crystalfly 使用 [GPL-3.0-only](LICENSE)。第三方游戏、Loader 和 Mod 不
 
 Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The Launch page is the only entry point for selecting and managing launchable instances; actual game downloads live under Download → Game Versions.
 
-The current development release is `0.7.5`. This round produces unsigned local Windows x64 portable and installer artifacts without publishing a public GitHub Release.
+The current development release is `0.8.0`. This round produces unsigned local Windows x64 portable and installer artifacts without publishing a public GitHub Release.
 
 ![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
 ![Select instance](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)
@@ -238,13 +238,13 @@ The Logs page discovers BepInEx, Modding API, and shared `Player.log` files, sho
 
 ### Speedrun environments
 
-The four built-in templates create dedicated full copies and remain explicitly unverified until the catalog contains a trusted rules revision and complete Steam file allowlist.
+The three built-in RuntimePatches templates create dedicated full copies from a user-selected clean Vanilla instance. Crystalfly pins the AssemblyPatches v1.0.2 Windows release and verifies both the ZIP and inner `Assembly-CSharp.dll` SHA-256.
 
-- The `1.2.2.1` solo and race templates deploy ScreenShakeModifier and do not support LoadNormaliser.
-- The `1.5.78` solo template does not deploy LoadNormaliser and uses the game's built-in screen shake setting.
-- Only the `1.5.78` race template deploys LoadNormaliser, with selectable `1`, `2`, `3`, or `5` second variants.
+- `1.2.2.1`, `1.4.3.2`, and `1.5.78` are supported without Modding API, BepInEx, or LoadNormaliser.
+- Every option defaults off. `1.2.2.1` has no `FasterIntroSkip`; `1.5.78` has no `ScreenShakeModifier`.
+- `FasterIntroSkip` and `MiniSaveStates` surface category-rule warnings. Users must still check the current SRC rules.
 
-A failed trusted-template report blocks launch. Current unverified templates still write a report and retain their unverified status.
+Pre-launch validation checks the core game fingerprint, RuntimePatches DLL, isolated configuration, Loader/Mod markers, transactions, and LocalLow state. Technical errors block launch; rule warnings do not. PNGs, skins, and ordinary extra files are ignored. Legacy template instances remain on disk but must be recreated.
 
 Verification reports are pre-launch integrity snapshots. They do not attest that files remain unchanged after the report is written. The first release publishes source only; locally built binaries are not Authenticode-signed.
 
@@ -260,10 +260,10 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.7.5'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.8.0'
 
 # Build and install locally without an update-signing key; no update manifest is emitted.
-pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '0.7.5' -UnsignedLocal
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '0.8.0' -UnsignedLocal
 ```
 
 The scripts automatically locate Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. Release builds read `CRYSTALFLY_UPDATE_SIGNING_KEY` from the ignored `.env.update-signing` file and use `tools/Crystalfly.ReleaseTool` to sign the update manifest; never commit the private key file. For local verification only, pass `-UnsignedLocal`; this omits `update-manifest.v1.json` and must not be uploaded as a public Release. `build-and-install.ps1` reads the version from `Directory.Build.props`, runs the full Release build and tests, validates the artifacts, then silently updates `D:\Program Files\Crystalfly` with administrator approval and verifies the installed version. It stops when Crystalfly is running and never terminates the process. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, updater helper, portable ZIP, installer, signed `update-manifest.v1.json`, and `SHA256SUMS.txt`. Assets are not Authenticode-signed yet; the client still verifies the Ed25519 manifest signature plus each asset's SHA-256, size, and version.

@@ -112,7 +112,7 @@ public sealed class SpeedrunEnvironmentProvisioner
                     await CopyAssetAsync(
                         asset,
                         template.BuildId,
-                        request.LoadNormaliserSeconds,
+                        rule.Sha256,
                         packagePath,
                         target,
                         cancellationToken);
@@ -192,72 +192,57 @@ public sealed class SpeedrunEnvironmentProvisioner
     private static async Task CopyAssetAsync(
         SpeedrunAsset asset,
         string buildId,
-        int? loadNormaliserSeconds,
+        string expectedSha256,
         string packagePath,
         string targetPath,
         CancellationToken cancellationToken)
     {
-        if (string.Equals(asset.Id, "screen-shake-modifier-1221", StringComparison.Ordinal))
-        {
-            await CopyFileAsync(packagePath, targetPath, cancellationToken);
-            return;
-        }
-        if (!string.Equals(asset.Id, "load-normaliser-1.1", StringComparison.Ordinal)
-            || loadNormaliserSeconds is null)
+        if (!string.Equals(asset.Id, RuntimePatchesPolicy.GetAssetId(buildId), StringComparison.Ordinal))
         {
             throw new InvalidDataException($"Unsupported speedrun asset: '{asset.Id}'.");
         }
 
-        string buildFolder = buildId switch
-        {
-            "1.4.3.2" => "1432 LoadNormaliser",
-            "1.5.78.11833" => "1578 LoadNormaliser",
-            _ => throw new InvalidDataException(
-                $"LoadNormaliser does not support build '{buildId}'.")
-        };
-        string entryName =
-            $"{buildFolder}/Assembly-CSharp loadNormaliser{loadNormaliserSeconds.Value}s UI.dll";
         using var archive = ZipFile.OpenRead(packagePath);
         var entries = archive.Entries.Where(entry =>
-            string.Equals(entry.FullName.Replace('\\', '/'), entryName, StringComparison.Ordinal)).ToArray();
+            string.Equals(Path.GetFileName(entry.FullName), "Assembly-CSharp.dll", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
         if (entries.Length != 1 || entries[0].Length <= 0)
         {
             throw new InvalidDataException(
-                $"LoadNormaliser package does not contain exactly one '{entryName}' entry.");
+                "RuntimePatches package must contain exactly one Assembly-CSharp.dll entry.");
         }
-        await using var source = entries[0].Open();
-        await using var destination = new FileStream(
+        if (!string.Equals(entries[0].FullName.Replace('\\', '/'), "Assembly-CSharp.dll", StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("RuntimePatches Assembly-CSharp.dll must be at the archive root.");
+        }
+
+        await using (Stream source = entries[0].Open())
+        await using (var destination = new FileStream(
             targetPath,
             FileMode.CreateNew,
             FileAccess.Write,
             FileShare.None,
             81920,
-            FileOptions.Asynchronous | FileOptions.WriteThrough);
-        await source.CopyToAsync(destination, cancellationToken);
-        await destination.FlushAsync(cancellationToken);
-    }
+            FileOptions.Asynchronous | FileOptions.WriteThrough))
+        {
+            await source.CopyToAsync(destination, cancellationToken);
+            await destination.FlushAsync(cancellationToken);
+        }
 
-    private static async Task CopyFileAsync(
-        string sourcePath,
-        string targetPath,
-        CancellationToken cancellationToken)
-    {
-        await using var source = new FileStream(
-            sourcePath,
+        await using FileStream written = new(
+            targetPath,
             FileMode.Open,
             FileAccess.Read,
             FileShare.Read,
             81920,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
-        await using var destination = new FileStream(
-            targetPath,
-            FileMode.CreateNew,
-            FileAccess.Write,
-            FileShare.None,
-            81920,
-            FileOptions.Asynchronous | FileOptions.WriteThrough);
-        await source.CopyToAsync(destination, cancellationToken);
-        await destination.FlushAsync(cancellationToken);
+        string actualSha256 = Convert.ToHexString(await System.Security.Cryptography.SHA256.HashDataAsync(
+            written,
+            cancellationToken));
+        if (!string.Equals(actualSha256, expectedSha256, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException("RuntimePatches DLL SHA-256 does not match the manifest.");
+        }
     }
 
     private static void ValidateTemplate(
@@ -270,13 +255,9 @@ public sealed class SpeedrunEnvironmentProvisioner
         {
             throw new InvalidDataException("Speedrun template and file manifest do not match.");
         }
-        bool invalidSelection = template.RequiresLoadNormaliserSelection
-            ? loadNormaliserSeconds is not { } seconds
-                || !template.AllowedLoadNormaliserSeconds.Contains(seconds)
-            : loadNormaliserSeconds is not null;
-        if (invalidSelection)
+        if (loadNormaliserSeconds is not null)
         {
-            throw new InvalidDataException("LoadNormaliser selection is not allowed by the template.");
+            throw new InvalidDataException("RuntimePatches templates do not support LoadNormaliser.");
         }
     }
 

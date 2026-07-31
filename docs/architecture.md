@@ -238,15 +238,14 @@ during restore.
 
 ## Speedrun trust
 
-Verified templates always use dedicated full-copy instances. The pre-launch
-integrity check covers the game build, approved tools, rule revision, and all
-managed file hashes. Its report is a point-in-time snapshot, not an attestation
-that files remain unchanged after the report is written. Modding API, BepInEx,
-DebugMod, and any unlisted file invalidate official status. Custom templates
-never receive the official verification mark.
+RuntimePatches templates always use dedicated full-copy instances created from a
+clean Vanilla source. Provisioning resolves one fixed AssemblyPatches v1.0.2 ZIP
+through the catalog, verifies the package hash, extracts the unique root
+`Assembly-CSharp.dll`, verifies its independent hash, and replaces the assembly
+through `FileTransaction`.
 
-Provisioning resolves `RequiredAssetIds` through the catalog. ScreenShakeModifier
-is installed as a verified raw assembly; LoadNormaliser is selected from its
-verified archive by build and the chosen 1/2/3/5-second variant. All tool targets
-are replaced in one file transaction. Every speedrun launch writes a JSON report
-under the instance state directory; a failed trusted-template report blocks launch.
+The v2 pre-launch report checks the core game fingerprint, RuntimePatches DLL and
+instance-isolated configuration, Loader/Mod markers, transaction health, and
+LocalLow state. PNGs, skins, and ordinary extra files are outside the blocking
+surface. Environment errors block launch; enabled feature rule warnings do not.
+Reports remain point-in-time snapshots rather than attestations of later state.

@@ -6,32 +6,22 @@ public static class OfficialSpeedrunTemplatePolicy
 {
     public static SpeedrunIssueCode? GetViolation(SpeedrunTemplate template)
     {
-        bool valid = template.Id switch
-        {
-            "single-run-1221" or "race-1221" =>
-                Matches(template, "1.2.2.1", ["screen-shake-modifier-1221"], false, []),
-            "single-run-1578" =>
-                Matches(template, "1.5.78.11833", [], false, []),
-            "race-1578" =>
-                Matches(template, "1.5.78.11833", ["load-normaliser-1.1"], true, [1, 2, 3, 5]),
-            _ => false
-        };
+        string? templateId = RuntimePatchesPolicy.GetTemplateId(template.BuildId);
+        string? assetId = RuntimePatchesPolicy.GetAssetId(template.BuildId);
+        bool valid = templateId is not null
+            && assetId is not null
+            && string.Equals(template.Id, templateId, StringComparison.Ordinal)
+            && Matches(template, assetId);
         return valid ? null : SpeedrunIssueCode.UnsupportedOfficialTemplate;
     }
 
-    private static bool Matches(
-        SpeedrunTemplate template,
-        string buildId,
-        IReadOnlyList<string> requiredAssets,
-        bool requiresSelection,
-        IReadOnlyList<int> allowedSeconds) =>
+    private static bool Matches(SpeedrunTemplate template, string assetId) =>
         template.IsOfficial &&
         template.LoaderId is null &&
-        !string.IsNullOrWhiteSpace(template.RulesRevision) &&
-        !string.IsNullOrWhiteSpace(template.FileManifestId) &&
-        string.Equals(template.BuildId, buildId, StringComparison.Ordinal) &&
-        template.LoadNormaliserAvailable == string.Equals(buildId, "1.5.78.11833", StringComparison.Ordinal) &&
-        template.RequiredAssetIds.SequenceEqual(requiredAssets, StringComparer.Ordinal) &&
-        template.RequiresLoadNormaliserSelection == requiresSelection &&
-        template.AllowedLoadNormaliserSeconds.SequenceEqual(allowedSeconds);
+        string.Equals(template.RulesRevision, RuntimePatchesPolicy.RulesRevision, StringComparison.Ordinal) &&
+        string.Equals(template.FileManifestId, $"files-{template.Id}", StringComparison.Ordinal) &&
+        template.RequiredAssetIds.SequenceEqual([assetId], StringComparer.Ordinal) &&
+        !template.LoadNormaliserAvailable &&
+        !template.RequiresLoadNormaliserSelection &&
+        template.AllowedLoadNormaliserSeconds.Count == 0;
 }

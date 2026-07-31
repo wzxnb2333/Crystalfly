@@ -1087,6 +1087,33 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void ShowCreateSpeedrunEnvironmentDialog(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel { SelectedSpeedrunTemplate: { } template } viewModel)
+        {
+            return;
+        }
+        var dialog = new TextInputDialogViewModel(
+            viewModel.Loc["SpeedrunCreate"],
+            viewModel.Loc["SpeedrunHint"],
+            string.IsNullOrWhiteSpace(viewModel.SpeedrunEnvironmentName)
+                ? $"{template.Name} Speedrun"
+                : viewModel.SpeedrunEnvironmentName,
+            viewModel.Loc["SpeedrunEnvironmentName"],
+            viewModel.Loc["Confirm"],
+            viewModel.Loc["Cancel"]);
+        string? name = await OverlayDialog.ShowCustomAsync<
+            TextInputDialogView,
+            TextInputDialogViewModel,
+            string?>(dialog, OverlayHostId, CreateOverlayOptions());
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+        viewModel.SpeedrunEnvironmentName = name;
+        await viewModel.CreateSpeedrunEnvironmentCommand.ExecuteAsync(null);
+    }
+
     private async void ConfirmDeleteInstance(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is not MainViewModel viewModel

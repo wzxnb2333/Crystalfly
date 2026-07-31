@@ -37,12 +37,14 @@ fingerprints and loader manifests.
 
 ## Speedrun tools
 
-- ScreenShakeModifier is an official speedrunning resource that backports the
-  configurable screen shake from 1.5 to earlier builds. The official resource
-  provides Windows assemblies for 1.2.2.1 and 1.4.3.2; 1.5.78 uses its built-in
-  setting and needs no ScreenShakeModifier binary.
-- LoadNormaliser 1.1 supports 1.4.3.2 and 1.5.78, with 1, 2, 3, and 5 second
-  variants. It is intended for races, not ordinary single runs.
+- Crystalfly pins the AssemblyPatches v1.0.2 Windows release for `1.2.2.1`,
+  `1.4.3.2`, and `1.5.78`; each ZIP contains one root `Assembly-CSharp.dll`.
+- The client verifies both release ZIP and inner DLL SHA-256. The published
+  binaries are authoritative because the repository source does not fully
+  reproduce the v1.0.2 assets.
+- RuntimePatches configuration fields are `ScreenShakeModifier`,
+  `MiniSaveStates`, `FasterIntroSkip`, and `TextMasher`. Version capability
+  differences are enforced locally, and every option defaults off.
 
 ## Primary sources
 
@@ -50,3 +52,4 @@ fingerprints and loader manifests.
 - SteamKit: <https://github.com/SteamRE/SteamKit>
 - Hollow Knight resources: <https://github.com/hk-speedrunning/HK-Resources>
 - Hollow Knight rules: <https://github.com/hk-speedrunning/HK-Rules>
+- AssemblyPatches v1.0.2: <https://github.com/olvior/AssemblyPatches/releases/tag/v1.0.2>

@@ -18,6 +18,12 @@ public sealed record SpeedrunVerificationRequest
 
     public int? LoadNormaliserSeconds { get; init; }
 
+    public required string RuntimePatchesConfigurationPath { get; init; }
+
+    public bool HasTransactionIssue { get; init; }
+
+    public bool HasLocalLowIssue { get; init; }
+
     public required string ReportsDirectory { get; init; }
 }
 

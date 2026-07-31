@@ -9,6 +9,7 @@ using Crystalfly.Core.Mods;
 using Crystalfly.Core.Networking;
 using Crystalfly.Core.Runtime;
 using Crystalfly.Core.Serialization;
+using Crystalfly.Core.Speedrun;
 using Crystalfly.Steam.Downloads;
 using Crystalfly.Steam.Security;
 using System.Collections.Concurrent;
@@ -23,6 +24,49 @@ namespace Crystalfly.App.Tests.ViewModels;
 public sealed class MainViewModelStateTests : IDisposable
 {
     private readonly TestDirectory applicationData = new();
+
+    [Fact]
+    public async Task Speedrun_selection_projects_runtime_patches_capabilities_and_legacy_state()
+    {
+        string root = applicationData.CreateDirectory("speedrun-state");
+        await using var viewModel = new MainViewModel(root)
+        {
+            VersionRoot = root
+        };
+        var current = new InstanceItemViewModel(
+            Instance("runtime", root) with
+            {
+                Name = "RuntimePatches",
+                BuildId = "1.5.78.11833",
+                Purpose = InstancePurpose.OfficialSpeedrun,
+                SpeedrunTemplateId = "runtime-patches-1578"
+            },
+            "1.5.78",
+            "Vanilla",
+            0);
+
+        viewModel.Instances.Add(current);
+        viewModel.SelectedSpeedrunInstance = current;
+
+        Assert.True(viewModel.IsSelectedSpeedrunCurrent);
+        Assert.False(viewModel.IsSelectedSpeedrunLegacy);
+        Assert.False(viewModel.IsScreenShakeModifierAvailable);
+        Assert.True(viewModel.IsMiniSaveStatesAvailable);
+        Assert.True(viewModel.IsFasterIntroSkipAvailable);
+        Assert.True(viewModel.IsTextMasherAvailable);
+
+        viewModel.SelectedSpeedrunInstance = current with
+        {
+            Record = current.Record with { SpeedrunTemplateId = "race-1578" }
+        };
+
+        Assert.True(viewModel.IsSelectedSpeedrunLegacy);
+        Assert.False(viewModel.IsSelectedSpeedrunCurrent);
+        Assert.Equal("runtime-patches-1578", viewModel.SelectedSpeedrunTemplate?.Id);
+        Assert.Equal(RuntimePatchesFeature.MiniSaveStates
+            | RuntimePatchesFeature.FasterIntroSkip
+            | RuntimePatchesFeature.TextMasher, viewModel.SelectedSpeedrunSupportedFeatures);
+    }
 
     [Fact]
     public async Task Selecting_market_mod_loads_content_without_blocking_and_ignores_stale_result()

@@ -10,86 +10,41 @@ public sealed class SpeedrunEnvironmentVerifierTests : IDisposable
     private readonly string root = Path.Combine(Path.GetTempPath(), $"crystalfly-speedrun-{Guid.NewGuid():N}");
 
     [Fact]
-    public async Task Writes_a_verified_report_for_a_clean_dedicated_full_copy()
+    public async Task Writes_a_v2_report_for_a_clean_runtime_patches_copy()
     {
         VerificationFixture fixture = await CreateFixtureAsync();
 
         SpeedrunVerificationResult result = await fixture.Verifier.VerifyAndWriteReportAsync(fixture.Request);
 
+        Assert.Equal(2, result.Report.SchemaVersion);
         Assert.True(result.Report.IsReadyToLaunch);
         Assert.True(result.Report.IsOfficiallyVerified);
-        Assert.Equal(fixture.Request.FileManifest.Id, result.Report.FileManifestId);
         Assert.Empty(result.Report.Issues);
         Assert.Equal(4, result.Report.Files.Count);
-        Assert.True(File.Exists(result.ReportPath));
+        Assert.Equal(new RuntimePatchesConfiguration(), result.Report.RuntimePatchesConfiguration);
         SpeedrunVerificationReport saved = await AtomicJsonStore.ReadAsync<SpeedrunVerificationReport>(result.ReportPath);
         Assert.Equal(result.Report.Id, saved.Id);
         Assert.Equal(result.Report.ActualBuildFingerprint, saved.ActualBuildFingerprint);
-        Assert.Equal(result.Report.Files, saved.Files);
-        Assert.Collection(saved.Tools, tool =>
-        {
-            Assert.Equal(result.Report.Tools[0].AssetId, tool.AssetId);
-            Assert.Equal(result.Report.Tools[0].Version, tool.Version);
-            Assert.Equal(result.Report.Tools[0].Files, tool.Files);
-        });
+        Assert.Equal(result.Report.RuntimePatchesConfiguration, saved.RuntimePatchesConfiguration);
         Assert.Equal(result.Report.Issues, saved.Issues);
     }
 
-    [Fact]
-    public async Task Custom_template_can_pass_preflight_but_is_never_official()
+    [Theory]
+    [InlineData("texture.png")]
+    [InlineData("skins/custom.png")]
+    [InlineData("readme.txt")]
+    [InlineData("hollow_knight_Data/Managed/harmless-extra.dll")]
+    public async Task Ordinary_extra_files_do_not_block_launch(string relativePath)
     {
         VerificationFixture fixture = await CreateFixtureAsync();
-        SpeedrunVerificationRequest request = fixture.Request with
-        {
-            TemplateSource = SpeedrunTemplateSource.Custom,
-            Instance = fixture.Request.Instance with
-            {
-                Purpose = InstancePurpose.CustomSpeedrun,
-                SpeedrunTemplateId = "custom"
-            },
-            Template = fixture.Request.Template with { Id = "custom", IsOfficial = true }
-        };
+        string path = Path.Combine(fixture.InstanceRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllTextAsync(path, "extra");
 
-        SpeedrunVerificationReport report = (await fixture.Verifier.VerifyAndWriteReportAsync(request)).Report;
+        SpeedrunVerificationReport report = (await fixture.Verifier.VerifyAndWriteReportAsync(fixture.Request)).Report;
 
         Assert.True(report.IsReadyToLaunch);
-        Assert.False(report.IsOfficiallyVerified);
-    }
-
-    [Fact]
-    public async Task Changed_remote_rules_revision_marks_catalog_environment_stale()
-    {
-        VerificationFixture fixture = await CreateFixtureAsync();
-        SpeedrunVerificationRequest request = fixture.Request with
-        {
-            Template = fixture.Request.Template with
-            {
-                IsOfficial = false,
-                RulesRevision = "rules-new"
-            },
-            CurrentRulesRevision = "rules-new",
-            FileManifest = fixture.Request.FileManifest with { RulesRevision = "rules-new" }
-        };
-
-        SpeedrunVerificationReport report = (await fixture.Verifier.VerifyAndWriteReportAsync(request)).Report;
-
-        Assert.False(report.IsReadyToLaunch);
-        Assert.False(report.IsOfficiallyVerified);
-        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.RulesRevisionMismatch);
-    }
-
-    [Fact]
-    public async Task Official_template_rejects_a_mismatched_file_manifest()
-    {
-        VerificationFixture fixture = await CreateFixtureAsync();
-        SpeedrunVerificationRequest request = fixture.Request with
-        {
-            FileManifest = fixture.Request.FileManifest with { Id = "different-manifest" }
-        };
-
-        SpeedrunVerificationReport report = (await fixture.Verifier.VerifyAndWriteReportAsync(request)).Report;
-
-        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.InvalidFileManifest);
+        Assert.DoesNotContain(report.Issues, issue => issue.Code == SpeedrunIssueCode.UnlistedFile);
     }
 
     [Theory]
@@ -98,168 +53,99 @@ public sealed class SpeedrunEnvironmentVerifierTests : IDisposable
     [InlineData("winhttp.dll")]
     [InlineData("hollow_knight_Data/Managed/Mods/Example.dll")]
     [InlineData("hollow_knight_Data/Managed/Modding.dll")]
-    [InlineData("DebugMod.dll")]
-    [InlineData("SpeedrunQoL.dll")]
-    [InlineData("Benchwarp.dll")]
-    [InlineData("HKTimer.dll")]
-    public async Task Official_template_rejects_forbidden_loader_and_mod_files(string relativePath)
+    public async Task Loader_and_mod_markers_block_launch(string relativePath)
     {
         VerificationFixture fixture = await CreateFixtureAsync();
         string path = Path.Combine(fixture.InstanceRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         await File.WriteAllTextAsync(path, "forbidden");
-        SpeedrunFileRule extraRule = await RuleAsync(fixture.InstanceRoot, relativePath, SpeedrunFileKind.Tool);
+
+        SpeedrunVerificationReport report = (await fixture.Verifier.VerifyAndWriteReportAsync(fixture.Request)).Report;
+
+        Assert.False(report.IsReadyToLaunch);
+        Assert.Contains(report.Issues, issue =>
+            issue.Code == SpeedrunIssueCode.ForbiddenFile
+            && issue.Severity == SpeedrunIssueSeverity.EnvironmentError);
+    }
+
+    [Fact]
+    public async Task Wrong_runtime_patches_dll_and_invalid_configuration_block_launch()
+    {
+        VerificationFixture fixture = await CreateFixtureAsync();
+        await File.WriteAllTextAsync(
+            Path.Combine(fixture.InstanceRoot, "hollow_knight_Data", "Managed", "Assembly-CSharp.dll"),
+            "tampered");
+        await File.WriteAllTextAsync(fixture.Request.RuntimePatchesConfigurationPath, "{not-json");
+
+        SpeedrunVerificationReport report = (await fixture.Verifier.VerifyAndWriteReportAsync(fixture.Request)).Report;
+
+        Assert.False(report.IsReadyToLaunch);
+        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.HashMismatch);
+        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.InvalidRuntimePatchesConfiguration);
+    }
+
+    [Fact]
+    public async Task Enabled_rule_sensitive_features_warn_but_do_not_block_launch()
+    {
+        VerificationFixture fixture = await CreateFixtureAsync("1.4.3.2");
+        await RuntimePatchesConfiguration.WriteAsync(
+            fixture.Request.RuntimePatchesConfigurationPath,
+            new RuntimePatchesConfiguration { FasterIntroSkip = true, MiniSaveStates = true });
+
+        SpeedrunVerificationReport report = (await fixture.Verifier.VerifyAndWriteReportAsync(fixture.Request)).Report;
+
+        Assert.True(report.IsReadyToLaunch);
+        Assert.True(report.IsOfficiallyVerified);
+        Assert.Collection(
+            report.Issues.OrderBy(issue => issue.Code),
+            issue =>
+            {
+                Assert.Equal(SpeedrunIssueCode.MiniSaveStatesRuleWarning, issue.Code);
+                Assert.Equal(SpeedrunIssueSeverity.RuleWarning, issue.Severity);
+            },
+            issue =>
+            {
+                Assert.Equal(SpeedrunIssueCode.FasterIntroSkipRuleWarning, issue.Code);
+                Assert.Equal(SpeedrunIssueSeverity.RuleWarning, issue.Severity);
+            });
+    }
+
+    [Fact]
+    public async Task Transaction_and_local_low_failures_block_launch()
+    {
+        VerificationFixture fixture = await CreateFixtureAsync();
         SpeedrunVerificationRequest request = fixture.Request with
         {
-            FileManifest = fixture.Request.FileManifest with
-            {
-                Files = [.. fixture.Request.FileManifest.Files, extraRule]
-            }
+            HasTransactionIssue = true,
+            HasLocalLowIssue = true
         };
 
         SpeedrunVerificationReport report = (await fixture.Verifier.VerifyAndWriteReportAsync(request)).Report;
 
         Assert.False(report.IsReadyToLaunch);
-        Assert.Contains(report.Issues, issue =>
-            issue.Code == SpeedrunIssueCode.ForbiddenFile && issue.RelativePath == relativePath);
+        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.TransactionNeedsAttention);
+        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.LocalLowNeedsAttention);
     }
 
     [Fact]
-    public async Task Official_template_rejects_non_whitelisted_files()
-    {
-        VerificationFixture fixture = await CreateFixtureAsync();
-        await File.WriteAllTextAsync(Path.Combine(fixture.InstanceRoot, "unexpected.dll"), "extra");
-
-        SpeedrunVerificationReport report =
-            (await fixture.Verifier.VerifyAndWriteReportAsync(fixture.Request)).Report;
-
-        Assert.Contains(report.Issues, issue =>
-            issue.Code == SpeedrunIssueCode.UnlistedFile && issue.RelativePath == "unexpected.dll");
-    }
-
-    [Fact]
-    public async Task SteamAppIdMetadataDoesNotBreakOfficialVerification()
-    {
-        VerificationFixture fixture = await CreateFixtureAsync();
-        await File.WriteAllTextAsync(Path.Combine(fixture.InstanceRoot, "steam_appid.txt"), "367520");
-
-        SpeedrunVerificationReport report =
-            (await fixture.Verifier.VerifyAndWriteReportAsync(fixture.Request)).Report;
-
-        Assert.True(report.IsReadyToLaunch);
-        Assert.DoesNotContain(report.Files, file =>
-            string.Equals(file.RelativePath, "steam_appid.txt", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact]
-    public async Task Official_template_requires_a_dedicated_full_copy_for_the_selected_template()
+    public async Task Legacy_template_is_not_a_verified_runtime_patches_environment()
     {
         VerificationFixture fixture = await CreateFixtureAsync();
         SpeedrunVerificationRequest request = fixture.Request with
         {
-            Instance = fixture.Request.Instance with
-            {
-                Purpose = InstancePurpose.General,
-                ProvisioningMode = InstanceProvisioningMode.Imported,
-                SpeedrunTemplateId = "another-template",
-                LoaderId = "modding-api-37"
-            }
+            Instance = fixture.Request.Instance with { SpeedrunTemplateId = "race-1221" },
+            Template = fixture.Request.Template with { Id = "race-1221" }
         };
 
         SpeedrunVerificationReport report = (await fixture.Verifier.VerifyAndWriteReportAsync(request)).Report;
 
-        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.InstanceNotDedicated);
-        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.InstanceNotFullCopy);
-        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.TemplateMismatch);
-        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.ForbiddenFile);
+        Assert.False(report.IsReadyToLaunch);
+        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.UnsupportedOfficialTemplate);
     }
 
-    [Fact]
-    public async Task Missing_instance_still_produces_a_failed_report()
-    {
-        VerificationFixture fixture = await CreateFixtureAsync();
-        Directory.Delete(fixture.InstanceRoot, recursive: true);
-
-        SpeedrunVerificationResult result = await fixture.Verifier.VerifyAndWriteReportAsync(fixture.Request);
-
-        Assert.True(File.Exists(result.ReportPath));
-        Assert.False(result.Report.IsReadyToLaunch);
-        Assert.Contains(result.Report.Issues, issue => issue.Code == SpeedrunIssueCode.InstanceNotFound);
-    }
-
-    [Fact]
-    public async Task Race_1578_requires_an_allowed_load_normaliser_selection()
-    {
-        VerificationFixture fixture = await CreateFixtureAsync();
-        string toolPath = Path.Combine(fixture.InstanceRoot, "LoadNormaliser.dll");
-        await File.WriteAllTextAsync(toolPath, "normaliser");
-        SpeedrunFileRule tool = await RuleAsync(
-            fixture.InstanceRoot,
-            "LoadNormaliser.dll",
-            SpeedrunFileKind.Tool,
-            "load-normaliser-1.1",
-            "1.1");
-        SpeedrunTemplate template = fixture.Request.Template with
-        {
-            Id = "race-1578",
-            Name = "Race 1.5.78",
-            BuildId = "1.5.78.11833",
-            FileManifestId = "files-race-1578",
-            RequiredAssetIds = ["load-normaliser-1.1"],
-            LoadNormaliserAvailable = true,
-            RequiresLoadNormaliserSelection = true,
-            AllowedLoadNormaliserSeconds = [1, 2, 3, 5]
-        };
-        SpeedrunVerificationRequest request = fixture.Request with
-        {
-            Instance = fixture.Request.Instance with
-            {
-                BuildId = "1.5.78.11833",
-                SpeedrunTemplateId = template.Id
-            },
-            Template = template,
-            ExpectedBuild = fixture.Request.ExpectedBuild with
-            {
-                Id = "1.5.78.11833",
-                DisplayVersion = "1.5.78.11833"
-            },
-            FileManifest = fixture.Request.FileManifest with
-            {
-                Id = "files-race-1578",
-                BuildId = "1.5.78.11833",
-                Files =
-                [
-                    .. fixture.Request.FileManifest.Files.Where(rule => rule.AssetId is null),
-                    tool
-                ]
-            },
-            LoadNormaliserSeconds = 4
-        };
-
-        SpeedrunVerificationReport report = (await fixture.Verifier.VerifyAndWriteReportAsync(request)).Report;
-
-        Assert.Equal(4, report.LoadNormaliserSeconds);
-        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.InvalidToolSelection);
-    }
-
-    [Fact]
-    public async Task Missing_or_changed_whitelisted_file_is_reported()
-    {
-        VerificationFixture fixture = await CreateFixtureAsync();
-        File.Delete(Path.Combine(fixture.InstanceRoot, "hollow_knight_Data", "globalgamemanagers"));
-        await File.WriteAllTextAsync(Path.Combine(fixture.InstanceRoot, "hollow_knight.exe"), "changed");
-
-        SpeedrunVerificationReport report = (await fixture.Verifier.VerifyAndWriteReportAsync(fixture.Request)).Report;
-
-        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.MissingFile);
-        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.HashMismatch);
-        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.GameFingerprintMismatch);
-    }
-
-    private async Task<VerificationFixture> CreateFixtureAsync()
+    private async Task<VerificationFixture> CreateFixtureAsync(string buildId = "1.2.2.1")
     {
         string instanceRoot = Directory.CreateDirectory(Path.Combine(root, Guid.NewGuid().ToString("N"))).FullName;
-        Directory.CreateDirectory(Path.Combine(instanceRoot, "hollow_knight_Data"));
         Directory.CreateDirectory(Path.Combine(instanceRoot, "hollow_knight_Data", "Managed"));
         await File.WriteAllTextAsync(Path.Combine(instanceRoot, "hollow_knight.exe"), "game");
         await File.WriteAllTextAsync(Path.Combine(instanceRoot, "UnityPlayer.dll"), "unity");
@@ -268,43 +154,37 @@ public sealed class SpeedrunEnvironmentVerifierTests : IDisposable
             "managers");
         await File.WriteAllTextAsync(
             Path.Combine(instanceRoot, "hollow_knight_Data", "Managed", "Assembly-CSharp.dll"),
-            "screen-shake-modifier");
-        IReadOnlyList<SpeedrunFileRule> files =
-        [
-            await RuleAsync(instanceRoot, "hollow_knight.exe", SpeedrunFileKind.Game),
-            await RuleAsync(instanceRoot, "UnityPlayer.dll", SpeedrunFileKind.Game),
-            await RuleAsync(instanceRoot, "hollow_knight_Data/globalgamemanagers", SpeedrunFileKind.Game)
-        ];
+            "runtime-patches");
+
+        string templateId = RuntimePatchesPolicy.GetTemplateId(buildId)!;
+        string assetId = RuntimePatchesPolicy.GetAssetId(buildId)!;
+        string configurationPath = Path.Combine(root, "local-low", Guid.NewGuid().ToString("N"), RuntimePatchesConfiguration.FileName);
+        await RuntimePatchesConfiguration.WriteAsync(configurationPath, new RuntimePatchesConfiguration());
+        string executableSha256 = await HashAsync(Path.Combine(instanceRoot, "hollow_knight.exe"));
+        string unitySha256 = await HashAsync(Path.Combine(instanceRoot, "UnityPlayer.dll"));
+        string managersSha256 = await HashAsync(Path.Combine(instanceRoot, "hollow_knight_Data", "globalgamemanagers"));
+        string runtimePatchesSha256 = await HashAsync(
+            Path.Combine(instanceRoot, "hollow_knight_Data", "Managed", "Assembly-CSharp.dll"));
         GameBuild build = new()
         {
-            Id = "1.2.2.1",
-            DisplayVersion = "1.2.2.1",
+            Id = buildId,
+            DisplayVersion = buildId,
             DepotId = 367521,
-            ManifestId = "648876203478229944",
-            ExecutableSha256 = files[0].Sha256,
-            UnityPlayerSha256 = files[1].Sha256,
-            GlobalGameManagersSha256 = files[2].Sha256
+            ManifestId = "1",
+            ExecutableSha256 = executableSha256,
+            UnityPlayerSha256 = unitySha256,
+            GlobalGameManagersSha256 = managersSha256
         };
         SpeedrunTemplate template = new()
         {
-            Id = "single-run-1221",
-            Name = "Single Run 1.2.2.1",
-            BuildId = build.Id,
+            Id = templateId,
+            Name = $"RuntimePatches {buildId}",
+            BuildId = buildId,
             IsOfficial = true,
-            RulesRevision = "rules-abc123",
-            FileManifestId = "files-single-run-1221",
-            RequiredAssetIds = ["screen-shake-modifier-1221"]
+            RulesRevision = RuntimePatchesPolicy.RulesRevision,
+            FileManifestId = $"files-{templateId}",
+            RequiredAssetIds = [assetId]
         };
-        files =
-        [
-            .. files,
-            await RuleAsync(
-                instanceRoot,
-                "hollow_knight_Data/Managed/Assembly-CSharp.dll",
-                SpeedrunFileKind.Tool,
-                "screen-shake-modifier-1221",
-                "1.2.2.1")
-        ];
         InstanceRecord instance = new()
         {
             Id = "speedrun-copy",
@@ -329,39 +209,39 @@ public sealed class SpeedrunEnvironmentVerifierTests : IDisposable
                 Id = template.FileManifestId,
                 BuildId = build.Id,
                 RulesRevision = template.RulesRevision,
-                Files = files
+                Files =
+                [
+                    new SpeedrunFileRule
+                    {
+                        RelativePath = "hollow_knight_Data/Managed/Assembly-CSharp.dll",
+                        Sha256 = runtimePatchesSha256,
+                        Kind = SpeedrunFileKind.Tool,
+                        AssetId = assetId,
+                        AssetVersion = "1.0.2"
+                    }
+                ]
             },
+            RuntimePatchesConfigurationPath = configurationPath,
             ReportsDirectory = Path.Combine(root, "reports")
         };
         return new VerificationFixture(
             instanceRoot,
             request,
-            new SpeedrunEnvironmentVerifier(new FixedTimeProvider(DateTimeOffset.Parse("2026-07-17T00:00:00Z"))));
+            new SpeedrunEnvironmentVerifier(new FixedTimeProvider(DateTimeOffset.Parse("2026-07-31T00:00:00Z"))));
     }
 
-    private static async Task<SpeedrunFileRule> RuleAsync(
-        string instanceRoot,
-        string relativePath,
-        SpeedrunFileKind kind,
-        string? assetId = null,
-        string? assetVersion = null)
+    private static async Task<string> HashAsync(string path)
     {
-        string path = Path.Combine(instanceRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
         await using FileStream stream = File.OpenRead(path);
-        return new SpeedrunFileRule
-        {
-            RelativePath = relativePath,
-            Sha256 = Convert.ToHexString(await SHA256.HashDataAsync(stream)),
-            Kind = kind,
-            AssetId = assetId,
-            AssetVersion = assetVersion
-        };
+        return Convert.ToHexString(await SHA256.HashDataAsync(stream));
     }
 
     public void Dispose()
     {
         if (Directory.Exists(root))
+        {
             Directory.Delete(root, recursive: true);
+        }
     }
 
     private sealed record VerificationFixture(

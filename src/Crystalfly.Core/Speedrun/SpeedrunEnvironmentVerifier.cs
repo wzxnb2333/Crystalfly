@@ -6,6 +6,16 @@ namespace Crystalfly.Core.Speedrun;
 
 public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = null)
 {
+    private static readonly string[] ForbiddenPaths =
+    [
+        "BepInEx",
+        "doorstop_config.ini",
+        "winhttp.dll",
+        "hollow_knight_Data/Managed/Mods",
+        "hollow_knight_Data/Managed/Modding.dll",
+        "hollow_knight_Data/Managed/ModdingAPI.dll"
+    ];
+
     private readonly TimeProvider timeProvider = timeProvider ?? TimeProvider.System;
 
     public async Task<SpeedrunVerificationResult> VerifyAndWriteReportAsync(
@@ -14,40 +24,73 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
     {
         ArgumentNullException.ThrowIfNull(request);
         string instanceRoot = Path.GetFullPath(request.Instance.RootPath);
-        string reportsDirectory = Path.GetFullPath(request.ReportsDirectory);
         var issues = new List<SpeedrunVerificationIssue>();
         var expectedFiles = BuildFileManifest(instanceRoot, request.FileManifest.Files, issues);
-        bool official = request.TemplateSource == SpeedrunTemplateSource.OfficialCatalog && request.Template.IsOfficial;
+        bool official = request.TemplateSource == SpeedrunTemplateSource.OfficialCatalog
+            && request.Template.IsOfficial;
 
         ValidateTemplate(request, official, issues);
         ValidateTools(request, official, issues);
+        if (request.HasTransactionIssue)
+        {
+            AddIssue(issues, SpeedrunIssueCode.TransactionNeedsAttention, "A file transaction needs attention.");
+        }
+        if (request.HasLocalLowIssue)
+        {
+            AddIssue(issues, SpeedrunIssueCode.LocalLowNeedsAttention, "LocalLow state needs attention.");
+        }
 
         var actualFiles = new List<SpeedrunVerifiedFile>();
-        var seenFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (Directory.Exists(instanceRoot))
-        {
-            await ScanInstanceAsync(
-                instanceRoot,
-                expectedFiles,
-                seenFiles,
-                actualFiles,
-                issues,
-                cancellationToken);
-        }
-        else
+        RuntimePatchesConfiguration? configuration = null;
+        if (!Directory.Exists(instanceRoot))
         {
             AddIssue(issues, SpeedrunIssueCode.InstanceNotFound, "Instance directory does not exist.");
         }
-        foreach ((string relativePath, SpeedrunFileRule _) in expectedFiles)
+        else
         {
-            if (!seenFiles.Contains(relativePath))
-                AddIssue(issues, SpeedrunIssueCode.MissingFile, "Whitelisted file is missing.", relativePath);
+            await VerifyCoreFileAsync(
+                instanceRoot,
+                "hollow_knight.exe",
+                request.ExpectedBuild.ExecutableSha256,
+                required: true,
+                actualFiles,
+                issues,
+                cancellationToken);
+            await VerifyCoreFileAsync(
+                instanceRoot,
+                "hollow_knight_Data/globalgamemanagers",
+                request.ExpectedBuild.GlobalGameManagersSha256,
+                required: true,
+                actualFiles,
+                issues,
+                cancellationToken);
+            await VerifyCoreFileAsync(
+                instanceRoot,
+                "UnityPlayer.dll",
+                request.ExpectedBuild.UnityPlayerSha256,
+                required: request.ExpectedBuild.UnityPlayerSha256 is not null,
+                actualFiles,
+                issues,
+                cancellationToken);
+
+            foreach ((string relativePath, SpeedrunFileRule rule) in expectedFiles)
+            {
+                await VerifyManifestFileAsync(
+                    instanceRoot,
+                    relativePath,
+                    rule,
+                    actualFiles,
+                    issues,
+                    cancellationToken);
+            }
+            ValidateForbiddenMarkers(instanceRoot, issues);
+            configuration = await ReadConfigurationAsync(request, issues, cancellationToken);
         }
 
         BuildFingerprint fingerprint = CreateFingerprint(actualFiles);
         ValidateFingerprint(request.ExpectedBuild, fingerprint, issues);
         IReadOnlyList<SpeedrunVerifiedTool> tools = CreateToolReports(actualFiles, expectedFiles, issues);
-        bool ready = issues.Count == 0;
+        bool ready = issues.All(static issue => issue.Severity != SpeedrunIssueSeverity.EnvironmentError);
         DateTimeOffset generatedAt = timeProvider.GetUtcNow();
         var report = new SpeedrunVerificationReport
         {
@@ -60,19 +103,86 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
             FileManifestId = request.FileManifest.Id,
             ExpectedBuildId = request.ExpectedBuild.Id,
             ActualBuildFingerprint = fingerprint,
-            LoadNormaliserSeconds = request.LoadNormaliserSeconds,
             GeneratedAt = generatedAt,
             IsReadyToLaunch = ready,
             IsOfficiallyVerified = ready && official,
+            RuntimePatchesConfiguration = configuration,
             Files = actualFiles.OrderBy(static file => file.RelativePath, StringComparer.OrdinalIgnoreCase).ToArray(),
             Tools = tools,
             Issues = issues
         };
         string reportPath = Path.Combine(
-            reportsDirectory,
+            Path.GetFullPath(request.ReportsDirectory),
             $"verification-{generatedAt:yyyyMMddTHHmmssfffZ}-{report.Id}.json");
         await AtomicJsonStore.WriteAsync(reportPath, report, cancellationToken);
         return new SpeedrunVerificationResult(report, reportPath);
+    }
+
+    private static async Task<RuntimePatchesConfiguration?> ReadConfigurationAsync(
+        SpeedrunVerificationRequest request,
+        List<SpeedrunVerificationIssue> issues,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            RuntimePatchesConfiguration configuration = await RuntimePatchesConfiguration.ReadAsync(
+                request.RuntimePatchesConfigurationPath,
+                cancellationToken);
+            if (RuntimePatchesPolicy.Normalize(request.ExpectedBuild.Id, configuration) != configuration)
+            {
+                throw new InvalidDataException("Configuration enables an unsupported RuntimePatches feature.");
+            }
+            AddRuleWarnings(configuration, issues);
+            return configuration;
+        }
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or UnauthorizedAccessException)
+        {
+            AddIssue(
+                issues,
+                SpeedrunIssueCode.InvalidRuntimePatchesConfiguration,
+                $"RuntimePatches configuration is invalid: {exception.Message}");
+            return null;
+        }
+    }
+
+    private static void AddRuleWarnings(
+        RuntimePatchesConfiguration configuration,
+        List<SpeedrunVerificationIssue> issues)
+    {
+        if (configuration.ScreenShakeModifier)
+        {
+            AddIssue(
+                issues,
+                SpeedrunIssueCode.ScreenShakeModifierRuleWarning,
+                "Confirm that ScreenShakeModifier is permitted for the selected category.",
+                severity: SpeedrunIssueSeverity.RuleWarning);
+        }
+        if (configuration.MiniSaveStates)
+        {
+            AddIssue(
+                issues,
+                SpeedrunIssueCode.MiniSaveStatesRuleWarning,
+                "MiniSaveStates is only for explicitly permitted individual-level categories and must not be loaded during a run.",
+                severity: SpeedrunIssueSeverity.RuleWarning);
+        }
+        if (configuration.FasterIntroSkip)
+        {
+            AddIssue(
+                issues,
+                SpeedrunIssueCode.FasterIntroSkipRuleWarning,
+                "FasterIntroSkip must be disabled for categories that time the opening cinematic.",
+                severity: SpeedrunIssueSeverity.RuleWarning);
+        }
+        if (configuration.TextMasher)
+        {
+            AddIssue(
+                issues,
+                SpeedrunIssueCode.TextMasherRuleWarning,
+                "Confirm that TextMasher is permitted for the selected category.",
+                severity: SpeedrunIssueSeverity.RuleWarning);
+        }
     }
 
     private static Dictionary<string, SpeedrunFileRule> BuildFileManifest(
@@ -83,12 +193,21 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
         var result = new Dictionary<string, SpeedrunFileRule>(StringComparer.OrdinalIgnoreCase);
         foreach (SpeedrunFileRule rule in rules)
         {
-            string relativePath;
             try
             {
-                relativePath = NormalizeRelativePath(instanceRoot, rule.RelativePath);
+                string relativePath = NormalizeRelativePath(instanceRoot, rule.RelativePath);
                 if (Convert.FromHexString(rule.Sha256).Length != 32)
+                {
                     throw new FormatException();
+                }
+                if (!result.TryAdd(relativePath, rule with { RelativePath = relativePath }))
+                {
+                    AddIssue(issues, SpeedrunIssueCode.InvalidFileManifest, "File manifest contains a duplicate path.", relativePath);
+                }
+                if (rule.AssetId is not null && string.IsNullOrWhiteSpace(rule.AssetVersion))
+                {
+                    AddIssue(issues, SpeedrunIssueCode.InvalidFileManifest, "Tool file has no asset version.", relativePath);
+                }
             }
             catch (Exception exception) when (exception is ArgumentException or FormatException)
             {
@@ -97,13 +216,7 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
                     SpeedrunIssueCode.InvalidFileManifest,
                     "File manifest contains an invalid path or SHA-256 hash.",
                     rule.RelativePath);
-                continue;
             }
-
-            if (!result.TryAdd(relativePath, rule with { RelativePath = relativePath }))
-                AddIssue(issues, SpeedrunIssueCode.InvalidFileManifest, "File manifest contains a duplicate path.", relativePath);
-            if (rule.AssetId is not null && string.IsNullOrWhiteSpace(rule.AssetVersion))
-                AddIssue(issues, SpeedrunIssueCode.InvalidFileManifest, "Tool file has no asset version.", relativePath);
         }
         return result;
     }
@@ -114,29 +227,44 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
         List<SpeedrunVerificationIssue> issues)
     {
         if (request.TemplateSource == SpeedrunTemplateSource.OfficialCatalog && !request.Template.IsOfficial)
+        {
             AddIssue(issues, SpeedrunIssueCode.TemplateNotTrusted, "Catalog template is not marked as official.");
+        }
         if (official && OfficialSpeedrunTemplatePolicy.GetViolation(request.Template) is { } violation)
-            AddIssue(issues, violation, "Official template constraints do not match a supported speedrun template.");
+        {
+            AddIssue(issues, violation, "Official template is not a supported RuntimePatches template.");
+        }
         if (official && request.Instance.Purpose != InstancePurpose.OfficialSpeedrun)
+        {
             AddIssue(issues, SpeedrunIssueCode.InstanceNotDedicated, "Official runs require a dedicated speedrun instance.");
+        }
         if (official && request.Instance.ProvisioningMode != InstanceProvisioningMode.FullCopy)
+        {
             AddIssue(issues, SpeedrunIssueCode.InstanceNotFullCopy, "Official runs require a full-copy instance.");
+        }
         if (official && request.Instance.LoaderId is not null)
-            AddIssue(issues, SpeedrunIssueCode.ForbiddenFile, "Official runs cannot use a loader.");
+        {
+            AddIssue(issues, SpeedrunIssueCode.ForbiddenFile, "RuntimePatches environments cannot use a loader.");
+        }
         if (official && !string.Equals(request.Instance.SpeedrunTemplateId, request.Template.Id, StringComparison.Ordinal))
+        {
             AddIssue(issues, SpeedrunIssueCode.TemplateMismatch, "Instance was not created for the selected template.");
-        if (official && (!string.Equals(request.Template.FileManifestId, request.FileManifest.Id, StringComparison.Ordinal) ||
-            !string.Equals(request.Template.BuildId, request.FileManifest.BuildId, StringComparison.Ordinal) ||
-            !string.Equals(request.Template.RulesRevision, request.FileManifest.RulesRevision, StringComparison.Ordinal)))
+        }
+        if (official && (!string.Equals(request.Template.FileManifestId, request.FileManifest.Id, StringComparison.Ordinal)
+            || !string.Equals(request.Template.BuildId, request.FileManifest.BuildId, StringComparison.Ordinal)
+            || !string.Equals(request.Template.RulesRevision, request.FileManifest.RulesRevision, StringComparison.Ordinal)))
+        {
             AddIssue(issues, SpeedrunIssueCode.InvalidFileManifest, "File manifest does not match the official template.");
-        if (!string.Equals(request.Instance.BuildId, request.ExpectedBuild.Id, StringComparison.Ordinal) ||
-            !string.Equals(request.Template.BuildId, request.ExpectedBuild.Id, StringComparison.Ordinal))
+        }
+        if (!string.Equals(request.Instance.BuildId, request.ExpectedBuild.Id, StringComparison.Ordinal)
+            || !string.Equals(request.Template.BuildId, request.ExpectedBuild.Id, StringComparison.Ordinal))
+        {
             AddIssue(issues, SpeedrunIssueCode.BuildMismatch, "Instance, template, and expected build do not match.");
-        if (!string.Equals(
-            request.Instance.SpeedrunRulesRevision,
-            request.CurrentRulesRevision,
-            StringComparison.Ordinal))
+        }
+        if (!string.Equals(request.Instance.SpeedrunRulesRevision, request.CurrentRulesRevision, StringComparison.Ordinal))
+        {
             AddIssue(issues, SpeedrunIssueCode.RulesRevisionMismatch, "Speedrun rules revision has changed.");
+        }
     }
 
     private static void ValidateTools(
@@ -153,73 +281,92 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
         foreach (string requiredAsset in request.Template.RequiredAssetIds)
         {
             if (!providedAssets.Contains(requiredAsset, StringComparer.Ordinal))
+            {
                 AddIssue(issues, SpeedrunIssueCode.MissingRequiredTool, $"Required tool is missing: {requiredAsset}.");
+            }
         }
-        if (official)
+        if (official && request.FileManifest.Files.Any(file =>
+            file.AssetId is not null
+            && !request.Template.RequiredAssetIds.Contains(file.AssetId, StringComparer.Ordinal)))
         {
-            foreach (SpeedrunFileRule extra in request.FileManifest.Files.Where(file =>
-                file.AssetId is not null &&
-                !request.Template.RequiredAssetIds.Contains(file.AssetId, StringComparer.Ordinal)))
-                AddIssue(issues, SpeedrunIssueCode.ForbiddenFile, "Tool is not allowed by the official template.", extra.RelativePath);
+            AddIssue(issues, SpeedrunIssueCode.ForbiddenFile, "The manifest contains an unsupported tool.");
         }
-
-        bool invalidSelection = request.Template.RequiresLoadNormaliserSelection
-            ? request.LoadNormaliserSeconds is not { } seconds ||
-                !request.Template.AllowedLoadNormaliserSeconds.Contains(seconds)
-            : request.LoadNormaliserSeconds is not null;
-        if (invalidSelection)
-            AddIssue(issues, SpeedrunIssueCode.InvalidToolSelection, "LoadNormaliser selection is not allowed by the template.");
+        if (request.LoadNormaliserSeconds is not null)
+        {
+            AddIssue(issues, SpeedrunIssueCode.InvalidToolSelection, "RuntimePatches templates do not support LoadNormaliser.");
+        }
     }
 
-    private static async Task ScanInstanceAsync(
+    private static async Task VerifyCoreFileAsync(
         string instanceRoot,
-        IReadOnlyDictionary<string, SpeedrunFileRule> expectedFiles,
-        HashSet<string> seenFiles,
+        string relativePath,
+        string? expectedSha256,
+        bool required,
         List<SpeedrunVerifiedFile> actualFiles,
         List<SpeedrunVerificationIssue> issues,
         CancellationToken cancellationToken)
     {
-        var pending = new Stack<string>();
-        pending.Push(instanceRoot);
-        while (pending.TryPop(out string? directory))
+        string path = ResolveUnderRoot(instanceRoot, relativePath);
+        if (!File.Exists(path))
         {
-            foreach (string entry in Directory.EnumerateFileSystemEntries(directory))
+            if (required)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                string relativePath = Path.GetRelativePath(instanceRoot, entry).Replace('\\', '/');
-                FileAttributes attributes = File.GetAttributes(entry);
-                if ((attributes & FileAttributes.ReparsePoint) != 0)
-                {
-                    AddIssue(issues, SpeedrunIssueCode.ForbiddenFile, "Reparse points are not allowed.", relativePath);
-                    continue;
-                }
-                if ((attributes & FileAttributes.Directory) != 0)
-                {
-                    if (IsForbiddenPath(relativePath, directory: true))
-                        AddIssue(issues, SpeedrunIssueCode.ForbiddenFile, "Loader or mod directory is forbidden.", relativePath);
-                    pending.Push(entry);
-                    continue;
-                }
-                if (string.Equals(relativePath, ".crystalfly-instance.json", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(relativePath, "steam_appid.txt", StringComparison.OrdinalIgnoreCase))
-                    continue;
+                AddIssue(issues, SpeedrunIssueCode.MissingFile, "Required game file is missing.", relativePath);
+            }
+            return;
+        }
+        string sha256 = await HashFileAsync(path, cancellationToken);
+        actualFiles.Add(new SpeedrunVerifiedFile
+        {
+            RelativePath = relativePath,
+            Sha256 = sha256,
+            Kind = SpeedrunFileKind.Game
+        });
+        if (expectedSha256 is not null
+            && !string.Equals(sha256, expectedSha256, StringComparison.OrdinalIgnoreCase))
+        {
+            AddIssue(issues, SpeedrunIssueCode.HashMismatch, "Game file hash does not match.", relativePath);
+        }
+    }
 
-                seenFiles.Add(relativePath);
-                expectedFiles.TryGetValue(relativePath, out SpeedrunFileRule? rule);
-                string hash = await HashFileAsync(entry, cancellationToken);
-                actualFiles.Add(new SpeedrunVerifiedFile
-                {
-                    RelativePath = relativePath,
-                    Sha256 = hash,
-                    Kind = rule?.Kind ?? SpeedrunFileKind.Unknown,
-                    AssetId = rule?.AssetId
-                });
-                if (IsForbiddenPath(relativePath, directory: false))
-                    AddIssue(issues, SpeedrunIssueCode.ForbiddenFile, "Loader or mod file is forbidden.", relativePath);
-                else if (rule is null)
-                    AddIssue(issues, SpeedrunIssueCode.UnlistedFile, "File is not present in the speedrun whitelist.", relativePath);
-                else if (!string.Equals(hash, rule.Sha256, StringComparison.OrdinalIgnoreCase))
-                    AddIssue(issues, SpeedrunIssueCode.HashMismatch, "File hash does not match the whitelist.", relativePath);
+    private static async Task VerifyManifestFileAsync(
+        string instanceRoot,
+        string relativePath,
+        SpeedrunFileRule rule,
+        List<SpeedrunVerifiedFile> actualFiles,
+        List<SpeedrunVerificationIssue> issues,
+        CancellationToken cancellationToken)
+    {
+        string path = ResolveUnderRoot(instanceRoot, relativePath);
+        if (!File.Exists(path))
+        {
+            AddIssue(issues, SpeedrunIssueCode.MissingFile, "RuntimePatches file is missing.", relativePath);
+            return;
+        }
+        string sha256 = await HashFileAsync(path, cancellationToken);
+        actualFiles.Add(new SpeedrunVerifiedFile
+        {
+            RelativePath = relativePath,
+            Sha256 = sha256,
+            Kind = rule.Kind,
+            AssetId = rule.AssetId
+        });
+        if (!string.Equals(sha256, rule.Sha256, StringComparison.OrdinalIgnoreCase))
+        {
+            AddIssue(issues, SpeedrunIssueCode.HashMismatch, "RuntimePatches DLL hash does not match.", relativePath);
+        }
+    }
+
+    private static void ValidateForbiddenMarkers(
+        string instanceRoot,
+        List<SpeedrunVerificationIssue> issues)
+    {
+        foreach (string relativePath in ForbiddenPaths)
+        {
+            string path = ResolveUnderRoot(instanceRoot, relativePath);
+            if (File.Exists(path) || Directory.Exists(path))
+            {
+                AddIssue(issues, SpeedrunIssueCode.ForbiddenFile, "Loader or Mod marker is present.", relativePath);
             }
         }
     }
@@ -232,9 +379,9 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
             StringComparer.OrdinalIgnoreCase);
         return new BuildFingerprint
         {
-            ExecutableSha256 = hashes.GetValueOrDefault("hollow_knight.exe", ""),
+            ExecutableSha256 = hashes.GetValueOrDefault("hollow_knight.exe", string.Empty),
             UnityPlayerSha256 = hashes.GetValueOrDefault("UnityPlayer.dll"),
-            GlobalGameManagersSha256 = hashes.GetValueOrDefault("hollow_knight_Data/globalgamemanagers", "")
+            GlobalGameManagersSha256 = hashes.GetValueOrDefault("hollow_knight_Data/globalgamemanagers", string.Empty)
         };
     }
 
@@ -243,13 +390,12 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
         BuildFingerprint actual,
         List<SpeedrunVerificationIssue> issues)
     {
-        if (!string.Equals(expected.ExecutableSha256, actual.ExecutableSha256, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(expected.UnityPlayerSha256, actual.UnityPlayerSha256, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(
-                expected.GlobalGameManagersSha256,
-                actual.GlobalGameManagersSha256,
-                StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(expected.ExecutableSha256, actual.ExecutableSha256, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(expected.UnityPlayerSha256, actual.UnityPlayerSha256, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(expected.GlobalGameManagersSha256, actual.GlobalGameManagersSha256, StringComparison.OrdinalIgnoreCase))
+        {
             AddIssue(issues, SpeedrunIssueCode.GameFingerprintMismatch, "Game build fingerprint does not match.");
+        }
     }
 
     private static IReadOnlyList<SpeedrunVerifiedTool> CreateToolReports(
@@ -283,32 +429,28 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
         return result.OrderBy(static tool => tool.AssetId, StringComparer.Ordinal).ToArray();
     }
 
-    private static bool IsForbiddenPath(string relativePath, bool directory)
-    {
-        string normalized = relativePath.Replace('\\', '/').Trim('/').ToLowerInvariant();
-        string name = Path.GetFileNameWithoutExtension(normalized);
-        return normalized == "bepinex" || normalized.StartsWith("bepinex/", StringComparison.Ordinal) ||
-            normalized is "doorstop_config.ini" or "winhttp.dll" ||
-            normalized.StartsWith("hollow_knight_data/managed/mods", StringComparison.Ordinal) ||
-            (!directory && name.StartsWith("mmhook_", StringComparison.Ordinal)) ||
-            (!directory && name is "modding" or "moddingapi") ||
-            normalized.Contains("debugmod", StringComparison.Ordinal) ||
-            normalized.Contains("speedrunqol", StringComparison.Ordinal) ||
-            normalized.Contains("benchwarp", StringComparison.Ordinal) ||
-            normalized.Contains("hktimer", StringComparison.Ordinal);
-    }
-
     private static string NormalizeRelativePath(string instanceRoot, string relativePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
         string normalized = relativePath.Replace('\\', '/');
         if (Path.IsPathFullyQualified(normalized) || normalized.Contains(':', StringComparison.Ordinal))
+        {
             throw new ArgumentException("File path must be relative.", nameof(relativePath));
-        string fullPath = Path.GetFullPath(normalized.Replace('/', Path.DirectorySeparatorChar), instanceRoot);
-        string rootPrefix = Path.TrimEndingDirectorySeparator(instanceRoot) + Path.DirectorySeparatorChar;
-        if (!fullPath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
+        }
+        return Path.GetRelativePath(instanceRoot, ResolveUnderRoot(instanceRoot, normalized)).Replace('\\', '/');
+    }
+
+    private static string ResolveUnderRoot(string root, string relativePath)
+    {
+        string fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string fullPath = Path.GetFullPath(Path.Combine(
+            fullRoot,
+            relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        if (!fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
             throw new ArgumentException("File path escapes the instance root.", nameof(relativePath));
-        return Path.GetRelativePath(instanceRoot, fullPath).Replace('\\', '/');
+        }
+        return fullPath;
     }
 
     private static async Task<string> HashFileAsync(string path, CancellationToken cancellationToken)
@@ -327,6 +469,13 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
         List<SpeedrunVerificationIssue> issues,
         SpeedrunIssueCode code,
         string message,
-        string? relativePath = null) =>
-        issues.Add(new SpeedrunVerificationIssue { Code = code, Message = message, RelativePath = relativePath });
+        string? relativePath = null,
+        SpeedrunIssueSeverity severity = SpeedrunIssueSeverity.EnvironmentError) =>
+        issues.Add(new SpeedrunVerificationIssue
+        {
+            Code = code,
+            Severity = severity,
+            Message = message,
+            RelativePath = relativePath
+        });
 }

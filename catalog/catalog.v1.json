@@ -152,114 +152,119 @@
   "speedrunTemplates": [
     {
       "schemaVersion": 1,
-      "id": "race-1221",
-      "name": "Any% NMG 1.2.2.1 Race",
+      "id": "runtime-patches-1221",
+      "name": "RuntimePatches 1.2.2.1",
       "buildId": "1.2.2.1",
-      "isOfficial": false,
-      "rulesRevision": "unverified-2026-07-17",
-      "fileManifestId": "unverified-1221-nmg",
-      "requiredAssetIds": ["screen-shake-modifier-1221"],
+      "isOfficial": true,
+      "rulesRevision": "runtime-patches-v1.0.2",
+      "fileManifestId": "files-runtime-patches-1221",
+      "requiredAssetIds": ["runtime-patches-1221-v1.0.2"],
       "loadNormaliserAvailable": false,
       "requiresLoadNormaliserSelection": false,
       "allowedLoadNormaliserSeconds": []
     },
     {
       "schemaVersion": 1,
-      "id": "single-run-1221",
-      "name": "Any% NMG 1.2.2.1 Solo",
-      "buildId": "1.2.2.1",
-      "isOfficial": false,
-      "rulesRevision": "unverified-2026-07-17",
-      "fileManifestId": "unverified-1221-nmg",
-      "requiredAssetIds": ["screen-shake-modifier-1221"],
+      "id": "runtime-patches-1432",
+      "name": "RuntimePatches 1.4.3.2",
+      "buildId": "1.4.3.2",
+      "isOfficial": true,
+      "rulesRevision": "runtime-patches-v1.0.2",
+      "fileManifestId": "files-runtime-patches-1432",
+      "requiredAssetIds": ["runtime-patches-1432-v1.0.2"],
       "loadNormaliserAvailable": false,
       "requiresLoadNormaliserSelection": false,
       "allowedLoadNormaliserSeconds": []
     },
     {
       "schemaVersion": 1,
-      "id": "single-run-1578",
-      "name": "1.4.3.2+ NMG 1.5.78 Solo",
+      "id": "runtime-patches-1578",
+      "name": "RuntimePatches 1.5.78",
       "buildId": "1.5.78.11833",
-      "isOfficial": false,
-      "rulesRevision": "unverified-2026-07-17",
-      "fileManifestId": "unverified-1578-solo",
-      "requiredAssetIds": [],
-      "loadNormaliserAvailable": true,
+      "isOfficial": true,
+      "rulesRevision": "runtime-patches-v1.0.2",
+      "fileManifestId": "files-runtime-patches-1578",
+      "requiredAssetIds": ["runtime-patches-1578-v1.0.2"],
+      "loadNormaliserAvailable": false,
       "requiresLoadNormaliserSelection": false,
       "allowedLoadNormaliserSeconds": []
-    },
-    {
-      "schemaVersion": 1,
-      "id": "race-1578",
-      "name": "1.4.3.2+ NMG 1.5.78 Race",
-      "buildId": "1.5.78.11833",
-      "isOfficial": false,
-      "rulesRevision": "unverified-2026-07-17",
-      "fileManifestId": "unverified-1578-race",
-      "requiredAssetIds": ["load-normaliser-1.1"],
-      "loadNormaliserAvailable": true,
-      "requiresLoadNormaliserSelection": true,
-      "allowedLoadNormaliserSeconds": [1, 2, 3, 5]
     }
   ],
   "speedrunAssets": [
     {
       "schemaVersion": 1,
-      "id": "screen-shake-modifier-1221",
-      "name": "ScreenShakeModifier",
-      "version": "1.2.2.1",
-      "downloadUrl": "https://raw.githubusercontent.com/hk-speedrunning/HK-Resources/main/ScreenShakeModifier/1221/Assembly-CSharp.dll",
-      "sizeBytes": 2832384,
-      "sha256": "EF25E8E55765230B9D12554355BB069189DD0AA0AEDAB684084DAD297D5391FA",
+      "id": "runtime-patches-1221-v1.0.2",
+      "name": "AssemblyPatches",
+      "version": "1.0.2",
+      "downloadUrl": "https://github.com/olvior/AssemblyPatches/releases/download/v1.0.2/Assembly-CSharp-1221-windows.zip",
+      "sizeBytes": 876481,
+      "sha256": "5F603C92E1E94F3FA1CBF59CC75AADCBD8E6014F7AC39D4F3F5924F945D85FC6",
       "supportedBuildIds": ["1.2.2.1"]
     },
     {
       "schemaVersion": 1,
-      "id": "load-normaliser-1.1",
-      "name": "LoadNormaliser",
-      "version": "1.1",
-      "downloadUrl": "https://github.com/Schyvun/HKCP_LoadNormaliser/releases/download/1.1/1432.1578.1.2.3.5.LoadNormaliser.UI.zip",
-      "sizeBytes": 8315789,
-      "sha256": "FAEFF81E5BC845E1BBF8E23CF50B14EB3684F34C85FDE43F6827270F6814B9A7",
-      "supportedBuildIds": ["1.4.3.2", "1.5.78.11833"]
+      "id": "runtime-patches-1432-v1.0.2",
+      "name": "AssemblyPatches",
+      "version": "1.0.2",
+      "downloadUrl": "https://github.com/olvior/AssemblyPatches/releases/download/v1.0.2/Assembly-CSharp-1432-windows.zip",
+      "sizeBytes": 1128984,
+      "sha256": "2ED1D9AE636EA177F97CE5C4565DFA4FA102E22B10F82D49201086A8F706FC3E",
+      "supportedBuildIds": ["1.4.3.2"]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "runtime-patches-1578-v1.0.2",
+      "name": "AssemblyPatches",
+      "version": "1.0.2",
+      "downloadUrl": "https://github.com/olvior/AssemblyPatches/releases/download/v1.0.2/Assembly-CSharp-1578-windows.zip",
+      "sizeBytes": 1129878,
+      "sha256": "5E4380B70C27DA8E512E0C177A9A6C4742A615216330D343535AF8D48BA8AA3D",
+      "supportedBuildIds": ["1.5.78.11833"]
     }
   ],
   "speedrunFileManifests": [
     {
       "schemaVersion": 1,
-      "id": "unverified-1221-nmg",
+      "id": "files-runtime-patches-1221",
       "buildId": "1.2.2.1",
-      "rulesRevision": "unverified-2026-07-17",
+      "rulesRevision": "runtime-patches-v1.0.2",
       "files": [
         {
           "relativePath": "hollow_knight_Data/Managed/Assembly-CSharp.dll",
-          "sha256": "EF25E8E55765230B9D12554355BB069189DD0AA0AEDAB684084DAD297D5391FA",
+          "sha256": "A47DA658E488127B58AEF4469BB8205E90038D0E24ACE12E873B493510DA071F",
           "kind": "tool",
-          "assetId": "screen-shake-modifier-1221",
-          "assetVersion": "1.2.2.1"
+          "assetId": "runtime-patches-1221-v1.0.2",
+          "assetVersion": "1.0.2"
         }
       ]
     },
     {
       "schemaVersion": 1,
-      "id": "unverified-1578-solo",
-      "buildId": "1.5.78.11833",
-      "rulesRevision": "unverified-2026-07-17",
-      "files": []
-    },
-    {
-      "schemaVersion": 1,
-      "id": "unverified-1578-race",
-      "buildId": "1.5.78.11833",
-      "rulesRevision": "unverified-2026-07-17",
+      "id": "files-runtime-patches-1432",
+      "buildId": "1.4.3.2",
+      "rulesRevision": "runtime-patches-v1.0.2",
       "files": [
         {
           "relativePath": "hollow_knight_Data/Managed/Assembly-CSharp.dll",
-          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "sha256": "F9EEE63FD3AB9531BF91BDD1EB77B49E873114443C7D85C3124CDF871317BFFD",
           "kind": "tool",
-          "assetId": "load-normaliser-1.1",
-          "assetVersion": "1.1"
+          "assetId": "runtime-patches-1432-v1.0.2",
+          "assetVersion": "1.0.2"
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "files-runtime-patches-1578",
+      "buildId": "1.5.78.11833",
+      "rulesRevision": "runtime-patches-v1.0.2",
+      "files": [
+        {
+          "relativePath": "hollow_knight_Data/Managed/Assembly-CSharp.dll",
+          "sha256": "18F7DF2F2DBF3E3E3646F70A74A3360EC294FE9BDDFE2554ECFEB80AD68905CA",
+          "kind": "tool",
+          "assetId": "runtime-patches-1578-v1.0.2",
+          "assetVersion": "1.0.2"
         }
       ]
     }
