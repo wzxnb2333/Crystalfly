@@ -282,6 +282,21 @@ public sealed class LayoutRenderingTests
             Assert.Contains(window.GetVisualDescendants().OfType<ListBox>(), list => list.IsEffectivelyVisible);
             Assert.Contains(window.GetVisualDescendants().OfType<Button>(), button =>
                 button.IsEffectivelyVisible && Equals(button.Content, viewModel.Loc["SpeedrunCreate"]));
+
+            var config = window.GetVisualDescendants()
+                .OfType<Border>()
+                .Single(border => border.Classes.Contains("cfp-speedrun-config"));
+            Assert.False(config.IsEffectivelyVisible);
+
+            var create = window.GetVisualDescendants()
+                .OfType<Border>()
+                .Single(border => border.Classes.Contains("cfp-speedrun-create"));
+            Assert.Equal(2, create.GetVisualDescendants().OfType<ComboBox>().Count(combo => combo.IsEffectivelyVisible));
+            var createButton = create.GetVisualDescendants()
+                .OfType<Button>()
+                .Single(button => button.Classes.Contains("cfp-primary")
+                    && Equals(button.Content, viewModel.Loc["SpeedrunCreate"]));
+            Assert.Equal(HorizontalAlignment.Left, createButton.HorizontalAlignment);
         }
         finally
         {
