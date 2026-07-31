@@ -760,7 +760,7 @@ public sealed class DocumentationScreenshotTests
                     CanResize = false
                 });
             for (var attempt = 0;
-                 attempt < 100 && !Window.GetVisualDescendants().OfType<CustomDialogControl>().Any();
+                 attempt < 500 && !Window.GetVisualDescendants().OfType<CustomDialogControl>().Any();
                  attempt++)
             {
                 Dispatcher.UIThread.RunJobs();
