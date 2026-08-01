@@ -311,13 +311,13 @@ public partial class MainWindow : Window
         entranceAnimationTargets.Add(control);
         entranceAnimationOrdinals[control] = entranceAnimationOrdinals.Count;
         control.PropertyChanged += OnEntranceTargetPropertyChanged;
-        if (animate && control.IsEffectivelyVisible && IsDeferredEntranceTarget(control))
+        if (animate && control.IsEffectivelyVisible && IsOpacityEntranceTarget(control))
         {
             QueueEntranceAnimation(control);
         }
     }
 
-    private static bool IsDeferredEntranceTarget(Control control) =>
+    private static bool IsOpacityEntranceTarget(Control control) =>
         control.Classes.Contains("cfp-dialog-motion")
         || control.Classes.Contains("cfp-toast-motion");
 
@@ -549,9 +549,11 @@ public partial class MainWindow : Window
         ResetEntranceVisual(control);
         if (IsReducedMotionEnabled())
         {
-            // Prime the initial state before the next render pass so a visible page
-            // never paints once at full opacity before its entrance starts.
-            control.Opacity = ReducedEntranceStartOpacity;
+            // Prime the visual before the next render; page transitions stay opaque
+            // and use transform motion, while dialogs and toasts may fade.
+            control.Opacity = IsOpacityEntranceTarget(control)
+                ? ReducedEntranceStartOpacity
+                : 1;
         }
         else
         {
@@ -574,7 +576,9 @@ public partial class MainWindow : Window
         entranceAnimationBaseTransforms[control] = baseTransform;
         entranceAnimationTransforms[control] = motion;
         ApplyEntranceTransform(control, motion);
-        control.Opacity = PageEntranceStartOpacity;
+        control.Opacity = IsOpacityEntranceTarget(control)
+            ? PageEntranceStartOpacity
+            : 1;
     }
 
     private void ResetEntranceVisual(Control control)
@@ -640,6 +644,11 @@ public partial class MainWindow : Window
         var reducedMotion = IsReducedMotionEnabled();
         if (reducedMotion)
         {
+            if (!IsOpacityEntranceTarget(control))
+            {
+                control.Opacity = 1;
+                return;
+            }
             await RunOpacityAnimationAsync(control, ReducedEntranceDuration, generation, cancellationToken);
             return;
         }
@@ -658,7 +667,12 @@ public partial class MainWindow : Window
                 new KeyFrame
                 {
                     Cue = new Cue(0),
-                    Setters = { new Setter(Visual.OpacityProperty, PageEntranceStartOpacity) }
+                    Setters =
+                    {
+                        new Setter(
+                            Visual.OpacityProperty,
+                            IsOpacityEntranceTarget(control) ? PageEntranceStartOpacity : 1d)
+                    }
                 },
                 new KeyFrame
                 {

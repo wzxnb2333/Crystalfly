@@ -103,7 +103,7 @@ public sealed class MainWindowStructureTests
         Assert.Contains("PageEntranceOffset", code, StringComparison.Ordinal);
         Assert.Contains("PageEntranceStartOpacity = 0.82d", code, StringComparison.Ordinal);
         Assert.DoesNotContain("QueueVisibleDescendants", code, StringComparison.Ordinal);
-        Assert.Contains("IsDeferredEntranceTarget", code, StringComparison.Ordinal);
+        Assert.Contains("IsOpacityEntranceTarget", code, StringComparison.Ordinal);
         Assert.Contains("TranslateTransform.YProperty", code, StringComparison.Ordinal);
         Assert.Contains("IsEntranceAnimationTarget", code, StringComparison.Ordinal);
         Assert.Contains("ConfigureMicroInteractionTransitions", code, StringComparison.Ordinal);
