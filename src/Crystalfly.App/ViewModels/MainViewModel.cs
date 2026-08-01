@@ -257,6 +257,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public ObservableCollection<SettingOption<UiTheme>> ThemeOptions { get; } = [];
 
+    public ObservableCollection<SettingOption<UiMotionPreference>> MotionOptions { get; } = [];
+
     public ObservableCollection<AccentColorOptionViewModel> AccentColorOptions { get; } = [];
 
     public ObservableCollection<SettingOption<GitHubDownloadRoute>> GitHubRouteOptions { get; } = [];
@@ -734,6 +736,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial SettingOption<UiTheme>? SelectedTheme { get; set; }
+
+    [ObservableProperty]
+    public partial SettingOption<UiMotionPreference>? SelectedMotionPreference { get; set; }
     [ObservableProperty]
     public partial SettingOption<GitHubDownloadRoute>? SelectedGitHubRoute { get; set; }
 
@@ -776,6 +781,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             DateTimeOffset.UtcNow,
             TimeSpan.FromDays(7));
         settings = await CrystalflySettingsStore.LoadAsync(settingsPath);
+        OnPropertyChanged(nameof(EffectiveMotionPreference));
         persistedGlobalBackground = settings.BackgroundImage;
         IsOfflineMode = settings.OfflineMode;
         ApplyLanguage(settings.Language);
@@ -3365,6 +3371,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _ = QueueSettingsSave();
     }
 
+    partial void OnSelectedMotionPreferenceChanged(SettingOption<UiMotionPreference>? value)
+    {
+        if (value is null || value.Value == settings.MotionPreference)
+        {
+            return;
+        }
+        settings = settings with { MotionPreference = value.Value };
+        OnPropertyChanged(nameof(EffectiveMotionPreference));
+        _ = QueueSettingsSave();
+    }
+
+    public UiMotionPreference EffectiveMotionPreference => settings.MotionPreference;
+
     internal void PreviewAccentColor(string accentColor)
     {
         var normalized = AccentColorPalette.Normalize(accentColor);
@@ -3846,8 +3865,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ThemeOptions.Add(new(UiTheme.System, Loc["System"]));
         ThemeOptions.Add(new(UiTheme.Light, Loc["Light"]));
         ThemeOptions.Add(new(UiTheme.Dark, Loc["Dark"]));
+        MotionOptions.Clear();
+        MotionOptions.Add(new(UiMotionPreference.FollowSystem, Loc["MotionFollowSystem"]));
+        MotionOptions.Add(new(UiMotionPreference.Reduced, Loc["MotionReduced"]));
+        MotionOptions.Add(new(UiMotionPreference.Off, Loc["MotionOff"]));
         SelectedLanguage = LanguageOptions.First(option => option.Value == settings.Language);
         SelectedTheme = ThemeOptions.First(option => option.Value == settings.Theme);
+        SelectedMotionPreference = MotionOptions.First(option => option.Value == settings.MotionPreference);
         RebuildAccentColorOptions();
         RebuildBackgroundScopeOptions();
         GitHubRouteOptions.Clear();

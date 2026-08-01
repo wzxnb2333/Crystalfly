@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Avalonia;
@@ -19,6 +20,7 @@ using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views.Dialogs;
 using Crystalfly.App.Runtime;
+using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Mods;
 using Crystalfly.Core.Runtime;
@@ -41,7 +43,11 @@ public partial class MainWindow : Window
     private readonly List<Control> entranceAnimationTargets = [];
     private readonly Dictionary<Control, long> entranceAnimationGenerations = [];
     private readonly Dictionary<Control, ITransform?> entranceAnimationBaseTransforms = [];
-    private readonly Dictionary<Control, TranslateTransform> entranceAnimationTransforms = [];
+    private readonly Dictionary<Control, EntranceMotion> entranceAnimationTransforms = [];
+    private readonly Dictionary<Control, int> entranceAnimationOrdinals = [];
+    private readonly Dictionary<Control, CancellationTokenSource> entranceAnimationCancellations = [];
+    private readonly Dictionary<Control, Transitions?> motionBaseTransitions = [];
+    private readonly Dictionary<Control, MicroMotion> microInteractionTransforms = [];
     private long entranceAnimationGeneration;
     private DispatcherTimer? knightWalkTimer;
     private int knightWalkFrame;
@@ -64,6 +70,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        MainOverlayDialogHost.Children.CollectionChanged += OnOverlayHostChildrenChanged;
         toastManager = new WindowToastManager(this) { MaxItems = 3 };
         DataContextChanged += OnDataContextChanged;
         OnDataContextChanged(this, EventArgs.Empty);
@@ -107,6 +114,7 @@ public partial class MainWindow : Window
             {
                 await viewModel.InitializeAsync();
                 initialized = true;
+                RegisterMotionTargets(animateNewTargets: true);
             }
             catch (Exception exception)
             {
@@ -177,7 +185,7 @@ public partial class MainWindow : Window
             host.PropertyChanged += OnKnightLoadingHostPropertyChanged;
         }
 
-        if (knightWalkTransforms.Count == 0 || !AreClientAreaAnimationsEnabled())
+        if (knightWalkTransforms.Count == 0)
         {
             return;
         }
@@ -220,7 +228,8 @@ public partial class MainWindow : Window
     }
 
     private bool ShouldAnimateKnight() =>
-        IsVisible
+        IsFullMotionEnabled()
+        && IsVisible
         && knightLoadingHosts.Any(host => host.IsLoading && host.IsEffectivelyVisible);
 
     private void UpdateKnightWalkAnimationState()
@@ -259,52 +268,247 @@ public partial class MainWindow : Window
             || enabled != 0;
     }
 
-    private static readonly TimeSpan PageEntranceDuration = TimeSpan.FromMilliseconds(180);
+    private static readonly TimeSpan PageEntranceDuration = TimeSpan.FromMilliseconds(260);
+    private static readonly TimeSpan ReducedEntranceDuration = TimeSpan.FromMilliseconds(120);
     private static readonly TimeSpan MicroInteractionDuration = TimeSpan.FromMilliseconds(120);
-    private const double PageEntranceOffset = 6d;
+    private const double PageEntranceOffset = 18d;
+    private const double PageEntranceScale = 0.985d;
+
+    private sealed record EntranceMotion(
+        ITransform? BaseTransform,
+        RelativePoint BaseOrigin,
+        TranslateTransform Translate,
+        ScaleTransform Scale);
+
+    private sealed record MicroMotion(
+        ITransform? BaseTransform,
+        RelativePoint BaseOrigin,
+        ScaleTransform Scale);
 
     private void SubscribeEntranceAnimations()
     {
-        if (!AreClientAreaAnimationsEnabled())
+        RegisterMotionTargets(animateNewTargets: false);
+        UpdateMotionPreference(replayVisiblePages: true);
+    }
+
+    private void RegisterMotionTargets(bool animateNewTargets)
+    {
+        foreach (var control in this.GetVisualDescendants().OfType<Control>().Where(IsEntranceAnimationTarget))
+        {
+            RegisterMotionTarget(control, animateNewTargets);
+        }
+        ConfigureMicroInteractionTransitions();
+    }
+
+    private void RegisterMotionTarget(Control control, bool animate)
+    {
+        if (entranceAnimationTargets.Contains(control))
         {
             return;
         }
-
-        foreach (var control in this.GetVisualDescendants().OfType<Control>().Where(IsEntranceAnimationTarget))
+        entranceAnimationTargets.Add(control);
+        entranceAnimationOrdinals[control] = entranceAnimationOrdinals.Count;
+        control.PropertyChanged += OnEntranceTargetPropertyChanged;
+        if (animate && control.IsEffectivelyVisible && !control.Classes.Contains("cfp-page"))
         {
-            entranceAnimationTargets.Add(control);
-            control.PropertyChanged += OnEntranceTargetPropertyChanged;
-            if (control.IsVisible && control.Classes.Contains("cfp-page"))
-            {
-                QueueEntranceAnimation(control);
-            }
+            QueueEntranceAnimation(control);
         }
-
-        ConfigureMicroInteractionTransitions();
     }
 
     private static bool IsEntranceAnimationTarget(Control control) =>
         control.Classes.Contains("cfp-subpage")
         || control.Classes.Contains("cfp-mod-bulk-bar")
-        || control.Classes.Contains("cfp-page");
+        || control.Classes.Contains("cfp-page")
+        || control.Classes.Contains("cfp-card")
+        || control.Classes.Contains("cfp-list-row")
+        || control.Classes.Contains("cfp-instance-row")
+        || control.Classes.Contains("cfp-installed-mod-row")
+        || control.Classes.Contains("cfp-download-build-row")
+        || control.Classes.Contains("cfp-dependency-graph-node")
+        || control.Classes.Contains("cfp-dialog-motion")
+        || control.Classes.Contains("cfp-toast-motion");
 
     private void ConfigureMicroInteractionTransitions()
     {
         foreach (var control in this.GetVisualDescendants().OfType<Control>().Where(control =>
                      control.Classes.Contains("cfp-local-nav")
+                     || control.Classes.Contains("cfp-instance-actions")
                      || control.Classes.Contains("cfp-installed-mod-actions")
-                     || control.Classes.Contains("cfp-installed-mod-accent")))
+                     || control.Classes.Contains("cfp-installed-mod-accent")
+                     || IsMicroInteractionTarget(control)))
         {
+            if (!motionBaseTransitions.ContainsKey(control))
+            {
+                motionBaseTransitions.Add(control, control.Transitions);
+            }
+            if (!IsMotionEnabled())
+            {
+                control.Transitions = motionBaseTransitions[control];
+                continue;
+            }
             control.Transitions = new Transitions
             {
                 new DoubleTransition
                 {
                     Property = Visual.OpacityProperty,
                     Duration = MicroInteractionDuration,
-                    Easing = new CubicEaseOut()
+                    Easing = IsFullMotionEnabled() ? CreateSpringEasing() : new CubicEaseOut()
                 }
             };
+            ConfigureMicroInteractionTransform(control);
         }
+        if (!IsFullMotionEnabled())
+        {
+            RestoreMicroInteractionTransforms();
+        }
+    }
+
+    private static bool IsMicroInteractionTarget(Control control) => control is Button
+        && (control.Classes.Contains("cfp-nav")
+            || control.Classes.Contains("cfp-primary")
+            || control.Classes.Contains("cfp-accent")
+            || control.Classes.Contains("cfp-secondary")
+            || control.Classes.Contains("cfp-icon")
+            || control.Classes.Contains("cfp-instance-main")
+            || control.Classes.Contains("cfp-market-item")
+            || control.Classes.Contains("cfp-instance-action")
+            || control.Classes.Contains("cfp-mod-action")
+            || control.Classes.Contains("cfp-quick-action"));
+
+    private void ConfigureMicroInteractionTransform(Control control)
+    {
+        if (!IsFullMotionEnabled()
+            || microInteractionTransforms.ContainsKey(control)
+            || control.RenderTransform is not null)
+        {
+            return;
+        }
+        var scale = new ScaleTransform { ScaleX = 1, ScaleY = 1 };
+        scale.Transitions = new Transitions
+        {
+            new DoubleTransition
+            {
+                Property = ScaleTransform.ScaleXProperty,
+                Duration = MicroInteractionDuration,
+                Easing = CreateSpringEasing()
+            },
+            new DoubleTransition
+            {
+                Property = ScaleTransform.ScaleYProperty,
+                Duration = MicroInteractionDuration,
+                Easing = CreateSpringEasing()
+            }
+        };
+        var motion = new MicroMotion(control.RenderTransform, control.RenderTransformOrigin, scale);
+        microInteractionTransforms.Add(control, motion);
+        control.RenderTransform = scale;
+        control.RenderTransformOrigin = RelativePoint.Center;
+        control.PointerEntered += OnMicroInteractionPointerEntered;
+        control.PointerExited += OnMicroInteractionPointerExited;
+        control.PointerPressed += OnMicroInteractionPointerPressed;
+        control.PointerReleased += OnMicroInteractionPointerReleased;
+    }
+
+    private void OnMicroInteractionPointerEntered(object? sender, PointerEventArgs eventArgs) =>
+        SetMicroInteractionScale(sender as Control, 1.018d);
+
+    private void OnMicroInteractionPointerExited(object? sender, PointerEventArgs eventArgs) =>
+        SetMicroInteractionScale(sender as Control, 1d);
+
+    private void OnMicroInteractionPointerPressed(object? sender, PointerPressedEventArgs eventArgs)
+    {
+        if (eventArgs.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            SetMicroInteractionScale(sender as Control, 0.97d);
+        }
+    }
+
+    private void OnMicroInteractionPointerReleased(object? sender, PointerReleasedEventArgs eventArgs) =>
+        SetMicroInteractionScale(sender as Control, (sender as Control)?.IsPointerOver == true ? 1.018d : 1d);
+
+    private void SetMicroInteractionScale(Control? control, double scale)
+    {
+        if (IsFullMotionEnabled()
+            && control is not null
+            && microInteractionTransforms.TryGetValue(control, out var motion))
+        {
+            motion.Scale.ScaleX = scale;
+            motion.Scale.ScaleY = scale;
+        }
+    }
+
+    private void RestoreMicroInteractionTransforms()
+    {
+        foreach (var (control, motion) in microInteractionTransforms)
+        {
+            control.PointerEntered -= OnMicroInteractionPointerEntered;
+            control.PointerExited -= OnMicroInteractionPointerExited;
+            control.PointerPressed -= OnMicroInteractionPointerPressed;
+            control.PointerReleased -= OnMicroInteractionPointerReleased;
+            control.RenderTransform = motion.BaseTransform;
+            control.RenderTransformOrigin = motion.BaseOrigin;
+        }
+        microInteractionTransforms.Clear();
+    }
+
+    private static SpringEasing CreateSpringEasing() => new()
+    {
+        Mass = 1,
+        Stiffness = 300,
+        Damping = 24,
+        InitialVelocity = 0
+    };
+
+    private bool IsFullMotionEnabled() =>
+        DataContext is MainViewModel { EffectiveMotionPreference: UiMotionPreference.FollowSystem }
+        && AreClientAreaAnimationsEnabled();
+
+    private bool IsReducedMotionEnabled() =>
+        DataContext is MainViewModel { EffectiveMotionPreference: UiMotionPreference.Reduced }
+        && AreClientAreaAnimationsEnabled();
+
+    private bool IsMotionEnabled() => IsFullMotionEnabled() || IsReducedMotionEnabled();
+
+    private void UpdateMotionPreference(bool replayVisiblePages = false)
+    {
+        ConfigureMicroInteractionTransitions();
+        if (!IsMotionEnabled())
+        {
+            CancelEntranceAnimations();
+        }
+        else if (replayVisiblePages)
+        {
+            foreach (var control in entranceAnimationTargets.Where(control =>
+                         control.IsVisible && control.Classes.Contains("cfp-page")))
+            {
+                QueueEntranceAnimation(control);
+            }
+        }
+        UpdateKnightWalkAnimationState();
+    }
+
+    private void CancelEntranceAnimations()
+    {
+        foreach (var cancellation in entranceAnimationCancellations.Values)
+        {
+            cancellation.Cancel();
+            cancellation.Dispose();
+        }
+        entranceAnimationCancellations.Clear();
+        foreach (var control in entranceAnimationTargets)
+        {
+            entranceAnimationGenerations[control] = Interlocked.Increment(ref entranceAnimationGeneration);
+            control.Opacity = 1;
+            if (entranceAnimationTransforms.TryGetValue(control, out var motion))
+            {
+                control.RenderTransform = motion.BaseTransform;
+                control.RenderTransformOrigin = motion.BaseOrigin;
+            }
+        }
+        entranceAnimationTransforms.Clear();
+        entranceAnimationBaseTransforms.Clear();
+        RestoreMicroInteractionTransforms();
+        motionBaseTransitions.Clear();
     }
 
     private void OnEntranceTargetPropertyChanged(
@@ -320,39 +524,92 @@ public partial class MainWindow : Window
 
     private void QueueEntranceAnimation(Control control)
     {
-        var generation = Interlocked.Increment(ref entranceAnimationGeneration);
-        entranceAnimationGenerations[control] = generation;
-        _ = RunEntranceAnimationAfterLayoutAsync(control, generation);
-    }
-
-    private async Task RunEntranceAnimationAfterLayoutAsync(Control control, long generation)
-    {
-        await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Render);
-        if (!control.IsVisible
-            || !entranceAnimationGenerations.TryGetValue(control, out var latestGeneration)
-            || latestGeneration != generation)
+        if (entranceAnimationCancellations.Remove(control, out var previousCancellation))
         {
+            previousCancellation.Cancel();
+            previousCancellation.Dispose();
+        }
+        if (!IsMotionEnabled())
+        {
+            control.Opacity = 1;
             return;
         }
-
-        await RunEntranceAnimationAsync(control, generation);
+        var generation = Interlocked.Increment(ref entranceAnimationGeneration);
+        entranceAnimationGenerations[control] = generation;
+        var cancellation = new CancellationTokenSource();
+        entranceAnimationCancellations[control] = cancellation;
+        _ = RunEntranceAnimationAfterLayoutAsync(control, generation, cancellation);
     }
 
-    private async Task RunEntranceAnimationAsync(Control control, long generation)
+    private async Task RunEntranceAnimationAfterLayoutAsync(
+        Control control,
+        long generation,
+        CancellationTokenSource cancellation)
     {
-        control.Opacity = 0;
-        if (!entranceAnimationBaseTransforms.TryGetValue(control, out var existingRenderTransform))
+        try
         {
-            existingRenderTransform = control.RenderTransform;
-            entranceAnimationBaseTransforms[control] = existingRenderTransform;
+            await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Render);
+            cancellation.Token.ThrowIfCancellationRequested();
+            if (!control.IsVisible
+                || !entranceAnimationGenerations.TryGetValue(control, out var latestGeneration)
+                || latestGeneration != generation)
+            {
+                return;
+            }
+
+            await RunEntranceAnimationAsync(control, generation, cancellation.Token);
         }
-        var entranceTransform = new TranslateTransform { Y = PageEntranceOffset };
-        entranceAnimationTransforms[control] = entranceTransform;
-        control.RenderTransform = entranceTransform;
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            if (entranceAnimationCancellations.TryGetValue(control, out var current)
+                && ReferenceEquals(current, cancellation))
+            {
+                entranceAnimationCancellations.Remove(control);
+            }
+            cancellation.Dispose();
+        }
+    }
+
+    private async Task RunEntranceAnimationAsync(
+        Control control,
+        long generation,
+        CancellationToken cancellationToken)
+    {
+        var reducedMotion = IsReducedMotionEnabled();
+        control.Opacity = 0;
+        if (reducedMotion)
+        {
+            await RunOpacityAnimationAsync(control, ReducedEntranceDuration, generation, cancellationToken);
+            return;
+        }
+        if (!entranceAnimationBaseTransforms.TryGetValue(control, out var baseTransform))
+        {
+            baseTransform = control.RenderTransform;
+            entranceAnimationBaseTransforms[control] = baseTransform;
+        }
+        var motion = new EntranceMotion(
+            baseTransform,
+            control.RenderTransformOrigin,
+            new TranslateTransform { Y = PageEntranceOffset },
+            new ScaleTransform { ScaleX = PageEntranceScale, ScaleY = PageEntranceScale });
+        entranceAnimationTransforms[control] = motion;
+        var transforms = new TransformGroup();
+        if (baseTransform is Transform transform)
+        {
+            transforms.Children.Add(transform);
+        }
+        transforms.Children.Add(motion.Translate);
+        transforms.Children.Add(motion.Scale);
+        control.RenderTransform = transforms;
+        control.RenderTransformOrigin = RelativePoint.Center;
         var animation = new Animation
         {
             Duration = PageEntranceDuration,
             Easing = new CubicEaseOut(),
+            Delay = EntranceDelayFor(control),
             FillMode = FillMode.Forward,
             Children =
             {
@@ -371,7 +628,8 @@ public partial class MainWindow : Window
         var motionAnimation = new Animation
         {
             Duration = PageEntranceDuration,
-            Easing = new CubicEaseOut(),
+            Easing = CreateSpringEasing(),
+            Delay = EntranceDelayFor(control),
             FillMode = FillMode.Forward,
             Children =
             {
@@ -387,19 +645,51 @@ public partial class MainWindow : Window
                 }
             }
         };
+        var scaleAnimation = new Animation
+        {
+            Duration = PageEntranceDuration,
+            Easing = CreateSpringEasing(),
+            Delay = EntranceDelayFor(control),
+            FillMode = FillMode.Forward,
+            Children =
+            {
+                new KeyFrame
+                {
+                    Cue = new Cue(0),
+                    Setters =
+                    {
+                        new Setter(ScaleTransform.ScaleXProperty, PageEntranceScale),
+                        new Setter(ScaleTransform.ScaleYProperty, PageEntranceScale)
+                    }
+                },
+                new KeyFrame
+                {
+                    Cue = new Cue(1),
+                    Setters =
+                    {
+                        new Setter(ScaleTransform.ScaleXProperty, 1d),
+                        new Setter(ScaleTransform.ScaleYProperty, 1d)
+                    }
+                }
+            }
+        };
 
         try
         {
-            await Task.WhenAll(animation.RunAsync(control), motionAnimation.RunAsync(entranceTransform));
+            await Task.WhenAll(
+                animation.RunAsync(control, cancellationToken),
+                motionAnimation.RunAsync(motion.Translate, cancellationToken),
+                scaleAnimation.RunAsync(motion.Scale, cancellationToken));
         }
         finally
         {
-            if (entranceAnimationTransforms.TryGetValue(control, out var latestTransform)
-                && ReferenceEquals(latestTransform, entranceTransform))
+            if (entranceAnimationTransforms.TryGetValue(control, out var latestMotion)
+                && ReferenceEquals(latestMotion, motion))
             {
-                if (ReferenceEquals(control.RenderTransform, entranceTransform))
+                if (control.RenderTransform is TransformGroup)
                 {
-                    control.RenderTransform = existingRenderTransform;
+                    control.RenderTransform = baseTransform;
+                    control.RenderTransformOrigin = motion.BaseOrigin;
                 }
                 entranceAnimationTransforms.Remove(control);
                 entranceAnimationBaseTransforms.Remove(control);
@@ -411,6 +701,56 @@ public partial class MainWindow : Window
                 control.Opacity = 1;
             }
         }
+    }
+
+    private async Task RunOpacityAnimationAsync(
+        Control control,
+        TimeSpan duration,
+        long generation,
+        CancellationToken cancellationToken)
+    {
+        var animation = new Animation
+        {
+            Duration = duration,
+            Easing = new CubicEaseOut(),
+            FillMode = FillMode.Forward,
+            Children =
+            {
+                new KeyFrame
+                {
+                    Cue = new Cue(0),
+                    Setters = { new Setter(Visual.OpacityProperty, 0d) }
+                },
+                new KeyFrame
+                {
+                    Cue = new Cue(1),
+                    Setters = { new Setter(Visual.OpacityProperty, 1d) }
+                }
+            }
+        };
+        try
+        {
+            await animation.RunAsync(control, cancellationToken);
+        }
+        finally
+        {
+            if (control.IsVisible
+                && entranceAnimationGenerations.TryGetValue(control, out var latestGeneration)
+                && latestGeneration == generation)
+            {
+                control.Opacity = 1;
+            }
+        }
+    }
+
+    private TimeSpan EntranceDelayFor(Control control)
+    {
+        if (control.Classes.Contains("cfp-page"))
+        {
+            return TimeSpan.Zero;
+        }
+        var ordinal = entranceAnimationOrdinals.TryGetValue(control, out var value) ? value : 0;
+        return TimeSpan.FromMilliseconds(24 + (ordinal % 5) * 24);
     }
 
     private const uint SpiGetClientAreaAnimation = 0x1042;
@@ -426,14 +766,23 @@ public partial class MainWindow : Window
     private void OnClosed(object? sender, EventArgs eventArgs)
     {
         Closed -= OnClosed;
+        MainOverlayDialogHost.Children.CollectionChanged -= OnOverlayHostChildrenChanged;
         PropertyChanged -= OnWindowPropertyChanged;
         foreach (var target in entranceAnimationTargets)
         {
             target.PropertyChanged -= OnEntranceTargetPropertyChanged;
         }
+        RestoreMicroInteractionTransforms();
         entranceAnimationTargets.Clear();
         entranceAnimationGenerations.Clear();
         entranceAnimationTransforms.Clear();
+        foreach (var cancellation in entranceAnimationCancellations.Values)
+        {
+            cancellation.Cancel();
+            cancellation.Dispose();
+        }
+        entranceAnimationCancellations.Clear();
+        entranceAnimationOrdinals.Clear();
         entranceAnimationBaseTransforms.Clear();
         if (knightWalkTimer is not null)
         {
@@ -843,6 +1192,10 @@ public partial class MainWindow : Window
 
     private void OnToastViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
+        if (eventArgs.PropertyName == nameof(MainViewModel.EffectiveMotionPreference))
+        {
+            UpdateMotionPreference(replayVisiblePages: true);
+        }
         if (eventArgs.PropertyName == nameof(MainViewModel.ErrorMessage)
             && sender is MainViewModel viewModel
             && !string.IsNullOrWhiteSpace(viewModel.ErrorMessage))
@@ -857,8 +1210,31 @@ public partial class MainWindow : Window
             if (!toastManagerClosing && ReferenceEquals(owner, toastViewModel))
             {
                 toastManager.Show(message, type);
+                Dispatcher.UIThread.Post(RegisterToastMotionTargets, DispatcherPriority.Render);
             }
         });
+
+    private void OnOverlayHostChildrenChanged(object? sender, NotifyCollectionChangedEventArgs eventArgs)
+    {
+        if (eventArgs.NewItems is null)
+        {
+            return;
+        }
+        foreach (var dialog in eventArgs.NewItems.OfType<Control>())
+        {
+            dialog.Classes.Add("cfp-dialog-motion");
+            RegisterMotionTarget(dialog, animate: true);
+        }
+    }
+
+    private void RegisterToastMotionTargets()
+    {
+        foreach (var card in toastManager.GetVisualDescendants().OfType<ToastCard>())
+        {
+            card.Classes.Add("cfp-toast-motion");
+            RegisterMotionTarget(card, animate: true);
+        }
+    }
 
     private async Task UninstallToastManagerAsync()
     {

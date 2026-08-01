@@ -16,6 +16,13 @@ public enum UiTheme
     Dark
 }
 
+public enum UiMotionPreference
+{
+    FollowSystem,
+    Reduced,
+    Off
+}
+
 public static class AccentColorPalette
 {
     public const string DefaultColor = "#0F6CBD";
@@ -110,6 +117,8 @@ public sealed record CrystalflySettings
     public UiLanguage Language { get; init; } = UiLanguage.FollowSystem;
 
     public UiTheme Theme { get; init; } = UiTheme.System;
+
+    public UiMotionPreference MotionPreference { get; init; } = UiMotionPreference.FollowSystem;
 
     public string AccentColor { get; init; } = AccentColorPalette.DefaultColor;
 

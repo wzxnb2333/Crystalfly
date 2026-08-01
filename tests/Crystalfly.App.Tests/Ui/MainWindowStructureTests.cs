@@ -98,13 +98,42 @@ public sealed class MainWindowStructureTests
             "MainWindow.axaml.cs"));
         Assert.Contains("SubscribeEntranceAnimations();", code, StringComparison.Ordinal);
         Assert.Contains("AreClientAreaAnimationsEnabled()", code, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromMilliseconds(180)", code, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(260)", code, StringComparison.Ordinal);
+        Assert.Contains("SpringEasing", code, StringComparison.Ordinal);
         Assert.Contains("PageEntranceOffset", code, StringComparison.Ordinal);
         Assert.Contains("TranslateTransform.YProperty", code, StringComparison.Ordinal);
         Assert.Contains("IsEntranceAnimationTarget", code, StringComparison.Ordinal);
         Assert.Contains("ConfigureMicroInteractionTransitions", code, StringComparison.Ordinal);
         Assert.Contains("TimeSpan.FromMilliseconds(120)", code, StringComparison.Ordinal);
         Assert.Contains("Visual.OpacityProperty", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Motion_system_exposes_a_persisted_preference_and_uses_native_springs()
+    {
+        var document = LoadMainWindow();
+        var settings = FindSectionRoot(document, "IsSettingsPage");
+        Assert.Contains(settings.Descendants(Avalonia + "ComboBox"), comboBox =>
+            HasBinding(comboBox, "ItemsSource", "MotionOptions")
+            && HasBinding(comboBox, "SelectedItem", "SelectedMotionPreference"));
+
+        var code = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Views",
+            "MainWindow.axaml.cs"));
+        Assert.Contains("SpringEasing", code, StringComparison.Ordinal);
+        Assert.Contains("UiMotionPreference", code, StringComparison.Ordinal);
+        Assert.Contains("ScaleTransform", code, StringComparison.Ordinal);
+        Assert.Contains("PointerEntered", code, StringComparison.Ordinal);
+        Assert.Contains("PointerPressed", code, StringComparison.Ordinal);
+        Assert.Contains("UpdateMotionPreference", code, StringComparison.Ordinal);
+        Assert.Contains("CancellationTokenSource", code, StringComparison.Ordinal);
+        Assert.Contains("RunAsync(control, cancellationToken)", code, StringComparison.Ordinal);
+        Assert.Contains("RunAsync(motion.Translate, cancellationToken)", code, StringComparison.Ordinal);
+        Assert.Contains("MainOverlayDialogHost.Children.CollectionChanged", code, StringComparison.Ordinal);
+        Assert.Contains("RegisterToastMotionTargets", code, StringComparison.Ordinal);
     }
 
     [Fact]

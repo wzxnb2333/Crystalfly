@@ -2127,7 +2127,7 @@
                                     HorizontalAlignment="Stretch">
                             <StackPanel Spacing="16" Classes="cfp-subpage" IsVisible="{Binding IsGeneralSettingsSection}">
                                 <Border Classes="cfp-card">
-                                    <Grid ColumnDefinitions="*,16,*">
+                                    <Grid ColumnDefinitions="*,16,*,16,*">
                                         <StackPanel Grid.Column="0" Spacing="8">
                                             <TextBlock Classes="cfp-row-title" Text="{Binding Loc[Language]}" />
                                             <ComboBox Classes="cfp-input" ItemsSource="{Binding LanguageOptions}" SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[Language]}">
@@ -2137,6 +2137,12 @@
                                         <StackPanel Grid.Column="2" Spacing="8">
                                             <TextBlock Classes="cfp-row-title" Text="{Binding Loc[Theme]}" />
                                             <ComboBox Classes="cfp-input" ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[Theme]}">
+                                                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="4" Spacing="8">
+                                            <TextBlock Classes="cfp-row-title" Text="{Binding Loc[Motion]}" />
+                                            <ComboBox Classes="cfp-input" ItemsSource="{Binding MotionOptions}" SelectedItem="{Binding SelectedMotionPreference, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[Motion]}">
                                                 <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
                                             </ComboBox>
                                         </StackPanel>
