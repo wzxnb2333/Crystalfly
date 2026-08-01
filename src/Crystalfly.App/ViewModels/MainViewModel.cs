@@ -4714,7 +4714,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     : Loc["SpeedrunVerified"]
                 : Loc["SpeedrunVerificationFailed"]
             : Loc["SpeedrunUnverifiedReport"];
-        StatusMessage = $"{SpeedrunStatus} {result.ReportPath}";
         if (template.IsOfficial && !result.Report.IsOfficiallyVerified)
         {
             throw new InvalidOperationException(

@@ -69,6 +69,106 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Speedrun_verification_keeps_report_path_out_of_global_status()
+    {
+        using var test = new TestDirectory();
+        string versionRoot = test.CreateDirectory("versions");
+        string instanceRoot = test.CreateDirectory("versions", "speedrun-copy");
+        string managedRoot = test.CreateDirectory(
+            "versions",
+            "speedrun-copy",
+            "hollow_knight_Data",
+            "Managed");
+        string executablePath = Path.Combine(instanceRoot, "hollow_knight.exe");
+        string unityPath = Path.Combine(instanceRoot, "UnityPlayer.dll");
+        string managersPath = Path.Combine(instanceRoot, "hollow_knight_Data", "globalgamemanagers");
+        string runtimePatchesPath = Path.Combine(managedRoot, "Assembly-CSharp.dll");
+        await File.WriteAllTextAsync(executablePath, "game");
+        await File.WriteAllTextAsync(unityPath, "unity");
+        await File.WriteAllTextAsync(managersPath, "managers");
+        await File.WriteAllTextAsync(runtimePatchesPath, "runtime-patches");
+
+        const string buildId = "1.5.78.11833";
+        string templateId = RuntimePatchesPolicy.GetTemplateId(buildId)!;
+        string assetId = RuntimePatchesPolicy.GetAssetId(buildId)!;
+        var build = new GameBuild
+        {
+            Id = buildId,
+            DisplayVersion = buildId,
+            DepotId = 367521,
+            ManifestId = "1",
+            ExecutableSha256 = FileSha256(executablePath),
+            UnityPlayerSha256 = FileSha256(unityPath),
+            GlobalGameManagersSha256 = FileSha256(managersPath)
+        };
+        var template = new SpeedrunTemplate
+        {
+            Id = templateId,
+            Name = $"RuntimePatches {buildId}",
+            BuildId = buildId,
+            IsOfficial = true,
+            RulesRevision = RuntimePatchesPolicy.RulesRevision,
+            FileManifestId = $"files-{templateId}",
+            RequiredAssetIds = [assetId]
+        };
+        var instance = Instance("speedrun-copy", instanceRoot) with
+        {
+            BuildId = buildId,
+            Purpose = InstancePurpose.OfficialSpeedrun,
+            ProvisioningMode = InstanceProvisioningMode.FullCopy,
+            SpeedrunTemplateId = templateId,
+            SpeedrunRulesRevision = template.RulesRevision
+        };
+        var fileManifest = new SpeedrunFileManifest
+        {
+            Id = template.FileManifestId,
+            BuildId = buildId,
+            RulesRevision = template.RulesRevision,
+            Files =
+            [
+                new SpeedrunFileRule
+                {
+                    RelativePath = "hollow_knight_Data/Managed/Assembly-CSharp.dll",
+                    Sha256 = FileSha256(runtimePatchesPath),
+                    Kind = SpeedrunFileKind.Tool,
+                    AssetId = assetId,
+                    AssetVersion = "1.0.2"
+                }
+            ]
+        };
+        string configurationPath = Path.Combine(
+            versionRoot,
+            ".crystalfly",
+            "instances",
+            instance.Id,
+            "local-low",
+            RuntimePatchesConfiguration.FileName);
+        await RuntimePatchesConfiguration.WriteAsync(
+            configurationPath,
+            new RuntimePatchesConfiguration { MiniSaveStates = true });
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot,
+            StatusMessage = "ready"
+        };
+        SetCatalog(viewModel, new GameCatalog
+        {
+            Builds = [build],
+            SpeedrunTemplates = [template],
+            SpeedrunFileManifests = [fileManifest]
+        });
+        var method = typeof(MainViewModel).GetMethod(
+            "VerifySpeedrunLaunchAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+
+        await Assert.IsAssignableFrom<Task>(method.Invoke(viewModel, [instance]));
+
+        Assert.Equal(viewModel.Loc["SpeedrunVerifiedWithWarnings"], viewModel.SpeedrunStatus);
+        Assert.Equal("ready", viewModel.StatusMessage);
+    }
+
+    [Fact]
     public async Task Selecting_market_mod_loads_content_without_blocking_and_ignores_stale_result()
     {
         using var test = new TestDirectory();
