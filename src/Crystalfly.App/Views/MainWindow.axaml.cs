@@ -268,11 +268,11 @@ public partial class MainWindow : Window
             || enabled != 0;
     }
 
-    private static readonly TimeSpan PageEntranceDuration = TimeSpan.FromMilliseconds(260);
+    private static readonly TimeSpan PageEntranceDuration = TimeSpan.FromMilliseconds(320);
     private static readonly TimeSpan ReducedEntranceDuration = TimeSpan.FromMilliseconds(120);
     private static readonly TimeSpan MicroInteractionDuration = TimeSpan.FromMilliseconds(120);
-    private const double PageEntranceOffset = 18d;
-    private const double PageEntranceScale = 0.985d;
+    private const double PageEntranceOffset = 30d;
+    private const double PageEntranceScale = 0.965d;
 
     private sealed record EntranceMotion(
         ITransform? BaseTransform,
@@ -518,8 +518,39 @@ public partial class MainWindow : Window
         if (eventArgs.Property == Visual.IsVisibleProperty
             && sender is Control { IsVisible: true } control)
         {
-            QueueEntranceAnimation(control);
+            if (control.IsEffectivelyVisible)
+            {
+                QueueEntranceAnimation(control);
+                QueueVisibleDescendants(control);
+            }
         }
+    }
+
+    private void QueueVisibleDescendants(Control parent)
+    {
+        if (!parent.Classes.Contains("cfp-page")
+            && !parent.Classes.Contains("cfp-subpage"))
+        {
+            return;
+        }
+
+        // A child can keep IsVisible=true while its page is hidden. Queue it when
+        // the parent becomes visible so layered entrances work on every visit.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!parent.IsEffectivelyVisible)
+            {
+                return;
+            }
+
+            foreach (var target in parent.GetVisualDescendants()
+                         .OfType<Control>()
+                         .Where(target => IsEntranceAnimationTarget(target)
+                             && target.IsEffectivelyVisible))
+            {
+                QueueEntranceAnimation(target);
+            }
+        }, DispatcherPriority.Render);
     }
 
     private void QueueEntranceAnimation(Control control)
@@ -531,14 +562,64 @@ public partial class MainWindow : Window
         }
         if (!IsMotionEnabled())
         {
+            ResetEntranceVisual(control);
             control.Opacity = 1;
             return;
         }
         var generation = Interlocked.Increment(ref entranceAnimationGeneration);
         entranceAnimationGenerations[control] = generation;
+        ResetEntranceVisual(control);
+        if (IsReducedMotionEnabled())
+        {
+            // Prime the initial state before the next render pass so a visible page
+            // never paints once at full opacity before its entrance starts.
+            control.Opacity = 0;
+        }
+        else
+        {
+            PrepareEntranceVisual(control);
+        }
         var cancellation = new CancellationTokenSource();
         entranceAnimationCancellations[control] = cancellation;
         _ = RunEntranceAnimationAfterLayoutAsync(control, generation, cancellation);
+    }
+
+    private void PrepareEntranceVisual(Control control)
+    {
+        var baseTransform = control.RenderTransform;
+        var baseOrigin = control.RenderTransformOrigin;
+        var motion = new EntranceMotion(
+            baseTransform,
+            baseOrigin,
+            new TranslateTransform { Y = PageEntranceOffset },
+            new ScaleTransform { ScaleX = PageEntranceScale, ScaleY = PageEntranceScale });
+        entranceAnimationBaseTransforms[control] = baseTransform;
+        entranceAnimationTransforms[control] = motion;
+        ApplyEntranceTransform(control, motion);
+        control.Opacity = 0;
+    }
+
+    private void ResetEntranceVisual(Control control)
+    {
+        if (entranceAnimationTransforms.Remove(control, out var motion))
+        {
+            control.RenderTransform = motion.BaseTransform;
+            control.RenderTransformOrigin = motion.BaseOrigin;
+        }
+        entranceAnimationBaseTransforms.Remove(control);
+    }
+
+    private static void ApplyEntranceTransform(Control control, EntranceMotion motion)
+    {
+        var transforms = new TransformGroup();
+        if (motion.BaseTransform is Transform transform)
+        {
+            transforms.Children.Add(transform);
+        }
+        transforms.Children.Add(motion.Translate);
+        transforms.Children.Add(motion.Scale);
+        control.RenderTransform = transforms;
+        control.RenderTransformOrigin = RelativePoint.Center;
     }
 
     private async Task RunEntranceAnimationAfterLayoutAsync(
@@ -550,7 +631,7 @@ public partial class MainWindow : Window
         {
             await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Render);
             cancellation.Token.ThrowIfCancellationRequested();
-            if (!control.IsVisible
+            if (!control.IsEffectivelyVisible
                 || !entranceAnimationGenerations.TryGetValue(control, out var latestGeneration)
                 || latestGeneration != generation)
             {
@@ -579,32 +660,15 @@ public partial class MainWindow : Window
         CancellationToken cancellationToken)
     {
         var reducedMotion = IsReducedMotionEnabled();
-        control.Opacity = 0;
         if (reducedMotion)
         {
             await RunOpacityAnimationAsync(control, ReducedEntranceDuration, generation, cancellationToken);
             return;
         }
-        if (!entranceAnimationBaseTransforms.TryGetValue(control, out var baseTransform))
+        if (!entranceAnimationTransforms.TryGetValue(control, out var motion))
         {
-            baseTransform = control.RenderTransform;
-            entranceAnimationBaseTransforms[control] = baseTransform;
+            return;
         }
-        var motion = new EntranceMotion(
-            baseTransform,
-            control.RenderTransformOrigin,
-            new TranslateTransform { Y = PageEntranceOffset },
-            new ScaleTransform { ScaleX = PageEntranceScale, ScaleY = PageEntranceScale });
-        entranceAnimationTransforms[control] = motion;
-        var transforms = new TransformGroup();
-        if (baseTransform is Transform transform)
-        {
-            transforms.Children.Add(transform);
-        }
-        transforms.Children.Add(motion.Translate);
-        transforms.Children.Add(motion.Scale);
-        control.RenderTransform = transforms;
-        control.RenderTransformOrigin = RelativePoint.Center;
         var animation = new Animation
         {
             Duration = PageEntranceDuration,
@@ -688,13 +752,13 @@ public partial class MainWindow : Window
             {
                 if (control.RenderTransform is TransformGroup)
                 {
-                    control.RenderTransform = baseTransform;
+                    control.RenderTransform = motion.BaseTransform;
                     control.RenderTransformOrigin = motion.BaseOrigin;
                 }
                 entranceAnimationTransforms.Remove(control);
                 entranceAnimationBaseTransforms.Remove(control);
             }
-            if (control.IsVisible
+            if (control.IsEffectivelyVisible
                 && entranceAnimationGenerations.TryGetValue(control, out var latestGeneration)
                 && latestGeneration == generation)
             {
@@ -734,7 +798,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            if (control.IsVisible
+            if (control.IsEffectivelyVisible
                 && entranceAnimationGenerations.TryGetValue(control, out var latestGeneration)
                 && latestGeneration == generation)
             {
