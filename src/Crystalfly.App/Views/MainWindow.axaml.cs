@@ -42,16 +42,13 @@ public partial class MainWindow : Window
     private readonly List<LoadingContainer> knightLoadingHosts = [];
     private readonly List<Control> entranceAnimationTargets = [];
     private readonly Dictionary<Control, long> entranceAnimationGenerations = [];
-    private readonly Dictionary<Control, ITransform?> entranceAnimationBaseTransforms = [];
     private readonly Dictionary<Control, EntranceMotion> entranceAnimationTransforms = [];
-    private readonly Dictionary<Control, int> entranceAnimationOrdinals = [];
     private readonly Dictionary<Control, CancellationTokenSource> entranceAnimationCancellations = [];
     private readonly Dictionary<Control, EntranceFrameState> activeEntranceAnimations = [];
     private readonly List<EntranceFrameState> completedEntranceAnimations = [];
     private readonly Dictionary<Control, Transitions?> motionBaseTransitions = [];
     private readonly Dictionary<Control, MicroMotion> microInteractionTransforms = [];
     private long entranceAnimationGeneration;
-    private bool navigationAnimationQueued;
     private DispatcherTimer? knightWalkTimer;
     private DispatcherTimer? entranceAnimationTimer;
     private int knightWalkFrame;
@@ -272,24 +269,33 @@ public partial class MainWindow : Window
             || enabled != 0;
     }
 
-    private static readonly TimeSpan PageEntranceDuration = TimeSpan.FromMilliseconds(320);
+    private static readonly TimeSpan PageEntranceDuration = TimeSpan.FromMilliseconds(350);
+    private static readonly TimeSpan PageEntranceFluentDuration = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan PageOpacityDuration = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan TransientEntranceDuration = TimeSpan.FromMilliseconds(180);
     private static readonly TimeSpan ReducedEntranceDuration = TimeSpan.FromMilliseconds(120);
-    private static readonly TimeSpan MicroInteractionDuration = TimeSpan.FromMilliseconds(120);
-    private const double PageEntranceOffset = 24d;
-    private const double PageEntranceScale = 0.975d;
-    private const double PageEntranceStartOpacity = 0.82d;
+    private static readonly TimeSpan MicroOpacityDuration = TimeSpan.FromMilliseconds(120);
+    private static readonly TimeSpan MicroPressDuration = TimeSpan.FromMilliseconds(80);
+    private static readonly TimeSpan MicroReleaseDuration = TimeSpan.FromMilliseconds(220);
+    private const double PageEntranceOffset = -16d;
+    private const double PageEntranceFluentOffset = -5d;
+    private const double PageEntranceBackOffset = -11d;
+    private const double TransientEntranceOffset = 8d;
+    private const double TransientEntranceStartOpacity = 0.82d;
     private const double ReducedEntranceStartOpacity = 0.9d;
+    private const double MicroPressedScale = 0.955d;
 
     private sealed record EntranceMotion(
         ITransform? BaseTransform,
         RelativePoint BaseOrigin,
-        TranslateTransform Translate,
-        ScaleTransform Scale);
+        TranslateTransform Translate);
 
     private sealed record MicroMotion(
         ITransform? BaseTransform,
         RelativePoint BaseOrigin,
-        ScaleTransform Scale);
+        ScaleTransform Scale,
+        Transitions PressTransitions,
+        Transitions ReleaseTransitions);
 
     private sealed class EntranceFrameState
     {
@@ -325,7 +331,6 @@ public partial class MainWindow : Window
             return;
         }
         entranceAnimationTargets.Add(control);
-        entranceAnimationOrdinals[control] = entranceAnimationOrdinals.Count;
         control.PropertyChanged += OnEntranceTargetPropertyChanged;
         if (animate && control.IsEffectivelyVisible && IsOpacityEntranceTarget(control))
         {
@@ -341,12 +346,6 @@ public partial class MainWindow : Window
         control.Classes.Contains("cfp-subpage")
         || control.Classes.Contains("cfp-mod-bulk-bar")
         || control.Classes.Contains("cfp-page")
-        || control.Classes.Contains("cfp-card")
-        || control.Classes.Contains("cfp-list-row")
-        || control.Classes.Contains("cfp-instance-row")
-        || control.Classes.Contains("cfp-installed-mod-row")
-        || control.Classes.Contains("cfp-download-build-row")
-        || control.Classes.Contains("cfp-dependency-graph-node")
         || control.Classes.Contains("cfp-dialog-motion")
         || control.Classes.Contains("cfp-toast-motion");
 
@@ -373,8 +372,8 @@ public partial class MainWindow : Window
                 new DoubleTransition
                 {
                     Property = Visual.OpacityProperty,
-                    Duration = MicroInteractionDuration,
-                    Easing = IsFullMotionEnabled() ? CreateSpringEasing() : new CubicEaseOut()
+                    Duration = MicroOpacityDuration,
+                    Easing = new CubicEaseOut()
                 }
             };
             ConfigureMicroInteractionTransform(control);
@@ -406,54 +405,60 @@ public partial class MainWindow : Window
             return;
         }
         var scale = new ScaleTransform { ScaleX = 1, ScaleY = 1 };
-        scale.Transitions = new Transitions
-        {
-            new DoubleTransition
-            {
-                Property = ScaleTransform.ScaleXProperty,
-                Duration = MicroInteractionDuration,
-                Easing = CreateSpringEasing()
-            },
-            new DoubleTransition
-            {
-                Property = ScaleTransform.ScaleYProperty,
-                Duration = MicroInteractionDuration,
-                Easing = CreateSpringEasing()
-            }
-        };
-        var motion = new MicroMotion(control.RenderTransform, control.RenderTransformOrigin, scale);
+        var pressTransitions = CreateScaleTransitions(MicroPressDuration);
+        var releaseTransitions = CreateScaleTransitions(MicroReleaseDuration);
+        scale.Transitions = releaseTransitions;
+        var motion = new MicroMotion(
+            control.RenderTransform,
+            control.RenderTransformOrigin,
+            scale,
+            pressTransitions,
+            releaseTransitions);
         microInteractionTransforms.Add(control, motion);
         control.RenderTransform = scale;
         control.RenderTransformOrigin = RelativePoint.Center;
-        control.PointerEntered += OnMicroInteractionPointerEntered;
         control.PointerExited += OnMicroInteractionPointerExited;
         control.PointerPressed += OnMicroInteractionPointerPressed;
         control.PointerReleased += OnMicroInteractionPointerReleased;
     }
 
-    private void OnMicroInteractionPointerEntered(object? sender, PointerEventArgs eventArgs) =>
-        SetMicroInteractionScale(sender as Control, 1.018d);
+    private static Transitions CreateScaleTransitions(TimeSpan duration) =>
+    [
+        new DoubleTransition
+        {
+            Property = ScaleTransform.ScaleXProperty,
+            Duration = duration,
+            Easing = new CubicEaseOut()
+        },
+        new DoubleTransition
+        {
+            Property = ScaleTransform.ScaleYProperty,
+            Duration = duration,
+            Easing = new CubicEaseOut()
+        }
+    ];
 
     private void OnMicroInteractionPointerExited(object? sender, PointerEventArgs eventArgs) =>
-        SetMicroInteractionScale(sender as Control, 1d);
+        SetMicroInteractionScale(sender as Control, 1d, pressed: false);
 
     private void OnMicroInteractionPointerPressed(object? sender, PointerPressedEventArgs eventArgs)
     {
         if (eventArgs.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
-            SetMicroInteractionScale(sender as Control, 0.97d);
+            SetMicroInteractionScale(sender as Control, MicroPressedScale, pressed: true);
         }
     }
 
     private void OnMicroInteractionPointerReleased(object? sender, PointerReleasedEventArgs eventArgs) =>
-        SetMicroInteractionScale(sender as Control, (sender as Control)?.IsPointerOver == true ? 1.018d : 1d);
+        SetMicroInteractionScale(sender as Control, 1d, pressed: false);
 
-    private void SetMicroInteractionScale(Control? control, double scale)
+    private void SetMicroInteractionScale(Control? control, double scale, bool pressed)
     {
         if (IsFullMotionEnabled()
             && control is not null
             && microInteractionTransforms.TryGetValue(control, out var motion))
         {
+            motion.Scale.Transitions = pressed ? motion.PressTransitions : motion.ReleaseTransitions;
             motion.Scale.ScaleX = scale;
             motion.Scale.ScaleY = scale;
         }
@@ -463,7 +468,6 @@ public partial class MainWindow : Window
     {
         foreach (var (control, motion) in microInteractionTransforms)
         {
-            control.PointerEntered -= OnMicroInteractionPointerEntered;
             control.PointerExited -= OnMicroInteractionPointerExited;
             control.PointerPressed -= OnMicroInteractionPointerPressed;
             control.PointerReleased -= OnMicroInteractionPointerReleased;
@@ -472,14 +476,6 @@ public partial class MainWindow : Window
         }
         microInteractionTransforms.Clear();
     }
-
-    private static SpringEasing CreateSpringEasing() => new()
-    {
-        Mass = 1,
-        Stiffness = 300,
-        Damping = 24,
-        InitialVelocity = 0
-    };
 
     private bool IsFullMotionEnabled() =>
         DataContext is MainViewModel { EffectiveMotionPreference: UiMotionPreference.FollowSystem }
@@ -511,10 +507,6 @@ public partial class MainWindow : Window
 
     private void CancelEntranceAnimations()
     {
-        foreach (var animation in activeEntranceAnimations.Values)
-        {
-            animation.Cancellation.Cancel();
-        }
         activeEntranceAnimations.Clear();
         completedEntranceAnimations.Clear();
         entranceAnimationTimer?.Stop();
@@ -535,7 +527,6 @@ public partial class MainWindow : Window
             }
         }
         entranceAnimationTransforms.Clear();
-        entranceAnimationBaseTransforms.Clear();
         RestoreMicroInteractionTransforms();
         motionBaseTransitions.Clear();
     }
@@ -547,10 +538,7 @@ public partial class MainWindow : Window
         if (eventArgs.Property == Visual.IsVisibleProperty
             && sender is Control { IsVisible: true } control)
         {
-            if (control.IsEffectivelyVisible)
-            {
-                QueueEntranceAnimation(control);
-            }
+            QueueEntranceAnimation(control);
         }
     }
 
@@ -608,13 +596,11 @@ public partial class MainWindow : Window
         var motion = new EntranceMotion(
             baseTransform,
             baseOrigin,
-            new TranslateTransform { Y = PageEntranceOffset },
-            new ScaleTransform { ScaleX = PageEntranceScale, ScaleY = PageEntranceScale });
-        entranceAnimationBaseTransforms[control] = baseTransform;
+            new TranslateTransform { Y = EntranceOffsetFor(control) });
         entranceAnimationTransforms[control] = motion;
         ApplyEntranceTransform(control, motion);
         control.Opacity = IsOpacityEntranceTarget(control)
-            ? PageEntranceStartOpacity
+            ? TransientEntranceStartOpacity
             : 1;
     }
 
@@ -625,7 +611,6 @@ public partial class MainWindow : Window
             control.RenderTransform = motion.BaseTransform;
             control.RenderTransformOrigin = motion.BaseOrigin;
         }
-        entranceAnimationBaseTransforms.Remove(control);
     }
 
     private static void ApplyEntranceTransform(Control control, EntranceMotion motion)
@@ -636,9 +621,8 @@ public partial class MainWindow : Window
             transforms.Children.Add(transform);
         }
         transforms.Children.Add(motion.Translate);
-        transforms.Children.Add(motion.Scale);
         control.RenderTransform = transforms;
-        control.RenderTransformOrigin = RelativePoint.Center;
+        control.RenderTransformOrigin = motion.BaseOrigin;
     }
 
     private async Task RunEntranceAnimationAfterLayoutAsync(
@@ -664,13 +648,16 @@ public partial class MainWindow : Window
         }
         finally
         {
-            if (!activeEntranceAnimations.ContainsKey(control)
-                && entranceAnimationCancellations.TryGetValue(control, out var current)
-                && ReferenceEquals(current, cancellation))
+            if (!activeEntranceAnimations.TryGetValue(control, out var active)
+                || !ReferenceEquals(active.Cancellation, cancellation))
             {
-                entranceAnimationCancellations.Remove(control);
+                if (entranceAnimationCancellations.TryGetValue(control, out var current)
+                    && ReferenceEquals(current, cancellation))
+                {
+                    entranceAnimationCancellations.Remove(control);
+                }
+                cancellation.Dispose();
             }
-            cancellation.Dispose();
         }
     }
 
@@ -712,7 +699,7 @@ public partial class MainWindow : Window
             OpacityOnly = opacityOnly,
             StartedTimestamp = Stopwatch.GetTimestamp(),
             Delay = EntranceDelayFor(control),
-            Duration = opacityOnly ? ReducedEntranceDuration : PageEntranceDuration
+            Duration = opacityOnly ? ReducedEntranceDuration : EntranceDurationFor(control)
         };
         EnsureEntranceAnimationTimer();
     }
@@ -746,8 +733,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var spring = CreateSpringEasing();
-        var opacityEasing = new CubicEaseOut();
+        var fluentEasing = new CubicEaseOut();
         completedEntranceAnimations.Clear();
         foreach (var animation in activeEntranceAnimations.Values)
         {
@@ -770,19 +756,27 @@ public partial class MainWindow : Window
                 elapsed.TotalMilliseconds / animation.Duration.TotalMilliseconds,
                 0d,
                 1d);
-            var eased = animation.OpacityOnly ? opacityEasing.Ease(progress) : spring.Ease(progress);
             if (!animation.OpacityOnly && animation.Motion is not null)
             {
-                animation.Motion.Translate.Y = PageEntranceOffset * (1d - eased);
-                animation.Motion.Scale.ScaleX = PageEntranceScale
-                    + ((1d - PageEntranceScale) * eased);
-                animation.Motion.Scale.ScaleY = animation.Motion.Scale.ScaleX;
+                animation.Motion.Translate.Y = IsPageEntranceTarget(animation.Control)
+                    ? CalculatePageEntranceOffset(elapsed, fluentEasing)
+                    : TransientEntranceOffset * (1d - fluentEasing.Ease(progress));
             }
-            animation.Control.Opacity = animation.OpacityOnly
-                ? ReducedEntranceStartOpacity + ((1d - ReducedEntranceStartOpacity) * eased)
-                : IsOpacityEntranceTarget(animation.Control)
-                    ? PageEntranceStartOpacity + ((1d - PageEntranceStartOpacity) * eased)
-                    : 1d;
+            if (animation.OpacityOnly || IsOpacityEntranceTarget(animation.Control))
+            {
+                var opacityDuration = animation.OpacityOnly
+                    ? ReducedEntranceDuration
+                    : PageOpacityDuration;
+                var opacityProgress = Math.Clamp(
+                    elapsed.TotalMilliseconds / opacityDuration.TotalMilliseconds,
+                    0d,
+                    1d);
+                var opacityStart = animation.OpacityOnly
+                    ? ReducedEntranceStartOpacity
+                    : TransientEntranceStartOpacity;
+                animation.Control.Opacity = opacityStart
+                    + ((1d - opacityStart) * fluentEasing.Ease(opacityProgress));
+            }
 
             if (progress >= 1d)
             {
@@ -801,6 +795,35 @@ public partial class MainWindow : Window
             entranceAnimationTimer?.Stop();
         }
     }
+
+    private static double CalculatePageEntranceOffset(TimeSpan elapsed, CubicEaseOut fluentEasing)
+    {
+        var fluentProgress = Math.Clamp(
+            elapsed.TotalMilliseconds / PageEntranceFluentDuration.TotalMilliseconds,
+            0d,
+            1d);
+        var backProgress = Math.Clamp(
+            elapsed.TotalMilliseconds / PageEntranceDuration.TotalMilliseconds,
+            0d,
+            1d);
+        return PageEntranceFluentOffset * (1d - fluentEasing.Ease(fluentProgress))
+            + PageEntranceBackOffset * (1d - EasePclWeakBack(backProgress));
+    }
+
+    private static double EasePclWeakBack(double progress)
+    {
+        var value = Math.Clamp(progress, 0d, 1d);
+        return 1d - Math.Pow(1d - value, 2d) * Math.Cos(1.5d * Math.PI * value);
+    }
+
+    private static bool IsPageEntranceTarget(Control control) =>
+        control.Classes.Contains("cfp-page") || control.Classes.Contains("cfp-subpage");
+
+    private static TimeSpan EntranceDurationFor(Control control) =>
+        IsPageEntranceTarget(control) ? PageEntranceDuration : TransientEntranceDuration;
+
+    private static double EntranceOffsetFor(Control control) =>
+        IsPageEntranceTarget(control) ? PageEntranceOffset : TransientEntranceOffset;
 
     private void CompleteEntranceAnimation(EntranceFrameState animation)
     {
@@ -832,8 +855,7 @@ public partial class MainWindow : Window
         {
             return TimeSpan.Zero;
         }
-        var ordinal = entranceAnimationOrdinals.TryGetValue(control, out var value) ? value : 0;
-        return TimeSpan.FromMilliseconds(24 + (ordinal % 5) * 24);
+        return TimeSpan.FromMilliseconds(25);
     }
 
     private const uint SpiGetClientAreaAnimation = 0x1042;
@@ -873,8 +895,6 @@ public partial class MainWindow : Window
             cancellation.Dispose();
         }
         entranceAnimationCancellations.Clear();
-        entranceAnimationOrdinals.Clear();
-        entranceAnimationBaseTransforms.Clear();
         if (knightWalkTimer is not null)
         {
             knightWalkTimer.Stop();
@@ -1283,13 +1303,6 @@ public partial class MainWindow : Window
 
     private void OnToastViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
-        if (eventArgs.PropertyName is nameof(MainViewModel.CurrentPage)
-            or nameof(MainViewModel.CurrentManageTab)
-            or nameof(MainViewModel.CurrentDownloadSection)
-            or nameof(MainViewModel.CurrentSettingsSection))
-        {
-            QueueVisibleNavigationAnimations();
-        }
         if (eventArgs.PropertyName == nameof(MainViewModel.EffectiveMotionPreference))
         {
             UpdateMotionPreference(replayVisiblePages: true);
@@ -1323,37 +1336,6 @@ public partial class MainWindow : Window
             dialog.Classes.Add("cfp-dialog-motion");
             RegisterMotionTarget(dialog, animate: true);
         }
-    }
-
-    private void QueueVisibleNavigationAnimations()
-    {
-        if (!IsMotionEnabled() || navigationAnimationQueued)
-        {
-            return;
-        }
-
-        navigationAnimationQueued = true;
-
-        // IsVisible bindings update after the view-model notification. Queue on
-        // Render so the new page/subpage is already visible before priming its
-        // transform; otherwise the entrance can be painted only after it ends.
-        Dispatcher.UIThread.Post(() =>
-        {
-            navigationAnimationQueued = false;
-            foreach (var page in entranceAnimationTargets.Where(control =>
-                         control.IsEffectivelyVisible && control.Classes.Contains("cfp-page")))
-            {
-                QueueEntranceAnimation(page);
-                foreach (var child in page.GetVisualDescendants()
-                             .OfType<Control>()
-                             .Where(control => IsEntranceAnimationTarget(control)
-                                 && !control.Classes.Contains("cfp-page")
-                                 && control.IsEffectivelyVisible))
-                {
-                    QueueEntranceAnimation(child);
-                }
-            }
-        }, DispatcherPriority.Loaded);
     }
 
     private void RegisterToastMotionTargets()

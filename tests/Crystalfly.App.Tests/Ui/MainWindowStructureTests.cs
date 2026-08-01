@@ -74,7 +74,7 @@ public sealed class MainWindowStructureTests
     }
 
     [Fact]
-    public void Page_surfaces_register_short_reduced_motion_aware_entrance_animation()
+    public void Page_surfaces_use_pcl_style_translation_without_nested_scale_motion()
     {
         var document = LoadMainWindow();
         foreach (var page in new[]
@@ -98,25 +98,29 @@ public sealed class MainWindowStructureTests
             "MainWindow.axaml.cs"));
         Assert.Contains("SubscribeEntranceAnimations();", code, StringComparison.Ordinal);
         Assert.Contains("AreClientAreaAnimationsEnabled()", code, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromMilliseconds(320)", code, StringComparison.Ordinal);
-        Assert.Contains("SpringEasing", code, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(350)", code, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(100)", code, StringComparison.Ordinal);
         Assert.Contains("PageEntranceOffset", code, StringComparison.Ordinal);
-        Assert.Contains("PageEntranceStartOpacity = 0.82d", code, StringComparison.Ordinal);
+        Assert.Contains("PageEntranceOffset = -16d", code, StringComparison.Ordinal);
         Assert.DoesNotContain("QueueVisibleDescendants", code, StringComparison.Ordinal);
         Assert.Contains("IsOpacityEntranceTarget", code, StringComparison.Ordinal);
         Assert.Contains("animation.Motion.Translate.Y", code, StringComparison.Ordinal);
+        Assert.Contains("EasePclWeakBack", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("animation.Motion.Scale", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("PageEntranceScale", code, StringComparison.Ordinal);
         Assert.Contains("activeEntranceAnimations", code, StringComparison.Ordinal);
         Assert.Contains("OnEntranceAnimationTick", code, StringComparison.Ordinal);
         Assert.Contains("Interval = TimeSpan.FromMilliseconds(16)", code, StringComparison.Ordinal);
-        Assert.Contains("spring.Ease(progress)", code, StringComparison.Ordinal);
         Assert.Contains("IsEntranceAnimationTarget", code, StringComparison.Ordinal);
         Assert.Contains("ConfigureMicroInteractionTransitions", code, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromMilliseconds(120)", code, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(80)", code, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(220)", code, StringComparison.Ordinal);
         Assert.Contains("Visual.OpacityProperty", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("QueueVisibleNavigationAnimations", code, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Motion_system_exposes_a_persisted_preference_and_uses_native_springs()
+    public void Motion_system_exposes_a_persisted_preference_and_uses_press_only_scaling()
     {
         var document = LoadMainWindow();
         var settings = FindSectionRoot(document, "IsSettingsPage");
@@ -130,11 +134,12 @@ public sealed class MainWindowStructureTests
             "Crystalfly.App",
             "Views",
             "MainWindow.axaml.cs"));
-        Assert.Contains("SpringEasing", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("SpringEasing", code, StringComparison.Ordinal);
         Assert.Contains("UiMotionPreference", code, StringComparison.Ordinal);
         Assert.Contains("ScaleTransform", code, StringComparison.Ordinal);
-        Assert.Contains("PointerEntered", code, StringComparison.Ordinal);
         Assert.Contains("PointerPressed", code, StringComparison.Ordinal);
+        Assert.Contains("PointerExited", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("OnMicroInteractionPointerEntered", code, StringComparison.Ordinal);
         Assert.Contains("UpdateMotionPreference", code, StringComparison.Ordinal);
         Assert.Contains("CancellationTokenSource", code, StringComparison.Ordinal);
         Assert.Contains("EnsureEntranceAnimationTimer", code, StringComparison.Ordinal);
