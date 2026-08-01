@@ -754,6 +754,7 @@ public sealed class DocumentationScreenshotTests
                 MainWindow.OverlayHostId,
                 new OverlayDialogOptions
                 {
+                    TopLevelHashCode = Window.GetHashCode(),
                     CanLightDismiss = false,
                     CanDragMove = false,
                     IsCloseButtonVisible = true,
@@ -788,6 +789,7 @@ public sealed class DocumentationScreenshotTests
                 MainWindow.OverlayHostId,
                 new OverlayDialogOptions
                 {
+                    TopLevelHashCode = Window.GetHashCode(),
                     CanLightDismiss = true,
                     CanDragMove = false,
                     IsCloseButtonVisible = true,
