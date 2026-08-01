@@ -49,6 +49,7 @@ public partial class MainWindow : Window
     private readonly Dictionary<Control, Transitions?> motionBaseTransitions = [];
     private readonly Dictionary<Control, MicroMotion> microInteractionTransforms = [];
     private long entranceAnimationGeneration;
+    private bool navigationAnimationQueued;
     private DispatcherTimer? knightWalkTimer;
     private int knightWalkFrame;
     private Task? disposeBeforeCloseTask;
@@ -561,7 +562,9 @@ public partial class MainWindow : Window
         }
         var cancellation = new CancellationTokenSource();
         entranceAnimationCancellations[control] = cancellation;
-        _ = RunEntranceAnimationAfterLayoutAsync(control, generation, cancellation);
+        _ = control.IsEffectivelyVisible
+            ? RunEntranceAnimationAsync(control, generation, cancellation.Token)
+            : RunEntranceAnimationAfterLayoutAsync(control, generation, cancellation);
     }
 
     private void PrepareEntranceVisual(Control control)
@@ -656,86 +659,9 @@ public partial class MainWindow : Window
         {
             return;
         }
-        var animation = new Animation
-        {
-            Duration = PageEntranceDuration,
-            Easing = new CubicEaseOut(),
-            Delay = EntranceDelayFor(control),
-            FillMode = FillMode.Forward,
-            Children =
-            {
-                new KeyFrame
-                {
-                    Cue = new Cue(0),
-                    Setters =
-                    {
-                        new Setter(
-                            Visual.OpacityProperty,
-                            IsOpacityEntranceTarget(control) ? PageEntranceStartOpacity : 1d)
-                    }
-                },
-                new KeyFrame
-                {
-                    Cue = new Cue(1),
-                    Setters = { new Setter(Visual.OpacityProperty, 1d) }
-                }
-            }
-        };
-        var motionAnimation = new Animation
-        {
-            Duration = PageEntranceDuration,
-            Easing = CreateSpringEasing(),
-            Delay = EntranceDelayFor(control),
-            FillMode = FillMode.Forward,
-            Children =
-            {
-                new KeyFrame
-                {
-                    Cue = new Cue(0),
-                    Setters = { new Setter(TranslateTransform.YProperty, PageEntranceOffset) }
-                },
-                new KeyFrame
-                {
-                    Cue = new Cue(1),
-                    Setters = { new Setter(TranslateTransform.YProperty, 0d) }
-                }
-            }
-        };
-        var scaleAnimation = new Animation
-        {
-            Duration = PageEntranceDuration,
-            Easing = CreateSpringEasing(),
-            Delay = EntranceDelayFor(control),
-            FillMode = FillMode.Forward,
-            Children =
-            {
-                new KeyFrame
-                {
-                    Cue = new Cue(0),
-                    Setters =
-                    {
-                        new Setter(ScaleTransform.ScaleXProperty, PageEntranceScale),
-                        new Setter(ScaleTransform.ScaleYProperty, PageEntranceScale)
-                    }
-                },
-                new KeyFrame
-                {
-                    Cue = new Cue(1),
-                    Setters =
-                    {
-                        new Setter(ScaleTransform.ScaleXProperty, 1d),
-                        new Setter(ScaleTransform.ScaleYProperty, 1d)
-                    }
-                }
-            }
-        };
-
         try
         {
-            await Task.WhenAll(
-                animation.RunAsync(control, cancellationToken),
-                motionAnimation.RunAsync(motion.Translate, cancellationToken),
-                scaleAnimation.RunAsync(motion.Scale, cancellationToken));
+            await RunEntranceFramesAsync(control, motion, generation, cancellationToken);
         }
         finally
         {
@@ -759,34 +685,80 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task RunEntranceFramesAsync(
+        Control control,
+        EntranceMotion motion,
+        long generation,
+        CancellationToken cancellationToken)
+    {
+        // Animation.RunAsync can complete before a compositor frame is painted when
+        // a view becomes visible from a binding. Keep the start frame on screen for
+        // one tick, then update only compositor properties on the UI thread.
+        var delay = EntranceDelayFor(control);
+        if (delay > TimeSpan.Zero)
+        {
+            await Task.Delay(delay, cancellationToken);
+        }
+
+        await Task.Delay(TimeSpan.FromMilliseconds(16), cancellationToken);
+        var easing = CreateSpringEasing();
+        var opacityEasing = new CubicEaseOut();
+        var stopwatch = Stopwatch.StartNew();
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!entranceAnimationTransforms.TryGetValue(control, out var currentMotion)
+                || !ReferenceEquals(currentMotion, motion)
+                || !entranceAnimationGenerations.TryGetValue(control, out var latestGeneration)
+                || latestGeneration != generation)
+            {
+                return;
+            }
+
+            var progress = Math.Clamp(stopwatch.Elapsed.TotalMilliseconds / PageEntranceDuration.TotalMilliseconds, 0d, 1d);
+            var eased = easing.Ease(progress);
+            motion.Translate.Y = PageEntranceOffset * (1d - eased);
+            motion.Scale.ScaleX = PageEntranceScale + ((1d - PageEntranceScale) * eased);
+            motion.Scale.ScaleY = motion.Scale.ScaleX;
+            if (IsOpacityEntranceTarget(control))
+            {
+                control.Opacity = PageEntranceStartOpacity
+                    + ((1d - PageEntranceStartOpacity) * opacityEasing.Ease(progress));
+            }
+
+            if (progress >= 1d)
+            {
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(16), cancellationToken);
+        }
+    }
+
     private async Task RunOpacityAnimationAsync(
         Control control,
         TimeSpan duration,
         long generation,
         CancellationToken cancellationToken)
     {
-        var animation = new Animation
-        {
-            Duration = duration,
-            Easing = new CubicEaseOut(),
-            FillMode = FillMode.Forward,
-            Children =
-            {
-                new KeyFrame
-                {
-                    Cue = new Cue(0),
-                    Setters = { new Setter(Visual.OpacityProperty, ReducedEntranceStartOpacity) }
-                },
-                new KeyFrame
-                {
-                    Cue = new Cue(1),
-                    Setters = { new Setter(Visual.OpacityProperty, 1d) }
-                }
-            }
-        };
         try
         {
-            await animation.RunAsync(control, cancellationToken);
+            await Task.Delay(TimeSpan.FromMilliseconds(16), cancellationToken);
+            var stopwatch = Stopwatch.StartNew();
+            var easing = new CubicEaseOut();
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var progress = Math.Clamp(stopwatch.Elapsed.TotalMilliseconds / duration.TotalMilliseconds, 0d, 1d);
+                control.Opacity = ReducedEntranceStartOpacity
+                    + ((1d - ReducedEntranceStartOpacity) * easing.Ease(progress));
+                if (progress >= 1d)
+                {
+                    break;
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(16), cancellationToken);
+            }
         }
         finally
         {
@@ -1254,6 +1226,13 @@ public partial class MainWindow : Window
 
     private void OnToastViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
+        if (eventArgs.PropertyName is nameof(MainViewModel.CurrentPage)
+            or nameof(MainViewModel.CurrentManageTab)
+            or nameof(MainViewModel.CurrentDownloadSection)
+            or nameof(MainViewModel.CurrentSettingsSection))
+        {
+            QueueVisibleNavigationAnimations();
+        }
         if (eventArgs.PropertyName == nameof(MainViewModel.EffectiveMotionPreference))
         {
             UpdateMotionPreference(replayVisiblePages: true);
@@ -1287,6 +1266,37 @@ public partial class MainWindow : Window
             dialog.Classes.Add("cfp-dialog-motion");
             RegisterMotionTarget(dialog, animate: true);
         }
+    }
+
+    private void QueueVisibleNavigationAnimations()
+    {
+        if (!IsMotionEnabled() || navigationAnimationQueued)
+        {
+            return;
+        }
+
+        navigationAnimationQueued = true;
+
+        // IsVisible bindings update after the view-model notification. Queue on
+        // Render so the new page/subpage is already visible before priming its
+        // transform; otherwise the entrance can be painted only after it ends.
+        Dispatcher.UIThread.Post(() =>
+        {
+            navigationAnimationQueued = false;
+            foreach (var page in entranceAnimationTargets.Where(control =>
+                         control.IsEffectivelyVisible && control.Classes.Contains("cfp-page")))
+            {
+                QueueEntranceAnimation(page);
+                foreach (var child in page.GetVisualDescendants()
+                             .OfType<Control>()
+                             .Where(control => IsEntranceAnimationTarget(control)
+                                 && !control.Classes.Contains("cfp-page")
+                                 && control.IsEffectivelyVisible))
+                {
+                    QueueEntranceAnimation(child);
+                }
+            }
+        }, DispatcherPriority.Loaded);
     }
 
     private void RegisterToastMotionTargets()

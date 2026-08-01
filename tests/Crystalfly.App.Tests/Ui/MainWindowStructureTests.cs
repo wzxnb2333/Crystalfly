@@ -104,7 +104,10 @@ public sealed class MainWindowStructureTests
         Assert.Contains("PageEntranceStartOpacity = 0.82d", code, StringComparison.Ordinal);
         Assert.DoesNotContain("QueueVisibleDescendants", code, StringComparison.Ordinal);
         Assert.Contains("IsOpacityEntranceTarget", code, StringComparison.Ordinal);
-        Assert.Contains("TranslateTransform.YProperty", code, StringComparison.Ordinal);
+        Assert.Contains("motion.Translate.Y", code, StringComparison.Ordinal);
+        Assert.Contains("RunEntranceFramesAsync", code, StringComparison.Ordinal);
+        Assert.Contains("Task.Delay(TimeSpan.FromMilliseconds(16), cancellationToken)", code, StringComparison.Ordinal);
+        Assert.Contains("easing.Ease(progress)", code, StringComparison.Ordinal);
         Assert.Contains("IsEntranceAnimationTarget", code, StringComparison.Ordinal);
         Assert.Contains("ConfigureMicroInteractionTransitions", code, StringComparison.Ordinal);
         Assert.Contains("TimeSpan.FromMilliseconds(120)", code, StringComparison.Ordinal);
@@ -133,8 +136,8 @@ public sealed class MainWindowStructureTests
         Assert.Contains("PointerPressed", code, StringComparison.Ordinal);
         Assert.Contains("UpdateMotionPreference", code, StringComparison.Ordinal);
         Assert.Contains("CancellationTokenSource", code, StringComparison.Ordinal);
-        Assert.Contains("RunAsync(control, cancellationToken)", code, StringComparison.Ordinal);
-        Assert.Contains("RunAsync(motion.Translate, cancellationToken)", code, StringComparison.Ordinal);
+        Assert.Contains("RunEntranceFramesAsync", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("RunAsync(motion.Translate, cancellationToken)", code, StringComparison.Ordinal);
         Assert.Contains("MainOverlayDialogHost.Children.CollectionChanged", code, StringComparison.Ordinal);
         Assert.Contains("RegisterToastMotionTargets", code, StringComparison.Ordinal);
     }
