@@ -46,11 +46,14 @@ public partial class MainWindow : Window
     private readonly Dictionary<Control, EntranceMotion> entranceAnimationTransforms = [];
     private readonly Dictionary<Control, int> entranceAnimationOrdinals = [];
     private readonly Dictionary<Control, CancellationTokenSource> entranceAnimationCancellations = [];
+    private readonly Dictionary<Control, EntranceFrameState> activeEntranceAnimations = [];
+    private readonly List<EntranceFrameState> completedEntranceAnimations = [];
     private readonly Dictionary<Control, Transitions?> motionBaseTransitions = [];
     private readonly Dictionary<Control, MicroMotion> microInteractionTransforms = [];
     private long entranceAnimationGeneration;
     private bool navigationAnimationQueued;
     private DispatcherTimer? knightWalkTimer;
+    private DispatcherTimer? entranceAnimationTimer;
     private int knightWalkFrame;
     private Task? disposeBeforeCloseTask;
     private Task? closeConfirmationTask;
@@ -288,6 +291,18 @@ public partial class MainWindow : Window
         RelativePoint BaseOrigin,
         ScaleTransform Scale);
 
+    private sealed class EntranceFrameState
+    {
+        public required Control Control { get; init; }
+        public required long Generation { get; init; }
+        public EntranceMotion? Motion { get; init; }
+        public required CancellationTokenSource Cancellation { get; init; }
+        public required bool OpacityOnly { get; init; }
+        public required long StartedTimestamp { get; init; }
+        public required TimeSpan Delay { get; init; }
+        public required TimeSpan Duration { get; init; }
+    }
+
     private void SubscribeEntranceAnimations()
     {
         RegisterMotionTargets(animateNewTargets: false);
@@ -496,6 +511,13 @@ public partial class MainWindow : Window
 
     private void CancelEntranceAnimations()
     {
+        foreach (var animation in activeEntranceAnimations.Values)
+        {
+            animation.Cancellation.Cancel();
+        }
+        activeEntranceAnimations.Clear();
+        completedEntranceAnimations.Clear();
+        entranceAnimationTimer?.Stop();
         foreach (var cancellation in entranceAnimationCancellations.Values)
         {
             cancellation.Cancel();
@@ -534,11 +556,7 @@ public partial class MainWindow : Window
 
     private void QueueEntranceAnimation(Control control)
     {
-        if (entranceAnimationCancellations.Remove(control, out var previousCancellation))
-        {
-            previousCancellation.Cancel();
-            previousCancellation.Dispose();
-        }
+        StopEntranceAnimation(control);
         if (!IsMotionEnabled())
         {
             ResetEntranceVisual(control);
@@ -562,9 +580,25 @@ public partial class MainWindow : Window
         }
         var cancellation = new CancellationTokenSource();
         entranceAnimationCancellations[control] = cancellation;
-        _ = control.IsEffectivelyVisible
-            ? RunEntranceAnimationAsync(control, generation, cancellation.Token)
-            : RunEntranceAnimationAfterLayoutAsync(control, generation, cancellation);
+        if (control.IsEffectivelyVisible)
+        {
+            RegisterEntranceAnimation(control, generation, cancellation);
+        }
+        else
+        {
+            _ = RunEntranceAnimationAfterLayoutAsync(control, generation, cancellation);
+        }
+    }
+
+    private void StopEntranceAnimation(Control control)
+    {
+        activeEntranceAnimations.Remove(control, out var active);
+        active?.Cancellation.Cancel();
+        if (entranceAnimationCancellations.Remove(control, out var cancellation))
+        {
+            cancellation.Cancel();
+            cancellation.Dispose();
+        }
     }
 
     private void PrepareEntranceVisual(Control control)
@@ -623,14 +657,15 @@ public partial class MainWindow : Window
                 return;
             }
 
-            await RunEntranceAnimationAsync(control, generation, cancellation.Token);
+            RegisterEntranceAnimation(control, generation, cancellation);
         }
         catch (OperationCanceledException)
         {
         }
         finally
         {
-            if (entranceAnimationCancellations.TryGetValue(control, out var current)
+            if (!activeEntranceAnimations.ContainsKey(control)
+                && entranceAnimationCancellations.TryGetValue(control, out var current)
                 && ReferenceEquals(current, cancellation))
             {
                 entranceAnimationCancellations.Remove(control);
@@ -639,136 +674,150 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task RunEntranceAnimationAsync(
+    private void RegisterEntranceAnimation(
         Control control,
         long generation,
-        CancellationToken cancellationToken)
+        CancellationTokenSource cancellation)
     {
-        var reducedMotion = IsReducedMotionEnabled();
-        if (reducedMotion)
+        if (cancellation.IsCancellationRequested
+            || !IsMotionEnabled()
+            || !control.IsEffectivelyVisible)
         {
-            if (!IsOpacityEntranceTarget(control))
-            {
-                control.Opacity = 1;
-                return;
-            }
-            await RunOpacityAnimationAsync(control, ReducedEntranceDuration, generation, cancellationToken);
+            DisposeEntranceCancellation(control, cancellation);
             return;
         }
-        if (!entranceAnimationTransforms.TryGetValue(control, out var motion))
+
+        var opacityOnly = IsReducedMotionEnabled();
+        if (opacityOnly && !IsOpacityEntranceTarget(control))
         {
+            control.Opacity = 1;
+            DisposeEntranceCancellation(control, cancellation);
             return;
         }
-        try
+
+        EntranceMotion? motion = null;
+        if (!opacityOnly
+            && !entranceAnimationTransforms.TryGetValue(control, out motion))
         {
-            await RunEntranceFramesAsync(control, motion, generation, cancellationToken);
+            DisposeEntranceCancellation(control, cancellation);
+            return;
         }
-        finally
+
+        activeEntranceAnimations[control] = new EntranceFrameState
         {
-            if (entranceAnimationTransforms.TryGetValue(control, out var latestMotion)
-                && ReferenceEquals(latestMotion, motion))
-            {
-                if (control.RenderTransform is TransformGroup)
-                {
-                    control.RenderTransform = motion.BaseTransform;
-                    control.RenderTransformOrigin = motion.BaseOrigin;
-                }
-                entranceAnimationTransforms.Remove(control);
-                entranceAnimationBaseTransforms.Remove(control);
-            }
-            if (control.IsEffectivelyVisible
-                && entranceAnimationGenerations.TryGetValue(control, out var latestGeneration)
-                && latestGeneration == generation)
-            {
-                control.Opacity = 1;
-            }
+            Control = control,
+            Generation = generation,
+            Motion = motion,
+            Cancellation = cancellation,
+            OpacityOnly = opacityOnly,
+            StartedTimestamp = Stopwatch.GetTimestamp(),
+            Delay = EntranceDelayFor(control),
+            Duration = opacityOnly ? ReducedEntranceDuration : PageEntranceDuration
+        };
+        EnsureEntranceAnimationTimer();
+    }
+
+    private void DisposeEntranceCancellation(Control control, CancellationTokenSource cancellation)
+    {
+        if (entranceAnimationCancellations.TryGetValue(control, out var current)
+            && ReferenceEquals(current, cancellation))
+        {
+            entranceAnimationCancellations.Remove(control);
+            cancellation.Dispose();
         }
     }
 
-    private async Task RunEntranceFramesAsync(
-        Control control,
-        EntranceMotion motion,
-        long generation,
-        CancellationToken cancellationToken)
+    private void EnsureEntranceAnimationTimer()
     {
-        // Animation.RunAsync can complete before a compositor frame is painted when
-        // a view becomes visible from a binding. Keep the start frame on screen for
-        // one tick, then update only compositor properties on the UI thread.
-        var delay = EntranceDelayFor(control);
-        if (delay > TimeSpan.Zero)
+        entranceAnimationTimer ??= new DispatcherTimer
         {
-            await Task.Delay(delay, cancellationToken);
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        entranceAnimationTimer.Tick -= OnEntranceAnimationTick;
+        entranceAnimationTimer.Tick += OnEntranceAnimationTick;
+        entranceAnimationTimer.Start();
+    }
+
+    private void OnEntranceAnimationTick(object? sender, EventArgs eventArgs)
+    {
+        if (!IsMotionEnabled())
+        {
+            CancelEntranceAnimations();
+            return;
         }
 
-        await Task.Delay(TimeSpan.FromMilliseconds(16), cancellationToken);
-        var easing = CreateSpringEasing();
+        var spring = CreateSpringEasing();
         var opacityEasing = new CubicEaseOut();
-        var stopwatch = Stopwatch.StartNew();
-        while (true)
+        completedEntranceAnimations.Clear();
+        foreach (var animation in activeEntranceAnimations.Values)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (!entranceAnimationTransforms.TryGetValue(control, out var currentMotion)
-                || !ReferenceEquals(currentMotion, motion)
-                || !entranceAnimationGenerations.TryGetValue(control, out var latestGeneration)
-                || latestGeneration != generation)
+            if (animation.Cancellation.IsCancellationRequested
+                || !animation.Control.IsEffectivelyVisible
+                || !entranceAnimationGenerations.TryGetValue(animation.Control, out var latestGeneration)
+                || latestGeneration != animation.Generation)
             {
-                return;
+                completedEntranceAnimations.Add(animation);
+                continue;
             }
 
-            var progress = Math.Clamp(stopwatch.Elapsed.TotalMilliseconds / PageEntranceDuration.TotalMilliseconds, 0d, 1d);
-            var eased = easing.Ease(progress);
-            motion.Translate.Y = PageEntranceOffset * (1d - eased);
-            motion.Scale.ScaleX = PageEntranceScale + ((1d - PageEntranceScale) * eased);
-            motion.Scale.ScaleY = motion.Scale.ScaleX;
-            if (IsOpacityEntranceTarget(control))
+            var elapsed = Stopwatch.GetElapsedTime(animation.StartedTimestamp) - animation.Delay;
+            if (elapsed < TimeSpan.Zero)
             {
-                control.Opacity = PageEntranceStartOpacity
-                    + ((1d - PageEntranceStartOpacity) * opacityEasing.Ease(progress));
+                continue;
             }
+
+            var progress = Math.Clamp(
+                elapsed.TotalMilliseconds / animation.Duration.TotalMilliseconds,
+                0d,
+                1d);
+            var eased = animation.OpacityOnly ? opacityEasing.Ease(progress) : spring.Ease(progress);
+            if (!animation.OpacityOnly && animation.Motion is not null)
+            {
+                animation.Motion.Translate.Y = PageEntranceOffset * (1d - eased);
+                animation.Motion.Scale.ScaleX = PageEntranceScale
+                    + ((1d - PageEntranceScale) * eased);
+                animation.Motion.Scale.ScaleY = animation.Motion.Scale.ScaleX;
+            }
+            animation.Control.Opacity = animation.OpacityOnly
+                ? ReducedEntranceStartOpacity + ((1d - ReducedEntranceStartOpacity) * eased)
+                : IsOpacityEntranceTarget(animation.Control)
+                    ? PageEntranceStartOpacity + ((1d - PageEntranceStartOpacity) * eased)
+                    : 1d;
 
             if (progress >= 1d)
             {
-                return;
+                completedEntranceAnimations.Add(animation);
             }
+        }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(16), cancellationToken);
+        foreach (var animation in completedEntranceAnimations)
+        {
+            CompleteEntranceAnimation(animation);
+        }
+        completedEntranceAnimations.Clear();
+
+        if (activeEntranceAnimations.Count == 0)
+        {
+            entranceAnimationTimer?.Stop();
         }
     }
 
-    private async Task RunOpacityAnimationAsync(
-        Control control,
-        TimeSpan duration,
-        long generation,
-        CancellationToken cancellationToken)
+    private void CompleteEntranceAnimation(EntranceFrameState animation)
     {
-        try
+        if (!activeEntranceAnimations.Remove(animation.Control, out var current)
+            || !ReferenceEquals(current, animation))
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(16), cancellationToken);
-            var stopwatch = Stopwatch.StartNew();
-            var easing = new CubicEaseOut();
-            while (true)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var progress = Math.Clamp(stopwatch.Elapsed.TotalMilliseconds / duration.TotalMilliseconds, 0d, 1d);
-                control.Opacity = ReducedEntranceStartOpacity
-                    + ((1d - ReducedEntranceStartOpacity) * easing.Ease(progress));
-                if (progress >= 1d)
-                {
-                    break;
-                }
+            return;
+        }
 
-                await Task.Delay(TimeSpan.FromMilliseconds(16), cancellationToken);
-            }
-        }
-        finally
+        ResetEntranceVisual(animation.Control);
+        if (animation.Control.IsEffectivelyVisible
+            && entranceAnimationGenerations.TryGetValue(animation.Control, out var latestGeneration)
+            && latestGeneration == animation.Generation)
         {
-            if (control.IsEffectivelyVisible
-                && entranceAnimationGenerations.TryGetValue(control, out var latestGeneration)
-                && latestGeneration == generation)
-            {
-                control.Opacity = 1;
-            }
+            animation.Control.Opacity = 1;
         }
+        DisposeEntranceCancellation(animation.Control, animation.Cancellation);
     }
 
     private TimeSpan EntranceDelayFor(Control control)
@@ -809,6 +858,14 @@ public partial class MainWindow : Window
         RestoreMicroInteractionTransforms();
         entranceAnimationTargets.Clear();
         entranceAnimationGenerations.Clear();
+        if (entranceAnimationTimer is not null)
+        {
+            entranceAnimationTimer.Stop();
+            entranceAnimationTimer.Tick -= OnEntranceAnimationTick;
+            entranceAnimationTimer = null;
+        }
+        activeEntranceAnimations.Clear();
+        completedEntranceAnimations.Clear();
         entranceAnimationTransforms.Clear();
         foreach (var cancellation in entranceAnimationCancellations.Values)
         {

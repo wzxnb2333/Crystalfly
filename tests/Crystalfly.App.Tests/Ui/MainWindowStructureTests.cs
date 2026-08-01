@@ -104,10 +104,11 @@ public sealed class MainWindowStructureTests
         Assert.Contains("PageEntranceStartOpacity = 0.82d", code, StringComparison.Ordinal);
         Assert.DoesNotContain("QueueVisibleDescendants", code, StringComparison.Ordinal);
         Assert.Contains("IsOpacityEntranceTarget", code, StringComparison.Ordinal);
-        Assert.Contains("motion.Translate.Y", code, StringComparison.Ordinal);
-        Assert.Contains("RunEntranceFramesAsync", code, StringComparison.Ordinal);
-        Assert.Contains("Task.Delay(TimeSpan.FromMilliseconds(16), cancellationToken)", code, StringComparison.Ordinal);
-        Assert.Contains("easing.Ease(progress)", code, StringComparison.Ordinal);
+        Assert.Contains("animation.Motion.Translate.Y", code, StringComparison.Ordinal);
+        Assert.Contains("activeEntranceAnimations", code, StringComparison.Ordinal);
+        Assert.Contains("OnEntranceAnimationTick", code, StringComparison.Ordinal);
+        Assert.Contains("Interval = TimeSpan.FromMilliseconds(16)", code, StringComparison.Ordinal);
+        Assert.Contains("spring.Ease(progress)", code, StringComparison.Ordinal);
         Assert.Contains("IsEntranceAnimationTarget", code, StringComparison.Ordinal);
         Assert.Contains("ConfigureMicroInteractionTransitions", code, StringComparison.Ordinal);
         Assert.Contains("TimeSpan.FromMilliseconds(120)", code, StringComparison.Ordinal);
@@ -136,7 +137,8 @@ public sealed class MainWindowStructureTests
         Assert.Contains("PointerPressed", code, StringComparison.Ordinal);
         Assert.Contains("UpdateMotionPreference", code, StringComparison.Ordinal);
         Assert.Contains("CancellationTokenSource", code, StringComparison.Ordinal);
-        Assert.Contains("RunEntranceFramesAsync", code, StringComparison.Ordinal);
+        Assert.Contains("EnsureEntranceAnimationTimer", code, StringComparison.Ordinal);
+        Assert.Contains("CompleteEntranceAnimation", code, StringComparison.Ordinal);
         Assert.DoesNotContain("RunAsync(motion.Translate, cancellationToken)", code, StringComparison.Ordinal);
         Assert.Contains("MainOverlayDialogHost.Children.CollectionChanged", code, StringComparison.Ordinal);
         Assert.Contains("RegisterToastMotionTargets", code, StringComparison.Ordinal);
