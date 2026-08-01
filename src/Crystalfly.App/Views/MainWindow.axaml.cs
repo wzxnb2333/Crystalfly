@@ -271,8 +271,10 @@ public partial class MainWindow : Window
     private static readonly TimeSpan PageEntranceDuration = TimeSpan.FromMilliseconds(320);
     private static readonly TimeSpan ReducedEntranceDuration = TimeSpan.FromMilliseconds(120);
     private static readonly TimeSpan MicroInteractionDuration = TimeSpan.FromMilliseconds(120);
-    private const double PageEntranceOffset = 30d;
-    private const double PageEntranceScale = 0.965d;
+    private const double PageEntranceOffset = 24d;
+    private const double PageEntranceScale = 0.975d;
+    private const double PageEntranceStartOpacity = 0.82d;
+    private const double ReducedEntranceStartOpacity = 0.9d;
 
     private sealed record EntranceMotion(
         ITransform? BaseTransform,
@@ -309,11 +311,15 @@ public partial class MainWindow : Window
         entranceAnimationTargets.Add(control);
         entranceAnimationOrdinals[control] = entranceAnimationOrdinals.Count;
         control.PropertyChanged += OnEntranceTargetPropertyChanged;
-        if (animate && control.IsEffectivelyVisible && !control.Classes.Contains("cfp-page"))
+        if (animate && control.IsEffectivelyVisible && IsDeferredEntranceTarget(control))
         {
             QueueEntranceAnimation(control);
         }
     }
+
+    private static bool IsDeferredEntranceTarget(Control control) =>
+        control.Classes.Contains("cfp-dialog-motion")
+        || control.Classes.Contains("cfp-toast-motion");
 
     private static bool IsEntranceAnimationTarget(Control control) =>
         control.Classes.Contains("cfp-subpage")
@@ -521,36 +527,8 @@ public partial class MainWindow : Window
             if (control.IsEffectivelyVisible)
             {
                 QueueEntranceAnimation(control);
-                QueueVisibleDescendants(control);
             }
         }
-    }
-
-    private void QueueVisibleDescendants(Control parent)
-    {
-        if (!parent.Classes.Contains("cfp-page")
-            && !parent.Classes.Contains("cfp-subpage"))
-        {
-            return;
-        }
-
-        // A child can keep IsVisible=true while its page is hidden. Queue it when
-        // the parent becomes visible so layered entrances work on every visit.
-        Dispatcher.UIThread.Post(() =>
-        {
-            if (!parent.IsEffectivelyVisible)
-            {
-                return;
-            }
-
-            foreach (var target in parent.GetVisualDescendants()
-                         .OfType<Control>()
-                         .Where(target => IsEntranceAnimationTarget(target)
-                             && target.IsEffectivelyVisible))
-            {
-                QueueEntranceAnimation(target);
-            }
-        }, DispatcherPriority.Render);
     }
 
     private void QueueEntranceAnimation(Control control)
@@ -573,7 +551,7 @@ public partial class MainWindow : Window
         {
             // Prime the initial state before the next render pass so a visible page
             // never paints once at full opacity before its entrance starts.
-            control.Opacity = 0;
+            control.Opacity = ReducedEntranceStartOpacity;
         }
         else
         {
@@ -596,7 +574,7 @@ public partial class MainWindow : Window
         entranceAnimationBaseTransforms[control] = baseTransform;
         entranceAnimationTransforms[control] = motion;
         ApplyEntranceTransform(control, motion);
-        control.Opacity = 0;
+        control.Opacity = PageEntranceStartOpacity;
     }
 
     private void ResetEntranceVisual(Control control)
@@ -680,7 +658,7 @@ public partial class MainWindow : Window
                 new KeyFrame
                 {
                     Cue = new Cue(0),
-                    Setters = { new Setter(Visual.OpacityProperty, 0d) }
+                    Setters = { new Setter(Visual.OpacityProperty, PageEntranceStartOpacity) }
                 },
                 new KeyFrame
                 {
@@ -783,7 +761,7 @@ public partial class MainWindow : Window
                 new KeyFrame
                 {
                     Cue = new Cue(0),
-                    Setters = { new Setter(Visual.OpacityProperty, 0d) }
+                    Setters = { new Setter(Visual.OpacityProperty, ReducedEntranceStartOpacity) }
                 },
                 new KeyFrame
                 {
@@ -810,6 +788,12 @@ public partial class MainWindow : Window
     private TimeSpan EntranceDelayFor(Control control)
     {
         if (control.Classes.Contains("cfp-page"))
+        {
+            return TimeSpan.Zero;
+        }
+        if (control.Classes.Contains("cfp-subpage")
+            || control.Classes.Contains("cfp-dialog-motion")
+            || control.Classes.Contains("cfp-toast-motion"))
         {
             return TimeSpan.Zero;
         }
