@@ -165,6 +165,9 @@ public sealed class MainViewModelStateTests : IDisposable
         await Assert.IsAssignableFrom<Task>(method.Invoke(viewModel, [instance]));
 
         Assert.Equal(viewModel.Loc["SpeedrunVerifiedWithWarnings"], viewModel.SpeedrunStatus);
+        Assert.Equal(viewModel.SpeedrunStatus, viewModel.SpeedrunReminderText);
+        Assert.True(viewModel.HasSpeedrunReminder);
+        Assert.True(viewModel.HasSpeedrunReport);
         Assert.Equal("ready", viewModel.StatusMessage);
     }
 

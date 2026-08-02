@@ -188,6 +188,18 @@
         <Setter Property="Padding" Value="12,8" />
     </Style>
 
+    <Style Selector="Border.cfp-speedrun-reminder">
+        <Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfWarningBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="12,7" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-reminder.error">
+        <Setter Property="Background" Value="{DynamicResource CfErrorSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfErrorBrush}" />
+    </Style>
+
     <Style Selector="Border.cfp-launch-issue-frame">
         <Setter Property="BorderBrush" Value="{DynamicResource CfErrorBrush}" />
         <Setter Property="BorderThickness" Value="2" />

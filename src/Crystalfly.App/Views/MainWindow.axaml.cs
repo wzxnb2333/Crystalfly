@@ -1690,6 +1690,52 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OpenSpeedrunReport(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel { SpeedrunReportPath: { } reportPath } viewModel
+            || !File.Exists(reportPath))
+        {
+            if (DataContext is MainViewModel missingViewModel)
+            {
+                missingViewModel.ErrorMessage = missingViewModel.Loc["SpeedrunReportPathMissing"];
+            }
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(reportPath) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
+        {
+            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+        }
+    }
+
+    private async void CopySpeedrunReportPath(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel { SpeedrunReportPath: { } reportPath } viewModel
+            || Clipboard is null
+            || !File.Exists(reportPath))
+        {
+            if (DataContext is MainViewModel missingViewModel)
+            {
+                missingViewModel.ErrorMessage = missingViewModel.Loc["SpeedrunReportPathMissing"];
+            }
+            return;
+        }
+
+        try
+        {
+            await Clipboard.SetTextAsync(reportPath);
+            ShowToast(viewModel, viewModel.Loc["SpeedrunReportPathCopied"], NotificationType.Success);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException)
+        {
+            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+        }
+    }
+
     private void OpenSelectedSaveFolder(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is not MainViewModel viewModel

@@ -709,6 +709,21 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public partial string SpeedrunStatus { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSpeedrunReminder))]
+    public partial string SpeedrunReminderText { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSpeedrunReport))]
+    public partial string? SpeedrunReportPath { get; set; }
+
+    [ObservableProperty]
+    public partial bool SpeedrunReminderIsError { get; set; }
+
+    public bool HasSpeedrunReminder => !string.IsNullOrWhiteSpace(SpeedrunReminderText);
+
+    public bool HasSpeedrunReport => !string.IsNullOrWhiteSpace(SpeedrunReportPath);
+
+    [ObservableProperty]
     public partial string LocalModPath { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -1706,6 +1721,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     }
                     if (record.SpeedrunTemplateId is not null)
                     {
+                        SpeedrunReportPath = null;
                         await VerifySpeedrunLaunchAsync(record);
                     }
                     else
@@ -1737,7 +1753,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            if (!(SpeedrunReminderIsError && SpeedrunReportPath is not null))
+            {
+                ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            }
             if (runtimeSession is not null && !new SystemHollowKnightProcessProbe().IsRunning())
             {
                 try
@@ -2833,7 +2852,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             SpeedrunStatus = SelectedSpeedrunTemplate.IsOfficial
                 && catalog.SpeedrunFileManifests.Any(manifest => manifest.Id == SelectedSpeedrunTemplate.FileManifestId)
                     ? Loc["SpeedrunNeedsVerification"]
-                    : Loc["SpeedrunUnverified"];
+                : Loc["SpeedrunUnverified"];
+            SpeedrunReminderText = SpeedrunStatus;
+            SpeedrunReportPath = null;
+            SpeedrunReminderIsError = false;
             SpeedrunEnvironmentName = string.Empty;
             await RefreshAsync();
             SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == clone.Id);
@@ -3186,6 +3208,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 },
                 lifetimeCancellation.Token);
             SpeedrunStatus = Loc["SpeedrunNeedsVerification"];
+            SpeedrunReminderText = SpeedrunStatus;
+            SpeedrunReportPath = null;
+            SpeedrunReminderIsError = false;
             await RefreshAsync();
             SelectedSpeedrunInstance = SpeedrunInstances.FirstOrDefault(instance => instance.Id == selected.Id);
         }
@@ -3204,6 +3229,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     partial void OnSelectedSpeedrunInstanceChanged(InstanceItemViewModel? value)
     {
+        SpeedrunReportPath = null;
+        SpeedrunReminderIsError = false;
+        SpeedrunStatus = value is null
+            ? string.Empty
+            : RuntimePatchesPolicy.IsLegacyTemplate(value.Record.SpeedrunTemplateId)
+                ? Loc["SpeedrunTemplateExpired"]
+                : Loc["SpeedrunNeedsVerification"];
+        SpeedrunReminderText = SpeedrunStatus;
         if (value is null)
         {
             RuntimePatchesScreenShakeModifier = false;
@@ -3245,6 +3278,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             if (!IsSelectedSpeedrunLegacy)
             {
                 SpeedrunStatus = $"{Loc["SpeedrunConfigurationInvalid"]}: {exception.Message}";
+                SpeedrunReminderText = SpeedrunStatus;
+                SpeedrunReminderIsError = true;
             }
         }
         finally
@@ -4655,6 +4690,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private async Task VerifySpeedrunLaunchAsync(InstanceRecord instance)
     {
+        SpeedrunReportPath = null;
         var template = catalog.SpeedrunTemplates.SingleOrDefault(candidate =>
             string.Equals(candidate.Id, instance.SpeedrunTemplateId, StringComparison.Ordinal))
             ?? throw new InvalidOperationException(Loc["SpeedrunTemplateMissing"]);
@@ -4714,10 +4750,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     : Loc["SpeedrunVerified"]
                 : Loc["SpeedrunVerificationFailed"]
             : Loc["SpeedrunUnverifiedReport"];
+        SpeedrunReportPath = result.ReportPath;
+        SpeedrunReminderIsError = !result.Report.IsOfficiallyVerified;
+        SpeedrunReminderText = template.IsOfficial && result.Report.IsOfficiallyVerified
+            && !result.Report.Issues.Any(issue => issue.Severity == SpeedrunIssueSeverity.RuleWarning)
+                ? string.Empty
+                : SpeedrunStatus;
         if (template.IsOfficial && !result.Report.IsOfficiallyVerified)
         {
-            throw new InvalidOperationException(
-                $"{Loc["SpeedrunVerificationFailed"]} {result.ReportPath}");
+            throw new InvalidOperationException(Loc["SpeedrunVerificationFailed"]);
         }
     }
 
