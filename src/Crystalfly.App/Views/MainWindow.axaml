@@ -1435,8 +1435,8 @@
 
             <!-- Speedrun -->
             <Grid Classes="cfp-page" IsVisible="{Binding IsSpeedrunPage}">
-                <Grid ColumnDefinitions="260,*" ColumnSpacing="12" Margin="16">
-                    <Border Grid.Column="0" Classes="cfp-card" Padding="12">
+                <Grid ColumnDefinitions="216,*" ColumnSpacing="12" Margin="16">
+                    <Border Grid.Column="0" Classes="cfp-rail" Padding="12,16">
                         <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTitle]}" />
@@ -1455,7 +1455,7 @@
                                      AutomationProperties.Name="{Binding Loc[SpeedrunInstances]}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Padding="10,8" Classes="cfp-list-row">
+                                        <Border Padding="8,6" Classes="cfp-list-row">
                                             <StackPanel Spacing="3">
                                                 <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                                                 <TextBlock Classes="cfp-meta" Text="{Binding DisplayVersion}" />
