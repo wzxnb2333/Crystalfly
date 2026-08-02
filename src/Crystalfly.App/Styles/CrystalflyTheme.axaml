@@ -223,24 +223,18 @@
         <Setter Property="BorderThickness" Value="0" />
     </Style>
 
-    <Style Selector="Button.cfp-speedrun-tab">
+    <Style Selector="Button.cfp-speedrun-tab-toggle">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="6" />
-        <Setter Property="Padding" Value="10,7" />
-        <Setter Property="MinHeight" Value="36" />
-        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="10,5" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
     </Style>
 
-    <Style Selector="Button.cfp-speedrun-tab:pointerover">
+    <Style Selector="Button.cfp-speedrun-tab-toggle:pointerover">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
-    </Style>
-
-    <Style Selector="Button.cfp-speedrun-tab.active">
-        <Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}" />
     </Style>
 
     <Style Selector="Border.cfp-speedrun-results">

@@ -7,6 +7,7 @@ using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
@@ -65,6 +66,7 @@ public partial class MainWindow : Window
     private Action<GameDirectoryCandidateItemViewModel>? steamDirectoryRiskRequestedHandler;
     private MainViewModel? toastViewModel;
     private bool externalCommandReady;
+    private Point? speedrunSwipeStart;
 
     internal bool IsExternalCommandReady => externalCommandReady;
 
@@ -1793,6 +1795,55 @@ public partial class MainWindow : Window
             eventArgs.KeyModifiers.HasFlag(KeyModifiers.Shift));
         InstalledModsList.Focus(NavigationMethod.Pointer, eventArgs.KeyModifiers);
         eventArgs.Handled = true;
+    }
+
+    private void OnSpeedrunWorkspacePointerPressed(object? sender, PointerPressedEventArgs eventArgs)
+    {
+        if (sender is not ScrollViewer host
+            || eventArgs.GetCurrentPoint(host).Properties.PointerUpdateKind != PointerUpdateKind.LeftButtonPressed
+            || !CanBeginSpeedrunSwipe(eventArgs))
+        {
+            return;
+        }
+
+        speedrunSwipeStart = eventArgs.GetPosition(host);
+        eventArgs.Pointer.Capture(host);
+    }
+
+    private void OnSpeedrunWorkspacePointerReleased(object? sender, PointerReleasedEventArgs eventArgs)
+    {
+        if (sender is not ScrollViewer host || speedrunSwipeStart is not { } start)
+        {
+            return;
+        }
+
+        speedrunSwipeStart = null;
+        eventArgs.Pointer.Capture(null);
+        Point end = eventArgs.GetPosition(host);
+        double horizontal = end.X - start.X;
+        double vertical = end.Y - start.Y;
+        if (Math.Abs(horizontal) < 64
+            || Math.Abs(horizontal) <= Math.Abs(vertical) * 1.25
+            || DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        viewModel.SelectSpeedrunTabCommand.Execute(horizontal < 0 ? "Leaderboard" : "Environment");
+        eventArgs.Handled = true;
+    }
+
+    private static bool CanBeginSpeedrunSwipe(PointerPressedEventArgs eventArgs)
+    {
+        if (eventArgs.Source is not Avalonia.Visual visual)
+        {
+            return true;
+        }
+
+        return visual.FindAncestorOfType<Button>() is null
+            && visual.FindAncestorOfType<ComboBox>() is null
+            && visual.FindAncestorOfType<TextBox>() is null
+            && visual.FindAncestorOfType<ScrollBar>() is null;
     }
 
     private void OnInstalledModsKeyDown(object? sender, KeyEventArgs eventArgs)

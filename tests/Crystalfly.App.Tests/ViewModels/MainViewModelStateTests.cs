@@ -82,6 +82,24 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Speedrun_tab_toggle_switches_between_environment_and_leaderboard()
+    {
+        await using var viewModel = new MainViewModel(applicationData.CreateDirectory("speedrun-tab-toggle"));
+
+        Assert.True(viewModel.IsSpeedrunEnvironmentTab);
+        Assert.Equal(viewModel.Loc["SpeedrunEnvironmentTab"], viewModel.SpeedrunTabToggleLabel);
+
+        viewModel.ToggleSpeedrunTabCommand.Execute(null);
+
+        Assert.True(viewModel.IsSpeedrunLeaderboardTab);
+        Assert.Equal(viewModel.Loc["SpeedrunLeaderboardTab"], viewModel.SpeedrunTabToggleLabel);
+
+        viewModel.ToggleSpeedrunTabCommand.Execute(null);
+
+        Assert.True(viewModel.IsSpeedrunEnvironmentTab);
+    }
+
+    [Fact]
     public async Task Speedrun_selection_projects_runtime_patches_capabilities_and_legacy_state()
     {
         string root = applicationData.CreateDirectory("speedrun-state");

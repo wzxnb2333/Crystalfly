@@ -27,6 +27,15 @@ public partial class MainViewModel
 
     public bool IsSpeedrunLeaderboardTab => CurrentSpeedrunTab == "Leaderboard";
 
+    public string SpeedrunTabToggleLabel =>
+        IsSpeedrunLeaderboardTab ? Loc["SpeedrunLeaderboardTab"] : Loc["SpeedrunEnvironmentTab"];
+
+    public string SpeedrunTabToggleHint =>
+        string.Format(
+            CultureInfo.CurrentCulture,
+            Loc["SpeedrunToggleTo"],
+            IsSpeedrunLeaderboardTab ? Loc["SpeedrunEnvironmentTab"] : Loc["SpeedrunLeaderboardTab"]);
+
     public bool HasSpeedrunLeaderboardData => SpeedrunLeaderboardRuns.Count > 0 || RecentSpeedrunRuns.Count > 0;
 
     public bool HasSpeedrunLeaderboardError =>
@@ -44,6 +53,8 @@ public partial class MainViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSpeedrunEnvironmentTab))]
     [NotifyPropertyChangedFor(nameof(IsSpeedrunLeaderboardTab))]
+    [NotifyPropertyChangedFor(nameof(SpeedrunTabToggleLabel))]
+    [NotifyPropertyChangedFor(nameof(SpeedrunTabToggleHint))]
     public partial string CurrentSpeedrunTab { get; set; } = "Environment";
 
     [ObservableProperty]
@@ -128,6 +139,10 @@ public partial class MainViewModel
             CurrentSpeedrunTab = tab;
         }
     }
+
+    [RelayCommand]
+    private void ToggleSpeedrunTab() =>
+        SelectSpeedrunTab(IsSpeedrunLeaderboardTab ? "Environment" : "Leaderboard");
 
     private void RebuildSpeedrunGameOptions()
     {
