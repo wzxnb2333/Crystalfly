@@ -56,6 +56,32 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Speedrun_leaderboard_keeps_panel_states_separate_when_one_request_fails()
+    {
+        string root = applicationData.CreateDirectory("speedrun-partial-leaderboard");
+        using var policy = new NetworkPolicy();
+        using var httpClient = new HttpClient(new PartialSpeedrunResponseHandler());
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        await using var viewModel = new MainViewModel(
+            root,
+            speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Speedrun",
+            CurrentSpeedrunTab = "Leaderboard"
+        };
+
+        await viewModel.RefreshSpeedrunLeaderboardDataCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.ShowSpeedrunLeaderboardRunsEmptyState);
+        Assert.False(viewModel.ShowRecentSpeedrunRunsEmptyState);
+        Assert.False(viewModel.HasSpeedrunLeaderboardError);
+        Assert.Single(viewModel.RecentSpeedrunRuns);
+    }
+
+    [Fact]
     public async Task Speedrun_selection_projects_runtime_patches_capabilities_and_legacy_state()
     {
         string root = applicationData.CreateDirectory("speedrun-state");
@@ -3279,6 +3305,38 @@ public sealed class MainViewModelStateTests : IDisposable
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json")
+            });
+        }
+    }
+
+    private sealed class PartialSpeedrunResponseHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/categories", StringComparison.Ordinal))
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        "{\"data\":[{\"id\":\"category-any\",\"name\":\"Any%\"}]}",
+                        Encoding.UTF8,
+                        "application/json")
+                });
+            }
+
+            if (request.RequestUri.AbsolutePath.Contains("/leaderboards/", StringComparison.Ordinal))
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    "{\"data\":[{\"id\":\"recent-run\",\"status\":{\"status\":\"verified\"},\"times\":{\"primary\":\"PT34M\"},\"players\":[{\"rel\":\"guest\",\"name\":\"Recent Runner\"}]}]}",
+                    Encoding.UTF8,
+                    "application/json")
             });
         }
     }
