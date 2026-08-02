@@ -223,18 +223,31 @@
         <Setter Property="BorderThickness" Value="0" />
     </Style>
 
-    <Style Selector="Button.cfp-speedrun-tab-toggle">
+    <Style Selector="Border.cfp-speedrun-tab-switch">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="6" />
-        <Setter Property="Padding" Value="10,5" />
-        <Setter Property="MinHeight" Value="32" />
-        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="CornerRadius" Value="22" />
+        <Setter Property="Padding" Value="3" />
     </Style>
 
-    <Style Selector="Button.cfp-speedrun-tab-toggle:pointerover">
+    <Style Selector="Button.cfp-speedrun-tab-segment">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="18" />
+        <Setter Property="Padding" Value="24,9" />
+        <Setter Property="MinWidth" Value="112" />
+        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
+    </Style>
+
+    <Style Selector="Button.cfp-speedrun-tab-segment:pointerover">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+    </Style>
+
+    <Style Selector="Button.cfp-speedrun-tab-segment.active">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
     </Style>
 
     <Style Selector="Border.cfp-speedrun-results">

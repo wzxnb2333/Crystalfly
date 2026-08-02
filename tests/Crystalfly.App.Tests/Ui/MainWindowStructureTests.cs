@@ -183,10 +183,20 @@ public sealed class MainWindowStructureTests
     {
         var document = LoadMainWindow();
         var speedrun = FindSectionRoot(document, "IsSpeedrunPage");
-        var toggle = speedrun.Descendants(Avalonia + "Button")
-            .Single(button => HasClass(button, "cfp-speedrun-tab-toggle"));
-        Assert.True(HasBinding(toggle, "Command", "ToggleSpeedrunTabCommand"));
-        Assert.True(HasBinding(toggle, "ToolTip.Tip", "SpeedrunTabToggleHint"));
+        var tabs = speedrun.Descendants(Avalonia + "Button")
+            .Where(button => HasClass(button, "cfp-speedrun-tab-segment"))
+            .ToArray();
+        Assert.Equal(2, tabs.Length);
+        Assert.Contains(tabs, button => HasBinding(button, "Command", "SelectSpeedrunTabCommand")
+            && (string?)button.Attribute("CommandParameter") == "Environment"
+            && HasBinding(button, "Classes.active", "IsSpeedrunEnvironmentTab"));
+        Assert.Contains(tabs, button => HasBinding(button, "Command", "SelectSpeedrunTabCommand")
+            && (string?)button.Attribute("CommandParameter") == "Leaderboard"
+            && HasBinding(button, "Classes.active", "IsSpeedrunLeaderboardTab"));
+        Assert.Contains(speedrun.Descendants(Avalonia + "Border"), border => HasClass(border, "cfp-speedrun-tab-switch"));
+        Assert.Contains(speedrun.Descendants(Avalonia + "Border"), border =>
+            HasClass(border, "cfp-rail")
+            && HasBinding(border, "IsVisible", "IsSpeedrunEnvironmentTab"));
         Assert.Contains(speedrun.Descendants(Avalonia + "ScrollViewer"), scrollViewer =>
             (string?)scrollViewer.Attribute("PointerPressed") == "OnSpeedrunWorkspacePointerPressed"
             && (string?)scrollViewer.Attribute("PointerReleased") == "OnSpeedrunWorkspacePointerReleased");

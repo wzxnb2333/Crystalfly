@@ -1435,8 +1435,28 @@
 
             <!-- Speedrun -->
             <Grid Classes="cfp-page" IsVisible="{Binding IsSpeedrunPage}">
-                <Grid ColumnDefinitions="216,*" ColumnSpacing="12" Margin="16">
-                    <Border Grid.Column="0" Classes="cfp-rail" Padding="12,16">
+                <Grid RowDefinitions="Auto,*" RowSpacing="12" Margin="16">
+                    <Border Classes="cfp-speedrun-tab-switch" HorizontalAlignment="Center">
+                        <Grid ColumnDefinitions="Auto,Auto">
+                            <Button Classes="cfp-speedrun-tab-segment"
+                                    Classes.active="{Binding IsSpeedrunEnvironmentTab}"
+                                    Command="{Binding SelectSpeedrunTabCommand}"
+                                    CommandParameter="Environment"
+                                    AutomationProperties.Name="{Binding Loc[SpeedrunEnvironmentTab]}">
+                                <TextBlock Text="{Binding Loc[SpeedrunEnvironmentTab]}" />
+                            </Button>
+                            <Button Grid.Column="1"
+                                    Classes="cfp-speedrun-tab-segment"
+                                    Classes.active="{Binding IsSpeedrunLeaderboardTab}"
+                                    Command="{Binding SelectSpeedrunTabCommand}"
+                                    CommandParameter="Leaderboard"
+                                    AutomationProperties.Name="{Binding Loc[SpeedrunLeaderboardTab]}">
+                                <TextBlock Text="{Binding Loc[SpeedrunLeaderboardTab]}" />
+                            </Button>
+                        </Grid>
+                    </Border>
+                    <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+                    <Border Grid.Column="0" Classes="cfp-rail" Width="216" Padding="12,16" Margin="0,0,12,0" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
                         <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTitle]}" />
@@ -1483,19 +1503,7 @@
                             </Border>
                         </Grid>
                     </Border>
-                    <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="10">
-                        <Grid Classes="cfp-speedrun-tabs" ColumnDefinitions="Auto,*">
-                            <Button Classes="cfp-speedrun-tab-toggle"
-                                    Command="{Binding ToggleSpeedrunTabCommand}"
-                                    ToolTip.Tip="{Binding SpeedrunTabToggleHint}"
-                                    AutomationProperties.Name="{Binding SpeedrunTabToggleHint}">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <LucideIcon Kind="ArrowLeftRight" Size="14" />
-                                    <TextBlock Text="{Binding SpeedrunTabToggleLabel}" />
-                                </StackPanel>
-                            </Button>
-                        </Grid>
-                        <ScrollViewer Grid.Row="1"
+                    <ScrollViewer Grid.Column="1"
                                       HorizontalScrollBarVisibility="Disabled"
                                       PointerPressed="OnSpeedrunWorkspacePointerPressed"
                                       PointerReleased="OnSpeedrunWorkspacePointerReleased">
