@@ -200,6 +200,29 @@
         <Setter Property="BorderBrush" Value="{DynamicResource CfErrorBrush}" />
     </Style>
 
+    <Style Selector="Border.cfp-speedrun-create">
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Padding" Value="10,12,10,0" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-status">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="8,6" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-option">
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="0,7" />
+        <Setter Property="MinHeight" Value="36" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-option:last-child">
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
     <Style Selector="Border.cfp-launch-issue-frame">
         <Setter Property="BorderBrush" Value="{DynamicResource CfErrorBrush}" />
         <Setter Property="BorderThickness" Value="2" />
