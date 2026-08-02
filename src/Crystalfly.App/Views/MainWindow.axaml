@@ -1665,8 +1665,8 @@
                                           DisplayMemberBinding="{Binding Name}"
                                           AutomationProperties.Name="{Binding Loc[SpeedrunCategory]}" />
                             </Grid>
-                            <WrapPanel Grid.Row="2" Orientation="Horizontal">
-                                <Border Classes="cfp-card cfp-speedrun-results" Width="440" Margin="0,0,10,10">
+                            <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="10">
+                                <Border Classes="cfp-card cfp-speedrun-results">
                                     <StackPanel Spacing="8">
                                         <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTopRuns]}" />
                                         <Grid Classes="cfp-speedrun-table-head" ColumnDefinitions="36,*,Auto,Auto,Auto" ColumnSpacing="8">
@@ -1689,10 +1689,10 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunNoData]}" IsVisible="{Binding ShowSpeedrunLeaderboardEmptyState}" />
+                                        <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunNoData]}" IsVisible="{Binding ShowSpeedrunLeaderboardRunsEmptyState}" />
                                     </StackPanel>
                                 </Border>
-                                <Border Classes="cfp-card cfp-speedrun-results" Width="440" Margin="0,0,0,10">
+                                <Border Grid.Column="1" Classes="cfp-card cfp-speedrun-results">
                                     <StackPanel Spacing="8">
                                         <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunRecentRuns]}" />
                                         <Grid Classes="cfp-speedrun-table-head" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
@@ -1716,10 +1716,10 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunNoData]}" IsVisible="{Binding ShowSpeedrunLeaderboardEmptyState}" />
+                                        <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunNoData]}" IsVisible="{Binding ShowRecentSpeedrunRunsEmptyState}" />
                                     </StackPanel>
                                 </Border>
-                            </WrapPanel>
+                            </Grid>
                             <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                                 <ProgressBar Width="72" Height="3" IsIndeterminate="True" IsVisible="{Binding IsSpeedrunLeaderboardLoading}" VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="1" Classes="cfp-meta" Text="{Binding SpeedrunLeaderboardStatus}" VerticalAlignment="Center" />

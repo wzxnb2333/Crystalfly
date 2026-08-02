@@ -29,10 +29,17 @@ public partial class MainViewModel
 
     public bool HasSpeedrunLeaderboardData => SpeedrunLeaderboardRuns.Count > 0 || RecentSpeedrunRuns.Count > 0;
 
-    public bool HasSpeedrunLeaderboardError => !string.IsNullOrWhiteSpace(SpeedrunLeaderboardError);
+    public bool HasSpeedrunLeaderboardError =>
+        !HasSpeedrunLeaderboardData && !string.IsNullOrWhiteSpace(SpeedrunLeaderboardError);
 
     public bool ShowSpeedrunLeaderboardEmptyState =>
         !IsSpeedrunLeaderboardLoading && !HasSpeedrunLeaderboardData && !HasSpeedrunLeaderboardError;
+
+    public bool ShowSpeedrunLeaderboardRunsEmptyState =>
+        !IsSpeedrunLeaderboardLoading && SpeedrunLeaderboardRuns.Count == 0;
+
+    public bool ShowRecentSpeedrunRunsEmptyState =>
+        !IsSpeedrunLeaderboardLoading && RecentSpeedrunRuns.Count == 0;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSpeedrunEnvironmentTab))]
@@ -50,6 +57,8 @@ public partial class MainViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSpeedrunLeaderboardData))]
+    [NotifyPropertyChangedFor(nameof(ShowSpeedrunLeaderboardRunsEmptyState))]
+    [NotifyPropertyChangedFor(nameof(ShowRecentSpeedrunRunsEmptyState))]
     [NotifyPropertyChangedFor(nameof(ShowSpeedrunLeaderboardEmptyState))]
     public partial bool IsSpeedrunLeaderboardLoading { get; set; }
 
@@ -204,6 +213,9 @@ public partial class MainViewModel
             Replace(SpeedrunLeaderboardRuns, leaderboard.Data?.Runs ?? []);
             Replace(RecentSpeedrunRuns, recent.Data?.Runs ?? []);
             OnPropertyChanged(nameof(HasSpeedrunLeaderboardData));
+            OnPropertyChanged(nameof(HasSpeedrunLeaderboardError));
+            OnPropertyChanged(nameof(ShowSpeedrunLeaderboardRunsEmptyState));
+            OnPropertyChanged(nameof(ShowRecentSpeedrunRunsEmptyState));
             OnPropertyChanged(nameof(ShowSpeedrunLeaderboardEmptyState));
             SpeedrunLeaderboardError = FirstReason(categories, leaderboard, recent);
             SpeedrunLeaderboardStatus = DataStatus(categories, leaderboard, recent);
@@ -233,6 +245,9 @@ public partial class MainViewModel
         RecentSpeedrunRuns.Clear();
         SelectedSpeedrunCategory = null;
         OnPropertyChanged(nameof(HasSpeedrunLeaderboardData));
+        OnPropertyChanged(nameof(HasSpeedrunLeaderboardError));
+        OnPropertyChanged(nameof(ShowSpeedrunLeaderboardRunsEmptyState));
+        OnPropertyChanged(nameof(ShowRecentSpeedrunRunsEmptyState));
         OnPropertyChanged(nameof(ShowSpeedrunLeaderboardEmptyState));
         SpeedrunLeaderboardUpdatedAt = string.Empty;
     }

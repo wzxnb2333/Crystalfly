@@ -13,7 +13,7 @@ public sealed class SpeedrunComClient(
     INetworkPolicy networkPolicy,
     TimeProvider? timeProvider = null)
 {
-    private const int CacheSchemaVersion = 1;
+    private const int CacheSchemaVersion = 2;
     private const int MaximumCategories = 500;
     private const int MaximumRuns = 5;
     private static readonly Uri ApiRoot = new("https://www.speedrun.com/api/v1/");
@@ -281,7 +281,7 @@ public sealed class SpeedrunComClient(
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (JsonElement player in values)
         {
-            string id = RequiredString(player, "id", "player");
+            string? id = OptionalString(player, "id");
             string? name = null;
             if (player.TryGetProperty("names", out JsonElement names)
                 && names.TryGetProperty("international", out JsonElement international)
@@ -290,7 +290,7 @@ public sealed class SpeedrunComClient(
                 name = international.GetString();
             }
             name ??= OptionalString(player, "name");
-            if (!string.IsNullOrWhiteSpace(name))
+            if (!string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(name))
             {
                 result[id] = name;
             }

@@ -61,6 +61,52 @@ public sealed class SpeedrunComClientTests : IDisposable
     }
 
     [Fact]
+    public async Task GetLeaderboardAsync_ignores_embedded_guest_without_an_id()
+    {
+        using var client = CreateClient((_, _) => Task.FromResult(JsonResponse("""
+        {
+          "data": {
+            "runs": [
+              {
+                "place": 1,
+                "run": {
+                  "id": "guest-run",
+                  "status": { "status": "verified", "verify-date": "2026-08-01T00:00:00Z" },
+                  "times": { "primary": "PT34M" },
+                  "players": [{ "rel": "guest", "name": "Guest Runner" }]
+                }
+              },
+              {
+                "place": 2,
+                "run": {
+                  "id": "user-run",
+                  "status": { "status": "verified", "verify-date": "2026-08-01T00:00:00Z" },
+                  "times": { "primary": "PT35M" },
+                  "players": [{ "rel": "user", "id": "player-1" }]
+                }
+              }
+            ],
+            "players": {
+              "data": [
+                { "rel": "guest", "name": "Guest Runner" },
+                { "rel": "user", "id": "player-1", "names": { "international": "Runner One" } }
+              ]
+            }
+          }
+        }
+        """)));
+        var speedrun = new SpeedrunComClient(client, cacheRoot, new NetworkPolicy());
+
+        var result = await speedrun.GetLeaderboardAsync(
+            SpeedrunGame.HollowKnight,
+            new SpeedrunCategory("category-1", "Any%", null),
+            forceRefresh: true);
+
+        Assert.Equal(SpeedrunDataStatus.Remote, result.Status);
+        Assert.Equal(["Guest Runner", "Runner One"], result.Data!.Runs.Select(run => run.PlayerName));
+    }
+
+    [Fact]
     public async Task GetCategoriesAsync_uses_fresh_cache_without_second_request()
     {
         var requests = 0;
