@@ -179,6 +179,45 @@ public sealed class MainWindowStructureTests
     }
 
     [Fact]
+    public void Speedrun_page_exposes_environment_and_leaderboard_workspaces()
+    {
+        var document = LoadMainWindow();
+        var speedrun = FindSectionRoot(document, "IsSpeedrunPage");
+        var tabs = speedrun.Descendants(Avalonia + "Button")
+            .Where(button => HasClass(button, "cfp-speedrun-tab"))
+            .ToArray();
+
+        Assert.Equal(2, tabs.Length);
+        Assert.Contains(tabs, button => HasBinding(button, "Command", "SelectSpeedrunTabCommand")
+            && (string?)button.Attribute("CommandParameter") == "Environment"
+            && HasBinding(button, "Classes.active", "IsSpeedrunEnvironmentTab"));
+        Assert.Contains(tabs, button => HasBinding(button, "Command", "SelectSpeedrunTabCommand")
+            && (string?)button.Attribute("CommandParameter") == "Leaderboard"
+            && HasBinding(button, "Classes.active", "IsSpeedrunLeaderboardTab"));
+
+        var leaderboard = speedrun.Descendants(Avalonia + "Grid")
+            .Single(grid => HasClass(grid, "cfp-speedrun-leaderboard"));
+        Assert.Contains(leaderboard.Descendants(Avalonia + "ComboBox"), comboBox =>
+            HasBinding(comboBox, "ItemsSource", "SpeedrunGameOptions"));
+        Assert.Contains(leaderboard.Descendants(Avalonia + "ComboBox"), comboBox =>
+            HasBinding(comboBox, "ItemsSource", "SpeedrunCategories"));
+        Assert.Equal(2, leaderboard.Descendants(Avalonia + "Border")
+            .Count(border => HasClass(border, "cfp-speedrun-results")));
+        Assert.Contains(leaderboard.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "OpenSpeedrunRun"
+            && HasBinding(button, "Tag", "RunUrl"));
+
+        var code = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Views",
+            "MainWindow.axaml.cs"));
+        Assert.Contains("private void OpenSpeedrunRun", code, StringComparison.Ordinal);
+        Assert.Contains("speedrun.com", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Main_window_requests_Windows_11_rounded_corners_after_opening()
     {
         var code = File.ReadAllText(Path.Combine(
@@ -314,7 +353,7 @@ public sealed class MainWindowStructureTests
             && HasBinding(button, "AutomationProperties.Name", "ProjectRepository"));
         Assert.Contains(about.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", "LicenseName"));
 
-        foreach (var heading in new[] { "AboutDesignReferences", "AboutOpenSourceComponents", "AboutModCatalogAndTranslations" })
+        foreach (var heading in new[] { "AboutDesignReferences", "AboutOpenSourceComponents", "AboutModCatalogAndTranslations", "AboutSpeedrunComData" })
         {
             Assert.Contains(about.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", heading));
         }
@@ -330,7 +369,8 @@ public sealed class MainWindowStructureTests
                      "https://github.com/SteamRE/SteamKit",
                      "https://github.com/dme-compunet/Lucide.Avalonia",
                      "https://github.com/Kryptos-FR/MarkView.Avalonia",
-                     "https://github.com/hk-modding/modlinks"
+                     "https://github.com/hk-modding/modlinks",
+                     "https://www.speedrun.com"
                  })
         {
             Assert.Contains(about.Descendants(Avalonia + "Button"), button =>

@@ -2831,6 +2831,30 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OpenSpeedrunRun(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (sender is not Button { Tag: string value }
+            || !Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            || uri.Scheme != Uri.UriSchemeHttps
+            || !(string.Equals(uri.Host, "speedrun.com", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(uri.Host, "www.speedrun.com", StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
+        {
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            }
+        }
+    }
+
     private void OpenExternalUrl(object? sender, RoutedEventArgs eventArgs)
     {
         if (sender is not Button { Tag: string value }

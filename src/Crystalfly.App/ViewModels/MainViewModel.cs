@@ -124,9 +124,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     internal MainViewModel(
         string? applicationDataRoot,
-        Func<Task>? launchOverride,
-        Func<CancellationToken, Task>? downloadOverride,
-        Func<Task>? disposeSteamOverride,
+        Func<Task>? launchOverride = null,
+        Func<CancellationToken, Task>? downloadOverride = null,
+        Func<Task>? disposeSteamOverride = null,
         Func<CancellationToken, Task<RefreshTokenCredential>>? qrSignInOverride = null,
         DownloadQueueService? downloadQueueOverride = null,
         Func<bool>? steamLoggedOnOverride = null,
@@ -143,7 +143,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             CancellationToken,
             Task<ApplicationUpdateCheckResult>>? applicationUpdateCheckOverride = null,
         IProtocolRegistrationService? protocolRegistrationService = null,
-        Func<bool>? gameProcessRunningOverride = null)
+        Func<bool>? gameProcessRunningOverride = null,
+        SpeedrunComClient? speedrunComClientOverride = null)
     {
         this.launchOverride = launchOverride;
         this.downloadOverride = downloadOverride;
@@ -180,12 +181,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         directMetadataHttpClient = new HttpClient(new NetworkPolicyHandler(
             networkPolicy,
             new HttpClientHandler())) { Timeout = TimeSpan.FromSeconds(15) };
+        speedrunComClient = speedrunComClientOverride ?? new SpeedrunComClient(
+            directMetadataHttpClient,
+            Path.Combine(paths.ApplicationDataRoot, "speedrun-cache"),
+            networkPolicy);
         packageHttpClient = new HttpClient(new GitHubDownloadRouteHandler(
             () => settings.GitHubDownloadRoute,
             networkPolicy,
             new HttpClientHandler())) { Timeout = TimeSpan.FromMinutes(30) };
         githubLatencyService = new GitHubRouteLatencyService(networkPolicy, new HttpClientHandler());
         Loc = new LocalizationViewModel();
+        RebuildSpeedrunGameOptions();
         downloadQueue = downloadQueueOverride ?? CreateDownloadQueue();
         downloadQueue.QueueChanged += OnDownloadQueueChanged;
     }
@@ -3948,6 +3954,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         OnPropertyChanged(nameof(IsProtocolRegistered));
         OnPropertyChanged(nameof(ProtocolRegistrationStatus));
         OnPropertyChanged(nameof(SelectedSpeedrunTechnicalStatus));
+        RebuildSpeedrunGameOptions();
         RefreshApplicationUpdateText();
         NotifyOfficialCatalogLabels();
         if (DownloadQueueGroups.Count > 0)
@@ -5058,6 +5065,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var contentCancellation = Interlocked.Exchange(ref selectedModContentLoadCancellation, null);
         contentCancellation?.Cancel();
         var pendingContentLoad = selectedModContentLoadTask;
+        var speedrunLeaderboardCancellation = Interlocked.Exchange(ref speedrunLeaderboardLoadCancellation, null);
+        speedrunLeaderboardCancellation?.Cancel();
+        var pendingSpeedrunLeaderboardLoad = speedrunLeaderboardLoadTask;
         var signInCancellation = Interlocked.Exchange(ref steamSignInCancellation, null);
         signInCancellation?.Cancel();
         downloadCancellation?.Cancel();
@@ -5077,7 +5087,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     pendingExternalProtocolCommand,
                     steamOfflineTransitionTask,
                     pendingDetailsLoad,
-                    pendingContentLoad);
+                    pendingContentLoad,
+                    pendingSpeedrunLeaderboardLoad);
                 await catalogRefreshTask;
                 await steamReconnectTask;
             }
@@ -5108,6 +5119,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             detailsCancellation?.Dispose();
             contentCancellation?.Dispose();
+            speedrunLeaderboardCancellation?.Dispose();
             signInCancellation?.Dispose();
             try
             {

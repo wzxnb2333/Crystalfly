@@ -223,6 +223,43 @@
         <Setter Property="BorderThickness" Value="0" />
     </Style>
 
+    <Style Selector="Button.cfp-speedrun-tab">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+    </Style>
+
+    <Style Selector="Button.cfp-speedrun-tab:pointerover">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+    </Style>
+
+    <Style Selector="Button.cfp-speedrun-tab.active">
+        <Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-results">
+        <Setter Property="Padding" Value="12" />
+    </Style>
+
+    <Style Selector="Grid.cfp-speedrun-table-head">
+        <Setter Property="MinHeight" Value="22" />
+        <Setter Property="Opacity" Value="0.72" />
+    </Style>
+
+    <Style Selector="Grid.cfp-speedrun-run-row">
+        <Setter Property="MinHeight" Value="32" />
+    </Style>
+
+    <Style Selector="TextBlock.cfp-tabular">
+        <Setter Property="FontFeatures" Value="tnum" />
+    </Style>
+
     <Style Selector="Border.cfp-launch-issue-frame">
         <Setter Property="BorderBrush" Value="{DynamicResource CfErrorBrush}" />
         <Setter Property="BorderThickness" Value="2" />

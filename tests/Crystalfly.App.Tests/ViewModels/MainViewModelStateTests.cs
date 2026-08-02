@@ -15,6 +15,7 @@ using Crystalfly.Steam.Security;
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.IO.Compression;
+using System.Net;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
@@ -24,6 +25,35 @@ namespace Crystalfly.App.Tests.ViewModels;
 public sealed class MainViewModelStateTests : IDisposable
 {
     private readonly TestDirectory applicationData = new();
+
+    [Fact]
+    public async Task Speedrun_leaderboard_tab_loads_categories_leaderboard_and_recent_runs()
+    {
+        string root = applicationData.CreateDirectory("speedrun-leaderboard");
+        using var policy = new NetworkPolicy();
+        using var httpClient = new HttpClient(new SpeedrunResponseHandler());
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        await using var viewModel = new MainViewModel(
+            root,
+            speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Speedrun",
+            CurrentSpeedrunTab = "Leaderboard"
+        };
+
+        await viewModel.RefreshSpeedrunLeaderboardDataCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsSpeedrunLeaderboardTab);
+        Assert.Equal(SpeedrunGame.HollowKnight, viewModel.SelectedSpeedrunGame);
+        Assert.Equal("Any%", viewModel.SelectedSpeedrunCategory?.Name);
+        Assert.Equal("Leaderboard Runner", Assert.Single(viewModel.SpeedrunLeaderboardRuns).PlayerName);
+        Assert.Equal("Recent Runner", Assert.Single(viewModel.RecentSpeedrunRuns).PlayerName);
+        Assert.False(viewModel.IsSpeedrunLeaderboardLoading);
+        Assert.Null(viewModel.SpeedrunLeaderboardError);
+    }
 
     [Fact]
     public async Task Speedrun_selection_projects_runtime_patches_capabilities_and_legacy_state()
@@ -3197,6 +3227,61 @@ public sealed class MainViewModelStateTests : IDisposable
     private static string? ReadFileHash(string path) => File.Exists(path)
         ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)))
         : null;
+
+    private sealed class SpeedrunResponseHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            string json = request.RequestUri!.AbsolutePath switch
+            {
+                var path when path.EndsWith("/categories", StringComparison.Ordinal) => """
+                {
+                  "data": [
+                    { "id": "category-any", "name": "Any%", "weblink": "https://www.speedrun.com/hollowknight" }
+                  ]
+                }
+                """,
+                var path when path.Contains("/leaderboards/", StringComparison.Ordinal) => """
+                {
+                  "data": {
+                    "runs": [
+                      {
+                        "place": 1,
+                        "run": {
+                          "id": "leaderboard-run",
+                          "weblink": "https://www.speedrun.com/hollowknight/runs/leaderboard-run",
+                          "status": { "status": "verified", "verify-date": "2026-08-01T00:00:00Z" },
+                          "times": { "primary": "PT32M" },
+                          "players": [{ "rel": "user", "id": "leaderboard-player" }]
+                        }
+                      }
+                    ],
+                    "players": [{ "id": "leaderboard-player", "names": { "international": "Leaderboard Runner" } }]
+                  }
+                }
+                """,
+                _ => """
+                {
+                  "data": [
+                    {
+                      "id": "recent-run",
+                      "weblink": "https://www.speedrun.com/hollowknight/runs/recent-run",
+                      "status": { "status": "verified", "verify-date": "2026-08-01T01:00:00Z" },
+                      "times": { "primary": "PT34M" },
+                      "players": [{ "rel": "guest", "name": "Recent Runner" }]
+                    }
+                  ]
+                }
+                """
+            };
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            });
+        }
+    }
 
     private sealed class WaitingQueueExecutor : IDownloadQueueExecutor
     {
