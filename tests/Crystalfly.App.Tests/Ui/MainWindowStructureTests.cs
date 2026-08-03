@@ -197,7 +197,9 @@ public sealed class MainWindowStructureTests
             .Single(border => HasClass(border, "cfp-speedrun-tab-switch"));
         Assert.Equal("1", (string?)tabSwitch.Attribute("Grid.Row"));
         Assert.Contains(tabSwitch.Descendants(Avalonia + "Border"), border =>
-            HasClass(border, "cfp-speedrun-tab-indicator"));
+            HasClass(border, "cfp-speedrun-tab-indicator")
+            && (string?)border.Attribute("Grid.Column") == "0"
+            && border.Attribute("Width") is null);
         Assert.Contains(speedrun.Descendants(Avalonia + "Border"), border =>
             HasClass(border, "cfp-rail")
             && HasBinding(border, "IsVisible", "IsSpeedrunEnvironmentTab"));

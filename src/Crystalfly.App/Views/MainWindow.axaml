@@ -1448,10 +1448,8 @@
                             HorizontalAlignment="Center">
                         <Grid Width="196" ColumnDefinitions="*,*">
                             <Border x:Name="SpeedrunTabIndicator"
-                                    Grid.ColumnSpan="2"
-                                    Classes="cfp-speedrun-tab-indicator"
-                                    Width="95"
-                                    HorizontalAlignment="Left">
+                                    Grid.Column="0"
+                                    Classes="cfp-speedrun-tab-indicator">
                                 <Border.RenderTransform>
                                     <TranslateTransform />
                                 </Border.RenderTransform>
