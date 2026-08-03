@@ -55,6 +55,28 @@ public sealed class SpeedrunComClientTests : IDisposable
     }
 
     [Fact]
+    public async Task GetBoardsAsync_only_applies_single_level_subcategories_to_their_level()
+    {
+        using var client = CreateClient((request, _) => Task.FromResult(
+            request.RequestUri!.AbsolutePath.EndsWith("/categories", StringComparison.Ordinal)
+                ? JsonResponse("""
+                  {"data":[{"id":"level-category","name":"Level","type":"per-level","variables":{"data":[
+                    {"id":"bindings","name":"Bindings","is-subcategory":true,
+                     "scope":{"type":"single-level","level":"level-a"},
+                     "values":{"values":{"none":{"label":"None"},"all":{"label":"All"}}}}
+                  ]}}]}
+                  """)
+                : JsonResponse("""{"data":[{"id":"level-a","name":"A"},{"id":"level-b","name":"B"}]}""")));
+        var speedrun = new SpeedrunComClient(client, cacheRoot, new NetworkPolicy());
+
+        var result = await speedrun.GetBoardsAsync(SpeedrunGame.HollowKnight, forceRefresh: true);
+
+        Assert.Equal(3, result.Data!.Count);
+        Assert.Equal(2, result.Data.Count(board => board.LevelId == "level-a"));
+        Assert.Single(result.Data, board => board.LevelId == "level-b" && board.Subcategories.Count == 0);
+    }
+
+    [Fact]
     public async Task GetPodiumAsync_keeps_ties_and_filters_subcategory()
     {
         using var client = CreateClient((request, _) =>

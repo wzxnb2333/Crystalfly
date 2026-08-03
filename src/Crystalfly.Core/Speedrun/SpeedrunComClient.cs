@@ -65,7 +65,10 @@ public sealed class SpeedrunComClient(
                 : [null];
             foreach (BoardLevel? level in boardLevels)
             {
-                IEnumerable<IReadOnlyList<SpeedrunBoardVariable>> variants = ExpandVariants(category.Variables);
+                IEnumerable<IReadOnlyList<SpeedrunBoardVariable>> variants = ExpandVariants(
+                    category.Variables.Where(variable =>
+                        variable.LevelId is null
+                        || string.Equals(variable.LevelId, level?.Id, StringComparison.Ordinal)).ToArray());
                 foreach (IReadOnlyList<SpeedrunBoardVariable> variant in variants)
                 {
                     boards.Add(new(game, category.Id, category.Name, level?.Id, level?.Name, variant));
@@ -240,6 +243,7 @@ public sealed class SpeedrunComClient(
                     variables.Add(new(
                         RequiredString(variable, "id", "variable"),
                         RequiredString(variable, "name", "variable"),
+                        SingleLevelId(variable),
                         parsedValues));
                 }
             }
@@ -305,6 +309,17 @@ public sealed class SpeedrunComClient(
                 OfficialUrl(run, "weblink")));
         }
         return new(board, entries);
+    }
+
+    private static string? SingleLevelId(JsonElement variable)
+    {
+        if (!variable.TryGetProperty("scope", out JsonElement scope)
+            || scope.ValueKind != JsonValueKind.Object
+            || !string.Equals(OptionalString(scope, "type"), "single-level", StringComparison.Ordinal))
+        {
+            return null;
+        }
+        return RequiredString(scope, "level", "variable scope");
     }
 
     private static IReadOnlyDictionary<string, string> ParsePlayers(JsonElement container)
@@ -472,7 +487,11 @@ public sealed class SpeedrunComClient(
         string Name,
         bool IsPerLevel,
         IReadOnlyList<BoardVariable> Variables);
-    private sealed record BoardVariable(string Id, string Name, IReadOnlyList<BoardValue> Values);
+    private sealed record BoardVariable(
+        string Id,
+        string Name,
+        string? LevelId,
+        IReadOnlyList<BoardValue> Values);
     private sealed record BoardValue(string Id, string Name);
     private sealed record BoardLevel(string Id, string Name);
 }
