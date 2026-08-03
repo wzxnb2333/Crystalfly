@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-26T19:55:47.0000000+00:00",
-  "sourceRevision": "e372719a3d23be41949c389934b9adcb9a2f32b8",
+  "generatedAt": "2026-08-02T22:05:43.0000000+00:00",
+  "sourceRevision": "5a11e17b16c2c1c98e0ddad4061c5eb2894f15b8",
   "entries": [
     {
       "id": "hkmod:AbsRad Configurable Attacks",
@@ -136,7 +136,7 @@
     {
       "id": "hkmod:Architect",
       "addedAt": "2025-06-17T15:45:52.0000000+00:00",
-      "updatedAt": "2026-07-24T16:10:07.0000000+00:00"
+      "updatedAt": "2026-08-01T18:45:15.0000000+00:00"
     },
     {
       "id": "hkmod:ArchitectLegacy",
@@ -351,7 +351,7 @@
     {
       "id": "hkmod:BugPrince",
       "addedAt": "2025-06-11T19:04:42.0000000+00:00",
-      "updatedAt": "2026-06-07T19:31:31.0000000+00:00"
+      "updatedAt": "2026-07-28T15:15:54.0000000+00:00"
     },
     {
       "id": "hkmod:CabbyCodes",
@@ -831,7 +831,7 @@
     {
       "id": "hkmod:Double Enemies",
       "addedAt": "2026-06-27T09:32:51.0000000+00:00",
-      "updatedAt": "2026-07-24T20:42:01.0000000+00:00"
+      "updatedAt": "2026-08-02T22:05:43.0000000+00:00"
     },
     {
       "id": "hkmod:DoubleJumpFix",
@@ -1711,7 +1711,7 @@
     {
       "id": "hkmod:Knight of Nights",
       "addedAt": "2026-01-12T09:20:40.0000000+00:00",
-      "updatedAt": "2026-02-03T03:44:09.0000000+00:00"
+      "updatedAt": "2026-07-28T15:15:54.0000000+00:00"
     },
     {
       "id": "hkmod:Konpanion",
@@ -1986,7 +1986,7 @@
     {
       "id": "hkmod:MoreDoors",
       "addedAt": "2022-09-22T04:44:55.0000000+00:00",
-      "updatedAt": "2026-07-01T22:20:40.0000000+00:00"
+      "updatedAt": "2026-07-29T03:25:48.0000000+00:00"
     },
     {
       "id": "hkmod:MoreHealing",
@@ -2361,7 +2361,7 @@
     {
       "id": "hkmod:PurenailCore",
       "addedAt": "2022-09-27T05:20:59.0000000+00:00",
-      "updatedAt": "2026-06-19T18:15:44.0000000+00:00"
+      "updatedAt": "2026-07-28T15:15:54.0000000+00:00"
     },
     {
       "id": "hkmod:PvpArena",
@@ -2382,6 +2382,11 @@
       "id": "hkmod:Quasar Radiance",
       "addedAt": "2025-03-25T18:33:53.0000000+00:00",
       "updatedAt": "2025-05-01T13:22:52.0000000+00:00"
+    },
+    {
+      "id": "hkmod:Quick Save States",
+      "addedAt": "2026-07-27T18:00:26.0000000+00:00",
+      "updatedAt": "2026-07-27T18:00:26.0000000+00:00"
     },
     {
       "id": "hkmod:QuickDive",
@@ -2666,7 +2671,7 @@
     {
       "id": "hkmod:Scattered and Lost",
       "addedAt": "2025-03-08T22:17:44.0000000+00:00",
-      "updatedAt": "2026-05-20T17:32:19.0000000+00:00"
+      "updatedAt": "2026-07-28T15:15:54.0000000+00:00"
     },
     {
       "id": "hkmod:Scatternest",
@@ -2717,6 +2722,11 @@
       "id": "hkmod:Shade Lord",
       "addedAt": "2025-08-31T11:26:49.0000000+00:00",
       "updatedAt": "2025-09-01T17:20:52.0000000+00:00"
+    },
+    {
+      "id": "hkmod:Shade Retreat Macro",
+      "addedAt": "2026-07-27T15:18:08.0000000+00:00",
+      "updatedAt": "2026-07-27T15:18:08.0000000+00:00"
     },
     {
       "id": "hkmod:ShadeControl",
@@ -3077,6 +3087,11 @@
       "id": "hkmod:UnconstrainedRotation",
       "addedAt": "2024-12-04T21:20:20.0000000+00:00",
       "updatedAt": "2025-02-28T16:03:30.0000000+00:00"
+    },
+    {
+      "id": "hkmod:UndeadnameJasmine",
+      "addedAt": "2026-07-28T15:21:31.0000000+00:00",
+      "updatedAt": "2026-07-28T15:21:31.0000000+00:00"
     },
     {
       "id": "hkmod:Uneated Grubs",
