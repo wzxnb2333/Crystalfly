@@ -15,7 +15,7 @@ public sealed class SpeedrunComClient(
 {
     private const int CacheSchemaVersion = 2;
     private const int MaximumCategories = 500;
-    private const int MaximumRuns = 5;
+    private const int MaximumRuns = 100;
     private static readonly Uri ApiRoot = new("https://www.speedrun.com/api/v1/");
     private static readonly TimeSpan CacheLifetime = TimeSpan.FromMinutes(15);
     private readonly HttpClient httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
@@ -23,46 +23,96 @@ public sealed class SpeedrunComClient(
     private readonly INetworkPolicy networkPolicy = networkPolicy ?? throw new ArgumentNullException(nameof(networkPolicy));
     private readonly TimeProvider timeProvider = timeProvider ?? TimeProvider.System;
 
-    public Task<SpeedrunDataResult<IReadOnlyList<SpeedrunCategory>>> GetCategoriesAsync(
-        SpeedrunGame game,
-        bool forceRefresh = false,
-        CancellationToken cancellationToken = default) =>
-        LoadAsync(
-            CacheKey(game, "categories"),
-            new Uri(ApiRoot, $"games/{SpeedrunGameCatalog.GetId(game)}/categories"),
-            ParseCategories,
-            forceRefresh,
-            cancellationToken);
+    public DateTimeOffset UtcNow => timeProvider.GetUtcNow();
 
-    public Task<SpeedrunDataResult<SpeedrunLeaderboard>> GetLeaderboardAsync(
+    public async Task<SpeedrunDataResult<IReadOnlyList<SpeedrunBoardDescriptor>>> GetBoardsAsync(
         SpeedrunGame game,
-        SpeedrunCategory category,
         bool forceRefresh = false,
         CancellationToken cancellationToken = default)
     {
-        ValidateCategory(category);
-        string gameId = SpeedrunGameCatalog.GetId(game);
-        string categoryId = Uri.EscapeDataString(category.Id);
+        Task<SpeedrunDataResult<IReadOnlyList<BoardCategory>>> categoriesTask = LoadAsync(
+            CacheKey(game, "board-categories"),
+            new Uri(ApiRoot, $"games/{SpeedrunGameCatalog.GetId(game)}/categories?embed=variables"),
+            ParseBoardCategories,
+            forceRefresh,
+            cancellationToken);
+        Task<SpeedrunDataResult<IReadOnlyList<BoardLevel>>> levelsTask = LoadAsync(
+            CacheKey(game, "levels"),
+            new Uri(ApiRoot, $"games/{SpeedrunGameCatalog.GetId(game)}/levels"),
+            ParseLevels,
+            forceRefresh,
+            cancellationToken);
+        await Task.WhenAll(categoriesTask, levelsTask);
+        var categories = await categoriesTask;
+        var levels = await levelsTask;
+        if (categories.Data is null || levels.Data is null)
+        {
+            return new(
+                categories.Status == SpeedrunDataStatus.Offline || levels.Status == SpeedrunDataStatus.Offline
+                    ? SpeedrunDataStatus.Offline
+                    : SpeedrunDataStatus.Unavailable,
+                null,
+                categories.IsStale || levels.IsStale,
+                Latest(categories.FetchedAt, levels.FetchedAt),
+                categories.Reason ?? levels.Reason);
+        }
+
+        var boards = new List<SpeedrunBoardDescriptor>();
+        foreach (BoardCategory category in categories.Data)
+        {
+            IEnumerable<BoardLevel?> boardLevels = category.IsPerLevel
+                ? levels.Data.Cast<BoardLevel?>()
+                : [null];
+            foreach (BoardLevel? level in boardLevels)
+            {
+                IEnumerable<IReadOnlyList<SpeedrunBoardVariable>> variants = ExpandVariants(category.Variables);
+                foreach (IReadOnlyList<SpeedrunBoardVariable> variant in variants)
+                {
+                    boards.Add(new(game, category.Id, category.Name, level?.Id, level?.Name, variant));
+                }
+            }
+        }
+        return new(
+            AggregateStatus(categories.Status, levels.Status),
+            boards,
+            categories.IsStale || levels.IsStale,
+            Latest(categories.FetchedAt, levels.FetchedAt),
+            categories.Reason ?? levels.Reason);
+    }
+
+    private static IEnumerable<IReadOnlyList<SpeedrunBoardVariable>> ExpandVariants(
+        IReadOnlyList<BoardVariable> variables)
+    {
+        IEnumerable<IReadOnlyList<SpeedrunBoardVariable>> variants = [[]];
+        foreach (BoardVariable variable in variables)
+        {
+            variants = variants.SelectMany(existing => variable.Values.Select(value =>
+                (IReadOnlyList<SpeedrunBoardVariable>)[.. existing,
+                    new(variable.Id, variable.Name, value.Id, value.Name)]));
+        }
+        return variants;
+    }
+
+    public Task<SpeedrunDataResult<SpeedrunBoardSnapshot>> GetPodiumAsync(
+        SpeedrunBoardDescriptor board,
+        bool forceRefresh = false,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(board);
+        string gameId = SpeedrunGameCatalog.GetId(board.Game);
+        string path = board.LevelId is null
+            ? $"leaderboards/{gameId}/category/{Uri.EscapeDataString(board.CategoryId)}"
+            : $"leaderboards/{gameId}/level/{Uri.EscapeDataString(board.LevelId)}/{Uri.EscapeDataString(board.CategoryId)}";
+        string variables = string.Concat(board.Subcategories
+            .OrderBy(item => item.VariableId, StringComparer.Ordinal)
+            .Select(item => $"&var-{Uri.EscapeDataString(item.VariableId)}={Uri.EscapeDataString(item.ValueId)}"));
         return LoadAsync(
-            CacheKey(game, $"leaderboard-{Hash(category.Id)}"),
-            new Uri(ApiRoot, $"leaderboards/{gameId}/category/{categoryId}?top=5&embed=players"),
-            element => ParseLeaderboard(element, category),
+            CacheKey(board.Game, $"podium-{Hash(board.Key)}"),
+            new Uri(ApiRoot, $"{path}?top=3&embed=players{variables}"),
+            element => ParsePodium(element, board),
             forceRefresh,
             cancellationToken);
     }
-
-    public Task<SpeedrunDataResult<SpeedrunRecentRuns>> GetRecentRunsAsync(
-        SpeedrunGame game,
-        bool forceRefresh = false,
-        CancellationToken cancellationToken = default) =>
-        LoadAsync(
-            CacheKey(game, "recent"),
-            new Uri(
-                ApiRoot,
-                $"runs?game={SpeedrunGameCatalog.GetId(game)}&status=verified&orderby=verify-date&direction=desc&max=5&embed=players,category"),
-            ParseRecentRuns,
-            forceRefresh,
-            cancellationToken);
 
     private async Task<SpeedrunDataResult<T>> LoadAsync<T>(
         string cacheKey,
@@ -162,106 +212,99 @@ public sealed class SpeedrunComClient(
         }
     }
 
-    private static IReadOnlyList<SpeedrunCategory> ParseCategories(JsonElement root)
+    private static IReadOnlyList<BoardCategory> ParseBoardCategories(JsonElement root)
     {
         JsonElement data = GetData(root);
         if (data.ValueKind != JsonValueKind.Array || data.GetArrayLength() > MaximumCategories)
         {
             throw new JsonException("Speedrun.com categories response is invalid.");
         }
-
-        var categories = new List<SpeedrunCategory>(data.GetArrayLength());
-        var ids = new HashSet<string>(StringComparer.Ordinal);
-        foreach (JsonElement item in data.EnumerateArray())
+        return data.EnumerateArray().Select(item =>
         {
-            string id = RequiredString(item, "id", "category");
-            string name = RequiredString(item, "name", "category");
-            if (!ids.Add(id))
+            var variables = new List<BoardVariable>();
+            if (item.TryGetProperty("variables", out JsonElement embedded)
+                && embedded.TryGetProperty("data", out JsonElement variableData)
+                && variableData.ValueKind == JsonValueKind.Array)
             {
-                throw new JsonException("Speedrun.com categories response contains duplicate IDs.");
+                foreach (JsonElement variable in variableData.EnumerateArray())
+                {
+                    if (!variable.TryGetProperty("is-subcategory", out JsonElement isSubcategory)
+                        || isSubcategory.ValueKind != JsonValueKind.True)
+                    {
+                        continue;
+                    }
+                    JsonElement values = RequiredObject(RequiredObject(variable, "values", "variable"), "values", "variable");
+                    var parsedValues = values.EnumerateObject()
+                        .Select(value => new BoardValue(value.Name, RequiredString(value.Value, "label", "variable value")))
+                        .ToArray();
+                    variables.Add(new(
+                        RequiredString(variable, "id", "variable"),
+                        RequiredString(variable, "name", "variable"),
+                        parsedValues));
+                }
             }
-            categories.Add(new SpeedrunCategory(id, name, OfficialUrl(item, "weblink")));
-        }
-        return categories.OrderBy(category => category.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+            return new BoardCategory(
+                RequiredString(item, "id", "category"),
+                RequiredString(item, "name", "category"),
+                string.Equals(OptionalString(item, "type"), "per-level", StringComparison.Ordinal),
+                variables);
+        }).ToArray();
     }
 
-    private static SpeedrunLeaderboard ParseLeaderboard(JsonElement root, SpeedrunCategory category)
+    private static IReadOnlyList<BoardLevel> ParseLevels(JsonElement root)
+    {
+        JsonElement data = GetData(root);
+        if (data.ValueKind != JsonValueKind.Array || data.GetArrayLength() > MaximumCategories)
+        {
+            throw new JsonException("Speedrun.com levels response is invalid.");
+        }
+        return data.EnumerateArray()
+            .Select(item => new BoardLevel(
+                RequiredString(item, "id", "level"),
+                RequiredString(item, "name", "level")))
+            .ToArray();
+    }
+
+    private static SpeedrunBoardSnapshot ParsePodium(JsonElement root, SpeedrunBoardDescriptor board)
     {
         JsonElement data = GetData(root);
         JsonElement runs = RequiredArray(data, "runs", "leaderboard");
         if (runs.GetArrayLength() > MaximumRuns)
         {
-            throw new JsonException("Speedrun.com leaderboard response exceeds the requested limit.");
+            throw new JsonException("Speedrun.com podium response is too large.");
         }
-
         IReadOnlyDictionary<string, string> players = ParsePlayers(data);
-        var parsed = new List<SpeedrunRun>(runs.GetArrayLength());
+        var entries = new List<SpeedrunPodiumEntry>(runs.GetArrayLength());
+        var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (JsonElement item in runs.EnumerateArray())
         {
-            if (!item.TryGetProperty("run", out JsonElement run))
+            int place = item.TryGetProperty("place", out JsonElement placeElement)
+                && placeElement.TryGetInt32(out int parsedPlace)
+                && parsedPlace is >= 1 and <= 3
+                    ? parsedPlace
+                    : throw new JsonException("Speedrun.com podium place is invalid.");
+            JsonElement run = RequiredObject(item, "run", "podium");
+            string id = RequiredString(run, "id", "run");
+            if (!ids.Add(id))
             {
-                throw new JsonException("Speedrun.com leaderboard run is missing.");
+                throw new JsonException("Speedrun.com podium contains duplicate runs.");
             }
-            int? place = item.TryGetProperty("place", out JsonElement placeValue)
-                && placeValue.TryGetInt32(out int value)
-                    ? value
-                    : null;
-            parsed.Add(ParseRun(run, players, place, null));
+            JsonElement times = RequiredObject(run, "times", "run");
+            double seconds = times.TryGetProperty("primary_t", out JsonElement secondsElement)
+                && secondsElement.TryGetDouble(out double parsedSeconds)
+                && parsedSeconds >= 0
+                    ? parsedSeconds
+                    : throw new JsonException("Speedrun.com run time is invalid.");
+            entries.Add(new(
+                id,
+                place,
+                ParsePlayerName(run, players),
+                RequiredString(times, "primary", "run time"),
+                seconds,
+                TryDateTime(RequiredObject(run, "status", "run"), "verify-date"),
+                OfficialUrl(run, "weblink")));
         }
-        return new SpeedrunLeaderboard(category, parsed);
-    }
-
-    private static SpeedrunRecentRuns ParseRecentRuns(JsonElement root)
-    {
-        JsonElement data = GetData(root);
-        if (data.ValueKind != JsonValueKind.Array || data.GetArrayLength() > MaximumRuns)
-        {
-            throw new JsonException("Speedrun.com recent runs response is invalid.");
-        }
-
-        IReadOnlyDictionary<string, string> players = ParsePlayers(root);
-        IReadOnlyDictionary<string, string> categories = ParseCategoriesById(root);
-        var parsed = data.EnumerateArray()
-            .Select(run => ParseRun(run, players, null, categories))
-            .OrderByDescending(run => run.VerifiedAt ?? DateTimeOffset.MinValue)
-            .ToArray();
-        return new SpeedrunRecentRuns(parsed);
-    }
-
-    private static SpeedrunRun ParseRun(
-        JsonElement run,
-        IReadOnlyDictionary<string, string> players,
-        int? place,
-        IReadOnlyDictionary<string, string>? categories)
-    {
-        string id = RequiredString(run, "id", "run");
-        string time = RequiredString(RequiredObject(run, "times", "run"), "primary", "run time");
-        string playerName = ParsePlayerName(run, players);
-        DateOnly? playedOn = TryDate(run, "date");
-        DateTimeOffset? verifiedAt = TryDateTime(RequiredObject(run, "status", "run"), "verify-date");
-        string? categoryName = null;
-        if (run.TryGetProperty("category", out JsonElement category))
-        {
-            if (category.ValueKind == JsonValueKind.String && categories is not null)
-            {
-                categories.TryGetValue(category.GetString() ?? string.Empty, out categoryName);
-            }
-            else if (category.ValueKind == JsonValueKind.Object
-                && category.TryGetProperty("data", out JsonElement categoryData)
-                && categoryData.ValueKind == JsonValueKind.Object)
-            {
-                categoryName = OptionalString(categoryData, "name");
-            }
-        }
-        return new SpeedrunRun(
-            id,
-            place,
-            playerName,
-            time,
-            playedOn,
-            verifiedAt,
-            categoryName,
-            OfficialUrl(run, "weblink"));
+        return new(board, entries);
     }
 
     private static IReadOnlyDictionary<string, string> ParsePlayers(JsonElement container)
@@ -296,25 +339,6 @@ public sealed class SpeedrunComClient(
             }
         }
         return result;
-    }
-
-    private static IReadOnlyDictionary<string, string> ParseCategoriesById(JsonElement root)
-    {
-        if (!root.TryGetProperty("categories", out JsonElement categories))
-        {
-            return new Dictionary<string, string>(StringComparer.Ordinal);
-        }
-        IEnumerable<JsonElement> values = categories.ValueKind switch
-        {
-            JsonValueKind.Array => categories.EnumerateArray(),
-            JsonValueKind.Object when categories.TryGetProperty("data", out JsonElement data)
-                && data.ValueKind == JsonValueKind.Array => data.EnumerateArray(),
-            _ => []
-        };
-        return values.ToDictionary(
-            item => RequiredString(item, "id", "category"),
-            item => RequiredString(item, "name", "category"),
-            StringComparer.Ordinal);
     }
 
     private static string ParsePlayerName(JsonElement run, IReadOnlyDictionary<string, string> players)
@@ -389,9 +413,6 @@ public sealed class SpeedrunComClient(
             ? result.GetString()
             : null;
 
-    private static DateOnly? TryDate(JsonElement value, string property) =>
-        DateOnly.TryParse(OptionalString(value, property), out DateOnly result) ? result : null;
-
     private static DateTimeOffset? TryDateTime(JsonElement value, string property) =>
         DateTimeOffset.TryParse(OptionalString(value, property), out DateTimeOffset result) ? result : null;
 
@@ -406,22 +427,22 @@ public sealed class SpeedrunComClient(
             : null;
     }
 
-    private static void ValidateCategory(SpeedrunCategory category)
-    {
-        ArgumentNullException.ThrowIfNull(category);
-        if (string.IsNullOrWhiteSpace(category.Id) || category.Id.Length > 128
-            || string.IsNullOrWhiteSpace(category.Name) || category.Name.Length > 512)
-        {
-            throw new ArgumentException("Speedrun.com category is invalid.", nameof(category));
-        }
-    }
-
     private string CachePath(string cacheKey) => Path.Combine(cacheRoot, $"{Hash(cacheKey)}.json");
 
     private static string CacheKey(SpeedrunGame game, string resource) =>
         $"{SpeedrunGameCatalog.GetId(game)}:{resource}";
 
     private bool IsStale(DateTimeOffset fetchedAt) => timeProvider.GetUtcNow() - fetchedAt >= CacheLifetime;
+
+    private static DateTimeOffset? Latest(DateTimeOffset? left, DateTimeOffset? right) =>
+        left is null ? right : right is null || left >= right ? left : right;
+
+    private static SpeedrunDataStatus AggregateStatus(params SpeedrunDataStatus[] statuses) =>
+        statuses.All(status => status == SpeedrunDataStatus.Remote)
+            ? SpeedrunDataStatus.Remote
+            : statuses.Any(status => status == SpeedrunDataStatus.Offline)
+                ? SpeedrunDataStatus.Offline
+                : SpeedrunDataStatus.Cached;
 
     private static string Hash(string value) => Convert.ToHexString(
         SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
@@ -445,4 +466,13 @@ public sealed class SpeedrunComClient(
 
     private sealed record CachedDocument<T>(int SchemaVersion, string Key, DateTimeOffset FetchedAt, T Data)
         where T : class;
+
+    private sealed record BoardCategory(
+        string Id,
+        string Name,
+        bool IsPerLevel,
+        IReadOnlyList<BoardVariable> Variables);
+    private sealed record BoardVariable(string Id, string Name, IReadOnlyList<BoardValue> Values);
+    private sealed record BoardValue(string Id, string Name);
+    private sealed record BoardLevel(string Id, string Name);
 }

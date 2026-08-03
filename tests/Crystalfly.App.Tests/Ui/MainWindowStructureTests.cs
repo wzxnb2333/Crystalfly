@@ -179,7 +179,7 @@ public sealed class MainWindowStructureTests
     }
 
     [Fact]
-    public void Speedrun_page_exposes_environment_and_leaderboard_workspaces()
+    public void Speedrun_page_exposes_environment_and_activity_workspaces()
     {
         var document = LoadMainWindow();
         var speedrun = FindSectionRoot(document, "IsSpeedrunPage");
@@ -191,8 +191,8 @@ public sealed class MainWindowStructureTests
             && (string?)button.Attribute("CommandParameter") == "Environment"
             && HasBinding(button, "Classes.active", "IsSpeedrunEnvironmentTab"));
         Assert.Contains(tabs, button => HasBinding(button, "Command", "SelectSpeedrunTabCommand")
-            && (string?)button.Attribute("CommandParameter") == "Leaderboard"
-            && HasBinding(button, "Classes.active", "IsSpeedrunLeaderboardTab"));
+            && (string?)button.Attribute("CommandParameter") == "Activity"
+            && HasBinding(button, "Classes.active", "IsSpeedrunActivityTab"));
         var tabSwitch = speedrun.Descendants(Avalonia + "Border")
             .Single(border => HasClass(border, "cfp-speedrun-tab-switch"));
         Assert.Equal("1", (string?)tabSwitch.Attribute("Grid.Row"));
@@ -211,17 +211,15 @@ public sealed class MainWindowStructureTests
             (string?)scrollViewer.Attribute("PointerPressed") == "OnSpeedrunWorkspacePointerPressed"
             && (string?)scrollViewer.Attribute("PointerReleased") == "OnSpeedrunWorkspacePointerReleased");
 
-        var leaderboard = speedrun.Descendants(Avalonia + "Grid")
-            .Single(grid => HasClass(grid, "cfp-speedrun-leaderboard"));
-        Assert.Contains(leaderboard.Descendants(Avalonia + "ComboBox"), comboBox =>
-            HasBinding(comboBox, "ItemsSource", "SpeedrunGameOptions"));
-        Assert.Contains(leaderboard.Descendants(Avalonia + "ComboBox"), comboBox =>
-            HasBinding(comboBox, "ItemsSource", "SpeedrunCategories"));
-        Assert.Equal(2, leaderboard.Descendants(Avalonia + "Border")
-            .Count(border => HasClass(border, "cfp-speedrun-results")));
-        Assert.Contains(leaderboard.Descendants(Avalonia + "Button"), button =>
+        var activity = speedrun.Descendants(Avalonia + "Grid")
+            .Single(grid => HasClass(grid, "cfp-speedrun-activity"));
+        Assert.Equal(3, activity.Descendants(Avalonia + "Button")
+            .Count(button => HasBinding(button, "Command", "SelectSpeedrunActivityFilterCommand")));
+        Assert.Contains(activity.Descendants(Avalonia + "ItemsControl"), items =>
+            HasBinding(items, "ItemsSource", "VisibleSpeedrunActivities"));
+        Assert.Contains(activity.Descendants(Avalonia + "Button"), button =>
             (string?)button.Attribute("Click") == "OpenSpeedrunRun"
-            && HasBinding(button, "Tag", "RunUrl"));
+            && HasBinding(button, "Tag", "Run.RunUrl"));
 
         var code = File.ReadAllText(Path.Combine(
             FindRepositoryRoot(),

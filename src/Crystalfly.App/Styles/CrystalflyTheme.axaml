@@ -274,6 +274,33 @@
         <Setter Property="MinHeight" Value="32" />
     </Style>
 
+    <Style Selector="Button.cfp-filter-chip">
+        <Setter Property="MinHeight" Value="30" />
+        <Setter Property="Padding" Value="12,4" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Button.cfp-filter-chip.active">
+        <Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-activity-row">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-activity-row.wr">
+        <Setter Property="BorderBrush" Value="{DynamicResource CfWarningBrush}" />
+    </Style>
+
     <Style Selector="TextBlock.cfp-tabular">
         <Setter Property="FontFeatures" Value="tnum" />
     </Style>

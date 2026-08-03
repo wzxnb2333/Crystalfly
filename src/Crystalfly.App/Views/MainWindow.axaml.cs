@@ -1353,7 +1353,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        double target = DataContext is MainViewModel { IsSpeedrunLeaderboardTab: true }
+        double target = DataContext is MainViewModel { IsSpeedrunActivityTab: true }
             ? SpeedrunTabIndicator.Bounds.Width
             : 0d;
         transform.Transitions = IsFullMotionEnabled()
@@ -1859,7 +1859,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        viewModel.SelectSpeedrunTabCommand.Execute(horizontal < 0 ? "Leaderboard" : "Environment");
+        viewModel.SelectSpeedrunTabCommand.Execute(horizontal < 0 ? "Activity" : "Environment");
         eventArgs.Handled = true;
     }
 

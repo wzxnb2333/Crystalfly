@@ -27,7 +27,7 @@ public sealed class MainViewModelStateTests : IDisposable
     private readonly TestDirectory applicationData = new();
 
     [Fact]
-    public async Task Speedrun_leaderboard_tab_loads_categories_leaderboard_and_recent_runs()
+    public async Task Speedrun_activity_tab_establishes_baseline_then_detects_new_record()
     {
         string root = applicationData.CreateDirectory("speedrun-leaderboard");
         using var policy = new NetworkPolicy();
@@ -41,22 +41,20 @@ public sealed class MainViewModelStateTests : IDisposable
             speedrunComClientOverride: speedrunClient)
         {
             CurrentPage = "Speedrun",
-            CurrentSpeedrunTab = "Leaderboard"
+            CurrentSpeedrunTab = "Activity"
         };
 
-        await viewModel.RefreshSpeedrunLeaderboardDataCommand.ExecuteAsync(null);
+        await viewModel.RefreshSpeedrunActivityCommand.ExecuteAsync(null);
 
-        Assert.True(viewModel.IsSpeedrunLeaderboardTab);
-        Assert.Equal(SpeedrunGame.HollowKnight, viewModel.SelectedSpeedrunGame);
-        Assert.Equal("Any%", viewModel.SelectedSpeedrunCategory?.Name);
-        Assert.Equal("Leaderboard Runner", Assert.Single(viewModel.SpeedrunLeaderboardRuns).PlayerName);
-        Assert.Equal("Recent Runner", Assert.Single(viewModel.RecentSpeedrunRuns).PlayerName);
-        Assert.False(viewModel.IsSpeedrunLeaderboardLoading);
-        Assert.Null(viewModel.SpeedrunLeaderboardError);
+        Assert.True(viewModel.IsSpeedrunActivityTab);
+        Assert.Empty(viewModel.SpeedrunActivities);
+        Assert.True(File.Exists(Path.Combine(root, "speedrun-activity.json")));
+        Assert.False(viewModel.IsSpeedrunActivityLoading);
+        Assert.NotEmpty(viewModel.SpeedrunActivityStatus);
     }
 
     [Fact]
-    public async Task Speedrun_leaderboard_keeps_panel_states_separate_when_one_request_fails()
+    public async Task Speedrun_activity_filter_keeps_only_selected_game()
     {
         string root = applicationData.CreateDirectory("speedrun-partial-leaderboard");
         using var policy = new NetworkPolicy();
@@ -70,15 +68,22 @@ public sealed class MainViewModelStateTests : IDisposable
             speedrunComClientOverride: speedrunClient)
         {
             CurrentPage = "Speedrun",
-            CurrentSpeedrunTab = "Leaderboard"
+            CurrentSpeedrunTab = "Activity"
         };
+        viewModel.SpeedrunActivities.Add(new(
+            "hollow", SpeedrunActivityKind.WorldRecord,
+            new(SpeedrunGame.HollowKnight, "c", "Any%", null, null, []),
+            new("hollow", 1, "Runner", "PT1M", 60, DateTimeOffset.UtcNow, null),
+            DateTimeOffset.UtcNow));
+        viewModel.SpeedrunActivities.Add(new(
+            "silk", SpeedrunActivityKind.SecondPlace,
+            new(SpeedrunGame.Silksong, "c", "Any%", null, null, []),
+            new("silk", 2, "Runner", "PT2M", 120, DateTimeOffset.UtcNow, null),
+            DateTimeOffset.UtcNow));
 
-        await viewModel.RefreshSpeedrunLeaderboardDataCommand.ExecuteAsync(null);
+        viewModel.SelectSpeedrunActivityFilterCommand.Execute("HollowKnight");
 
-        Assert.True(viewModel.ShowSpeedrunLeaderboardRunsEmptyState);
-        Assert.False(viewModel.ShowRecentSpeedrunRunsEmptyState);
-        Assert.False(viewModel.HasSpeedrunLeaderboardError);
-        Assert.Single(viewModel.RecentSpeedrunRuns);
+        Assert.Equal("hollow", Assert.Single(viewModel.VisibleSpeedrunActivities).RunId);
     }
 
     [Fact]

@@ -2,7 +2,7 @@
 
 Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。启动页是实例选择与管理的唯一入口；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
 
-> 当前开发版：`0.9.1`。本轮提供 Windows x64 本地未签名便携包和安装包，不创建公开 GitHub Release；速通页新增 Speedrun.com 只读赛况与离线缓存。
+> 当前开发版：`0.9.1`。本轮提供 Windows x64 本地未签名便携包和安装包，不创建公开 GitHub Release；速通页按需检查 Speedrun.com 官方榜单的新世界纪录与前三成绩，并保留离线基线。
 
 [English](#english)
 
@@ -168,7 +168,7 @@ Crystalfly 使用 [GPL-3.0-only](LICENSE)。第三方游戏、Loader 和 Mod 不
 
 Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The Launch page is the only entry point for selecting and managing launchable instances; actual game downloads live under Download → Game Versions.
 
-The current development release is `0.9.1`. This round produces unsigned local Windows x64 portable and installer artifacts without publishing a public GitHub Release. The Speedrun page also includes read-only Hollow Knight and Silksong standings from Speedrun.com with a 15-minute offline-capable cache.
+The current development release is `0.9.1`. This round produces unsigned local Windows x64 portable and installer artifacts without publishing a public GitHub Release. The Speedrun page checks official Speedrun.com boards on demand for new world records and podium results while preserving an offline baseline.
 
 ![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
 ![Select instance](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)

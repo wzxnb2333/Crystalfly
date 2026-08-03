@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Crystalfly.Core.Configuration;
+using Crystalfly.Core.Serialization;
 using Crystalfly.Core.Speedrun;
 
 namespace Crystalfly.App.ViewModels;
@@ -13,117 +13,78 @@ public partial class MainViewModel
     private CancellationTokenSource? speedrunLeaderboardLoadCancellation;
     private Task speedrunLeaderboardLoadTask = Task.CompletedTask;
     private long speedrunLeaderboardLoadGeneration;
-    private bool updatingSpeedrunLeaderboardSelection;
 
-    public ObservableCollection<SettingOption<SpeedrunGame>> SpeedrunGameOptions { get; } = [];
-
-    public ObservableCollection<SpeedrunCategory> SpeedrunCategories { get; } = [];
-
-    public ObservableCollection<SpeedrunRun> SpeedrunLeaderboardRuns { get; } = [];
-
-    public ObservableCollection<SpeedrunRun> RecentSpeedrunRuns { get; } = [];
+    public ObservableCollection<SpeedrunActivityEntry> SpeedrunActivities { get; } = [];
+    public ObservableCollection<SpeedrunActivityEntry> VisibleSpeedrunActivities { get; } = [];
 
     public bool IsSpeedrunEnvironmentTab => CurrentSpeedrunTab == "Environment";
-
-    public bool IsSpeedrunLeaderboardTab => CurrentSpeedrunTab == "Leaderboard";
-
-    public bool HasSpeedrunLeaderboardData => SpeedrunLeaderboardRuns.Count > 0 || RecentSpeedrunRuns.Count > 0;
-
-    public bool HasSpeedrunLeaderboardError =>
-        !HasSpeedrunLeaderboardData && !string.IsNullOrWhiteSpace(SpeedrunLeaderboardError);
-
-    public bool ShowSpeedrunLeaderboardEmptyState =>
-        !IsSpeedrunLeaderboardLoading && !HasSpeedrunLeaderboardData && !HasSpeedrunLeaderboardError;
-
-    public bool ShowSpeedrunLeaderboardRunsEmptyState =>
-        !IsSpeedrunLeaderboardLoading && SpeedrunLeaderboardRuns.Count == 0;
-
-    public bool ShowRecentSpeedrunRunsEmptyState =>
-        !IsSpeedrunLeaderboardLoading && RecentSpeedrunRuns.Count == 0;
+    public bool IsSpeedrunActivityTab => CurrentSpeedrunTab == "Activity";
+    public bool IsSpeedrunActivityFilterAll => SpeedrunActivityFilter == "All";
+    public bool IsSpeedrunActivityFilterHollowKnight => SpeedrunActivityFilter == "HollowKnight";
+    public bool IsSpeedrunActivityFilterSilksong => SpeedrunActivityFilter == "Silksong";
+    public bool HasSpeedrunActivities => VisibleSpeedrunActivities.Count > 0;
+    public bool ShowSpeedrunActivityEmptyState => !IsSpeedrunActivityLoading && !HasSpeedrunActivities;
+    public bool HasSpeedrunActivityError => !string.IsNullOrWhiteSpace(SpeedrunActivityError);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSpeedrunEnvironmentTab))]
-    [NotifyPropertyChangedFor(nameof(IsSpeedrunLeaderboardTab))]
+    [NotifyPropertyChangedFor(nameof(IsSpeedrunActivityTab))]
     public partial string CurrentSpeedrunTab { get; set; } = "Environment";
 
     [ObservableProperty]
-    public partial SettingOption<SpeedrunGame>? SelectedSpeedrunGameOption { get; set; }
+    [NotifyPropertyChangedFor(nameof(IsSpeedrunActivityFilterAll))]
+    [NotifyPropertyChangedFor(nameof(IsSpeedrunActivityFilterHollowKnight))]
+    [NotifyPropertyChangedFor(nameof(IsSpeedrunActivityFilterSilksong))]
+    public partial string SpeedrunActivityFilter { get; set; } = "All";
 
     [ObservableProperty]
-    public partial SpeedrunGame SelectedSpeedrunGame { get; set; } = SpeedrunGame.HollowKnight;
+    [NotifyPropertyChangedFor(nameof(ShowSpeedrunActivityEmptyState))]
+    public partial bool IsSpeedrunActivityLoading { get; set; }
 
     [ObservableProperty]
-    public partial SpeedrunCategory? SelectedSpeedrunCategory { get; set; }
+    [NotifyPropertyChangedFor(nameof(HasSpeedrunActivityError))]
+    public partial string? SpeedrunActivityError { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSpeedrunLeaderboardData))]
-    [NotifyPropertyChangedFor(nameof(ShowSpeedrunLeaderboardRunsEmptyState))]
-    [NotifyPropertyChangedFor(nameof(ShowRecentSpeedrunRunsEmptyState))]
-    [NotifyPropertyChangedFor(nameof(ShowSpeedrunLeaderboardEmptyState))]
-    public partial bool IsSpeedrunLeaderboardLoading { get; set; }
+    public partial string SpeedrunActivityStatus { get; set; } = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSpeedrunLeaderboardError))]
-    [NotifyPropertyChangedFor(nameof(ShowSpeedrunLeaderboardEmptyState))]
-    public partial string? SpeedrunLeaderboardError { get; set; }
-
-    [ObservableProperty]
-    public partial string SpeedrunLeaderboardStatus { get; set; } = string.Empty;
-
-    [ObservableProperty]
-    public partial string SpeedrunLeaderboardUpdatedAt { get; set; } = string.Empty;
+    public partial string SpeedrunActivityUpdatedAt { get; set; } = string.Empty;
 
     partial void OnCurrentPageChanged(string value)
     {
-        if (value == "Speedrun" && IsSpeedrunLeaderboardTab)
+        if (value == "Speedrun" && IsSpeedrunActivityTab)
         {
-            BeginSpeedrunLeaderboardLoad(forceRefresh: false);
+            BeginSpeedrunActivityLoad(forceRefresh: false);
         }
     }
 
     partial void OnCurrentSpeedrunTabChanged(string value)
     {
-        if (value == "Leaderboard")
+        if (value == "Activity")
         {
-            BeginSpeedrunLeaderboardLoad(forceRefresh: false);
+            BeginSpeedrunActivityLoad(forceRefresh: false);
         }
     }
 
-    partial void OnSelectedSpeedrunGameOptionChanged(SettingOption<SpeedrunGame>? value)
-    {
-        if (value is not null && value.Value != SelectedSpeedrunGame)
-        {
-            SelectedSpeedrunGame = value.Value;
-        }
-    }
-
-    partial void OnSelectedSpeedrunGameChanged(SpeedrunGame value)
-    {
-        if (SelectedSpeedrunGameOption?.Value != value)
-        {
-            SelectedSpeedrunGameOption = SpeedrunGameOptions.FirstOrDefault(option => option.Value == value);
-        }
-        if (IsSpeedrunLeaderboardTab)
-        {
-            BeginSpeedrunLeaderboardLoad(forceRefresh: false);
-        }
-    }
-
-    partial void OnSelectedSpeedrunCategoryChanged(SpeedrunCategory? value)
-    {
-        if (!updatingSpeedrunLeaderboardSelection && value is not null && IsSpeedrunLeaderboardTab)
-        {
-            BeginSpeedrunLeaderboardLoad(forceRefresh: false);
-        }
-    }
+    partial void OnSpeedrunActivityFilterChanged(string value) => ApplySpeedrunActivityFilter();
 
     [RelayCommand]
-    private Task RefreshSpeedrunLeaderboardDataAsync() => LoadSpeedrunLeaderboardDataAsync(forceRefresh: true);
+    private Task RefreshSpeedrunActivityAsync() => LoadSpeedrunActivityAsync(forceRefresh: true);
+
+    [RelayCommand]
+    private void SelectSpeedrunActivityFilter(string? filter)
+    {
+        if (filter is "All" or "HollowKnight" or "Silksong")
+        {
+            SpeedrunActivityFilter = filter;
+        }
+    }
 
     [RelayCommand]
     private void SelectSpeedrunTab(string? tab)
     {
-        if (tab is "Environment" or "Leaderboard")
+        if (tab is "Environment" or "Activity")
         {
             CurrentSpeedrunTab = tab;
         }
@@ -132,21 +93,10 @@ public partial class MainViewModel
     [RelayCommand]
     private void DismissSpeedrunReminder() => SpeedrunReminderText = string.Empty;
 
-    private void RebuildSpeedrunGameOptions()
-    {
-        var selected = SelectedSpeedrunGame;
-        SpeedrunGameOptions.Clear();
-        SpeedrunGameOptions.Add(new(SpeedrunGame.HollowKnight, Loc["SpeedrunGameHollowKnight"]));
-        SpeedrunGameOptions.Add(new(SpeedrunGame.Silksong, Loc["SpeedrunGameSilksong"]));
-        SelectedSpeedrunGameOption = SpeedrunGameOptions.First(option => option.Value == selected);
-    }
+    private void BeginSpeedrunActivityLoad(bool forceRefresh) =>
+        speedrunLeaderboardLoadTask = LoadSpeedrunActivityAsync(forceRefresh);
 
-    private void BeginSpeedrunLeaderboardLoad(bool forceRefresh)
-    {
-        speedrunLeaderboardLoadTask = LoadSpeedrunLeaderboardDataAsync(forceRefresh);
-    }
-
-    private async Task LoadSpeedrunLeaderboardDataAsync(bool forceRefresh)
+    private async Task LoadSpeedrunActivityAsync(bool forceRefresh)
     {
         long generation = Interlocked.Increment(ref speedrunLeaderboardLoadGeneration);
         var replacement = new CancellationTokenSource();
@@ -157,145 +107,156 @@ public partial class MainViewModel
             lifetimeCancellation.Token,
             replacement.Token);
         CancellationToken cancellationToken = linked.Token;
-        IsSpeedrunLeaderboardLoading = true;
-        SpeedrunLeaderboardError = null;
-        SpeedrunLeaderboardStatus = Loc["SpeedrunLeaderboardLoading"];
+        IsSpeedrunActivityLoading = true;
+        SpeedrunActivityError = null;
+        SpeedrunActivityStatus = Loc["SpeedrunActivityLoading"];
 
         try
         {
-            SpeedrunDataResult<IReadOnlyList<SpeedrunCategory>> categories = await speedrunComClient
-                .GetCategoriesAsync(SelectedSpeedrunGame, forceRefresh, cancellationToken);
-            if (!IsCurrentSpeedrunLeaderboardLoad(generation))
+            SpeedrunActivityDocument document = await ReadSpeedrunActivityDocumentAsync(cancellationToken);
+            var successful = new List<SpeedrunBoardSnapshot>();
+            var failures = new List<string>();
+            var statuses = new List<SpeedrunDataStatus>();
+            DateTimeOffset? fetchedAt = null;
+            using var gate = new SemaphoreSlim(3, 3);
+            foreach (SpeedrunGame game in Enum.GetValues<SpeedrunGame>())
             {
-                return;
-            }
-            if (categories.Data is null || categories.Data.Count == 0)
-            {
-                ClearSpeedrunLeaderboardData();
-                SpeedrunLeaderboardError = categories.Reason ?? Loc["SpeedrunLeaderboardUnavailable"];
-                SpeedrunLeaderboardStatus = Loc["SpeedrunLeaderboardUnavailable"];
-                return;
-            }
-
-            updatingSpeedrunLeaderboardSelection = true;
-            try
-            {
-                string? previousCategoryId = SelectedSpeedrunCategory?.Id;
-                SpeedrunCategories.Clear();
-                foreach (SpeedrunCategory category in categories.Data)
+                SpeedrunDataResult<IReadOnlyList<SpeedrunBoardDescriptor>> boards = await speedrunComClient
+                    .GetBoardsAsync(game, forceRefresh, cancellationToken);
+                statuses.Add(boards.Status);
+                fetchedAt = Latest(fetchedAt, boards.FetchedAt);
+                if (boards.Data is null)
                 {
-                    SpeedrunCategories.Add(category);
+                    failures.Add(boards.Reason ?? Loc["SpeedrunActivityUnavailable"]);
+                    continue;
                 }
-                SelectedSpeedrunCategory = SpeedrunCategories.FirstOrDefault(category =>
-                    string.Equals(category.Id, previousCategoryId, StringComparison.Ordinal))
-                    ?? SpeedrunCategories[0];
+                Task[] tasks = boards.Data.Select(async board =>
+                {
+                    await gate.WaitAsync(cancellationToken);
+                    try
+                    {
+                        SpeedrunDataResult<SpeedrunBoardSnapshot> result = await speedrunComClient
+                            .GetPodiumAsync(board, forceRefresh, cancellationToken);
+                        lock (successful)
+                        {
+                            statuses.Add(result.Status);
+                            fetchedAt = Latest(fetchedAt, result.FetchedAt);
+                            if (result.Data is not null)
+                            {
+                                successful.Add(result.Data);
+                            }
+                            else
+                            {
+                                failures.Add(result.Reason ?? board.DisplayName);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        gate.Release();
+                    }
+                }).ToArray();
+                await Task.WhenAll(tasks);
             }
-            finally
-            {
-                updatingSpeedrunLeaderboardSelection = false;
-            }
-
-            SpeedrunCategory selectedCategory = SelectedSpeedrunCategory!;
-            Task<SpeedrunDataResult<SpeedrunLeaderboard>> leaderboardTask = speedrunComClient.GetLeaderboardAsync(
-                SelectedSpeedrunGame,
-                selectedCategory,
-                forceRefresh,
-                cancellationToken);
-            Task<SpeedrunDataResult<SpeedrunRecentRuns>> recentTask = speedrunComClient.GetRecentRunsAsync(
-                SelectedSpeedrunGame,
-                forceRefresh,
-                cancellationToken);
-            await Task.WhenAll(leaderboardTask, recentTask);
-            if (!IsCurrentSpeedrunLeaderboardLoad(generation))
+            if (!IsCurrentSpeedrunActivityLoad(generation))
             {
                 return;
             }
 
-            SpeedrunDataResult<SpeedrunLeaderboard> leaderboard = await leaderboardTask;
-            SpeedrunDataResult<SpeedrunRecentRuns> recent = await recentTask;
-            Replace(SpeedrunLeaderboardRuns, leaderboard.Data?.Runs ?? []);
-            Replace(RecentSpeedrunRuns, recent.Data?.Runs ?? []);
-            OnPropertyChanged(nameof(HasSpeedrunLeaderboardData));
-            OnPropertyChanged(nameof(HasSpeedrunLeaderboardError));
-            OnPropertyChanged(nameof(ShowSpeedrunLeaderboardRunsEmptyState));
-            OnPropertyChanged(nameof(ShowRecentSpeedrunRunsEmptyState));
-            OnPropertyChanged(nameof(ShowSpeedrunLeaderboardEmptyState));
-            SpeedrunLeaderboardError = FirstReason(categories, leaderboard, recent);
-            SpeedrunLeaderboardStatus = DataStatus(categories, leaderboard, recent);
-            SpeedrunLeaderboardUpdatedAt = LatestFetchedAt(categories, leaderboard, recent) is { } fetchedAt
-                ? string.Format(CultureInfo.CurrentCulture, Loc["SpeedrunLeaderboardUpdatedAt"], fetchedAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture))
+            SpeedrunActivityDetectionResult detection = SpeedrunActivityDetector.Apply(
+                document,
+                successful,
+                speedrunComClient.UtcNow);
+            await AtomicJsonStore.WriteAsync(SpeedrunActivityPath, detection.Document, cancellationToken);
+            Replace(SpeedrunActivities, detection.Document.Activities);
+            ApplySpeedrunActivityFilter();
+            SpeedrunActivityError = failures.Count == 0
+                ? null
+                : string.Format(CultureInfo.CurrentCulture, Loc["SpeedrunActivityPartialFailure"], failures.Count);
+            SpeedrunActivityStatus = statuses.Count > 0 && statuses.All(status => status == SpeedrunDataStatus.Offline)
+                ? Loc["OfflineMode"]
+                : statuses.Any(status => status == SpeedrunDataStatus.Cached)
+                    ? Loc["SpeedrunActivityCached"]
+                    : Loc["SpeedrunActivityReady"];
+            SpeedrunActivityUpdatedAt = fetchedAt is { } value
+                ? string.Format(CultureInfo.CurrentCulture, Loc["SpeedrunActivityUpdatedAt"], value.ToLocalTime().ToString("g", CultureInfo.CurrentCulture))
                 : string.Empty;
+
+            foreach (SpeedrunActivityEntry activity in detection.NewActivities)
+            {
+                ToastRequested?.Invoke(ActivityToastText(activity));
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
         }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            SpeedrunActivityError = exception.Message;
+            SpeedrunActivityStatus = Loc["SpeedrunActivityUnavailable"];
+        }
         finally
         {
-            if (IsCurrentSpeedrunLeaderboardLoad(generation))
+            if (IsCurrentSpeedrunActivityLoad(generation))
             {
-                IsSpeedrunLeaderboardLoading = false;
+                IsSpeedrunActivityLoading = false;
+                OnPropertyChanged(nameof(ShowSpeedrunActivityEmptyState));
             }
         }
     }
 
-    private bool IsCurrentSpeedrunLeaderboardLoad(long generation) =>
+    private string ActivityToastText(SpeedrunActivityEntry activity) => string.Format(
+        CultureInfo.CurrentCulture,
+        Loc[activity.Kind switch
+        {
+            SpeedrunActivityKind.WorldRecord => "SpeedrunActivityToastWorldRecord",
+            SpeedrunActivityKind.TiedWorldRecord => "SpeedrunActivityToastTiedWorldRecord",
+            SpeedrunActivityKind.SecondPlace => "SpeedrunActivityToastSecond",
+            _ => "SpeedrunActivityToastThird"
+        }],
+        activity.Run.PlayerName,
+        activity.Board.DisplayName,
+        activity.Run.DisplayTime);
+
+    private void ApplySpeedrunActivityFilter()
+    {
+        SpeedrunGame? game = SpeedrunActivityFilter switch
+        {
+            "HollowKnight" => SpeedrunGame.HollowKnight,
+            "Silksong" => SpeedrunGame.Silksong,
+            _ => null
+        };
+        Replace(VisibleSpeedrunActivities, SpeedrunActivities.Where(item => game is null || item.Board.Game == game));
+        OnPropertyChanged(nameof(HasSpeedrunActivities));
+        OnPropertyChanged(nameof(ShowSpeedrunActivityEmptyState));
+    }
+
+    private async Task<SpeedrunActivityDocument> ReadSpeedrunActivityDocumentAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            SpeedrunActivityDocument document = await AtomicJsonStore.ReadAsync<SpeedrunActivityDocument>(
+                SpeedrunActivityPath,
+                cancellationToken);
+            return document.SchemaVersion == 1 ? document : new();
+        }
+        catch (Exception exception) when (exception is FileNotFoundException
+            or DirectoryNotFoundException
+            or IOException
+            or UnauthorizedAccessException
+            or System.Text.Json.JsonException)
+        {
+            return new();
+        }
+    }
+
+    private string SpeedrunActivityPath => Path.Combine(paths.ApplicationDataRoot, "speedrun-activity.json");
+
+    private bool IsCurrentSpeedrunActivityLoad(long generation) =>
         generation == Volatile.Read(ref speedrunLeaderboardLoadGeneration);
 
-    private void ClearSpeedrunLeaderboardData()
-    {
-        SpeedrunCategories.Clear();
-        SpeedrunLeaderboardRuns.Clear();
-        RecentSpeedrunRuns.Clear();
-        SelectedSpeedrunCategory = null;
-        OnPropertyChanged(nameof(HasSpeedrunLeaderboardData));
-        OnPropertyChanged(nameof(HasSpeedrunLeaderboardError));
-        OnPropertyChanged(nameof(ShowSpeedrunLeaderboardRunsEmptyState));
-        OnPropertyChanged(nameof(ShowRecentSpeedrunRunsEmptyState));
-        OnPropertyChanged(nameof(ShowSpeedrunLeaderboardEmptyState));
-        SpeedrunLeaderboardUpdatedAt = string.Empty;
-    }
-
-    private string? FirstReason(
-        SpeedrunDataResult<IReadOnlyList<SpeedrunCategory>> categories,
-        SpeedrunDataResult<SpeedrunLeaderboard> leaderboard,
-        SpeedrunDataResult<SpeedrunRecentRuns> recent) =>
-        new[] { categories.Reason, leaderboard.Reason, recent.Reason }
-            .FirstOrDefault(reason => !string.IsNullOrWhiteSpace(reason));
-
-    private string DataStatus(
-        SpeedrunDataResult<IReadOnlyList<SpeedrunCategory>> categories,
-        SpeedrunDataResult<SpeedrunLeaderboard> leaderboard,
-        SpeedrunDataResult<SpeedrunRecentRuns> recent)
-    {
-        var results = new[] { categories.Status, leaderboard.Status, recent.Status };
-        if (results.All(status => status == SpeedrunDataStatus.Remote))
-        {
-            return Loc["SpeedrunLeaderboardLive"];
-        }
-        if (categories.IsStale || leaderboard.IsStale || recent.IsStale)
-        {
-            return Loc["SpeedrunLeaderboardCachedStale"];
-        }
-        return results.All(status => status == SpeedrunDataStatus.Offline)
-            ? Loc["OfflineMode"]
-            : Loc["SpeedrunLeaderboardCached"];
-    }
-
-    private static DateTimeOffset? LatestFetchedAt(
-        SpeedrunDataResult<IReadOnlyList<SpeedrunCategory>> categories,
-        SpeedrunDataResult<SpeedrunLeaderboard> leaderboard,
-        SpeedrunDataResult<SpeedrunRecentRuns> recent)
-    {
-        DateTimeOffset? latest = null;
-        foreach (DateTimeOffset? fetchedAt in new[] { categories.FetchedAt, leaderboard.FetchedAt, recent.FetchedAt })
-        {
-            if (fetchedAt is { } value && (latest is null || value > latest))
-            {
-                latest = value;
-            }
-        }
-        return latest;
-    }
+    private static DateTimeOffset? Latest(DateTimeOffset? left, DateTimeOffset? right) =>
+        left is null ? right : right is null || left >= right ? left : right;
 
     private static void Replace<T>(ObservableCollection<T> target, IEnumerable<T> values)
     {

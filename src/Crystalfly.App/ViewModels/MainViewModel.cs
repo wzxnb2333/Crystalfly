@@ -191,7 +191,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             new HttpClientHandler())) { Timeout = TimeSpan.FromMinutes(30) };
         githubLatencyService = new GitHubRouteLatencyService(networkPolicy, new HttpClientHandler());
         Loc = new LocalizationViewModel();
-        RebuildSpeedrunGameOptions();
         downloadQueue = downloadQueueOverride ?? CreateDownloadQueue();
         downloadQueue.QueueChanged += OnDownloadQueueChanged;
     }
@@ -3954,7 +3953,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         OnPropertyChanged(nameof(IsProtocolRegistered));
         OnPropertyChanged(nameof(ProtocolRegistrationStatus));
         OnPropertyChanged(nameof(SelectedSpeedrunTechnicalStatus));
-        RebuildSpeedrunGameOptions();
         RefreshApplicationUpdateText();
         NotifyOfficialCatalogLabels();
         if (DownloadQueueGroups.Count > 0)
