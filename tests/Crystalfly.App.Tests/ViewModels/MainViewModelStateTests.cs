@@ -228,6 +228,20 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Speedrun_reminder_can_be_dismissed()
+    {
+        using var test = new TestDirectory();
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            SpeedrunReminderText = "warning"
+        };
+
+        viewModel.DismissSpeedrunReminderCommand.Execute(null);
+
+        Assert.False(viewModel.HasSpeedrunReminder);
+    }
+
+    [Fact]
     public async Task Selecting_market_mod_loads_content_without_blocking_and_ignores_stale_result()
     {
         using var test = new TestDirectory();

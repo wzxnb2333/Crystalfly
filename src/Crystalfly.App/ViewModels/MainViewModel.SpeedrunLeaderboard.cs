@@ -129,6 +129,9 @@ public partial class MainViewModel
         }
     }
 
+    [RelayCommand]
+    private void DismissSpeedrunReminder() => SpeedrunReminderText = string.Empty;
+
     private void RebuildSpeedrunGameOptions()
     {
         var selected = SelectedSpeedrunGame;

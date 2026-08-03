@@ -193,10 +193,18 @@ public sealed class MainWindowStructureTests
         Assert.Contains(tabs, button => HasBinding(button, "Command", "SelectSpeedrunTabCommand")
             && (string?)button.Attribute("CommandParameter") == "Leaderboard"
             && HasBinding(button, "Classes.active", "IsSpeedrunLeaderboardTab"));
-        Assert.Contains(speedrun.Descendants(Avalonia + "Border"), border => HasClass(border, "cfp-speedrun-tab-switch"));
+        var tabSwitch = speedrun.Descendants(Avalonia + "Border")
+            .Single(border => HasClass(border, "cfp-speedrun-tab-switch"));
+        Assert.Equal("1", (string?)tabSwitch.Attribute("Grid.Row"));
+        Assert.Contains(tabSwitch.Descendants(Avalonia + "Border"), border =>
+            HasClass(border, "cfp-speedrun-tab-indicator"));
         Assert.Contains(speedrun.Descendants(Avalonia + "Border"), border =>
             HasClass(border, "cfp-rail")
             && HasBinding(border, "IsVisible", "IsSpeedrunEnvironmentTab"));
+        var reminder = document.Descendants(Avalonia + "Border")
+            .Single(border => HasClass(border, "cfp-speedrun-reminder"));
+        Assert.Contains(reminder.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "DismissSpeedrunReminderCommand"));
         Assert.Contains(speedrun.Descendants(Avalonia + "ScrollViewer"), scrollViewer =>
             (string?)scrollViewer.Attribute("PointerPressed") == "OnSpeedrunWorkspacePointerPressed"
             && (string?)scrollViewer.Attribute("PointerReleased") == "OnSpeedrunWorkspacePointerReleased");

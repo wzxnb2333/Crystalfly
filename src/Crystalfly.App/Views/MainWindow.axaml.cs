@@ -118,6 +118,7 @@ public partial class MainWindow : Window
                 await viewModel.InitializeAsync();
                 initialized = true;
                 RegisterMotionTargets(animateNewTargets: true);
+                Dispatcher.UIThread.Post(AnimateSpeedrunTabIndicator, DispatcherPriority.Render);
             }
             catch (Exception exception)
             {
@@ -1308,6 +1309,11 @@ public partial class MainWindow : Window
         if (eventArgs.PropertyName == nameof(MainViewModel.EffectiveMotionPreference))
         {
             UpdateMotionPreference(replayVisiblePages: true);
+            AnimateSpeedrunTabIndicator();
+        }
+        else if (eventArgs.PropertyName == nameof(MainViewModel.CurrentSpeedrunTab))
+        {
+            Dispatcher.UIThread.Post(AnimateSpeedrunTabIndicator, DispatcherPriority.Render);
         }
         if (eventArgs.PropertyName == nameof(MainViewModel.ErrorMessage)
             && sender is MainViewModel viewModel
@@ -1338,6 +1344,30 @@ public partial class MainWindow : Window
             dialog.Classes.Add("cfp-dialog-motion");
             RegisterMotionTarget(dialog, animate: true);
         }
+    }
+
+    private void AnimateSpeedrunTabIndicator()
+    {
+        if (SpeedrunTabIndicator.RenderTransform is not TranslateTransform transform)
+        {
+            return;
+        }
+
+        double target = DataContext is MainViewModel { IsSpeedrunLeaderboardTab: true }
+            ? SpeedrunTabIndicator.Bounds.Width
+            : 0d;
+        transform.Transitions = IsFullMotionEnabled()
+            ? new Transitions
+            {
+                new DoubleTransition
+                {
+                    Property = TranslateTransform.XProperty,
+                    Duration = TimeSpan.FromMilliseconds(220),
+                    Easing = new CubicEaseOut()
+                }
+            }
+            : null;
+        transform.X = target;
     }
 
     private void RegisterToastMotionTargets()

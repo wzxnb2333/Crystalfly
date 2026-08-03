@@ -126,7 +126,7 @@
             <Border Classes="cfp-speedrun-reminder"
                     Classes.error="{Binding SpeedrunReminderIsError}"
                     IsVisible="{Binding HasSpeedrunReminder}">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
                     <LucideIcon Kind="Timer"
                                 Size="16"
                                 Foreground="{DynamicResource CfWarningBrush}"
@@ -142,6 +142,13 @@
                             CommandParameter="Speedrun"
                             Content="{Binding Loc[ViewDetails]}"
                             AutomationProperties.Name="{Binding Loc[ViewDetails]}" />
+                    <Button Grid.Column="3"
+                            Classes="cfp-icon"
+                            Margin="4,0,0,0"
+                            Command="{Binding DismissSpeedrunReminderCommand}"
+                            ToolTip.Tip="{Binding Loc[WindowClose]}"
+                            AutomationProperties.Name="{Binding Loc[WindowClose]}"
+                            Content="{LucideIconContent X, 14}" />
                 </Grid>
             </Border>
         </StackPanel>
@@ -1435,9 +1442,20 @@
 
             <!-- Speedrun -->
             <Grid Classes="cfp-page" IsVisible="{Binding IsSpeedrunPage}">
-                <Grid RowDefinitions="Auto,*" RowSpacing="12" Margin="16">
-                    <Border Classes="cfp-speedrun-tab-switch" HorizontalAlignment="Center">
-                        <Grid ColumnDefinitions="Auto,Auto">
+                <Grid RowDefinitions="*,Auto" RowSpacing="10" Margin="16">
+                    <Border Grid.Row="1"
+                            Classes="cfp-speedrun-tab-switch"
+                            HorizontalAlignment="Center">
+                        <Grid Width="196" ColumnDefinitions="*,*">
+                            <Border x:Name="SpeedrunTabIndicator"
+                                    Grid.ColumnSpan="2"
+                                    Classes="cfp-speedrun-tab-indicator"
+                                    Width="95"
+                                    HorizontalAlignment="Left">
+                                <Border.RenderTransform>
+                                    <TranslateTransform />
+                                </Border.RenderTransform>
+                            </Border>
                             <Button Classes="cfp-speedrun-tab-segment"
                                     Classes.active="{Binding IsSpeedrunEnvironmentTab}"
                                     Command="{Binding SelectSpeedrunTabCommand}"
@@ -1455,7 +1473,7 @@
                             </Button>
                         </Grid>
                     </Border>
-                    <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
                     <Border Grid.Column="0" Classes="cfp-rail" Width="216" Padding="12,16" Margin="0,0,12,0" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
                         <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
                             <Grid ColumnDefinitions="*,Auto">
