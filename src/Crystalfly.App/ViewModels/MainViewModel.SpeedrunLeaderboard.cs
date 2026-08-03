@@ -14,8 +14,8 @@ public partial class MainViewModel
     private Task speedrunLeaderboardLoadTask = Task.CompletedTask;
     private long speedrunLeaderboardLoadGeneration;
 
-    public ObservableCollection<SpeedrunActivityEntry> SpeedrunActivities { get; } = [];
-    public ObservableCollection<SpeedrunActivityEntry> VisibleSpeedrunActivities { get; } = [];
+    public ObservableCollection<SpeedrunActivityItemViewModel> SpeedrunActivities { get; } = [];
+    public ObservableCollection<SpeedrunActivityItemViewModel> VisibleSpeedrunActivities { get; } = [];
 
     public bool IsSpeedrunEnvironmentTab => CurrentSpeedrunTab == "Environment";
     public bool IsSpeedrunActivityTab => CurrentSpeedrunTab == "Activity";
@@ -168,7 +168,7 @@ public partial class MainViewModel
                 successful,
                 speedrunComClient.UtcNow);
             await AtomicJsonStore.WriteAsync(SpeedrunActivityPath, detection.Document, cancellationToken);
-            Replace(SpeedrunActivities, detection.Document.Activities);
+            Replace(SpeedrunActivities, detection.Document.Activities.Select(ProjectActivity));
             ApplySpeedrunActivityFilter();
             SpeedrunActivityError = failures.Count == 0
                 ? null
@@ -215,8 +215,22 @@ public partial class MainViewModel
             _ => "SpeedrunActivityToastThird"
         }],
         activity.Run.PlayerName,
-        activity.Board.DisplayName,
+        ActivityBoardName(activity),
         activity.Run.DisplayTime);
+
+    private SpeedrunActivityItemViewModel ProjectActivity(SpeedrunActivityEntry activity) => new(
+        activity,
+        Loc[activity.Kind switch
+        {
+            SpeedrunActivityKind.WorldRecord => "SpeedrunActivityWorldRecord",
+            SpeedrunActivityKind.TiedWorldRecord => "SpeedrunActivityTiedWorldRecord",
+            SpeedrunActivityKind.SecondPlace => "SpeedrunActivitySecond",
+            _ => "SpeedrunActivityThird"
+        }],
+        ActivityBoardName(activity));
+
+    private string ActivityBoardName(SpeedrunActivityEntry activity) =>
+        $"{Loc[activity.Board.Game == SpeedrunGame.HollowKnight ? "SpeedrunGameHollowKnight" : "SpeedrunGameSilksong"]} · {activity.Board.DisplayName}";
 
     private void ApplySpeedrunActivityFilter()
     {
@@ -226,7 +240,7 @@ public partial class MainViewModel
             "Silksong" => SpeedrunGame.Silksong,
             _ => null
         };
-        Replace(VisibleSpeedrunActivities, SpeedrunActivities.Where(item => game is null || item.Board.Game == game));
+        Replace(VisibleSpeedrunActivities, SpeedrunActivities.Where(item => game is null || item.Entry.Board.Game == game));
         OnPropertyChanged(nameof(HasSpeedrunActivities));
         OnPropertyChanged(nameof(ShowSpeedrunActivityEmptyState));
     }
@@ -266,4 +280,15 @@ public partial class MainViewModel
             target.Add(value);
         }
     }
+}
+
+public sealed record SpeedrunActivityItemViewModel(
+    SpeedrunActivityEntry Entry,
+    string KindText,
+    string BoardName)
+{
+    public string RunId => Entry.RunId;
+    public SpeedrunPodiumEntry Run => Entry.Run;
+    public bool IsWorldRecord => Entry.IsWorldRecord;
+    public string DisplayVerifiedAt => Entry.DisplayVerifiedAt;
 }

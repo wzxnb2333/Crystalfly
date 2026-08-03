@@ -70,16 +70,16 @@ public sealed class MainViewModelStateTests : IDisposable
             CurrentPage = "Speedrun",
             CurrentSpeedrunTab = "Activity"
         };
-        viewModel.SpeedrunActivities.Add(new(
+        viewModel.SpeedrunActivities.Add(new(new(
             "hollow", SpeedrunActivityKind.WorldRecord,
             new(SpeedrunGame.HollowKnight, "c", "Any%", null, null, []),
             new("hollow", 1, "Runner", "PT1M", 60, DateTimeOffset.UtcNow, null),
-            DateTimeOffset.UtcNow));
-        viewModel.SpeedrunActivities.Add(new(
+            DateTimeOffset.UtcNow), "世界纪录", "空洞骑士 · Any%"));
+        viewModel.SpeedrunActivities.Add(new(new(
             "silk", SpeedrunActivityKind.SecondPlace,
             new(SpeedrunGame.Silksong, "c", "Any%", null, null, []),
             new("silk", 2, "Runner", "PT2M", 120, DateTimeOffset.UtcNow, null),
-            DateTimeOffset.UtcNow));
+            DateTimeOffset.UtcNow), "第二名", "空洞骑士：丝之歌 · Any%"));
 
         viewModel.SelectSpeedrunActivityFilterCommand.Execute("HollowKnight");
 

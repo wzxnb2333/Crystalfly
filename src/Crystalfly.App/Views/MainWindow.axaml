@@ -1677,10 +1677,10 @@
                                         <DataTemplate>
                                             <Border Classes="cfp-speedrun-activity-row" Classes.wr="{Binding IsWorldRecord}" Margin="0,0,0,6" Padding="12,9">
                                                 <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
-                                                    <TextBlock Classes="cfp-status" Text="{Binding Kind}" VerticalAlignment="Center" />
+                                                    <TextBlock Classes="cfp-status" Text="{Binding KindText}" VerticalAlignment="Center" />
                                                     <StackPanel Grid.Column="1" Spacing="2">
                                                         <TextBlock Classes="cfp-row-title" Text="{Binding Run.PlayerName}" TextTrimming="CharacterEllipsis" />
-                                                        <TextBlock Classes="cfp-meta" Text="{Binding Board.DisplayName}" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Classes="cfp-meta" Text="{Binding BoardName}" TextTrimming="CharacterEllipsis" />
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="2" Spacing="2" HorizontalAlignment="Right">
                                                         <TextBlock Classes="cfp-tabular" Text="{Binding Run.DisplayTime}" HorizontalAlignment="Right" />
