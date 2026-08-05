@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Crystalfly.App.Downloads;
+using Crystalfly.App.Services;
 using Crystalfly.Core.Catalog;
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Models;
@@ -10,172 +11,67 @@ namespace Crystalfly.App.ViewModels;
 
 public partial class MainViewModel
 {
-    internal ProtocolCommand PrepareProtocolCommand(ProtocolCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (command.Kind != ProtocolCommandKind.ImportPresetShare || command.InstanceId is not null)
-        {
-            return command;
-        }
+    internal ProtocolCommand PrepareProtocolCommand(ProtocolCommand command) =>
+        protocolService.Prepare(command);
 
-        return command with
-        {
-            InstanceId = SelectedInstance?.Id ?? throw new InvalidOperationException(Loc["NoInstance"])
-        };
-    }
+    internal bool CanExecuteProtocolCommand(ProtocolCommand command, out string reason) =>
+        protocolService.CanExecute(command, out reason);
 
-    internal bool CanExecuteProtocolCommand(ProtocolCommand command, out string reason)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsBusy)
-        {
-            reason = Loc["ExternalCommandBusy"];
-            return false;
-        }
-        if (IsGameRunning || new SystemHollowKnightProcessProbe().IsRunning())
-        {
-            reason = Loc["ExternalCommandGameRunning"];
-            return false;
-        }
-        if (HasUnfinishedDownloads
-            && command.Kind is ProtocolCommandKind.ResetApplicationSettings
-                or ProtocolCommandKind.UseOfficialModLinks
-                or ProtocolCommandKind.UseCustomModLinks)
-        {
-            reason = Loc["ExternalCommandDownloadsActive"];
-            return false;
-        }
-
-        reason = string.Empty;
-        return true;
-    }
-
-    internal string DescribeProtocolCommand(ProtocolCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        var instance = command.InstanceId is null
-            ? null
-            : Instances.Instances.FirstOrDefault(candidate =>
-                string.Equals(candidate.Id, command.InstanceId, StringComparison.Ordinal));
-        var mod = command.ModId is null
-            ? null
-            : catalog.Mods.FirstOrDefault(candidate =>
-                string.Equals(candidate.Id, command.ModId, StringComparison.OrdinalIgnoreCase));
-        var action = Loc[command.Kind switch
-        {
-            ProtocolCommandKind.DownloadMod => "ProtocolDownloadMod",
-            ProtocolCommandKind.ReinstallAllMods => "ProtocolReinstallAllMods",
-            ProtocolCommandKind.ResetApplicationSettings => "ProtocolResetApplicationSettings",
-            ProtocolCommandKind.UseOfficialModLinks => "ProtocolUseOfficialModLinks",
-            ProtocolCommandKind.UseCustomModLinks => "ProtocolUseCustomModLinks",
-            ProtocolCommandKind.DeleteModSettings => "ProtocolDeleteModSettings",
-            ProtocolCommandKind.DeleteAllModSettings => "ProtocolDeleteAllModSettings",
-            ProtocolCommandKind.LaunchInstance => "ProtocolLaunchInstance",
-            ProtocolCommandKind.OpenModLocation => "ProtocolOpenModLocation",
-            ProtocolCommandKind.ImportPresetShare => "ProtocolImportPresetShare",
-            _ => throw new ArgumentOutOfRangeException(nameof(command))
-        }];
-        var details = new List<string> { action };
-        if (command.InstanceId is not null)
-        {
-            details.Add($"{Loc["QueueTarget"]}: {instance?.Name ?? command.InstanceId}");
-        }
-        if (command.ModId is not null)
-        {
-            details.Add($"Mod: {mod?.DisplayName ?? mod?.Name ?? command.ModId}");
-        }
-        if (command.SourceUrl is not null)
-        {
-            details.Add(command.SourceUrl);
-            details.Add($"{command.BuildId} · {command.LoaderId}");
-        }
-        if (command.ShareCode is not null)
-        {
-            details.Add($"{Loc["ShareCode"]}: {command.ShareCode}");
-        }
-        return string.Join(Environment.NewLine, details);
-    }
+    internal string DescribeProtocolCommand(ProtocolCommand command) =>
+        protocolService.Describe(command);
 
     internal Task ExecuteProtocolCommandAsync(ProtocolCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        lock (externalProtocolCommandSync)
-        {
-            if (!externalProtocolCommandTask.IsCompleted)
-            {
-                throw new InvalidOperationException(Loc["ExternalCommandBusy"]);
-            }
-
-            externalProtocolCommandTask = ExecuteProtocolCommandCoreAsync(command);
-            return externalProtocolCommandTask;
-        }
+        return protocolService.ExecuteAsync(command, (command, cancellationToken) =>
+            ExecuteProtocolCommandDispatchAsync(command, cancellationToken));
     }
 
-    private async Task ExecuteProtocolCommandCoreAsync(ProtocolCommand command)
+    private async Task ExecuteProtocolCommandDispatchAsync(
+        ProtocolCommand command,
+        CancellationToken cancellationToken)
     {
-        command = PrepareProtocolCommand(command);
-        if (lifetimeCancellation.IsCancellationRequested)
-        {
-            throw new InvalidOperationException(Loc["ExternalCommandClosing"]);
-        }
-        if (!CanExecuteProtocolCommand(command, out string reason))
-        {
-            throw new InvalidOperationException(reason);
-        }
-
         IsExternalCommandRunning = true;
         ErrorMessage = null;
         try
         {
-            switch (command.Kind)
-            {
-                case ProtocolCommandKind.DownloadMod:
-                    await DownloadProtocolModAsync(command);
-                    break;
-                case ProtocolCommandKind.ReinstallAllMods:
-                    await ReinstallAllProtocolModsAsync(command);
-                    break;
-                case ProtocolCommandKind.ResetApplicationSettings:
-                    await ResetApplicationSettingsAsync();
-                    break;
-                case ProtocolCommandKind.UseOfficialModLinks:
-                    await ApplyProtocolModLinksAsync(null);
-                    break;
-                case ProtocolCommandKind.UseCustomModLinks:
-                    await ApplyProtocolModLinksAsync(new CustomModLinksDefinition
-                    {
-                        Url = command.SourceUrl!,
-                        BuildId = command.BuildId!,
-                        LoaderId = command.LoaderId!
-                    });
-                    break;
-                case ProtocolCommandKind.DeleteModSettings:
-                    await DeleteProtocolModSettingsAsync(command, deleteAll: false);
-                    break;
-                case ProtocolCommandKind.DeleteAllModSettings:
-                    await DeleteProtocolModSettingsAsync(command, deleteAll: true);
-                    break;
-                case ProtocolCommandKind.LaunchInstance:
-                    SelectProtocolInstance(command.InstanceId!);
-                    await LaunchGameCoreAsync(force: false);
-                    break;
-                case ProtocolCommandKind.OpenModLocation:
-                    await OpenProtocolModLocationAsync(command);
-                    break;
-                case ProtocolCommandKind.ImportPresetShare:
-                    SelectProtocolInstance(command.InstanceId!);
-                    PresetShareCode = command.ShareCode!;
-                    await ImportSharedPresetAsync();
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(command));
-            }
+            await ProtocolService.DispatchAsync(
+                command,
+                CreateProtocolCommandExecutor(),
+                cancellationToken);
         }
         finally
         {
             IsExternalCommandRunning = false;
         }
     }
+
+    private ProtocolCommandExecutor CreateProtocolCommandExecutor() => new(
+        DownloadMod: (command, _) => DownloadProtocolModAsync(command),
+        ReinstallAllMods: (command, _) => ReinstallAllProtocolModsAsync(command),
+        ResetApplicationSettings: (_, _) => ResetApplicationSettingsAsync(),
+        ApplyModLinks: (command, _) => command.Kind == ProtocolCommandKind.UseOfficialModLinks
+            ? ApplyProtocolModLinksAsync(null)
+            : ApplyProtocolModLinksAsync(new CustomModLinksDefinition
+            {
+                Url = command.SourceUrl!,
+                BuildId = command.BuildId!,
+                LoaderId = command.LoaderId!
+            }),
+        DeleteModSettings: (command, _) =>
+            DeleteProtocolModSettingsAsync(command, deleteAll: command.Kind == ProtocolCommandKind.DeleteAllModSettings),
+        LaunchInstance: async (command, _) =>
+        {
+            SelectProtocolInstance(command.InstanceId!);
+            await LaunchGameCoreAsync(force: false);
+        },
+        OpenModLocation: (command, _) => OpenProtocolModLocationAsync(command),
+        ImportPresetShare: async (command, _) =>
+        {
+            SelectProtocolInstance(command.InstanceId!);
+            PresetShareCode = command.ShareCode!;
+            await ImportSharedPresetAsync();
+        });
 
     private async Task DownloadProtocolModAsync(ProtocolCommand command)
     {
@@ -237,8 +133,8 @@ public partial class MainViewModel
         Instances.Instances.Clear();
         Instances.VisibleInstances.Clear();
         VersionRoot = string.Empty;
-        CustomSourcesText = string.Empty;
-        CustomModLinksUrl = string.Empty;
+        Settings.CustomSourcesText = string.Empty;
+        Settings.CustomModLinksUrl = string.Empty;
         SelectedMarketMod = null;
         CurrentPage = "Launch";
         CurrentManageTab = "Overview";
@@ -269,7 +165,7 @@ public partial class MainViewModel
             }
         }
         settings = settings with { CustomModLinks = definition };
-        CustomModLinksUrl = definition?.Url ?? string.Empty;
+        Settings.CustomModLinksUrl = definition?.Url ?? string.Empty;
         await QueueSettingsSave();
         catalog = await LoadCatalogAsync(lifetimeCancellation.Token);
         RebuildCustomModLinksOptions();

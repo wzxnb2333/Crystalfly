@@ -10,6 +10,7 @@ using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Crystalfly.App.Downloads;
+using Crystalfly.App.Services;
 using Crystalfly.App.Theming;
 using Crystalfly.App.Updates;
 using Crystalfly.App.Runtime;
@@ -55,7 +56,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly CancellationTokenSource lifetimeCancellation = new();
     private readonly object settingsSaveQueueLock = new();
     private readonly object disposeLock = new();
-    private readonly object externalProtocolCommandSync = new();
     private readonly Func<Task>? launchOverride;
     private readonly Func<CancellationToken, Task>? downloadOverride;
     private readonly Func<Task>? disposeSteamOverride;
@@ -82,7 +82,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private Task steamOfflineTransitionTask = Task.CompletedTask;
     private Task? initializationTask;
     private Task? disposeTask;
-    private Task externalProtocolCommandTask = Task.CompletedTask;
+    private readonly ProtocolService protocolService;
     private SteamAuthenticationSession? steamSession;
     private CancellationTokenSource? steamSignInCancellation;
     private CancellationTokenSource? downloadCancellation;
@@ -282,6 +282,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             LifetimeCancellation: lifetimeCancellation.Token));
         Settings.PropertyChanged += (_, eventArgs) => OnPropertyChanged(eventArgs.PropertyName);
         Settings.ToastRequested += message => NotifyToast(message);
+        protocolService = new ProtocolService(
+            () => Loc,
+            () => SelectedInstance,
+            () => Instances.Instances,
+            () => catalog,
+            () => IsBusy,
+            () => IsGameRunning,
+            () => HasUnfinishedDownloads,
+            lifetimeCancellation.Token);
     }
 
     private bool IsSteamSessionLoggedOn() =>
@@ -4621,11 +4630,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private async Task DisposeCoreAsync()
     {
         lifetimeCancellation.Cancel();
-        Task pendingExternalProtocolCommand;
-        lock (externalProtocolCommandSync)
-        {
-            pendingExternalProtocolCommand = externalProtocolCommandTask;
-        }
+        var pendingExternalProtocolCommand = protocolService.PendingExecution;
         var detailsCancellation = Interlocked.Exchange(ref detailsLoadCancellation, null);
         detailsCancellation?.Cancel();
         var pendingDetailsLoad = detailsLoadTask;
