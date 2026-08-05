@@ -15,6 +15,7 @@ public partial class MainViewModel
     private long speedrunLeaderboardLoadGeneration;
     private DateTimeOffset? speedrunActivityLastLoadedAt;
     private static readonly TimeSpan SpeedrunActivityCacheLifetime = TimeSpan.FromMinutes(15);
+    private static TimeSpan SpeedrunActivityRefreshInterval = TimeSpan.FromMinutes(15);
 
     public ObservableCollection<SpeedrunActivityItemViewModel> SpeedrunActivities { get; } = [];
     public ObservableCollection<SpeedrunActivityItemViewModel> VisibleSpeedrunActivities { get; } = [];
@@ -113,6 +114,29 @@ public partial class MainViewModel
         }
 
         BeginSpeedrunActivityLoad(forceRefresh: true, showLoading: false);
+    }
+
+    internal void StartSpeedrunActivityRefreshLoop() => _ = SpeedrunActivityRefreshLoopAsync();
+
+    private async Task SpeedrunActivityRefreshLoopAsync()
+    {
+        try
+        {
+            while (!lifetimeCancellation.IsCancellationRequested)
+            {
+                await Task.Delay(SpeedrunActivityRefreshInterval, lifetimeCancellation.Token);
+                if (lifetimeCancellation.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                BeginSpeedrunActivityLoad(forceRefresh: true, showLoading: false);
+                await speedrunLeaderboardLoadTask;
+            }
+        }
+        catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
+        {
+        }
     }
 
     private async Task LoadSpeedrunActivityAsync(bool forceRefresh, bool showLoading)

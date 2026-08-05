@@ -3296,6 +3296,50 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.False(viewModel.IsSpeedrunActivityLoading);
     }
 
+    [Fact]
+    public async Task Background_refresh_loop_reloads_activity_without_loading_indicator()
+    {
+        string root = applicationData.CreateDirectory("speedrun-refresh-loop");
+        using var policy = new NetworkPolicy();
+        var handler = new CountingSpeedrunResponseHandler();
+        using var httpClient = new HttpClient(handler);
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        await using var viewModel = new MainViewModel(
+            root,
+            speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Speedrun",
+            CurrentSpeedrunTab = "Environment"
+        };
+
+        await viewModel.RefreshSpeedrunActivityCommand.ExecuteAsync(null);
+        int callsAfterFirstLoad = handler.RequestCount;
+
+        // Shorten the production 15-minute interval so the test can observe a loop iteration.
+        var intervalField = typeof(MainViewModel).GetField(
+            "SpeedrunActivityRefreshInterval",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.NotNull(intervalField);
+        intervalField.SetValue(null, TimeSpan.FromMilliseconds(150));
+        try
+        {
+            viewModel.StartSpeedrunActivityRefreshLoop();
+            await Task.Delay(500);
+
+            Assert.True(handler.RequestCount > callsAfterFirstLoad);
+            Assert.False(viewModel.IsSpeedrunActivityLoading);
+        }
+        finally
+        {
+            // Restore the production interval so other tests that initialize the
+            // view model (and thus start the loop) are not affected by this override.
+            intervalField.SetValue(null, TimeSpan.FromMinutes(15));
+        }
+    }
+
     private MainViewModel CreateViewModel() => new(applicationData.CreateDirectory("app-data"));
 
     public void Dispose() => applicationData.Dispose();

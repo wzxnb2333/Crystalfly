@@ -835,6 +835,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             StatusMessage = Loc["ChooseRoot"];
         }
         await Task.WhenAll(refreshTask, InitializeDownloadQueueAsync());
+        StartSpeedrunActivityRefreshLoop();
         await CompleteGameDirectoryInitializationAsync();
     }
 
