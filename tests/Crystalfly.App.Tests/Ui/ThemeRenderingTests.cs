@@ -789,7 +789,10 @@ public sealed class ThemeRenderingTests
     {
         var field = typeof(MainViewModel).GetField(
             "ToastRequested",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? typeof(ViewModelBase).GetField(
+                "ToastRequested",
+                BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(field);
         if (field.GetValue(viewModel) is not Action<string> handler)
         {
