@@ -50,6 +50,100 @@ public sealed class ModManagementViewModelTests
     }
 
     [Fact]
+    public void Detail_properties_format_catalog_manifest_data()
+    {
+        var manifest = Manifest("a", "1.0.0") with
+        {
+            Authors = ["Alice", "Bob"],
+            RepositoryUrl = "https://github.com/example/mod",
+            Dependencies = ["lib-a", "lib-b"]
+        };
+        var item = new InstalledModItemViewModel(Receipt("a", "1.0.0"), manifest, static () => { });
+
+        Assert.Equal("lib-a, lib-b", item.DependenciesText);
+        Assert.Equal("Alice, Bob", item.AuthorsText);
+        Assert.Equal("https://github.com/example/mod", item.RepositoryUrl);
+        Assert.True(item.HasRepositoryUrl);
+        Assert.False(item.HasLatestVersion);
+        Assert.Equal(string.Empty, item.LatestVersionText);
+    }
+
+    [Fact]
+    public void Detail_properties_are_empty_without_catalog_manifest()
+    {
+        var item = new InstalledModItemViewModel(Receipt("a", "1.0.0"), null, static () => { });
+
+        Assert.Equal(string.Empty, item.DependenciesText);
+        Assert.Equal(string.Empty, item.AuthorsText);
+        Assert.Equal(string.Empty, item.RepositoryUrl);
+        Assert.False(item.HasRepositoryUrl);
+        Assert.Equal(string.Empty, item.InstallDateText);
+        Assert.False(item.HasInstallDate);
+    }
+
+    [Fact]
+    public void Latest_version_text_is_shown_when_update_is_available()
+    {
+        var item = new InstalledModItemViewModel(Receipt("a", "1.0.0"), Manifest("a", "1.1.0"), static () => { });
+
+        Assert.True(item.HasUpdate);
+        Assert.Equal("1.1.0", item.LatestVersionText);
+        Assert.True(item.HasLatestVersion);
+    }
+
+    [Fact]
+    public void Install_date_text_comes_from_newest_receipt_file_write_time()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "crystalfly-test", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var relativePath = "hollow_knight_Data/Managed/Mods/DebugMod/DebugMod.dll";
+            var filePath = Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+            File.WriteAllText(filePath, "installed");
+            var installedAt = new DateTime(2026, 7, 20, 14, 30, 0, DateTimeKind.Utc);
+            File.SetLastWriteTimeUtc(filePath, installedAt);
+            var receipt = Receipt("a", "1.0.0") with
+            {
+                Files =
+                [
+                    new InstalledFileReceipt { RelativePath = relativePath, Sha256 = new string('A', 64) }
+                ]
+            };
+
+            var item = new InstalledModItemViewModel(
+                receipt,
+                null,
+                static () => { },
+                instanceRoot: root);
+
+            Assert.Equal("2026-07-20 14:30", item.InstallDateText);
+            Assert.True(item.HasInstallDate);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Modified_files_text_lists_health_modified_files()
+    {
+        var item = Installed("a", "1.0.0", modifiedFiles:
+        [
+            "hollow_knight_Data/Managed/Shared/First.dll",
+            "hollow_knight_Data/Managed/Shared/Second.dll"
+        ]);
+
+        Assert.Equal(
+            "hollow_knight_Data/Managed/Shared/First.dll"
+            + Environment.NewLine
+            + "hollow_knight_Data/Managed/Shared/Second.dll",
+            item.ModifiedFilesText);
+        Assert.True(item.HasModifiedFilesText);
+    }
+
+    [Fact]
     public void Conflicts_are_cleared_when_no_mods_overlap()
     {
         var viewModel = CreateViewModel();
@@ -146,5 +240,15 @@ public sealed class ModManagementViewModelTests
         LoaderId = "modding-api",
         InstallRoot = $"Mods/{id}",
         Enabled = true
+    };
+
+    private static ModManifest Manifest(string id, string version) => new()
+    {
+        Id = id,
+        Name = $"Mod {id}",
+        Version = version,
+        DownloadUrl = $"https://example.invalid/{id}.zip",
+        Sha256 = new string('A', 64),
+        LoaderId = "modding-api"
     };
 }

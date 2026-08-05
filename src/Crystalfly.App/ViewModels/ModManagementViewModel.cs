@@ -12,6 +12,7 @@ public partial class ModManagementViewModel : ViewModelBase
 {
     private readonly ModManagementDependencies dependencies;
     private string? installedModSelectionAnchorId;
+    private string? currentInstanceRoot;
 
     public ModManagementViewModel(ModManagementDependencies dependencies)
     {
@@ -132,6 +133,7 @@ public partial class ModManagementViewModel : ViewModelBase
     {
         InstalledMods.Clear();
         VisibleInstalledMods.Clear();
+        currentInstanceRoot = null;
         NotifySelectionChanged();
     }
 
@@ -141,6 +143,7 @@ public partial class ModManagementViewModel : ViewModelBase
         IReadOnlyList<ModHealthReport> healthReports,
         InstanceRecord record)
     {
+        currentInstanceRoot = record.RootPath;
         InstalledMods.Clear();
         foreach (var mod in mods)
         {
@@ -159,7 +162,8 @@ public partial class ModManagementViewModel : ViewModelBase
                 NotifySelectionChanged,
                 catalogManifest is null ? null : dependencies.ProjectMarketMod(catalogManifest, null),
                 dependencies.OwnershipDisplay(mod.Ownership),
-                dependencies.HealthDisplay(healthReport.Status)));
+                dependencies.HealthDisplay(healthReport.Status),
+                currentInstanceRoot));
         }
         NotifySelectionChanged();
         ApplyModFilters();
@@ -198,7 +202,8 @@ public partial class ModManagementViewModel : ViewModelBase
                 NotifySelectionChanged,
                 manifest is null ? null : dependencies.ProjectMarketMod(manifest, null),
                 dependencies.OwnershipDisplay(item.Ownership),
-                dependencies.HealthDisplay(item.HealthStatus))
+                dependencies.HealthDisplay(item.HealthStatus),
+                currentInstanceRoot)
             {
                 IsSelected = selectedIds.Contains(item.Id)
             });

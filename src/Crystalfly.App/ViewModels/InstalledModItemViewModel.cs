@@ -1,3 +1,4 @@
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Crystalfly.Core.Models;
 
@@ -26,7 +27,8 @@ public partial class InstalledModItemViewModel : ViewModelBase
         Action selectionChanged,
         MarketModItemViewModel? marketDisplay = null,
         string? ownershipDisplayName = null,
-        string? healthDisplayName = null)
+        string? healthDisplayName = null,
+        string? instanceRoot = null)
         : this(
             FromReceipt(receipt),
             receipt,
@@ -35,7 +37,8 @@ public partial class InstalledModItemViewModel : ViewModelBase
             selectionChanged,
             marketDisplay,
             ownershipDisplayName,
-            healthDisplayName)
+            healthDisplayName,
+            instanceRoot)
     {
     }
 
@@ -47,7 +50,8 @@ public partial class InstalledModItemViewModel : ViewModelBase
         Action selectionChanged,
         MarketModItemViewModel? marketDisplay = null,
         string? ownershipDisplayName = null,
-        string? healthDisplayName = null)
+        string? healthDisplayName = null,
+        string? instanceRoot = null)
     {
         ArgumentNullException.ThrowIfNull(discovery);
         ArgumentNullException.ThrowIfNull(healthReport);
@@ -69,6 +73,7 @@ public partial class InstalledModItemViewModel : ViewModelBase
             healthReport.Status.ToString(),
             marketDisplay?.SearchText
         }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        InstallDateText = FormatInstallDate(instanceRoot, receipt);
     }
 
     public ModDiscoveryEntry Discovery { get; }
@@ -160,6 +165,32 @@ public partial class InstalledModItemViewModel : ViewModelBase
         && CatalogManifest is not null
         && !string.Equals(Version, CatalogManifest.Version, StringComparison.OrdinalIgnoreCase);
 
+    public string DependenciesText => CatalogManifest is null
+        ? string.Empty
+        : string.Join(", ", CatalogManifest.Dependencies);
+
+    public string AuthorsText => CatalogManifest is null
+        ? string.Empty
+        : string.Join(", ", CatalogManifest.Authors);
+
+    public string RepositoryUrl => CatalogManifest?.RepositoryUrl ?? string.Empty;
+
+    public bool HasRepositoryUrl => !string.IsNullOrWhiteSpace(RepositoryUrl);
+
+    public string InstallDateText { get; }
+
+    public bool HasInstallDate => !string.IsNullOrWhiteSpace(InstallDateText);
+
+    public string LatestVersionText => HasUpdate
+        ? CatalogManifest!.Version
+        : string.Empty;
+
+    public bool HasLatestVersion => HasUpdate;
+
+    public string ModifiedFilesText => string.Join(Environment.NewLine, HealthReport.ModifiedFiles);
+
+    public bool HasModifiedFilesText => !string.IsNullOrWhiteSpace(ModifiedFilesText);
+
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
 
@@ -192,6 +223,39 @@ public partial class InstalledModItemViewModel : ViewModelBase
             ModStatusFilter.NeedsAttention => HasHealthIssue,
             _ => true
         };
+    }
+
+    private static string FormatInstallDate(string? instanceRoot, InstalledModReceipt? receipt)
+    {
+        if (string.IsNullOrWhiteSpace(instanceRoot) || receipt is null || receipt.Files.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        DateTimeOffset? newest = null;
+        foreach (var file in receipt.Files)
+        {
+            try
+            {
+                var path = Path.Combine(
+                    instanceRoot,
+                    file.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(path))
+                {
+                    var time = new DateTimeOffset(File.GetLastWriteTimeUtc(path), TimeSpan.Zero);
+                    if (newest is null || time > newest)
+                    {
+                        newest = time;
+                    }
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+        return newest is null
+            ? string.Empty
+            : newest.Value.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
     }
 
     private static ModDiscoveryEntry FromReceipt(InstalledModReceipt receipt)
