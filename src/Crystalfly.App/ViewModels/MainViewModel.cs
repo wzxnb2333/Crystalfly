@@ -1345,9 +1345,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == settings.CurrentInstanceId)
                 ?? Instances.FirstOrDefault();
             PopulateSpeedrunInstances();
+            // Restore the speedrun selection only when the remembered instance actually is one.
+            // Falling back to the first speedrun instance would otherwise overwrite the remembered
+            // regular-instance selection and make "remember last instance" appear broken.
             SelectedSpeedrunInstance = SpeedrunInstances.FirstOrDefault(instance =>
                 instance.Id == settings.CurrentInstanceId)
-                ?? SpeedrunInstances.FirstOrDefault();
+                ?? (settings.CurrentInstanceId is null ? SpeedrunInstances.FirstOrDefault() : null);
             StatusMessage = Loc["StatusReady"];
         }
         catch (Exception exception) when (exception is IOException
