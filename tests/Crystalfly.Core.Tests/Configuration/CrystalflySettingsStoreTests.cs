@@ -1,5 +1,6 @@
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Runtime;
+using Crystalfly.Core.Serialization;
 
 namespace Crystalfly.Core.Tests.Configuration;
 
@@ -14,6 +15,9 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         var defaults = await CrystalflySettingsStore.LoadAsync(path);
         Assert.Equal(UiLanguage.FollowSystem, defaults.Language);
         Assert.Equal(UiTheme.System, defaults.Theme);
+        using var defaultsJson = System.Text.Json.JsonDocument.Parse(
+            System.Text.Json.JsonSerializer.Serialize(defaults, CrystalflyJson.Options));
+        Assert.Equal("followSystem", defaultsJson.RootElement.GetProperty("motionPreference").GetString());
         Assert.Equal(AccentColorPalette.DefaultColor, defaults.AccentColor);
         Assert.Null(defaults.BackgroundImage);
         Assert.Equal(GitHubDownloadRoute.Direct, defaults.GitHubDownloadRoute);
@@ -28,6 +32,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
             CurrentInstanceId = "practice-1578",
             Language = UiLanguage.SimplifiedChinese,
             Theme = UiTheme.Dark,
+            MotionPreference = UiMotionPreference.Off,
             AccentColor = "7e22ce",
             BackgroundImage = new BackgroundImageSettings
             {
@@ -87,6 +92,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
             });
         Assert.Equal(expected.CustomCatalogs, actual.CustomCatalogs);
         Assert.Equal(expected.CustomModLinks, actual.CustomModLinks);
+        Assert.Equal(UiMotionPreference.Off, actual.MotionPreference);
         Assert.Equal(expected.ModHealthAcknowledgements, actual.ModHealthAcknowledgements);
         Assert.Equal(expected.GameDirectories.ToArray(), actual.GameDirectories.ToArray());
         Assert.Equal(expected.FavoriteInstanceIds.ToArray(), actual.FavoriteInstanceIds.ToArray());
@@ -151,6 +157,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         var settings = await CrystalflySettingsStore.LoadAsync(path);
 
         Assert.Equal(GitHubDownloadRoute.Direct, settings.GitHubDownloadRoute);
+        Assert.Equal(UiMotionPreference.FollowSystem, settings.MotionPreference);
         Assert.False(settings.OfflineMode);
         Assert.Empty(settings.ModHealthAcknowledgements);
         Assert.Equal(AccentColorPalette.DefaultColor, settings.AccentColor);

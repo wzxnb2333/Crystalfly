@@ -74,7 +74,7 @@ public sealed class MainWindowStructureTests
     }
 
     [Fact]
-    public void Page_surfaces_register_short_reduced_motion_aware_entrance_animation()
+    public void Page_surfaces_use_pcl_style_translation_without_nested_scale_motion()
     {
         var document = LoadMainWindow();
         foreach (var page in new[]
@@ -98,13 +98,55 @@ public sealed class MainWindowStructureTests
             "MainWindow.axaml.cs"));
         Assert.Contains("SubscribeEntranceAnimations();", code, StringComparison.Ordinal);
         Assert.Contains("AreClientAreaAnimationsEnabled()", code, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromMilliseconds(180)", code, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(350)", code, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(100)", code, StringComparison.Ordinal);
         Assert.Contains("PageEntranceOffset", code, StringComparison.Ordinal);
-        Assert.Contains("TranslateTransform.YProperty", code, StringComparison.Ordinal);
+        Assert.Contains("PageEntranceOffset = -16d", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("QueueVisibleDescendants", code, StringComparison.Ordinal);
+        Assert.Contains("IsOpacityEntranceTarget", code, StringComparison.Ordinal);
+        Assert.Contains("animation.Motion.Translate.Y", code, StringComparison.Ordinal);
+        Assert.Contains("EasePclWeakBack", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("animation.Motion.Scale", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("PageEntranceScale", code, StringComparison.Ordinal);
+        Assert.Contains("activeEntranceAnimations", code, StringComparison.Ordinal);
+        Assert.Contains("OnEntranceAnimationTick", code, StringComparison.Ordinal);
+        Assert.Contains("Interval = TimeSpan.FromMilliseconds(16)", code, StringComparison.Ordinal);
         Assert.Contains("IsEntranceAnimationTarget", code, StringComparison.Ordinal);
         Assert.Contains("ConfigureMicroInteractionTransitions", code, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromMilliseconds(120)", code, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(80)", code, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(220)", code, StringComparison.Ordinal);
         Assert.Contains("Visual.OpacityProperty", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("QueueVisibleNavigationAnimations", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Motion_system_exposes_a_persisted_preference_and_uses_press_only_scaling()
+    {
+        var document = LoadMainWindow();
+        var settings = FindSectionRoot(document, "IsSettingsPage");
+        Assert.Contains(settings.Descendants(Avalonia + "ComboBox"), comboBox =>
+            HasBinding(comboBox, "ItemsSource", "MotionOptions")
+            && HasBinding(comboBox, "SelectedItem", "SelectedMotionPreference"));
+
+        var code = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Views",
+            "MainWindow.axaml.cs"));
+        Assert.DoesNotContain("SpringEasing", code, StringComparison.Ordinal);
+        Assert.Contains("UiMotionPreference", code, StringComparison.Ordinal);
+        Assert.Contains("ScaleTransform", code, StringComparison.Ordinal);
+        Assert.Contains("PointerPressed", code, StringComparison.Ordinal);
+        Assert.Contains("PointerExited", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("OnMicroInteractionPointerEntered", code, StringComparison.Ordinal);
+        Assert.Contains("UpdateMotionPreference", code, StringComparison.Ordinal);
+        Assert.Contains("CancellationTokenSource", code, StringComparison.Ordinal);
+        Assert.Contains("EnsureEntranceAnimationTimer", code, StringComparison.Ordinal);
+        Assert.Contains("CompleteEntranceAnimation", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("RunAsync(motion.Translate, cancellationToken)", code, StringComparison.Ordinal);
+        Assert.Contains("MainOverlayDialogHost.Children.CollectionChanged", code, StringComparison.Ordinal);
+        Assert.Contains("RegisterToastMotionTargets", code, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -134,6 +176,59 @@ public sealed class MainWindowStructureTests
         Assert.Contains("<Setter Property=\"HorizontalAlignment\" Value=\"Stretch\" />", theme, StringComparison.Ordinal);
         Assert.DoesNotContain("Grid.cfp-manage-nav", theme, StringComparison.Ordinal);
         Assert.DoesNotContain("Border.cfp-download-rail Button.cfp-local-nav TextBlock", theme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Speedrun_page_exposes_environment_and_activity_workspaces()
+    {
+        var document = LoadMainWindow();
+        var speedrun = FindSectionRoot(document, "IsSpeedrunPage");
+        var tabs = speedrun.Descendants(Avalonia + "Button")
+            .Where(button => HasClass(button, "cfp-speedrun-tab-segment"))
+            .ToArray();
+        Assert.Equal(2, tabs.Length);
+        Assert.Contains(tabs, button => HasBinding(button, "Command", "SelectSpeedrunTabCommand")
+            && (string?)button.Attribute("CommandParameter") == "Environment"
+            && HasBinding(button, "Classes.active", "IsSpeedrunEnvironmentTab"));
+        Assert.Contains(tabs, button => HasBinding(button, "Command", "SelectSpeedrunTabCommand")
+            && (string?)button.Attribute("CommandParameter") == "Activity"
+            && HasBinding(button, "Classes.active", "IsSpeedrunActivityTab"));
+        var tabSwitch = speedrun.Descendants(Avalonia + "Border")
+            .Single(border => HasClass(border, "cfp-speedrun-tab-switch"));
+        Assert.Equal("1", (string?)tabSwitch.Attribute("Grid.Row"));
+        Assert.Contains(tabSwitch.Descendants(Avalonia + "Border"), border =>
+            HasClass(border, "cfp-speedrun-tab-indicator")
+            && (string?)border.Attribute("Grid.Column") == "0"
+            && border.Attribute("Width") is null);
+        Assert.Contains(speedrun.Descendants(Avalonia + "Border"), border =>
+            HasClass(border, "cfp-rail")
+            && HasBinding(border, "IsVisible", "IsSpeedrunEnvironmentTab"));
+        var reminder = document.Descendants(Avalonia + "Border")
+            .Single(border => HasClass(border, "cfp-speedrun-reminder"));
+        Assert.Contains(reminder.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "DismissSpeedrunReminderCommand"));
+        Assert.Contains(speedrun.Descendants(Avalonia + "ScrollViewer"), scrollViewer =>
+            (string?)scrollViewer.Attribute("PointerPressed") == "OnSpeedrunWorkspacePointerPressed"
+            && (string?)scrollViewer.Attribute("PointerReleased") == "OnSpeedrunWorkspacePointerReleased");
+
+        var activity = speedrun.Descendants(Avalonia + "Grid")
+            .Single(grid => HasClass(grid, "cfp-speedrun-activity"));
+        Assert.Equal(3, activity.Descendants(Avalonia + "Button")
+            .Count(button => HasBinding(button, "Command", "SelectSpeedrunActivityFilterCommand")));
+        Assert.Contains(activity.Descendants(Avalonia + "ItemsControl"), items =>
+            HasBinding(items, "ItemsSource", "VisibleSpeedrunActivities"));
+        Assert.Contains(activity.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "OpenSpeedrunRun"
+            && HasBinding(button, "Tag", "Run.RunUrl"));
+
+        var code = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Views",
+            "MainWindow.axaml.cs"));
+        Assert.Contains("private void OpenSpeedrunRun", code, StringComparison.Ordinal);
+        Assert.Contains("speedrun.com", code, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -272,7 +367,7 @@ public sealed class MainWindowStructureTests
             && HasBinding(button, "AutomationProperties.Name", "ProjectRepository"));
         Assert.Contains(about.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", "LicenseName"));
 
-        foreach (var heading in new[] { "AboutDesignReferences", "AboutOpenSourceComponents", "AboutModCatalogAndTranslations" })
+        foreach (var heading in new[] { "AboutDesignReferences", "AboutOpenSourceComponents", "AboutModCatalogAndTranslations", "AboutSpeedrunComData" })
         {
             Assert.Contains(about.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", heading));
         }
@@ -288,7 +383,8 @@ public sealed class MainWindowStructureTests
                      "https://github.com/SteamRE/SteamKit",
                      "https://github.com/dme-compunet/Lucide.Avalonia",
                      "https://github.com/Kryptos-FR/MarkView.Avalonia",
-                     "https://github.com/hk-modding/modlinks"
+                     "https://github.com/hk-modding/modlinks",
+                     "https://www.speedrun.com"
                  })
         {
             Assert.Contains(about.Descendants(Avalonia + "Button"), button =>

@@ -59,6 +59,14 @@ public sealed class MainWindowCodeBehindTests : IDisposable
     }
 
     [Fact]
+    public void Pcl_weak_back_easing_has_a_small_single_overshoot()
+    {
+        Assert.Equal(0d, EasePclWeakBack(0d));
+        Assert.InRange(EasePclWeakBack(0.5d), 1.17d, 1.18d);
+        Assert.Equal(1d, EasePclWeakBack(1d));
+    }
+
+    [Fact]
     public async Task Dependency_repair_nodes_project_prerequisites_current_state_and_actions()
     {
         await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"));
@@ -144,6 +152,15 @@ public sealed class MainWindowCodeBehindTests : IDisposable
         {
             throw exception.InnerException;
         }
+    }
+
+    private static double EasePclWeakBack(double progress)
+    {
+        var method = typeof(MainWindow).GetMethod(
+            "EasePclWeakBack",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        return Assert.IsType<double>(method.Invoke(null, [progress]));
     }
 
     private static IReadOnlyList<DependencyPlanNodeViewModel> BuildDependencyRepairNodes(

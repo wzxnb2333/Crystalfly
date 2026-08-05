@@ -296,7 +296,7 @@ public sealed class LayoutRenderingTests
                 .OfType<Button>()
                 .Single(button => button.Classes.Contains("cfp-primary")
                     && Equals(button.Content, viewModel.Loc["SpeedrunCreate"]));
-            Assert.Equal(HorizontalAlignment.Left, createButton.HorizontalAlignment);
+            Assert.Equal(HorizontalAlignment.Stretch, createButton.HorizontalAlignment);
         }
         finally
         {

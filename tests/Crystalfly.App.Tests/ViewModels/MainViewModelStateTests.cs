@@ -15,6 +15,7 @@ using Crystalfly.Steam.Security;
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.IO.Compression;
+using System.Net;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
@@ -24,6 +25,66 @@ namespace Crystalfly.App.Tests.ViewModels;
 public sealed class MainViewModelStateTests : IDisposable
 {
     private readonly TestDirectory applicationData = new();
+
+    [Fact]
+    public async Task Speedrun_activity_tab_establishes_baseline_then_detects_new_record()
+    {
+        string root = applicationData.CreateDirectory("speedrun-leaderboard");
+        using var policy = new NetworkPolicy();
+        using var httpClient = new HttpClient(new SpeedrunResponseHandler());
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        await using var viewModel = new MainViewModel(
+            root,
+            speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Speedrun",
+            CurrentSpeedrunTab = "Activity"
+        };
+
+        await viewModel.RefreshSpeedrunActivityCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsSpeedrunActivityTab);
+        Assert.Empty(viewModel.SpeedrunActivities);
+        Assert.True(File.Exists(Path.Combine(root, "speedrun-activity.json")));
+        Assert.False(viewModel.IsSpeedrunActivityLoading);
+        Assert.NotEmpty(viewModel.SpeedrunActivityStatus);
+    }
+
+    [Fact]
+    public async Task Speedrun_activity_filter_keeps_only_selected_game()
+    {
+        string root = applicationData.CreateDirectory("speedrun-partial-leaderboard");
+        using var policy = new NetworkPolicy();
+        using var httpClient = new HttpClient(new PartialSpeedrunResponseHandler());
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        await using var viewModel = new MainViewModel(
+            root,
+            speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Speedrun",
+            CurrentSpeedrunTab = "Activity"
+        };
+        viewModel.SpeedrunActivities.Add(new(new(
+            "hollow", SpeedrunActivityKind.WorldRecord,
+            new(SpeedrunGame.HollowKnight, "c", "Any%", null, null, []),
+            new("hollow", 1, "Runner", "PT1M", 60, DateTimeOffset.UtcNow, null),
+            DateTimeOffset.UtcNow), "世界纪录", "空洞骑士 · Any%"));
+        viewModel.SpeedrunActivities.Add(new(new(
+            "silk", SpeedrunActivityKind.SecondPlace,
+            new(SpeedrunGame.Silksong, "c", "Any%", null, null, []),
+            new("silk", 2, "Runner", "PT2M", 120, DateTimeOffset.UtcNow, null),
+            DateTimeOffset.UtcNow), "第二名", "空洞骑士：丝之歌 · Any%"));
+
+        viewModel.SelectSpeedrunActivityFilterCommand.Execute("HollowKnight");
+
+        Assert.Equal("hollow", Assert.Single(viewModel.VisibleSpeedrunActivities).RunId);
+    }
 
     [Fact]
     public async Task Speedrun_selection_projects_runtime_patches_capabilities_and_legacy_state()
@@ -66,6 +127,123 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Equal(RuntimePatchesFeature.MiniSaveStates
             | RuntimePatchesFeature.FasterIntroSkip
             | RuntimePatchesFeature.TextMasher, viewModel.SelectedSpeedrunSupportedFeatures);
+    }
+
+    [Fact]
+    public async Task Speedrun_verification_keeps_report_path_out_of_global_status()
+    {
+        using var test = new TestDirectory();
+        string versionRoot = test.CreateDirectory("versions");
+        string instanceRoot = test.CreateDirectory("versions", "speedrun-copy");
+        string managedRoot = test.CreateDirectory(
+            "versions",
+            "speedrun-copy",
+            "hollow_knight_Data",
+            "Managed");
+        string executablePath = Path.Combine(instanceRoot, "hollow_knight.exe");
+        string unityPath = Path.Combine(instanceRoot, "UnityPlayer.dll");
+        string managersPath = Path.Combine(instanceRoot, "hollow_knight_Data", "globalgamemanagers");
+        string runtimePatchesPath = Path.Combine(managedRoot, "Assembly-CSharp.dll");
+        await File.WriteAllTextAsync(executablePath, "game");
+        await File.WriteAllTextAsync(unityPath, "unity");
+        await File.WriteAllTextAsync(managersPath, "managers");
+        await File.WriteAllTextAsync(runtimePatchesPath, "runtime-patches");
+
+        const string buildId = "1.5.78.11833";
+        string templateId = RuntimePatchesPolicy.GetTemplateId(buildId)!;
+        string assetId = RuntimePatchesPolicy.GetAssetId(buildId)!;
+        var build = new GameBuild
+        {
+            Id = buildId,
+            DisplayVersion = buildId,
+            DepotId = 367521,
+            ManifestId = "1",
+            ExecutableSha256 = FileSha256(executablePath),
+            UnityPlayerSha256 = FileSha256(unityPath),
+            GlobalGameManagersSha256 = FileSha256(managersPath)
+        };
+        var template = new SpeedrunTemplate
+        {
+            Id = templateId,
+            Name = $"RuntimePatches {buildId}",
+            BuildId = buildId,
+            IsOfficial = true,
+            RulesRevision = RuntimePatchesPolicy.RulesRevision,
+            FileManifestId = $"files-{templateId}",
+            RequiredAssetIds = [assetId]
+        };
+        var instance = Instance("speedrun-copy", instanceRoot) with
+        {
+            BuildId = buildId,
+            Purpose = InstancePurpose.OfficialSpeedrun,
+            ProvisioningMode = InstanceProvisioningMode.FullCopy,
+            SpeedrunTemplateId = templateId,
+            SpeedrunRulesRevision = template.RulesRevision
+        };
+        var fileManifest = new SpeedrunFileManifest
+        {
+            Id = template.FileManifestId,
+            BuildId = buildId,
+            RulesRevision = template.RulesRevision,
+            Files =
+            [
+                new SpeedrunFileRule
+                {
+                    RelativePath = "hollow_knight_Data/Managed/Assembly-CSharp.dll",
+                    Sha256 = FileSha256(runtimePatchesPath),
+                    Kind = SpeedrunFileKind.Tool,
+                    AssetId = assetId,
+                    AssetVersion = "1.0.2"
+                }
+            ]
+        };
+        string configurationPath = Path.Combine(
+            versionRoot,
+            ".crystalfly",
+            "instances",
+            instance.Id,
+            "local-low",
+            RuntimePatchesConfiguration.FileName);
+        await RuntimePatchesConfiguration.WriteAsync(
+            configurationPath,
+            new RuntimePatchesConfiguration { MiniSaveStates = true });
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot,
+            StatusMessage = "ready"
+        };
+        SetCatalog(viewModel, new GameCatalog
+        {
+            Builds = [build],
+            SpeedrunTemplates = [template],
+            SpeedrunFileManifests = [fileManifest]
+        });
+        var method = typeof(MainViewModel).GetMethod(
+            "VerifySpeedrunLaunchAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+
+        await Assert.IsAssignableFrom<Task>(method.Invoke(viewModel, [instance]));
+
+        Assert.Equal(viewModel.Loc["SpeedrunVerifiedWithWarnings"], viewModel.SpeedrunStatus);
+        Assert.Equal(viewModel.SpeedrunStatus, viewModel.SpeedrunReminderText);
+        Assert.True(viewModel.HasSpeedrunReminder);
+        Assert.True(viewModel.HasSpeedrunReport);
+        Assert.Equal("ready", viewModel.StatusMessage);
+    }
+
+    [Fact]
+    public async Task Speedrun_reminder_can_be_dismissed()
+    {
+        using var test = new TestDirectory();
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            SpeedrunReminderText = "warning"
+        };
+
+        viewModel.DismissSpeedrunReminderCommand.Execute(null);
+
+        Assert.False(viewModel.HasSpeedrunReminder);
     }
 
     [Fact]
@@ -172,6 +350,7 @@ public sealed class MainViewModelStateTests : IDisposable
 
         viewModel.SelectedLanguage = new(UiLanguage.English, "English");
         viewModel.SelectedTheme = new(UiTheme.Dark, "Dark");
+        viewModel.SelectedMotionPreference = new(UiMotionPreference.Off, "Off");
         viewModel.SetAccentColor("#BE185D");
         viewModel.SelectedGitHubRoute = new(GitHubDownloadRoute.Mirror, "GitHub mirror");
         viewModel.SelectedInstance = new(
@@ -185,6 +364,7 @@ public sealed class MainViewModelStateTests : IDisposable
             Path.Combine(applicationDataRoot, "settings.json"));
         Assert.Equal(UiLanguage.English, saved.Language);
         Assert.Equal(UiTheme.Dark, saved.Theme);
+        Assert.Equal(UiMotionPreference.Off, saved.MotionPreference);
         Assert.Equal("#BE185D", saved.AccentColor);
         Assert.Equal(GitHubDownloadRoute.Mirror, saved.GitHubDownloadRoute);
         Assert.Equal("practice", saved.CurrentInstanceId);
@@ -3092,6 +3272,93 @@ public sealed class MainViewModelStateTests : IDisposable
     private static string? ReadFileHash(string path) => File.Exists(path)
         ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)))
         : null;
+
+    private sealed class SpeedrunResponseHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            string json = request.RequestUri!.AbsolutePath switch
+            {
+                var path when path.EndsWith("/categories", StringComparison.Ordinal) => """
+                {
+                  "data": [
+                    { "id": "category-any", "name": "Any%", "weblink": "https://www.speedrun.com/hollowknight" }
+                  ]
+                }
+                """,
+                var path when path.Contains("/leaderboards/", StringComparison.Ordinal) => """
+                {
+                  "data": {
+                    "runs": [
+                      {
+                        "place": 1,
+                        "run": {
+                          "id": "leaderboard-run",
+                          "weblink": "https://www.speedrun.com/hollowknight/runs/leaderboard-run",
+                          "status": { "status": "verified", "verify-date": "2026-08-01T00:00:00Z" },
+                          "times": { "primary": "PT32M" },
+                          "players": [{ "rel": "user", "id": "leaderboard-player" }]
+                        }
+                      }
+                    ],
+                    "players": [{ "id": "leaderboard-player", "names": { "international": "Leaderboard Runner" } }]
+                  }
+                }
+                """,
+                _ => """
+                {
+                  "data": [
+                    {
+                      "id": "recent-run",
+                      "weblink": "https://www.speedrun.com/hollowknight/runs/recent-run",
+                      "status": { "status": "verified", "verify-date": "2026-08-01T01:00:00Z" },
+                      "times": { "primary": "PT34M" },
+                      "players": [{ "rel": "guest", "name": "Recent Runner" }]
+                    }
+                  ]
+                }
+                """
+            };
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            });
+        }
+    }
+
+    private sealed class PartialSpeedrunResponseHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/categories", StringComparison.Ordinal))
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        "{\"data\":[{\"id\":\"category-any\",\"name\":\"Any%\"}]}",
+                        Encoding.UTF8,
+                        "application/json")
+                });
+            }
+
+            if (request.RequestUri.AbsolutePath.Contains("/leaderboards/", StringComparison.Ordinal))
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    "{\"data\":[{\"id\":\"recent-run\",\"status\":{\"status\":\"verified\"},\"times\":{\"primary\":\"PT34M\"},\"players\":[{\"rel\":\"guest\",\"name\":\"Recent Runner\"}]}]}",
+                    Encoding.UTF8,
+                    "application/json")
+            });
+        }
+    }
 
     private sealed class WaitingQueueExecutor : IDownloadQueueExecutor
     {

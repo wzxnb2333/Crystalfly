@@ -190,6 +190,123 @@
         <Setter Property="Padding" Value="12,8" />
     </Style>
 
+    <Style Selector="Border.cfp-speedrun-reminder">
+        <Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfWarningBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="12,7" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-reminder.error">
+        <Setter Property="Background" Value="{DynamicResource CfErrorSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfErrorBrush}" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-create">
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Padding" Value="10,12,10,0" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-status">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="8,6" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-option">
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="0,7" />
+        <Setter Property="MinHeight" Value="36" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-option:last-child">
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-tab-switch">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="18" />
+        <Setter Property="Padding" Value="3" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-tab-indicator">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BoxShadow" Value="0 2 8 0 #33000000" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="ZIndex" Value="0" />
+    </Style>
+
+    <Style Selector="Button.cfp-speedrun-tab-segment">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="Padding" Value="14,4" />
+        <Setter Property="MinWidth" Value="95" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
+        <Setter Property="ZIndex" Value="1" />
+    </Style>
+
+    <Style Selector="Button.cfp-speedrun-tab-segment:pointerover">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="Button.cfp-speedrun-tab-segment.active">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-results">
+        <Setter Property="Padding" Value="12" />
+    </Style>
+
+    <Style Selector="Grid.cfp-speedrun-table-head">
+        <Setter Property="MinHeight" Value="22" />
+        <Setter Property="Opacity" Value="0.72" />
+    </Style>
+
+    <Style Selector="Grid.cfp-speedrun-run-row">
+        <Setter Property="MinHeight" Value="32" />
+    </Style>
+
+    <Style Selector="Button.cfp-filter-chip">
+        <Setter Property="MinHeight" Value="30" />
+        <Setter Property="Padding" Value="12,4" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Button.cfp-filter-chip.active">
+        <Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-activity-row">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Border.cfp-speedrun-activity-row.wr">
+        <Setter Property="BorderBrush" Value="{DynamicResource CfWarningBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.cfp-tabular">
+        <Setter Property="FontFeatures" Value="tnum" />
+    </Style>
+
     <Style Selector="Border.cfp-launch-issue-frame">
         <Setter Property="BorderBrush" Value="{DynamicResource CfErrorBrush}" />
         <Setter Property="BorderThickness" Value="2" />

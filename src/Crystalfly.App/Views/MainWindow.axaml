@@ -116,13 +116,42 @@
             </Grid>
         </Border>
 
-        <Border Grid.Row="1"
-                Classes="cfp-error"
-                IsVisible="{Binding ErrorMessage, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}">
-            <TextBlock Text="{Binding ErrorMessage}"
-                       Foreground="{DynamicResource CfErrorBrush}"
-                       TextWrapping="Wrap" />
-        </Border>
+        <StackPanel Grid.Row="1" Spacing="6">
+            <Border Classes="cfp-error"
+                    IsVisible="{Binding ErrorMessage, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock Text="{Binding ErrorMessage}"
+                           Foreground="{DynamicResource CfErrorBrush}"
+                           TextWrapping="Wrap" />
+            </Border>
+            <Border Classes="cfp-speedrun-reminder"
+                    Classes.error="{Binding SpeedrunReminderIsError}"
+                    IsVisible="{Binding HasSpeedrunReminder}">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+                    <LucideIcon Kind="Timer"
+                                Size="16"
+                                Foreground="{DynamicResource CfWarningBrush}"
+                                VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Classes="cfp-meta"
+                               Text="{Binding SpeedrunReminderText}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <Button Grid.Column="2"
+                            Classes="cfp-link"
+                            Command="{Binding SelectPageCommand}"
+                            CommandParameter="Speedrun"
+                            Content="{Binding Loc[ViewDetails]}"
+                            AutomationProperties.Name="{Binding Loc[ViewDetails]}" />
+                    <Button Grid.Column="3"
+                            Classes="cfp-icon"
+                            Margin="4,0,0,0"
+                            Command="{Binding DismissSpeedrunReminderCommand}"
+                            ToolTip.Tip="{Binding Loc[WindowClose]}"
+                            AutomationProperties.Name="{Binding Loc[WindowClose]}"
+                            Content="{LucideIconContent X, 14}" />
+                </Grid>
+            </Border>
+        </StackPanel>
 
         <u:LoadingContainer Name="GlobalLoadingHost"
                             Grid.Row="2"
@@ -1413,9 +1442,38 @@
 
             <!-- Speedrun -->
             <Grid Classes="cfp-page" IsVisible="{Binding IsSpeedrunPage}">
-                <Grid ColumnDefinitions="240,*" ColumnSpacing="12" Margin="16">
-                    <Border Grid.Column="0" Classes="cfp-card" Padding="12">
-                        <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
+                <Grid RowDefinitions="*,Auto" RowSpacing="10" Margin="16">
+                    <Border Grid.Row="1"
+                            Classes="cfp-speedrun-tab-switch"
+                            HorizontalAlignment="Center">
+                        <Grid Width="196" ColumnDefinitions="*,*">
+                            <Border x:Name="SpeedrunTabIndicator"
+                                    Grid.Column="0"
+                                    Classes="cfp-speedrun-tab-indicator">
+                                <Border.RenderTransform>
+                                    <TranslateTransform />
+                                </Border.RenderTransform>
+                            </Border>
+                            <Button Classes="cfp-speedrun-tab-segment"
+                                    Classes.active="{Binding IsSpeedrunEnvironmentTab}"
+                                    Command="{Binding SelectSpeedrunTabCommand}"
+                                    CommandParameter="Environment"
+                                    AutomationProperties.Name="{Binding Loc[SpeedrunEnvironmentTab]}">
+                                <TextBlock Text="{Binding Loc[SpeedrunEnvironmentTab]}" />
+                            </Button>
+                            <Button Grid.Column="1"
+                                    Classes="cfp-speedrun-tab-segment"
+                                    Classes.active="{Binding IsSpeedrunActivityTab}"
+                                    Command="{Binding SelectSpeedrunTabCommand}"
+                                    CommandParameter="Activity"
+                                    AutomationProperties.Name="{Binding Loc[SpeedrunActivityTab]}">
+                                <TextBlock Text="{Binding Loc[SpeedrunActivityTab]}" />
+                            </Button>
+                        </Grid>
+                    </Border>
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+                    <Border Grid.Column="0" Classes="cfp-rail" Width="216" Padding="12,16" Margin="0,0,12,0" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
+                        <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTitle]}" />
                                 <Button Grid.Column="1"
@@ -1433,7 +1491,7 @@
                                      AutomationProperties.Name="{Binding Loc[SpeedrunInstances]}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Padding="10,8" Classes="cfp-list-row">
+                                        <Border Padding="8,6" Classes="cfp-list-row">
                                             <StackPanel Spacing="3">
                                                 <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                                                 <TextBlock Classes="cfp-meta" Text="{Binding DisplayVersion}" />
@@ -1442,24 +1500,101 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
+                            <Border Grid.Row="3" Classes="cfp-speedrun-create">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SpeedrunCreate]}" />
+                                    <ComboBox ItemsSource="{Binding SpeedrunTemplates}"
+                                              SelectedItem="{Binding SelectedSpeedrunTemplate}"
+                                              DisplayMemberBinding="{Binding Name}"
+                                              PlaceholderText="{Binding Loc[SelectSpeedrunTemplate]}" />
+                                    <ComboBox ItemsSource="{Binding SpeedrunSourceInstances}"
+                                              SelectedItem="{Binding SelectedSpeedrunSourceInstance}"
+                                              DisplayMemberBinding="{Binding Name}"
+                                              PlaceholderText="{Binding Loc[SpeedrunSelectVanillaSource]}" />
+                                    <Button Classes="cfp-primary"
+                                            Click="ShowCreateSpeedrunEnvironmentDialog"
+                                            HorizontalAlignment="Stretch"
+                                            Content="{Binding Loc[SpeedrunCreate]}" />
+                                </StackPanel>
+                            </Border>
                         </Grid>
                     </Border>
-                    <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
-                        <Grid Classes="cfp-workspace" RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="12">
-                            <StackPanel Spacing="4">
-                                <TextBlock Classes="cfp-page-title" Text="{Binding Loc[SpeedrunTitle]}" />
-                                <TextBlock Classes="cfp-section-title"
-                                           Text="{Binding SelectedSpeedrunInstance.Name}"
-                                           IsVisible="{Binding HasSelectedSpeedrunInstance}" />
-                                <TextBlock Classes="cfp-meta"
-                                           Text="{Binding SelectedSpeedrunInstance.DisplayVersion}"
-                                           IsVisible="{Binding HasSelectedSpeedrunInstance}" />
-                                <TextBlock Classes="cfp-status" Text="{Binding SelectedSpeedrunTechnicalStatus}" />
-                                <TextBlock Classes="cfp-meta"
-                                           Text="{Binding SpeedrunStatus}"
-                                           TextWrapping="Wrap"
-                                           IsVisible="{Binding HasSelectedSpeedrunInstance}" />
-                            </StackPanel>
+                    <ScrollViewer Grid.Column="1"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      PointerPressed="OnSpeedrunWorkspacePointerPressed"
+                                      PointerReleased="OnSpeedrunWorkspacePointerReleased">
+                            <Grid>
+                        <Grid Classes="cfp-workspace" RowDefinitions="Auto,Auto,*" RowSpacing="12" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
+                            <Border Classes="cfp-card cfp-speedrun-summary"
+                                    Padding="14"
+                                    IsVisible="{Binding HasSelectedSpeedrunInstance}">
+                                <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="10" ColumnDefinitions="*,Auto">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Classes="cfp-page-title"
+                                                   Text="{Binding SelectedSpeedrunInstance.Name}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Classes="cfp-meta"
+                                                   Text="{Binding SelectedSpeedrunInstance.DisplayVersion}" />
+                                        <TextBlock Classes="cfp-status"
+                                                   Text="{Binding SelectedSpeedrunTechnicalStatus}" />
+                                    </StackPanel>
+                                    <WrapPanel Grid.Column="1"
+                                               Orientation="Horizontal"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Top">
+                                        <Button Classes="cfp-primary" Command="{Binding LaunchGameCommand}" Content="{Binding Loc[SpeedrunVerifyAndLaunch]}" />
+                                        <Button Classes="cfp-icon"
+                                                Command="{Binding ReinstallSpeedrunEnvironmentCommand}"
+                                                IsEnabled="{Binding IsSelectedSpeedrunCurrent}"
+                                                ToolTip.Tip="{Binding Loc[SpeedrunReinstall]}"
+                                                AutomationProperties.Name="{Binding Loc[SpeedrunReinstall]}"
+                                                Content="{LucideIconContent RefreshCw, 16}" />
+                                        <Button Classes="cfp-icon" Click="OpenSelectedInstanceFolder" ToolTip.Tip="{Binding Loc[OpenFolder]}" AutomationProperties.Name="{Binding Loc[OpenFolder]}" Content="{LucideIconContent FolderOpen, 16}" />
+                                        <Button Classes="cfp-icon danger" Click="ConfirmDeleteSelectedInstance" ToolTip.Tip="{Binding Loc[DeleteInstance]}" AutomationProperties.Name="{Binding Loc[DeleteInstance]}" Content="{LucideIconContent Trash2, 16}" />
+                                    </WrapPanel>
+                                    <Border Grid.Row="1"
+                                            Grid.ColumnSpan="2"
+                                            Classes="cfp-speedrun-status">
+                                        <TextBlock Classes="cfp-meta"
+                                                   Text="{Binding SpeedrunStatus}"
+                                                   TextWrapping="Wrap" />
+                                    </Border>
+                                    <Grid Grid.Row="2"
+                                          Grid.ColumnSpan="2"
+                                          ColumnDefinitions="Auto,*,Auto,Auto"
+                                          ColumnSpacing="8"
+                                          IsVisible="{Binding HasSpeedrunReport}">
+                                        <LucideIcon Kind="FileText" Size="14" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1"
+                                                   Classes="cfp-meta"
+                                                   Text="{Binding SpeedrunReportPath}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding SpeedrunReportPath}"
+                                                   VerticalAlignment="Center" />
+                                        <Button Grid.Column="2"
+                                                Classes="cfp-icon"
+                                                Click="OpenSpeedrunReport"
+                                                ToolTip.Tip="{Binding Loc[SpeedrunOpenReport]}"
+                                                AutomationProperties.Name="{Binding Loc[SpeedrunOpenReport]}"
+                                                Content="{LucideIconContent ExternalLink, 15}" />
+                                        <Button Grid.Column="3"
+                                                Classes="cfp-icon"
+                                                Click="CopySpeedrunReportPath"
+                                                ToolTip.Tip="{Binding Loc[SpeedrunCopyReportPath]}"
+                                                AutomationProperties.Name="{Binding Loc[SpeedrunCopyReportPath]}"
+                                                Content="{LucideIconContent Copy, 15}" />
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                            <Border Classes="cfp-card"
+                                    Padding="16"
+                                    IsVisible="{Binding HasSelectedSpeedrunInstance, Converter={x:Static converters:BoolConverters.Not}}">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTitle]}" />
+                                    <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunInstancesHint]}" TextWrapping="Wrap" />
+                                    <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunHint]}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
                             <Border Grid.Row="1"
                                     Classes="cfp-card cfp-speedrun-config"
                                     Padding="14"
@@ -1467,62 +1602,110 @@
                                     IsEnabled="{Binding IsRuntimePatchesConfigurationEditable}">
                                 <StackPanel Spacing="10">
                                     <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunConfiguration]}" />
-                                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
-                                        <TextBlock Text="ScreenShakeModifier" VerticalAlignment="Center" />
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunFeatureUnavailable]}" IsVisible="{Binding IsScreenShakeModifierAvailable, Converter={x:Static converters:BoolConverters.Not}}" />
-                                            <ToggleSwitch IsChecked="{Binding RuntimePatchesScreenShakeModifier}" IsVisible="{Binding IsScreenShakeModifierAvailable}" AutomationProperties.Name="ScreenShakeModifier" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Row="1" Text="MiniSaveStates" VerticalAlignment="Center" />
-                                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunFeatureUnavailable]}" IsVisible="{Binding IsMiniSaveStatesAvailable, Converter={x:Static converters:BoolConverters.Not}}" />
-                                            <ToggleSwitch IsChecked="{Binding RuntimePatchesMiniSaveStates}" IsVisible="{Binding IsMiniSaveStatesAvailable}" AutomationProperties.Name="MiniSaveStates" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Row="2" Text="FasterIntroSkip" VerticalAlignment="Center" />
-                                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunFeatureUnavailable]}" IsVisible="{Binding IsFasterIntroSkipAvailable, Converter={x:Static converters:BoolConverters.Not}}" />
-                                            <ToggleSwitch IsChecked="{Binding RuntimePatchesFasterIntroSkip}" IsVisible="{Binding IsFasterIntroSkipAvailable}" AutomationProperties.Name="FasterIntroSkip" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Row="3" Text="TextMasher" VerticalAlignment="Center" />
-                                        <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunFeatureUnavailable]}" IsVisible="{Binding IsTextMasherAvailable, Converter={x:Static converters:BoolConverters.Not}}" />
-                                            <ToggleSwitch IsChecked="{Binding RuntimePatchesTextMasher}" IsVisible="{Binding IsTextMasherAvailable}" AutomationProperties.Name="TextMasher" />
-                                        </StackPanel>
+                                    <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6">
+                                        <Border Classes="cfp-speedrun-option">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                <TextBlock Text="ScreenShakeModifier" VerticalAlignment="Center" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunFeatureUnavailable]}" IsVisible="{Binding IsScreenShakeModifierAvailable, Converter={x:Static converters:BoolConverters.Not}}" />
+                                                    <ToggleSwitch IsChecked="{Binding RuntimePatchesScreenShakeModifier}" IsVisible="{Binding IsScreenShakeModifierAvailable}" AutomationProperties.Name="ScreenShakeModifier" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                        <Border Grid.Row="1" Classes="cfp-speedrun-option">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                <TextBlock Text="MiniSaveStates" VerticalAlignment="Center" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunFeatureUnavailable]}" IsVisible="{Binding IsMiniSaveStatesAvailable, Converter={x:Static converters:BoolConverters.Not}}" />
+                                                    <ToggleSwitch IsChecked="{Binding RuntimePatchesMiniSaveStates}" IsVisible="{Binding IsMiniSaveStatesAvailable}" AutomationProperties.Name="MiniSaveStates" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                        <Border Grid.Row="2" Classes="cfp-speedrun-option">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                <TextBlock Text="FasterIntroSkip" VerticalAlignment="Center" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunFeatureUnavailable]}" IsVisible="{Binding IsFasterIntroSkipAvailable, Converter={x:Static converters:BoolConverters.Not}}" />
+                                                    <ToggleSwitch IsChecked="{Binding RuntimePatchesFasterIntroSkip}" IsVisible="{Binding IsFasterIntroSkipAvailable}" AutomationProperties.Name="FasterIntroSkip" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                        <Border Grid.Row="3" Classes="cfp-speedrun-option">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                <TextBlock Text="TextMasher" VerticalAlignment="Center" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunFeatureUnavailable]}" IsVisible="{Binding IsTextMasherAvailable, Converter={x:Static converters:BoolConverters.Not}}" />
+                                                    <ToggleSwitch IsChecked="{Binding RuntimePatchesTextMasher}" IsVisible="{Binding IsTextMasherAvailable}" AutomationProperties.Name="TextMasher" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
                                     </Grid>
                                     <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunFeatureWarnings]}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Row="2" Classes="cfp-card cfp-speedrun-create" Padding="14">
-                                <StackPanel Spacing="8">
-                                    <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunCreate]}" />
-                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
-                                        <ComboBox ItemsSource="{Binding SpeedrunTemplates}"
-                                                  SelectedItem="{Binding SelectedSpeedrunTemplate}"
-                                                  DisplayMemberBinding="{Binding Name}"
-                                                  PlaceholderText="{Binding Loc[SelectSpeedrunTemplate]}" />
-                                        <ComboBox Grid.Column="1"
-                                                  ItemsSource="{Binding SpeedrunSourceInstances}"
-                                                  SelectedItem="{Binding SelectedSpeedrunSourceInstance}"
-                                                  DisplayMemberBinding="{Binding Name}"
-                                                  PlaceholderText="{Binding Loc[SpeedrunSelectVanillaSource]}" />
-                                    </Grid>
-                                    <Button Classes="cfp-primary"
-                                            Click="ShowCreateSpeedrunEnvironmentDialog"
-                                            HorizontalAlignment="Left"
-                                            Content="{Binding Loc[SpeedrunCreate]}" />
+                            <Border Grid.Row="2"
+                                    Classes="cfp-card"
+                                    Padding="14"
+                                    IsVisible="{Binding IsSelectedSpeedrunLegacy}">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTemplateExpired]}" />
+                                    <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunNeedsVerification]}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
-                            <StackPanel Grid.Row="3"
-                                        Orientation="Horizontal"
-                                        Spacing="8"
-                                        IsVisible="{Binding HasSelectedSpeedrunInstance}">
-                                <Button Classes="cfp-primary" Command="{Binding LaunchGameCommand}" IsEnabled="{Binding HasSelectedSpeedrunInstance}" Content="{Binding Loc[SpeedrunVerifyAndLaunch]}" />
-                                <Button Classes="cfp-secondary" Command="{Binding ReinstallSpeedrunEnvironmentCommand}" IsEnabled="{Binding IsSelectedSpeedrunCurrent}" Content="{Binding Loc[SpeedrunReinstall]}" />
-                                <Button Classes="cfp-icon" Click="OpenSelectedInstanceFolder" IsEnabled="{Binding HasSelectedSpeedrunInstance}" ToolTip.Tip="{Binding Loc[OpenFolder]}" AutomationProperties.Name="{Binding Loc[OpenFolder]}" Content="{LucideIconContent FolderOpen, 16}" />
-                                <Button Classes="cfp-icon danger" Click="ConfirmDeleteSelectedInstance" IsEnabled="{Binding HasSelectedSpeedrunInstance}" ToolTip.Tip="{Binding Loc[DeleteInstance]}" AutomationProperties.Name="{Binding Loc[DeleteInstance]}" Content="{LucideIconContent Trash2, 16}" />
-                            </StackPanel>
                         </Grid>
-                    </ScrollViewer>
+                        <Grid Classes="cfp-workspace cfp-speedrun-activity" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="10" IsVisible="{Binding IsSpeedrunActivityTab}">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunActivityTitle]}" />
+                                    <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunActivityHint]}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Classes="cfp-icon"
+                                        Command="{Binding RefreshSpeedrunActivityCommand}"
+                                        ToolTip.Tip="{Binding Loc[SpeedrunRefresh]}"
+                                        AutomationProperties.Name="{Binding Loc[SpeedrunRefresh]}"
+                                        Content="{LucideIconContent RefreshCw, 16}" />
+                            </Grid>
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6">
+                                <Button Classes="cfp-filter-chip" Classes.active="{Binding IsSpeedrunActivityFilterAll}" Command="{Binding SelectSpeedrunActivityFilterCommand}" CommandParameter="All" Content="{Binding Loc[SpeedrunActivityAll]}" />
+                                <Button Classes="cfp-filter-chip" Classes.active="{Binding IsSpeedrunActivityFilterHollowKnight}" Command="{Binding SelectSpeedrunActivityFilterCommand}" CommandParameter="HollowKnight" Content="{Binding Loc[SpeedrunGameHollowKnight]}" />
+                                <Button Classes="cfp-filter-chip" Classes.active="{Binding IsSpeedrunActivityFilterSilksong}" Command="{Binding SelectSpeedrunActivityFilterCommand}" CommandParameter="Silksong" Content="{Binding Loc[SpeedrunGameSilksong]}" />
+                            </StackPanel>
+                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding VisibleSpeedrunActivities}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Classes="cfp-speedrun-activity-row" Classes.wr="{Binding IsWorldRecord}" Margin="0,0,0,6" Padding="12,9">
+                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
+                                                    <TextBlock Classes="cfp-status" Text="{Binding KindText}" VerticalAlignment="Center" />
+                                                    <StackPanel Grid.Column="1" Spacing="2">
+                                                        <TextBlock Classes="cfp-row-title" Text="{Binding Run.PlayerName}" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Classes="cfp-meta" Text="{Binding BoardName}" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2" Spacing="2" HorizontalAlignment="Right">
+                                                        <TextBlock Classes="cfp-tabular" Text="{Binding Run.DisplayTime}" HorizontalAlignment="Right" />
+                                                        <TextBlock Classes="cfp-meta cfp-tabular" Text="{Binding DisplayVerifiedAt}" HorizontalAlignment="Right" />
+                                                    </StackPanel>
+                                                    <Button Grid.Column="3" Classes="cfp-icon" Tag="{Binding Run.RunUrl}" Click="OpenSpeedrunRun" IsVisible="{Binding Run.RunUrl, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="{Binding #Root.DataContext.Loc[SpeedrunOpenRun]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[SpeedrunOpenRun]}" Content="{LucideIconContent ExternalLink, 14}" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                            <TextBlock Grid.Row="2" Classes="cfp-meta" Text="{Binding Loc[SpeedrunActivityEmpty]}" TextWrapping="Wrap" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding ShowSpeedrunActivityEmptyState}" />
+                            <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                <ProgressBar Width="72" Height="3" IsIndeterminate="True" IsVisible="{Binding IsSpeedrunActivityLoading}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Classes="cfp-meta" Text="{Binding SpeedrunActivityStatus}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding SpeedrunActivityUpdatedAt}" VerticalAlignment="Center" />
+                            </Grid>
+                            <Border Grid.Row="4" Classes="cfp-error" IsVisible="{Binding HasSpeedrunActivityError}">
+                                <TextBlock Classes="cfp-meta" Text="{Binding SpeedrunActivityError}" TextWrapping="Wrap" />
+                            </Border>
+                        </Grid>
+                            </Grid>
+                        </ScrollViewer>
+                    </Grid>
                 </Grid>
             </Grid>
 
@@ -2127,7 +2310,7 @@
                                     HorizontalAlignment="Stretch">
                             <StackPanel Spacing="16" Classes="cfp-subpage" IsVisible="{Binding IsGeneralSettingsSection}">
                                 <Border Classes="cfp-card">
-                                    <Grid ColumnDefinitions="*,16,*">
+                                    <Grid ColumnDefinitions="*,16,*,16,*">
                                         <StackPanel Grid.Column="0" Spacing="8">
                                             <TextBlock Classes="cfp-row-title" Text="{Binding Loc[Language]}" />
                                             <ComboBox Classes="cfp-input" ItemsSource="{Binding LanguageOptions}" SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[Language]}">
@@ -2137,6 +2320,12 @@
                                         <StackPanel Grid.Column="2" Spacing="8">
                                             <TextBlock Classes="cfp-row-title" Text="{Binding Loc[Theme]}" />
                                             <ComboBox Classes="cfp-input" ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[Theme]}">
+                                                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="4" Spacing="8">
+                                            <TextBlock Classes="cfp-row-title" Text="{Binding Loc[Motion]}" />
+                                            <ComboBox Classes="cfp-input" ItemsSource="{Binding MotionOptions}" SelectedItem="{Binding SelectedMotionPreference, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[Motion]}">
                                                 <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
                                             </ComboBox>
                                         </StackPanel>
@@ -2417,8 +2606,11 @@
                                         <WrapPanel>
                                             <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/hk-speedrunning" Click="OpenExternalUrl"><TextBlock Text="HK Speedrunning" /></Button>
                                             <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/hk-speedrunning/HK-Resources" Click="OpenExternalUrl"><TextBlock Text="HK-Resources" /></Button>
-                                            <Button Classes="cfp-link" Tag="https://github.com/olvior/AssemblyPatches/releases/tag/v1.0.2" Click="OpenExternalUrl"><TextBlock Text="AssemblyPatches v1.0.2" /></Button>
+                                            <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/olvior/AssemblyPatches/releases/tag/v1.0.2" Click="OpenExternalUrl"><TextBlock Text="AssemblyPatches v1.0.2" /></Button>
+                                            <Button Classes="cfp-link" Tag="https://www.speedrun.com" Click="OpenExternalUrl"><TextBlock Text="Speedrun.com" /></Button>
                                         </WrapPanel>
+                                        <TextBlock Classes="cfp-row-title" Text="{Binding Loc[AboutSpeedrunComData]}" />
+                                        <TextBlock Classes="cfp-caption" Text="{Binding Loc[AboutSpeedrunComDataDescription]}" TextWrapping="Wrap" />
                                     </StackPanel>
                                 </Border>
                                 <Border Classes="cfp-card">

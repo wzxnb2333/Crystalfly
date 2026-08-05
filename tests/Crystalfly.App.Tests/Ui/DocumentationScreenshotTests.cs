@@ -56,6 +56,7 @@ public sealed class DocumentationScreenshotTests
         new("crystalfly-dependency-graph-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.DependencyGraph),
         new("crystalfly-speedrun-900x600-zh.jpg", 900, 600, 1d, ScreenshotState.Speedrun),
         new("crystalfly-speedrun-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.Speedrun),
+        new("crystalfly-speedrun-activity-1280x720-zh.jpg", 1280, 720, 1d, ScreenshotState.SpeedrunActivity),
         new("crystalfly-speedrun-1920x1080-zh.jpg", 1920, 1080, 1.5d, ScreenshotState.Speedrun)
     ];
 
@@ -458,6 +459,10 @@ public sealed class DocumentationScreenshotTests
                 Assert.Contains(fixture.ViewModel.Loc["SpeedrunVerified"], visibleText);
                 Assert.DoesNotContain(fixture.ViewModel.Loc["SpeedrunComingSoon"], visibleText);
                 break;
+            case ScreenshotState.SpeedrunActivity:
+                Assert.Contains(fixture.ViewModel.Loc["SpeedrunActivityTitle"], visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["SpeedrunActivityEmpty"], visibleText);
+                break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(state), state, null);
         }
@@ -527,7 +532,7 @@ public sealed class DocumentationScreenshotTests
                     or ScreenshotState.SettingsAccentDialog
                     or ScreenshotState.SettingsBackground or ScreenshotState.SettingsInstanceBackground => "Settings",
                 ScreenshotState.MarketList or ScreenshotState.MarketDetail or ScreenshotState.MarketInstall => "Downloads",
-                ScreenshotState.Speedrun => "Speedrun",
+                ScreenshotState.Speedrun or ScreenshotState.SpeedrunActivity => "Speedrun",
                 ScreenshotState.InstanceDetail
                     or ScreenshotState.InstalledModHealth
                     or ScreenshotState.ModPresets
@@ -639,6 +644,12 @@ public sealed class DocumentationScreenshotTests
                     await Task.Delay(10);
                 }
                 ViewModel.SpeedrunStatus = ViewModel.Loc["SpeedrunVerified"];
+            }
+            if (state == ScreenshotState.SpeedrunActivity)
+            {
+                ViewModel.CurrentSpeedrunTab = "Activity";
+                ViewModel.SpeedrunActivityStatus = ViewModel.Loc["SpeedrunActivityReady"];
+                ViewModel.IsSpeedrunActivityLoading = false;
             }
         }
 
@@ -754,13 +765,14 @@ public sealed class DocumentationScreenshotTests
                 MainWindow.OverlayHostId,
                 new OverlayDialogOptions
                 {
+                    TopLevelHashCode = Window.GetHashCode(),
                     CanLightDismiss = false,
                     CanDragMove = false,
                     IsCloseButtonVisible = true,
                     CanResize = false
                 });
             for (var attempt = 0;
-                 attempt < 500 && !Window.GetVisualDescendants().OfType<CustomDialogControl>().Any();
+                 attempt < 1000 && !Window.GetVisualDescendants().OfType<CustomDialogControl>().Any();
                  attempt++)
             {
                 Dispatcher.UIThread.RunJobs();
@@ -788,6 +800,7 @@ public sealed class DocumentationScreenshotTests
                 MainWindow.OverlayHostId,
                 new OverlayDialogOptions
                 {
+                    TopLevelHashCode = Window.GetHashCode(),
                     CanLightDismiss = true,
                     CanDragMove = false,
                     IsCloseButtonVisible = true,
@@ -1084,6 +1097,7 @@ public sealed class DocumentationScreenshotTests
         InstanceConfig,
         SaveEditor,
         DependencyGraph,
-        Speedrun
+        Speedrun,
+        SpeedrunActivity
     }
 }
