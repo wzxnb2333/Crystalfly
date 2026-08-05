@@ -835,6 +835,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             StatusMessage = Loc["ChooseRoot"];
         }
         await Task.WhenAll(refreshTask, InitializeDownloadQueueAsync());
+        StartSpeedrunActivityRefreshLoop();
         await CompleteGameDirectoryInitializationAsync();
     }
 
@@ -5088,8 +5089,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     pendingExternalProtocolCommand,
                     steamOfflineTransitionTask,
                     pendingDetailsLoad,
-                    pendingContentLoad,
-                    pendingSpeedrunLeaderboardLoad);
+                    pendingContentLoad);
+                try
+                {
+                    await pendingSpeedrunLeaderboardLoad;
+                }
+                catch (Exception) when (lifetimeCancellation.IsCancellationRequested)
+                {
+                    // Shutdown has begun; a background speedrun refresh that faulted
+                    // (or was cancelled) must not abort disposal.
+                }
                 await catalogRefreshTask;
                 await steamReconnectTask;
             }

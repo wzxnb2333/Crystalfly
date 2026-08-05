@@ -13,6 +13,9 @@ public partial class MainViewModel
     private CancellationTokenSource? speedrunLeaderboardLoadCancellation;
     private Task speedrunLeaderboardLoadTask = Task.CompletedTask;
     private long speedrunLeaderboardLoadGeneration;
+    private DateTimeOffset? speedrunActivityLastLoadedAt;
+    private static readonly TimeSpan SpeedrunActivityCacheLifetime = TimeSpan.FromMinutes(15);
+    private static TimeSpan SpeedrunActivityRefreshInterval = TimeSpan.FromMinutes(15);
 
     public ObservableCollection<SpeedrunActivityItemViewModel> SpeedrunActivities { get; } = [];
     public ObservableCollection<SpeedrunActivityItemViewModel> VisibleSpeedrunActivities { get; } = [];
@@ -55,7 +58,7 @@ public partial class MainViewModel
     {
         if (value == "Speedrun" && IsSpeedrunActivityTab)
         {
-            BeginSpeedrunActivityLoad(forceRefresh: false);
+            EnsureSpeedrunActivityLoaded();
         }
     }
 
@@ -63,14 +66,14 @@ public partial class MainViewModel
     {
         if (value == "Activity")
         {
-            BeginSpeedrunActivityLoad(forceRefresh: false);
+            EnsureSpeedrunActivityLoaded();
         }
     }
 
     partial void OnSpeedrunActivityFilterChanged(string value) => ApplySpeedrunActivityFilter();
 
     [RelayCommand]
-    private Task RefreshSpeedrunActivityAsync() => LoadSpeedrunActivityAsync(forceRefresh: true);
+    private Task RefreshSpeedrunActivityAsync() => LoadSpeedrunActivityAsync(forceRefresh: true, showLoading: true);
 
     [RelayCommand]
     private void SelectSpeedrunActivityFilter(string? filter)
@@ -93,10 +96,61 @@ public partial class MainViewModel
     [RelayCommand]
     private void DismissSpeedrunReminder() => SpeedrunReminderText = string.Empty;
 
-    private void BeginSpeedrunActivityLoad(bool forceRefresh) =>
-        speedrunLeaderboardLoadTask = LoadSpeedrunActivityAsync(forceRefresh);
+    private void BeginSpeedrunActivityLoad(bool forceRefresh, bool showLoading = true) =>
+        speedrunLeaderboardLoadTask = LoadSpeedrunActivityAsync(forceRefresh, showLoading);
 
-    private async Task LoadSpeedrunActivityAsync(bool forceRefresh)
+    private void EnsureSpeedrunActivityLoaded()
+    {
+        if (speedrunActivityLastLoadedAt is { } lastLoaded
+            && speedrunComClient.UtcNow - lastLoaded < SpeedrunActivityCacheLifetime)
+        {
+            return;
+        }
+
+        if (speedrunActivityLastLoadedAt is null)
+        {
+            BeginSpeedrunActivityLoad(forceRefresh: false, showLoading: true);
+            return;
+        }
+
+        BeginSpeedrunActivityLoad(forceRefresh: true, showLoading: false);
+    }
+
+    internal void StartSpeedrunActivityRefreshLoop() => _ = SpeedrunActivityRefreshLoopAsync();
+
+    private async Task SpeedrunActivityRefreshLoopAsync()
+    {
+        try
+        {
+            while (!lifetimeCancellation.IsCancellationRequested)
+            {
+                await Task.Delay(SpeedrunActivityRefreshInterval, lifetimeCancellation.Token);
+                if (lifetimeCancellation.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                try
+                {
+                    BeginSpeedrunActivityLoad(forceRefresh: true, showLoading: false);
+                    await speedrunLeaderboardLoadTask;
+                }
+                catch (OperationCanceledException) when (!lifetimeCancellation.IsCancellationRequested)
+                {
+                    SpeedrunActivityError = Loc["SpeedrunActivityUnavailable"];
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    SpeedrunActivityError = exception.Message;
+                }
+            }
+        }
+        catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
+        {
+        }
+    }
+
+    private async Task LoadSpeedrunActivityAsync(bool forceRefresh, bool showLoading)
     {
         long generation = Interlocked.Increment(ref speedrunLeaderboardLoadGeneration);
         var replacement = new CancellationTokenSource();
@@ -107,9 +161,9 @@ public partial class MainViewModel
             lifetimeCancellation.Token,
             replacement.Token);
         CancellationToken cancellationToken = linked.Token;
-        IsSpeedrunActivityLoading = true;
+        IsSpeedrunActivityLoading = showLoading;
         SpeedrunActivityError = null;
-        SpeedrunActivityStatus = Loc["SpeedrunActivityLoading"];
+        SpeedrunActivityStatus = showLoading ? Loc["SpeedrunActivityLoading"] : string.Empty;
 
         try
         {
@@ -181,10 +235,14 @@ public partial class MainViewModel
             SpeedrunActivityUpdatedAt = fetchedAt is { } value
                 ? string.Format(CultureInfo.CurrentCulture, Loc["SpeedrunActivityUpdatedAt"], value.ToLocalTime().ToString("g", CultureInfo.CurrentCulture))
                 : string.Empty;
+            speedrunActivityLastLoadedAt = speedrunComClient.UtcNow;
 
-            foreach (SpeedrunActivityEntry activity in detection.NewActivities)
+            if (CurrentPage == "Speedrun")
             {
-                ToastRequested?.Invoke(ActivityToastText(activity));
+                foreach (SpeedrunActivityEntry activity in detection.NewActivities)
+                {
+                    ToastRequested?.Invoke(ActivityToastText(activity));
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

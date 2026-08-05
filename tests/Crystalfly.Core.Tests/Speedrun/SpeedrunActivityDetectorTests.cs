@@ -88,6 +88,34 @@ public sealed class SpeedrunActivityDetectorTests
         Assert.Equal("new", result.Document.Activities[0].RunId);
     }
 
+    [Fact]
+    public void Does_not_re_detect_a_run_already_recorded_in_activity_history_after_a_failed_scan()
+    {
+        var checkedAt = DateTimeOffset.Parse("2026-08-02T00:00:00Z");
+        var record = Run("record", 1, 90, checkedAt.AddHours(1));
+        // The stale baseline predates the world record; the record is already in activity history
+        // because an intermediate scan for this board failed before its baseline could be refreshed.
+        var old = Document(checkedAt, Run("old", 1, 100, checkedAt)) with
+        {
+            Activities =
+            [
+                new SpeedrunActivityEntry(
+                    "record",
+                    SpeedrunActivityKind.WorldRecord,
+                    Board,
+                    record,
+                    checkedAt.AddHours(1))
+            ]
+        };
+
+        var result = SpeedrunActivityDetector.Apply(
+            old,
+            [new(Board, [Run("old", 1, 100, checkedAt), record])],
+            checkedAt.AddHours(2));
+
+        Assert.Empty(result.NewActivities);
+    }
+
     private static SpeedrunActivityDocument Document(
         DateTimeOffset checkedAt,
         params SpeedrunPodiumEntry[] entries) => new()

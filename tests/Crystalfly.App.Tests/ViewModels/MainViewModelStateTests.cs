@@ -3265,6 +3265,218 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.True(viewModel.IsSelectedPresetEntriesExpanded);
     }
 
+    [Fact]
+    public async Task Switching_to_activity_tab_with_fresh_cache_does_not_reload()
+    {
+        string root = applicationData.CreateDirectory("speedrun-fresh-cache");
+        using var policy = new NetworkPolicy();
+        var handler = new CountingSpeedrunResponseHandler();
+        using var httpClient = new HttpClient(handler);
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        await using var viewModel = new MainViewModel(
+            root,
+            speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Speedrun",
+            CurrentSpeedrunTab = "Environment"
+        };
+
+        // First load populates the in-memory cache.
+        await viewModel.RefreshSpeedrunActivityCommand.ExecuteAsync(null);
+        int callsAfterFirstLoad = handler.RequestCount;
+        Assert.True(callsAfterFirstLoad > 0);
+
+        // Switching to the Activity tab inside the cache window must not hit the network.
+        viewModel.SelectSpeedrunTabCommand.Execute("Activity");
+
+        Assert.Equal(callsAfterFirstLoad, handler.RequestCount);
+        Assert.False(viewModel.IsSpeedrunActivityLoading);
+    }
+
+    [Fact]
+    public async Task Background_refresh_loop_reloads_activity_without_loading_indicator()
+    {
+        string root = applicationData.CreateDirectory("speedrun-refresh-loop");
+        using var policy = new NetworkPolicy();
+        var handler = new CountingSpeedrunResponseHandler();
+        using var httpClient = new HttpClient(handler);
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        await using var viewModel = new MainViewModel(
+            root,
+            speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Speedrun",
+            CurrentSpeedrunTab = "Environment"
+        };
+
+        await viewModel.RefreshSpeedrunActivityCommand.ExecuteAsync(null);
+        int callsAfterFirstLoad = handler.RequestCount;
+
+        // Shorten the production 15-minute interval so the test can observe a loop iteration.
+        var intervalField = typeof(MainViewModel).GetField(
+            "SpeedrunActivityRefreshInterval",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.NotNull(intervalField);
+        intervalField.SetValue(null, TimeSpan.FromMilliseconds(150));
+        try
+        {
+            viewModel.StartSpeedrunActivityRefreshLoop();
+            await Task.Delay(500);
+
+            Assert.True(handler.RequestCount > callsAfterFirstLoad);
+            Assert.False(viewModel.IsSpeedrunActivityLoading);
+        }
+        finally
+        {
+            // Restore the production interval so other tests that initialize the
+            // view model (and thus start the loop) are not affected by this override.
+            intervalField.SetValue(null, TimeSpan.FromMinutes(15));
+        }
+    }
+
+    [Fact]
+    public async Task Background_refresh_loop_survives_unexpected_loading_error()
+    {
+        string root = applicationData.CreateDirectory("speedrun-refresh-loop-errors");
+        using var policy = new NetworkPolicy();
+        var handler = new ThrowingSpeedrunResponseHandler();
+        using var httpClient = new HttpClient(handler);
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        await using var viewModel = new MainViewModel(
+            root,
+            speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Speedrun",
+            CurrentSpeedrunTab = "Environment"
+        };
+
+        var intervalField = typeof(MainViewModel).GetField(
+            "SpeedrunActivityRefreshInterval",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.NotNull(intervalField);
+        intervalField.SetValue(null, TimeSpan.FromMilliseconds(150));
+        try
+        {
+            viewModel.StartSpeedrunActivityRefreshLoop();
+            await Task.Delay(500);
+
+            // A non-recoverable load error is surfaced, and the loop keeps
+            // refreshing instead of stopping after the first failure.
+            Assert.False(string.IsNullOrWhiteSpace(viewModel.SpeedrunActivityError));
+            Assert.True(
+                handler.Attempts >= 2,
+                $"expected at least 2 refresh attempts, got {handler.Attempts}");
+        }
+        finally
+        {
+            intervalField.SetValue(null, TimeSpan.FromMinutes(15));
+        }
+    }
+
+    [Fact]
+    public async Task Activity_refresh_outside_the_speedrun_page_suppresses_toast_notifications()
+    {
+        string root = applicationData.CreateDirectory("speedrun-toast-scope");
+        // Seed a stale baseline so the refresh detects the returned run as a new world record.
+        var baselineAt = DateTimeOffset.Parse("2026-07-31T00:00:00Z");
+        var board = new SpeedrunBoardDescriptor(
+            SpeedrunGame.HollowKnight,
+            "category-any",
+            "Any%",
+            null,
+            null,
+            []);
+        await AtomicJsonStore.WriteAsync(
+            Path.Combine(root, "speedrun-activity.json"),
+            new SpeedrunActivityDocument
+            {
+                Boards = new Dictionary<string, SpeedrunBoardBaseline>(StringComparer.Ordinal)
+                {
+                    [board.Key] = new(
+                        board,
+                        baselineAt,
+                        [new("old-run", 1, "Old Runner", "PT40M", 2400, baselineAt, null)])
+                }
+            },
+            CancellationToken.None);
+
+        using var policy = new NetworkPolicy();
+        using var httpClient = new HttpClient(new NewRecordSpeedrunResponseHandler());
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        await using var viewModel = new MainViewModel(
+            root,
+            speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Launch",
+            CurrentSpeedrunTab = "Activity"
+        };
+        var toasts = new List<string>();
+        viewModel.ToastRequested += toast => toasts.Add(toast);
+
+        await viewModel.RefreshSpeedrunActivityCommand.ExecuteAsync(null);
+
+        Assert.Empty(toasts);
+    }
+
+    [Fact]
+    public async Task Activity_refresh_on_the_speedrun_page_shows_toast_for_new_record()
+    {
+        string root = applicationData.CreateDirectory("speedrun-toast-on-page");
+        // Seed a stale baseline so the refresh detects the returned run as a new world record.
+        var baselineAt = DateTimeOffset.Parse("2026-07-31T00:00:00Z");
+        var board = new SpeedrunBoardDescriptor(
+            SpeedrunGame.HollowKnight,
+            "category-any",
+            "Any%",
+            null,
+            null,
+            []);
+        await AtomicJsonStore.WriteAsync(
+            Path.Combine(root, "speedrun-activity.json"),
+            new SpeedrunActivityDocument
+            {
+                Boards = new Dictionary<string, SpeedrunBoardBaseline>(StringComparer.Ordinal)
+                {
+                    [board.Key] = new(
+                        board,
+                        baselineAt,
+                        [new("old-run", 1, "Old Runner", "PT40M", 2400, baselineAt, null)])
+                }
+            },
+            CancellationToken.None);
+
+        using var policy = new NetworkPolicy();
+        using var httpClient = new HttpClient(new NewRecordSpeedrunResponseHandler());
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        await using var viewModel = new MainViewModel(
+            root,
+            speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Speedrun"
+        };
+        var toasts = new List<string>();
+        viewModel.ToastRequested += toast => toasts.Add(toast);
+
+        await viewModel.RefreshSpeedrunActivityCommand.ExecuteAsync(null);
+
+        Assert.NotEmpty(toasts);
+    }
+
     private MainViewModel CreateViewModel() => new(applicationData.CreateDirectory("app-data"));
 
     public void Dispose() => applicationData.Dispose();
@@ -3273,7 +3485,7 @@ public sealed class MainViewModelStateTests : IDisposable
         ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)))
         : null;
 
-    private sealed class SpeedrunResponseHandler : HttpMessageHandler
+    private class SpeedrunResponseHandler : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -3325,6 +3537,86 @@ public sealed class MainViewModelStateTests : IDisposable
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json")
             });
+        }
+    }
+
+    private sealed class NewRecordSpeedrunResponseHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            string json = request.RequestUri!.AbsolutePath switch
+            {
+                var path when path.EndsWith("/categories", StringComparison.Ordinal) => """
+                {
+                  "data": [
+                    { "id": "category-any", "name": "Any%", "type": "per-game" }
+                  ]
+                }
+                """,
+                var path when path.Contains("/leaderboards/", StringComparison.Ordinal) => """
+                {
+                  "data": {
+                    "runs": [
+                      {
+                        "place": 1,
+                        "run": {
+                          "id": "new-record",
+                          "weblink": "https://www.speedrun.com/hollowknight/runs/new-record",
+                          "status": { "status": "verified", "verify-date": "2026-08-01T01:00:00Z" },
+                          "times": { "primary": "PT31M", "primary_t": 1860 },
+                          "players": [{ "rel": "user", "id": "p1" }]
+                        }
+                      }
+                    ],
+                    "players": [{ "id": "p1", "names": { "international": "Runner" } }]
+                  }
+                }
+                """,
+                _ => """
+                {
+                  "data": [
+                    { "id": "level-1", "name": "Level 1" }
+                  ]
+                }
+                """
+            };
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            });
+        }
+    }
+
+    private sealed class CountingSpeedrunResponseHandler : SpeedrunResponseHandler
+    {
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            return base.SendAsync(request, cancellationToken);
+        }
+    }
+
+    private sealed class ThrowingSpeedrunResponseHandler : HttpMessageHandler
+    {
+        private int attempts;
+
+        public int Attempts => Volatile.Read(ref attempts);
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref attempts);
+            // A failure that SpeedrunComClient does not treat as recoverable, so the
+            // load task faults and must be contained by the background refresh loop.
+            return Task.FromException<HttpResponseMessage>(
+                new ObjectDisposedException(nameof(HttpClient)));
         }
     }
 
