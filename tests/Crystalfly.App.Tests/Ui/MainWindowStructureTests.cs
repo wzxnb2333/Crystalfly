@@ -239,7 +239,7 @@ public sealed class MainWindowStructureTests
             "src",
             "Crystalfly.App",
             "Views",
-            "MainWindow.axaml.cs"));
+            "MainWindow.SpeedrunHandlers.cs"));
         Assert.Contains("private void OpenSpeedrunRun", code, StringComparison.Ordinal);
         Assert.Contains("speedrun.com", code, StringComparison.Ordinal);
     }
@@ -485,7 +485,7 @@ public sealed class MainWindowStructureTests
             "src",
             "Crystalfly.App",
             "Views",
-            "MainWindow.axaml.cs"));
+            "MainWindow.PresetHandlers.cs"));
         Assert.Contains("private async void ConfirmApplyPreset", code, StringComparison.Ordinal);
         Assert.Contains("private async void ConfirmDeletePreset", code, StringComparison.Ordinal);
         Assert.Contains("private async void ImportPresetFile", code, StringComparison.Ordinal);

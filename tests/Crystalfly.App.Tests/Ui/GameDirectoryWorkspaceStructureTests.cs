@@ -60,12 +60,13 @@ public sealed class GameDirectoryWorkspaceStructureTests
     public void Discovery_and_steam_risk_overlays_are_registered()
     {
         var root = FindRepositoryRoot();
-        var code = File.ReadAllText(Path.Combine(root, "src", "Crystalfly.App", "Views", "MainWindow.axaml.cs"));
+        var windowCode = File.ReadAllText(Path.Combine(root, "src", "Crystalfly.App", "Views", "MainWindow.axaml.cs"));
+        var instanceHandlers = File.ReadAllText(Path.Combine(root, "src", "Crystalfly.App", "Views", "MainWindow.InstanceHandlers.cs"));
 
-        Assert.Contains("GameDirectoryDiscoveryRequested", code, StringComparison.Ordinal);
-        Assert.Contains("GameDirectoryDiscoveryDialogView", code, StringComparison.Ordinal);
-        Assert.Contains("SteamDirectoryRiskDialogView", code, StringComparison.Ordinal);
-        Assert.Contains("SteamInstanceDeletionDialogView", code, StringComparison.Ordinal);
+        Assert.Contains("GameDirectoryDiscoveryRequested", windowCode, StringComparison.Ordinal);
+        Assert.Contains("GameDirectoryDiscoveryDialogView", instanceHandlers, StringComparison.Ordinal);
+        Assert.Contains("SteamDirectoryRiskDialogView", instanceHandlers, StringComparison.Ordinal);
+        Assert.Contains("SteamInstanceDeletionDialogView", instanceHandlers, StringComparison.Ordinal);
     }
 
     private static bool HasBinding(XElement element, string attribute, string path) =>

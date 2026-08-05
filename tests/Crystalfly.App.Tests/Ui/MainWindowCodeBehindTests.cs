@@ -51,7 +51,7 @@ public sealed class MainWindowCodeBehindTests : IDisposable
             "src",
             "Crystalfly.App",
             "Views",
-            "MainWindow.axaml.cs"));
+            "MainWindow.ModHandlers.cs"));
         var handlerStart = code.IndexOf("private void OnInstalledModPointerPressed", StringComparison.Ordinal);
         var nextHandler = code.IndexOf("private void OnInstalledModsKeyDown", handlerStart, StringComparison.Ordinal);
 

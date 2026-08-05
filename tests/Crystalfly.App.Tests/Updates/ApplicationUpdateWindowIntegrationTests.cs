@@ -13,11 +13,17 @@ public sealed class ApplicationUpdateWindowIntegrationTests
             "MainWindow.axaml.cs"));
 
         Assert.Contains("CheckForApplicationUpdateAsync(viewModel, force: false", code, StringComparison.Ordinal);
-        Assert.Contains("CheckForApplicationUpdateAsync(viewModel, force: true", code, StringComparison.Ordinal);
-        Assert.Contains("ApplicationUpdateDialogResult.Update", code, StringComparison.Ordinal);
-        Assert.Contains("ApplicationUpdateDialogResult.SkipVersion", code, StringComparison.Ordinal);
-        Assert.Contains("SkipApplicationUpdateAsync", code, StringComparison.Ordinal);
-        Assert.Contains("StartAvailableApplicationUpdateAsync", code, StringComparison.Ordinal);
+        string updateHandlers = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Views",
+            "MainWindow.SettingsHandlers.cs"));
+        Assert.Contains("CheckForApplicationUpdateAsync(viewModel, force: true", updateHandlers, StringComparison.Ordinal);
+        Assert.Contains("ApplicationUpdateDialogResult.Update", updateHandlers, StringComparison.Ordinal);
+        Assert.Contains("ApplicationUpdateDialogResult.SkipVersion", updateHandlers, StringComparison.Ordinal);
+        Assert.Contains("SkipApplicationUpdateAsync", updateHandlers, StringComparison.Ordinal);
+        Assert.Contains("StartAvailableApplicationUpdateAsync", updateHandlers, StringComparison.Ordinal);
     }
 
     private static string FindRepositoryRoot()
