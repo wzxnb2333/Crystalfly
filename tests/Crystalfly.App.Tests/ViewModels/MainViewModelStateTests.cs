@@ -3340,6 +3340,48 @@ public sealed class MainViewModelStateTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task Background_refresh_loop_survives_unexpected_loading_error()
+    {
+        string root = applicationData.CreateDirectory("speedrun-refresh-loop-errors");
+        using var policy = new NetworkPolicy();
+        var handler = new ThrowingSpeedrunResponseHandler();
+        using var httpClient = new HttpClient(handler);
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        await using var viewModel = new MainViewModel(
+            root,
+            speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Speedrun",
+            CurrentSpeedrunTab = "Environment"
+        };
+
+        var intervalField = typeof(MainViewModel).GetField(
+            "SpeedrunActivityRefreshInterval",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.NotNull(intervalField);
+        intervalField.SetValue(null, TimeSpan.FromMilliseconds(150));
+        try
+        {
+            viewModel.StartSpeedrunActivityRefreshLoop();
+            await Task.Delay(500);
+
+            // A non-recoverable load error is surfaced, and the loop keeps
+            // refreshing instead of stopping after the first failure.
+            Assert.False(string.IsNullOrWhiteSpace(viewModel.SpeedrunActivityError));
+            Assert.True(
+                handler.Attempts >= 2,
+                $"expected at least 2 refresh attempts, got {handler.Attempts}");
+        }
+        finally
+        {
+            intervalField.SetValue(null, TimeSpan.FromMinutes(15));
+        }
+    }
+
     private MainViewModel CreateViewModel() => new(applicationData.CreateDirectory("app-data"));
 
     public void Dispose() => applicationData.Dispose();
@@ -3413,6 +3455,24 @@ public sealed class MainViewModelStateTests : IDisposable
         {
             RequestCount++;
             return base.SendAsync(request, cancellationToken);
+        }
+    }
+
+    private sealed class ThrowingSpeedrunResponseHandler : HttpMessageHandler
+    {
+        private int attempts;
+
+        public int Attempts => Volatile.Read(ref attempts);
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref attempts);
+            // A failure that SpeedrunComClient does not treat as recoverable, so the
+            // load task faults and must be contained by the background refresh loop.
+            return Task.FromException<HttpResponseMessage>(
+                new ObjectDisposedException(nameof(HttpClient)));
         }
     }
 

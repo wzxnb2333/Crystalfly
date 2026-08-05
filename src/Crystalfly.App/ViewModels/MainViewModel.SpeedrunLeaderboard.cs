@@ -130,8 +130,19 @@ public partial class MainViewModel
                     break;
                 }
 
-                BeginSpeedrunActivityLoad(forceRefresh: true, showLoading: false);
-                await speedrunLeaderboardLoadTask;
+                try
+                {
+                    BeginSpeedrunActivityLoad(forceRefresh: true, showLoading: false);
+                    await speedrunLeaderboardLoadTask;
+                }
+                catch (OperationCanceledException) when (!lifetimeCancellation.IsCancellationRequested)
+                {
+                    SpeedrunActivityError = Loc["SpeedrunActivityUnavailable"];
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    SpeedrunActivityError = exception.Message;
+                }
             }
         }
         catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
