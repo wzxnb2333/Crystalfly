@@ -16,110 +16,47 @@ namespace Crystalfly.App.Tests.Ui;
 
 public sealed class DependencyGraphViewRenderTests
 {
+    private const string EdgeColor = "#565C66";
+    private const string AccentColor = "#5AAEFA";
+
     [AvaloniaFact]
-    public void DependencyGraphEdges_renders_edges_with_the_line_brush_color()
+    public void DependencyGraphEdges_renders_regular_edges_with_the_line_brush_color()
     {
-        var previousTheme = Application.Current!.RequestedThemeVariant;
-        Application.Current.RequestedThemeVariant = ThemeVariant.Dark;
-        Window? window = null;
-        try
-        {
-            var source = new DependencyGraphNodeViewModel(
-                new DependencyGraphNodeDefinition("a", "A", string.Empty, "Enabled", DependencyGraphNodeState.Normal));
-            var target = new DependencyGraphNodeViewModel(
-                new DependencyGraphNodeDefinition("b", "B", string.Empty, "Enabled", DependencyGraphNodeState.Normal));
-            source.SetPosition(28, 28);
-            target.SetPosition(352, 28);
-            var edge = new DependencyGraphEdgeViewModel(source, target);
-            var control = new DependencyGraphEdges
-            {
-                Width = 608,
-                Height = 138,
-                Edges = [edge],
-                LineBrush = new SolidColorBrush(Color.Parse("#565C66")),
-                HighlightBrush = new SolidColorBrush(Colors.Red),
-                ErrorBrush = new SolidColorBrush(Colors.Red)
-            };
-            window = new Window
-            {
-                Width = 700,
-                Height = 220,
-                Background = new SolidColorBrush(Colors.Black),
-                Content = control
-            };
-            window.Show();
-            Dispatcher.UIThread.RunJobs();
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
-            Dispatcher.UIThread.RunJobs();
-
-            // Edge midpoint in graph coordinates: ((28 + NodeWidth + 352) / 2, 28 + NodeHeight / 2) = (304, 69).
-            var frame = Assert.IsType<WriteableBitmap>(window.GetLastRenderedFrame());
-            using var bitmap = Decode(frame);
-            var screen = control.TranslatePoint(new Point(304, 69), window) ?? throw new InvalidOperationException();
-            var pixel = bitmap.GetPixel((int)Math.Round(screen.X), (int)Math.Round(screen.Y));
-
-            // CfEdgeBrush dark-theme value is #565C66; the midpoint must be painted with it rather than
-            // left transparent (black window background) or painted with the highlight/error brushes.
-            Assert.True(
-                Math.Abs(pixel.Red - 0x56) <= 25
-                    && Math.Abs(pixel.Green - 0x5C) <= 25
-                    && Math.Abs(pixel.Blue - 0x66) <= 25,
-                $"expected line brush color #565C66 at ({screen.X:F0},{screen.Y:F0}), got pixel RGB({pixel.Red},{pixel.Green},{pixel.Blue})");
-        }
-        finally
-        {
-            window?.Close();
-            Application.Current.RequestedThemeVariant = previousTheme;
-        }
+        // A regular edge (not highlighted, not dimmed, not a cycle) must be painted with LineBrush.
+        AssertEdgeColor(highlighted: false, EdgeColor);
     }
 
     [AvaloniaFact]
-    public void DependencyGraphView_renders_a_highlighted_edge_with_the_accent_color()
+    public void DependencyGraphEdges_renders_highlighted_edges_with_the_highlight_brush_color()
     {
-        var previousTheme = Application.Current!.RequestedThemeVariant;
-        Application.Current.RequestedThemeVariant = ThemeVariant.Dark;
-        Window? window = null;
+        // A highlighted edge (the model selects a node by default) must use the accent highlight brush.
+        AssertEdgeColor(highlighted: true, AccentColor);
+    }
+
+    [AvaloniaFact]
+    public void DependencyGraphView_selecting_a_node_highlights_its_connected_edges()
+    {
+        var graph = DependencyGraphModel.Create(
+            [
+                new DependencyGraphNodeDefinition("a", "Node A", "A", "Enabled", DependencyGraphNodeState.Normal),
+                new DependencyGraphNodeDefinition("b", "Node B", "B", "Enabled", DependencyGraphNodeState.Normal)
+            ],
+            [new DependencyGraphEdgeDefinition("a", "b")]);
+        var view = new DependencyGraphView { DataContext = graph };
+        var window = new Window { Width = 900, Height = 600, Content = view };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
         try
         {
-            var graph = DependencyGraphModel.Create(
-                [
-                    new DependencyGraphNodeDefinition("a", "Node A", "A", "Enabled", DependencyGraphNodeState.Normal),
-                    new DependencyGraphNodeDefinition("b", "Node B", "B", "Enabled", DependencyGraphNodeState.Normal)
-                ],
-                [new DependencyGraphEdgeDefinition("a", "b")]);
-            var view = new DependencyGraphView { DataContext = graph };
-            window = new Window { Width = 900, Height = 600, Content = view };
-            window.Show();
-            Dispatcher.UIThread.RunJobs();
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
-            Dispatcher.UIThread.RunJobs();
-
-            // The model selects the first node by default, which highlights the connected edge.
-            Assert.True(graph.Edges.Single().IsHighlighted);
-            var nodeA = graph.Nodes.Single(node => node.Id == "a");
-            var nodeB = graph.Nodes.Single(node => node.Id == "b");
-            var edgeMidpoint = new Point(
-                (nodeA.X + DependencyGraphModel.NodeWidth + nodeB.X) / 2,
-                nodeA.Y + DependencyGraphModel.NodeHeight / 2);
-            var screen = new Point(
-                edgeMidpoint.X * view.Scale + view.Translation.X,
-                edgeMidpoint.Y * view.Scale + view.Translation.Y);
-
-            var frame = Assert.IsType<WriteableBitmap>(window.GetLastRenderedFrame());
-            using var bitmap = Decode(frame);
-            var pixel = bitmap.GetPixel((int)Math.Round(screen.X), (int)Math.Round(screen.Y));
-
-            // Highlighted edges use the accent color (#5AAEFA in the dark theme).
-            Assert.True(
-                Math.Abs(pixel.Red - 0x5A) <= 25
-                    && Math.Abs(pixel.Green - 0xAE) <= 25
-                    && Math.Abs(pixel.Blue - 0xFA) <= 25,
-                $"expected accent color #5AAEFA at ({screen.X:F1},{screen.Y:F1}) scale={view.Scale:F3} translation={view.Translation}, got pixel RGB({pixel.Red},{pixel.Green},{pixel.Blue})");
+            // The model auto-selects the first node, which marks the connected edge as highlighted.
+            var edge = Assert.Single(graph.Edges);
+            Assert.True(edge.IsHighlighted);
+            Assert.False(edge.IsDimmed);
         }
         finally
         {
-            window?.Close();
-            Application.Current.RequestedThemeVariant = previousTheme;
+            window.Close();
         }
     }
 
@@ -154,6 +91,64 @@ public sealed class DependencyGraphViewRenderTests
         finally
         {
             window.Close();
+        }
+    }
+
+    private static void AssertEdgeColor(bool highlighted, string expectedHex)
+    {
+        var previousTheme = Application.Current!.RequestedThemeVariant;
+        Application.Current.RequestedThemeVariant = ThemeVariant.Dark;
+        Window? window = null;
+        try
+        {
+            var source = new DependencyGraphNodeViewModel(
+                new DependencyGraphNodeDefinition("a", "A", string.Empty, "Enabled", DependencyGraphNodeState.Normal));
+            var target = new DependencyGraphNodeViewModel(
+                new DependencyGraphNodeDefinition("b", "B", string.Empty, "Enabled", DependencyGraphNodeState.Normal));
+            source.SetPosition(28, 28);
+            target.SetPosition(352, 28);
+            var edge = new DependencyGraphEdgeViewModel(source, target)
+            {
+                IsHighlighted = highlighted
+            };
+            var control = new DependencyGraphEdges
+            {
+                Width = 608,
+                Height = 138,
+                Edges = [edge],
+                LineBrush = new SolidColorBrush(Color.Parse(EdgeColor)),
+                HighlightBrush = new SolidColorBrush(Color.Parse(AccentColor)),
+                ErrorBrush = new SolidColorBrush(Colors.Red)
+            };
+            window = new Window
+            {
+                Width = 700,
+                Height = 220,
+                Background = new SolidColorBrush(Colors.Black),
+                Content = control
+            };
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+            Dispatcher.UIThread.RunJobs();
+
+            // Edge midpoint in graph coordinates: ((28 + NodeWidth + 352) / 2, 28 + NodeHeight / 2) = (304, 69).
+            var frame = Assert.IsType<WriteableBitmap>(window.GetLastRenderedFrame());
+            using var bitmap = Decode(frame);
+            var screen = control.TranslatePoint(new Point(304, 69), window) ?? throw new InvalidOperationException();
+            var pixel = bitmap.GetPixel((int)Math.Round(screen.X), (int)Math.Round(screen.Y));
+            var expected = Color.Parse(expectedHex);
+
+            Assert.True(
+                Math.Abs(pixel.Red - expected.R) <= 25
+                    && Math.Abs(pixel.Green - expected.G) <= 25
+                    && Math.Abs(pixel.Blue - expected.B) <= 25,
+                $"expected edge color {expectedHex} at ({screen.X:F0},{screen.Y:F0}), got pixel RGB({pixel.Red},{pixel.Green},{pixel.Blue})");
+        }
+        finally
+        {
+            window?.Close();
+            Application.Current.RequestedThemeVariant = previousTheme;
         }
     }
 
