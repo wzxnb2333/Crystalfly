@@ -3430,6 +3430,53 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Empty(toasts);
     }
 
+    [Fact]
+    public async Task Activity_refresh_on_the_speedrun_page_shows_toast_for_new_record()
+    {
+        string root = applicationData.CreateDirectory("speedrun-toast-on-page");
+        // Seed a stale baseline so the refresh detects the returned run as a new world record.
+        var baselineAt = DateTimeOffset.Parse("2026-07-31T00:00:00Z");
+        var board = new SpeedrunBoardDescriptor(
+            SpeedrunGame.HollowKnight,
+            "category-any",
+            "Any%",
+            null,
+            null,
+            []);
+        await AtomicJsonStore.WriteAsync(
+            Path.Combine(root, "speedrun-activity.json"),
+            new SpeedrunActivityDocument
+            {
+                Boards = new Dictionary<string, SpeedrunBoardBaseline>(StringComparer.Ordinal)
+                {
+                    [board.Key] = new(
+                        board,
+                        baselineAt,
+                        [new("old-run", 1, "Old Runner", "PT40M", 2400, baselineAt, null)])
+                }
+            },
+            CancellationToken.None);
+
+        using var policy = new NetworkPolicy();
+        using var httpClient = new HttpClient(new NewRecordSpeedrunResponseHandler());
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        await using var viewModel = new MainViewModel(
+            root,
+            speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Speedrun"
+        };
+        var toasts = new List<string>();
+        viewModel.ToastRequested += toast => toasts.Add(toast);
+
+        await viewModel.RefreshSpeedrunActivityCommand.ExecuteAsync(null);
+
+        Assert.NotEmpty(toasts);
+    }
+
     private MainViewModel CreateViewModel() => new(applicationData.CreateDirectory("app-data"));
 
     public void Dispose() => applicationData.Dispose();
