@@ -144,7 +144,13 @@ public static class SpeedrunActivityDetector
                 continue;
             }
 
-            var knownRuns = previous.Entries.Select(run => run.RunId).ToHashSet(StringComparer.Ordinal);
+            var knownRuns = previous.Entries
+                .Select(run => run.RunId)
+                .Concat(document.Activities
+                    .Where(activity =>
+                        string.Equals(activity.Board.Key, snapshot.Board.Key, StringComparison.Ordinal))
+                    .Select(activity => activity.RunId))
+                .ToHashSet(StringComparer.Ordinal);
             double? oldRecord = previous.Entries
                 .Where(run => run.Place == 1)
                 .Select(run => (double?)run.PrimaryTimeSeconds)
