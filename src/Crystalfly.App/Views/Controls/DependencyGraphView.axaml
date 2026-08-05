@@ -19,7 +19,7 @@
             <controls:DependencyGraphEdges Width="{Binding Width}"
                                            Height="{Binding Height}"
                                            Edges="{Binding Edges}"
-                                           LineBrush="{DynamicResource CfBorderBrush}"
+                                           LineBrush="{DynamicResource CfEdgeBrush}"
                                            HighlightBrush="{DynamicResource CfAccentBrush}"
                                            ErrorBrush="{DynamicResource CfErrorBrush}" />
             <ItemsControl Width="{Binding Width}"
@@ -48,6 +48,7 @@
                                 Width="228"
                                 Height="82"
                                 Padding="0"
+                                HorizontalContentAlignment="Left"
                                 Command="{Binding #GraphRoot.DataContext.SelectNodeCommand}"
                                 CommandParameter="{Binding}"
                                 AutomationProperties.Name="{Binding PrimaryName}"
@@ -60,6 +61,7 @@
                                             Spacing="2">
                                     <TextBlock Classes="cfp-row-title"
                                                Text="{Binding PrimaryName}"
+                                               TextAlignment="Left"
                                                TextTrimming="CharacterEllipsis" />
                                     <TextBlock Classes="cfp-caption"
                                                Text="{Binding SecondaryName}"

@@ -63,15 +63,15 @@ public sealed class DependencyGraphEdges : Control
 
         foreach (var edge in edges.Where(edge => edge.IsDimmed))
         {
-            DrawEdge(context, edge, LineBrush, 1, 0.28);
+            DrawEdge(context, edge, LineBrush, 1.5, 0.5);
         }
         foreach (var edge in edges.Where(edge => !edge.IsDimmed && !edge.IsCycle))
         {
-            DrawEdge(context, edge, edge.IsHighlighted ? HighlightBrush ?? LineBrush : LineBrush, edge.IsHighlighted ? 2.5 : 1.5, 1);
+            DrawEdge(context, edge, edge.IsHighlighted ? HighlightBrush ?? LineBrush : LineBrush, edge.IsHighlighted ? 3 : 2.5, 1);
         }
         foreach (var edge in edges.Where(edge => edge.IsCycle))
         {
-            DrawEdge(context, edge, ErrorBrush ?? HighlightBrush ?? LineBrush, 2.5, 1);
+            DrawEdge(context, edge, ErrorBrush ?? HighlightBrush ?? LineBrush, 3, 1);
         }
     }
 

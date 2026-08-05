@@ -15,6 +15,7 @@
                     <SolidColorBrush x:Key="CfSurfaceSelectedBrush" Color="#DDEEFF" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedHoverBrush" Color="#CDE5FA" />
                     <SolidColorBrush x:Key="CfBorderBrush" Color="#DADCE0" />
+                    <SolidColorBrush x:Key="CfEdgeBrush" Color="#9AA2AC" />
                     <SolidColorBrush x:Key="CfTextBrush" Color="#14171B" />
                     <SolidColorBrush x:Key="CfMutedTextBrush" Color="#5F6670" />
                     <SolidColorBrush x:Key="CfAccentBrush" Color="#0F6CBD" />
@@ -44,6 +45,7 @@
                     <SolidColorBrush x:Key="CfSurfaceSelectedBrush" Color="#173D5E" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedHoverBrush" Color="#1E4C73" />
                     <SolidColorBrush x:Key="CfBorderBrush" Color="#36393D" />
+                    <SolidColorBrush x:Key="CfEdgeBrush" Color="#565C66" />
                     <SolidColorBrush x:Key="CfTextBrush" Color="#F5F6F7" />
                     <SolidColorBrush x:Key="CfMutedTextBrush" Color="#A1A7AF" />
                     <SolidColorBrush x:Key="CfAccentBrush" Color="#5AAEFA" />
