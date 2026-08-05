@@ -43,6 +43,10 @@ public partial class ModManagementViewModel : ViewModelBase
 
     public int SelectedModCount => InstalledMods.Count(mod => mod.IsSelected);
 
+    public bool HasUpdatesAvailable => InstalledMods.Any(mod => mod.HasUpdate);
+
+    public IReadOnlyList<ModConflictPair> Conflicts { get; private set; } = [];
+
     public bool IsInstalledModListVisible => !IsInstalledModGraphVisible;
 
     public bool IsInstalledModBulkBarVisible => IsInstalledModListVisible && HasSelectedMods;
@@ -159,6 +163,7 @@ public partial class ModManagementViewModel : ViewModelBase
         }
         NotifySelectionChanged();
         ApplyModFilters();
+        RefreshConflicts();
         InstalledModsRefreshed?.Invoke();
     }
 
@@ -204,7 +209,38 @@ public partial class ModManagementViewModel : ViewModelBase
                 string.Equals(mod.Id, focusedId, StringComparison.OrdinalIgnoreCase));
         ApplyModFilters();
         NotifySelectionChanged();
+        RefreshConflicts();
         InstalledModsRefreshed?.Invoke();
+    }
+
+    [RelayCommand]
+    private void CheckForUpdates() => OnPropertyChanged(nameof(HasUpdatesAvailable));
+
+    internal void RefreshConflicts()
+    {
+        Conflicts = ModConflictDetector.Detect(InstalledMods
+            .Select(mod => new ModConflictInput(mod.Id, mod.Name, mod.HealthReport.ModifiedFiles))
+            .ToArray());
+        OnPropertyChanged(nameof(Conflicts));
+        var conflictsByMod = Conflicts
+            .SelectMany(pair => new[]
+            {
+                (ModId: pair.ModA, Other: pair.ModB),
+                (ModId: pair.ModB, Other: pair.ModA)
+            })
+            .GroupBy(entry => entry.ModId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => string.Join(", ", group
+                    .Select(entry => InstalledMods.FirstOrDefault(mod =>
+                        string.Equals(mod.Id, entry.Other, StringComparison.OrdinalIgnoreCase))?.Name ?? entry.Other)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)),
+                StringComparer.OrdinalIgnoreCase);
+        foreach (var mod in InstalledMods)
+        {
+            mod.SetConflict(conflictsByMod.TryGetValue(mod.Id, out var text) ? text : null);
+        }
     }
 
     [RelayCommand]

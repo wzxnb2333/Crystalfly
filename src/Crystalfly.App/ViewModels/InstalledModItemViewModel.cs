@@ -165,6 +165,18 @@ public partial class InstalledModItemViewModel : ViewModelBase
 
     partial void OnIsSelectedChanged(bool value) => selectionChanged();
 
+    [ObservableProperty]
+    public partial bool HasConflicts { get; set; }
+
+    [ObservableProperty]
+    public partial string ConflictWithText { get; set; } = string.Empty;
+
+    internal void SetConflict(string? conflictWithText)
+    {
+        HasConflicts = !string.IsNullOrWhiteSpace(conflictWithText);
+        ConflictWithText = conflictWithText ?? string.Empty;
+    }
+
     public bool Matches(string search, ModStatusFilter status)
     {
         bool matchesText = string.IsNullOrWhiteSpace(search)
