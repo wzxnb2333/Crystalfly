@@ -96,27 +96,34 @@ public sealed class MainWindowStructureTests
             "Crystalfly.App",
             "Views",
             "MainWindow.axaml.cs"));
-        Assert.Contains("SubscribeEntranceAnimations();", code, StringComparison.Ordinal);
-        Assert.Contains("AreClientAreaAnimationsEnabled()", code, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromMilliseconds(350)", code, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromMilliseconds(100)", code, StringComparison.Ordinal);
-        Assert.Contains("PageEntranceOffset", code, StringComparison.Ordinal);
-        Assert.Contains("PageEntranceOffset = -16d", code, StringComparison.Ordinal);
-        Assert.DoesNotContain("QueueVisibleDescendants", code, StringComparison.Ordinal);
-        Assert.Contains("IsOpacityEntranceTarget", code, StringComparison.Ordinal);
-        Assert.Contains("animation.Motion.Translate.Y", code, StringComparison.Ordinal);
-        Assert.Contains("EasePclWeakBack", code, StringComparison.Ordinal);
-        Assert.DoesNotContain("animation.Motion.Scale", code, StringComparison.Ordinal);
-        Assert.DoesNotContain("PageEntranceScale", code, StringComparison.Ordinal);
-        Assert.Contains("activeEntranceAnimations", code, StringComparison.Ordinal);
-        Assert.Contains("OnEntranceAnimationFrame", code, StringComparison.Ordinal);
-        Assert.Contains("RequestAnimationFrame(OnEntranceAnimationFrame)", code, StringComparison.Ordinal);
-        Assert.Contains("IsEntranceAnimationTarget", code, StringComparison.Ordinal);
-        Assert.Contains("ConfigureMicroInteractionTransitions", code, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromMilliseconds(80)", code, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromMilliseconds(220)", code, StringComparison.Ordinal);
-        Assert.Contains("Visual.OpacityProperty", code, StringComparison.Ordinal);
-        Assert.DoesNotContain("QueueVisibleNavigationAnimations", code, StringComparison.Ordinal);
+        Assert.Contains("motionCoordinator.Start();", code, StringComparison.Ordinal);
+        var motionCode = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Services",
+            "MotionCoordinator.cs"));
+        Assert.Contains("SubscribeEntranceAnimations", motionCode, StringComparison.Ordinal);
+        Assert.Contains("AreClientAreaAnimationsEnabled()", motionCode, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(350)", motionCode, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(100)", motionCode, StringComparison.Ordinal);
+        Assert.Contains("PageEntranceOffset", motionCode, StringComparison.Ordinal);
+        Assert.Contains("PageEntranceOffset = -16d", motionCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("QueueVisibleDescendants", motionCode, StringComparison.Ordinal);
+        Assert.Contains("IsOpacityEntranceTarget", motionCode, StringComparison.Ordinal);
+        Assert.Contains("animation.Motion.Translate.Y", motionCode, StringComparison.Ordinal);
+        Assert.Contains("EasePclWeakBack", motionCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("animation.Motion.Scale", motionCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("PageEntranceScale", motionCode, StringComparison.Ordinal);
+        Assert.Contains("activeEntranceAnimations", motionCode, StringComparison.Ordinal);
+        Assert.Contains("OnEntranceAnimationFrame", motionCode, StringComparison.Ordinal);
+        Assert.Contains("RequestAnimationFrame(OnEntranceAnimationFrame)", motionCode, StringComparison.Ordinal);
+        Assert.Contains("IsEntranceAnimationTarget", motionCode, StringComparison.Ordinal);
+        Assert.Contains("ConfigureMicroInteractionTransitions", motionCode, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(80)", motionCode, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(220)", motionCode, StringComparison.Ordinal);
+        Assert.Contains("Visual.OpacityProperty", motionCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("QueueVisibleNavigationAnimations", motionCode, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -134,19 +141,25 @@ public sealed class MainWindowStructureTests
             "Crystalfly.App",
             "Views",
             "MainWindow.axaml.cs"));
-        Assert.DoesNotContain("SpringEasing", code, StringComparison.Ordinal);
         Assert.Contains("UiMotionPreference", code, StringComparison.Ordinal);
-        Assert.Contains("ScaleTransform", code, StringComparison.Ordinal);
         Assert.Contains("PointerPressed", code, StringComparison.Ordinal);
-        Assert.Contains("PointerExited", code, StringComparison.Ordinal);
-        Assert.DoesNotContain("OnMicroInteractionPointerEntered", code, StringComparison.Ordinal);
         Assert.Contains("UpdateMotionPreference", code, StringComparison.Ordinal);
-        Assert.Contains("CancellationTokenSource", code, StringComparison.Ordinal);
-        Assert.Contains("EnsureEntranceAnimationTimer", code, StringComparison.Ordinal);
-        Assert.Contains("CompleteEntranceAnimation", code, StringComparison.Ordinal);
-        Assert.DoesNotContain("RunAsync(motion.Translate, cancellationToken)", code, StringComparison.Ordinal);
         Assert.Contains("MainOverlayDialogHost.Children.CollectionChanged", code, StringComparison.Ordinal);
         Assert.Contains("RegisterToastMotionTargets", code, StringComparison.Ordinal);
+        var motionCode = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Services",
+            "MotionCoordinator.cs"));
+        Assert.DoesNotContain("SpringEasing", motionCode, StringComparison.Ordinal);
+        Assert.Contains("ScaleTransform", motionCode, StringComparison.Ordinal);
+        Assert.Contains("PointerExited", motionCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("OnMicroInteractionPointerEntered", motionCode, StringComparison.Ordinal);
+        Assert.Contains("CancellationTokenSource", motionCode, StringComparison.Ordinal);
+        Assert.Contains("EnsureEntranceAnimationTimer", motionCode, StringComparison.Ordinal);
+        Assert.Contains("CompleteEntranceAnimation", motionCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("RunAsync(motion.Translate, cancellationToken)", motionCode, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -522,9 +535,15 @@ public sealed class MainWindowStructureTests
             "Views",
             "MainWindow.axaml.cs"));
         Assert.Contains("DispatcherPriority.Render", code, StringComparison.Ordinal);
-        Assert.Contains("entranceAnimationGeneration", code, StringComparison.Ordinal);
-        Assert.Contains("control.Classes.Contains(\"cfp-page\")", code, StringComparison.Ordinal);
-        Assert.DoesNotContain("!control.GetVisualDescendants()", code, StringComparison.Ordinal);
+        var motionCode = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Services",
+            "MotionCoordinator.cs"));
+        Assert.Contains("entranceAnimationGeneration", motionCode, StringComparison.Ordinal);
+        Assert.Contains("control.Classes.Contains(\"cfp-page\")", motionCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("!control.GetVisualDescendants()", motionCode, StringComparison.Ordinal);
     }
 
     [Fact]

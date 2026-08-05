@@ -1,4 +1,5 @@
 using System.Reflection;
+using Crystalfly.App.Services;
 using Crystalfly.App.ViewModels.DependencyGraph;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
@@ -156,7 +157,7 @@ public sealed class MainWindowCodeBehindTests : IDisposable
 
     private static double EasePclWeakBack(double progress)
     {
-        var method = typeof(MainWindow).GetMethod(
+        var method = typeof(MotionCoordinator).GetMethod(
             "EasePclWeakBack",
             BindingFlags.Static | BindingFlags.NonPublic);
         Assert.NotNull(method);
