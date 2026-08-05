@@ -222,6 +222,125 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasActiveDownloads));
         OnPropertyChanged(nameof(HasUnfinishedDownloads));
         OnPropertyChanged(nameof(ActiveDownloadSummary));
+        OnPropertyChanged(nameof(CanRetryAll));
+        OnPropertyChanged(nameof(CanPauseAll));
+        OnPropertyChanged(nameof(CanResumeAll));
+        OnPropertyChanged(nameof(CanCancelAll));
+        OnPropertyChanged(nameof(CanClearCompleted));
+    }
+
+    public bool CanRetryAll => downloadQueue.Groups.Any(group =>
+        group.State == DownloadQueueGroupState.Failed);
+
+    public bool CanPauseAll => downloadQueue.Groups.Any(group =>
+        group.State is DownloadQueueGroupState.Pending or DownloadQueueGroupState.Running
+        && group.Stage != "Waiting for Steam login"
+        && group.Items.Any(SteamDownloadQueueGroupFactory.IsSteamItem));
+
+    public bool CanResumeAll => downloadQueue.Groups.Any(group =>
+        group.State == DownloadQueueGroupState.Pending
+        && group.Stage == "Waiting for Steam login");
+
+    public bool CanCancelAll => downloadQueue.Groups.Any(group =>
+        group.State is not (DownloadQueueGroupState.Completed or DownloadQueueGroupState.Canceled));
+
+    public bool CanClearCompleted => downloadQueue.Groups.Any(group =>
+        group.State == DownloadQueueGroupState.Completed);
+
+    [RelayCommand(CanExecute = nameof(CanRetryAll))]
+    private async Task RetryAllAsync()
+    {
+        var failures = 0;
+        string? firstFailure = null;
+        foreach (var group in downloadQueue.Groups.Where(group =>
+                     group.State == DownloadQueueGroupState.Failed))
+        {
+            try
+            {
+                await downloadQueue.RetryAsync(group.Id, lifetimeCancellation);
+            }
+            catch (Exception exception) when (exception is IOException
+                or InvalidOperationException
+                or KeyNotFoundException)
+            {
+                if (failures++ == 0)
+                {
+                    firstFailure = exception.Message;
+                }
+            }
+        }
+        if (failures > 0)
+        {
+            errorReported?.Invoke($"{loc["OperationFailed"]}: {firstFailure}");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanPauseAll))]
+    private async Task PauseAllAsync()
+    {
+        try
+        {
+            await downloadQueue.PauseSteamDownloadsAsync(lifetimeCancellation);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException)
+        {
+            errorReported?.Invoke($"{loc["OperationFailed"]}: {exception.Message}");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanResumeAll))]
+    private async Task ResumeAllAsync()
+    {
+        try
+        {
+            await downloadQueue.ResumeSteamDownloadsAsync(lifetimeCancellation);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException)
+        {
+            errorReported?.Invoke($"{loc["OperationFailed"]}: {exception.Message}");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCancelAll))]
+    private async Task CancelAllAsync()
+    {
+        var failures = 0;
+        string? firstFailure = null;
+        foreach (var group in downloadQueue.Groups.Where(group =>
+                     group.State is not (DownloadQueueGroupState.Completed or DownloadQueueGroupState.Canceled)))
+        {
+            try
+            {
+                await downloadQueue.CancelAsync(group.Id, lifetimeCancellation);
+            }
+            catch (Exception exception) when (exception is IOException
+                or InvalidOperationException
+                or KeyNotFoundException
+                or AggregateException)
+            {
+                if (failures++ == 0)
+                {
+                    firstFailure = exception.Message;
+                }
+            }
+        }
+        if (failures > 0)
+        {
+            errorReported?.Invoke($"{loc["OperationFailed"]}: {firstFailure}");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanClearCompleted))]
+    private async Task ClearCompletedAsync()
+    {
+        try
+        {
+            await downloadQueue.ClearCompletedAsync(lifetimeCancellation);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException)
+        {
+            errorReported?.Invoke($"{loc["OperationFailed"]}: {exception.Message}");
+        }
     }
 
     [RelayCommand]
