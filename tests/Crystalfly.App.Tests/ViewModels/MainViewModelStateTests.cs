@@ -3265,6 +3265,37 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.True(viewModel.IsSelectedPresetEntriesExpanded);
     }
 
+    [Fact]
+    public async Task Switching_to_activity_tab_with_fresh_cache_does_not_reload()
+    {
+        string root = applicationData.CreateDirectory("speedrun-fresh-cache");
+        using var policy = new NetworkPolicy();
+        var handler = new CountingSpeedrunResponseHandler();
+        using var httpClient = new HttpClient(handler);
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        await using var viewModel = new MainViewModel(
+            root,
+            speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Speedrun",
+            CurrentSpeedrunTab = "Environment"
+        };
+
+        // First load populates the in-memory cache.
+        await viewModel.RefreshSpeedrunActivityCommand.ExecuteAsync(null);
+        int callsAfterFirstLoad = handler.RequestCount;
+        Assert.True(callsAfterFirstLoad > 0);
+
+        // Switching to the Activity tab inside the cache window must not hit the network.
+        viewModel.SelectSpeedrunTabCommand.Execute("Activity");
+
+        Assert.Equal(callsAfterFirstLoad, handler.RequestCount);
+        Assert.False(viewModel.IsSpeedrunActivityLoading);
+    }
+
     private MainViewModel CreateViewModel() => new(applicationData.CreateDirectory("app-data"));
 
     public void Dispose() => applicationData.Dispose();
@@ -3273,7 +3304,7 @@ public sealed class MainViewModelStateTests : IDisposable
         ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)))
         : null;
 
-    private sealed class SpeedrunResponseHandler : HttpMessageHandler
+    private class SpeedrunResponseHandler : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -3325,6 +3356,19 @@ public sealed class MainViewModelStateTests : IDisposable
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json")
             });
+        }
+    }
+
+    private sealed class CountingSpeedrunResponseHandler : SpeedrunResponseHandler
+    {
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            return base.SendAsync(request, cancellationToken);
         }
     }
 
