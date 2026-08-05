@@ -237,9 +237,12 @@ public partial class MainViewModel
                 : string.Empty;
             speedrunActivityLastLoadedAt = speedrunComClient.UtcNow;
 
-            foreach (SpeedrunActivityEntry activity in detection.NewActivities)
+            if (CurrentPage == "Speedrun")
             {
-                ToastRequested?.Invoke(ActivityToastText(activity));
+                foreach (SpeedrunActivityEntry activity in detection.NewActivities)
+                {
+                    ToastRequested?.Invoke(ActivityToastText(activity));
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

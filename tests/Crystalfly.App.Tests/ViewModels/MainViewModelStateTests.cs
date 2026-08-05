@@ -3382,6 +3382,54 @@ public sealed class MainViewModelStateTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task Activity_refresh_outside_the_speedrun_page_suppresses_toast_notifications()
+    {
+        string root = applicationData.CreateDirectory("speedrun-toast-scope");
+        // Seed a stale baseline so the refresh detects the returned run as a new world record.
+        var baselineAt = DateTimeOffset.Parse("2026-07-31T00:00:00Z");
+        var board = new SpeedrunBoardDescriptor(
+            SpeedrunGame.HollowKnight,
+            "category-any",
+            "Any%",
+            null,
+            null,
+            []);
+        await AtomicJsonStore.WriteAsync(
+            Path.Combine(root, "speedrun-activity.json"),
+            new SpeedrunActivityDocument
+            {
+                Boards = new Dictionary<string, SpeedrunBoardBaseline>(StringComparer.Ordinal)
+                {
+                    [board.Key] = new(
+                        board,
+                        baselineAt,
+                        [new("old-run", 1, "Old Runner", "PT40M", 2400, baselineAt, null)])
+                }
+            },
+            CancellationToken.None);
+
+        using var policy = new NetworkPolicy();
+        using var httpClient = new HttpClient(new NewRecordSpeedrunResponseHandler());
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        await using var viewModel = new MainViewModel(
+            root,
+            speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Launch",
+            CurrentSpeedrunTab = "Activity"
+        };
+        var toasts = new List<string>();
+        viewModel.ToastRequested += toast => toasts.Add(toast);
+
+        await viewModel.RefreshSpeedrunActivityCommand.ExecuteAsync(null);
+
+        Assert.Empty(toasts);
+    }
+
     private MainViewModel CreateViewModel() => new(applicationData.CreateDirectory("app-data"));
 
     public void Dispose() => applicationData.Dispose();
@@ -3434,6 +3482,55 @@ public sealed class MainViewModelStateTests : IDisposable
                       "times": { "primary": "PT34M" },
                       "players": [{ "rel": "guest", "name": "Recent Runner" }]
                     }
+                  ]
+                }
+                """
+            };
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            });
+        }
+    }
+
+    private sealed class NewRecordSpeedrunResponseHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            string json = request.RequestUri!.AbsolutePath switch
+            {
+                var path when path.EndsWith("/categories", StringComparison.Ordinal) => """
+                {
+                  "data": [
+                    { "id": "category-any", "name": "Any%", "type": "per-game" }
+                  ]
+                }
+                """,
+                var path when path.Contains("/leaderboards/", StringComparison.Ordinal) => """
+                {
+                  "data": {
+                    "runs": [
+                      {
+                        "place": 1,
+                        "run": {
+                          "id": "new-record",
+                          "weblink": "https://www.speedrun.com/hollowknight/runs/new-record",
+                          "status": { "status": "verified", "verify-date": "2026-08-01T01:00:00Z" },
+                          "times": { "primary": "PT31M", "primary_t": 1860 },
+                          "players": [{ "rel": "user", "id": "p1" }]
+                        }
+                      }
+                    ],
+                    "players": [{ "id": "p1", "names": { "international": "Runner" } }]
+                  }
+                }
+                """,
+                _ => """
+                {
+                  "data": [
+                    { "id": "level-1", "name": "Level 1" }
                   ]
                 }
                 """
