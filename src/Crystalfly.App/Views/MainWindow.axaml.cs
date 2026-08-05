@@ -1818,7 +1818,7 @@ public partial class MainWindow : Window
         {
             return;
         }
-        viewModel.SelectInstalledMod(
+        viewModel.ModManagement.SelectInstalledMod(
             item,
             eventArgs.KeyModifiers.HasFlag(KeyModifiers.Control),
             eventArgs.KeyModifiers.HasFlag(KeyModifiers.Shift));
@@ -1881,7 +1881,7 @@ public partial class MainWindow : Window
             && eventArgs.KeyModifiers.HasFlag(KeyModifiers.Control)
             && DataContext is MainViewModel viewModel)
         {
-            viewModel.SelectAllInstalledModsCommand.Execute(null);
+            viewModel.ModManagement.SelectAllInstalledModsCommand.Execute(null);
             eventArgs.Handled = true;
         }
     }
@@ -1902,7 +1902,7 @@ public partial class MainWindow : Window
         {
             return;
         }
-        viewModel.SelectedInstalledMod = item;
+        viewModel.ModManagement.SelectedInstalledMod = item;
         OpenSafeInstanceFolder(instance.RootPath, item.InstallRoot, viewModel);
     }
 
@@ -2003,8 +2003,8 @@ public partial class MainWindow : Window
         {
             return;
         }
-        viewModel.LocalModPath = path;
-        await viewModel.ImportLocalModCommand.ExecuteAsync(null);
+        viewModel.ModManagement.LocalModPath = path;
+        await viewModel.ModManagement.ImportLocalModCommand.ExecuteAsync(null);
     }
 
     private async void ConfirmApplyPreset(object? sender, RoutedEventArgs eventArgs)
@@ -2283,8 +2283,8 @@ public partial class MainWindow : Window
         if (DataContext is MainViewModel viewModel
             && sender is Control { DataContext: InstalledModItemViewModel item })
         {
-            viewModel.SelectedInstalledMod = item;
-            await viewModel.ToggleSelectedModCommand.ExecuteAsync(null);
+            viewModel.ModManagement.SelectedInstalledMod = item;
+            await viewModel.ModManagement.ToggleSelectedModCommand.ExecuteAsync(null);
         }
     }
 
@@ -2293,8 +2293,8 @@ public partial class MainWindow : Window
         if (DataContext is MainViewModel viewModel
             && sender is Control { DataContext: InstalledModItemViewModel item })
         {
-            viewModel.SelectedInstalledMod = item;
-            await viewModel.ToggleSelectedModPinnedCommand.ExecuteAsync(null);
+            viewModel.ModManagement.SelectedInstalledMod = item;
+            await viewModel.ModManagement.ToggleSelectedModPinnedCommand.ExecuteAsync(null);
         }
     }
 
@@ -2305,14 +2305,14 @@ public partial class MainWindow : Window
         {
             return;
         }
-        viewModel.SelectedInstalledMod = item;
+        viewModel.ModManagement.SelectedInstalledMod = item;
         if (await ShowConfirmationAsync(
                 viewModel.Loc["TakeOverMod"],
                 viewModel.Loc["ExternalModReadOnly"],
                 item.Name,
                 viewModel))
         {
-            await viewModel.TakeOverSelectedModCommand.ExecuteAsync(null);
+            await viewModel.ModManagement.TakeOverSelectedModCommand.ExecuteAsync(null);
         }
     }
 
@@ -2321,8 +2321,8 @@ public partial class MainWindow : Window
         if (DataContext is MainViewModel viewModel
             && sender is Control { DataContext: InstalledModItemViewModel item })
         {
-            viewModel.SelectedInstalledMod = item;
-            await viewModel.RepairSelectedModCommand.ExecuteAsync(null);
+            viewModel.ModManagement.SelectedInstalledMod = item;
+            await viewModel.ModManagement.RepairSelectedModCommand.ExecuteAsync(null);
         }
     }
 
@@ -2333,14 +2333,14 @@ public partial class MainWindow : Window
         {
             return;
         }
-        viewModel.SelectedInstalledMod = item;
+        viewModel.ModManagement.SelectedInstalledMod = item;
         if (await ShowConfirmationAsync(
                 viewModel.Loc["AcceptCurrentFiles"],
                 item.HealthDisplayName,
                 item.Name,
                 viewModel))
         {
-            await viewModel.AcceptSelectedLocalModFilesCommand.ExecuteAsync(null);
+            await viewModel.ModManagement.AcceptSelectedLocalModFilesCommand.ExecuteAsync(null);
         }
     }
 
@@ -2368,9 +2368,9 @@ public partial class MainWindow : Window
         {
             return;
         }
-        viewModel.SelectedInstalledMod = item;
-        viewModel.LocalModPath = path;
-        await viewModel.ReimportSelectedLocalModCommand.ExecuteAsync(null);
+        viewModel.ModManagement.SelectedInstalledMod = item;
+        viewModel.ModManagement.LocalModPath = path;
+        await viewModel.ModManagement.ReimportSelectedLocalModCommand.ExecuteAsync(null);
     }
 
     private async void ShowInstalledModHealth(object? sender, RoutedEventArgs eventArgs)
@@ -2399,7 +2399,7 @@ public partial class MainWindow : Window
         if (DataContext is MainViewModel viewModel
             && sender is Control { DataContext: InstalledModItemViewModel item })
         {
-            viewModel.SelectedInstalledMod = item;
+            viewModel.ModManagement.SelectedInstalledMod = item;
             await ConfirmModRemovalAsync(viewModel, bulk: false);
         }
     }
@@ -2412,7 +2412,7 @@ public partial class MainWindow : Window
         }
         try
         {
-            var plan = viewModel.CreateModDependencyRepairPlan();
+            var plan = viewModel.ModManagement.CreateModDependencyRepairPlan();
             var nodes = BuildDependencyRepairNodes(viewModel, plan);
             var dialog = new DependencyPlanDialogViewModel(
                 viewModel.Loc["RepairDependencies"],
@@ -2428,7 +2428,7 @@ public partial class MainWindow : Window
                 bool>(dialog, OverlayHostId, CreateOverlayOptions());
             if (confirmed)
             {
-                await viewModel.RepairModDependenciesCommand.ExecuteAsync(null);
+                await viewModel.ModManagement.RepairModDependenciesCommand.ExecuteAsync(null);
             }
         }
         catch (Exception exception) when (exception is InvalidOperationException or KeyNotFoundException)
@@ -2439,8 +2439,8 @@ public partial class MainWindow : Window
 
     private async Task ConfirmModRemovalAsync(MainViewModel viewModel, bool bulk)
     {
-        var plan = viewModel.CreateModRemovalPlan(bulk);
-        var installed = viewModel.InstalledMods.ToDictionary(mod => mod.Id, StringComparer.OrdinalIgnoreCase);
+        var plan = viewModel.ModManagement.CreateModRemovalPlan(bulk);
+        var installed = viewModel.ModManagement.InstalledMods.ToDictionary(mod => mod.Id, StringComparer.OrdinalIgnoreCase);
         var nodes = plan.Nodes.Select(node =>
         {
             installed.TryGetValue(node.ModId, out var item);
@@ -2471,11 +2471,11 @@ public partial class MainWindow : Window
         {
             if (bulk)
             {
-                await viewModel.UninstallSelectedModsCommand.ExecuteAsync(null);
+                await viewModel.ModManagement.UninstallSelectedModsCommand.ExecuteAsync(null);
             }
             else
             {
-                await viewModel.UninstallSelectedModCommand.ExecuteAsync(null);
+                await viewModel.ModManagement.UninstallSelectedModCommand.ExecuteAsync(null);
             }
         }
     }
@@ -2588,7 +2588,7 @@ public partial class MainWindow : Window
         MainViewModel viewModel,
         ModDependencyRepairPlan plan)
     {
-        var installed = viewModel.InstalledMods.ToDictionary(mod => mod.Id, StringComparer.OrdinalIgnoreCase);
+        var installed = viewModel.ModManagement.InstalledMods.ToDictionary(mod => mod.Id, StringComparer.OrdinalIgnoreCase);
         var repairItems = plan.Items.ToDictionary(item => item.ModId, StringComparer.OrdinalIgnoreCase);
         var prerequisitesByRequiredMod = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in plan.Items)
@@ -2683,7 +2683,7 @@ public partial class MainWindow : Window
 
     private async void ConfirmBulkUninstallMods(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is MainViewModel viewModel && viewModel.HasSelectedMods)
+        if (DataContext is MainViewModel viewModel && viewModel.ModManagement.HasSelectedMods)
         {
             await ConfirmModRemovalAsync(viewModel, bulk: true);
         }

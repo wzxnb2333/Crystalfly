@@ -1661,27 +1661,27 @@ public sealed class MainViewModelStateTests : IDisposable
     {
         var viewModel = CreateViewModel();
         var catalog = Manifest("debugmod", "2.0.0");
-        viewModel.AvailableMods.Add(catalog);
-        viewModel.AvailableMods.Add(Manifest("benchwarp", "1.0.0"));
-        viewModel.InstalledMods.Add(new InstalledModItemViewModel(
+        viewModel.ModManagement.AvailableMods.Add(catalog);
+        viewModel.ModManagement.AvailableMods.Add(Manifest("benchwarp", "1.0.0"));
+        viewModel.ModManagement.InstalledMods.Add(new InstalledModItemViewModel(
             Receipt("debugmod", "1.0.0", enabled: true),
             catalog,
             static () => { }));
-        viewModel.InstalledMods.Add(new InstalledModItemViewModel(
+        viewModel.ModManagement.InstalledMods.Add(new InstalledModItemViewModel(
             Receipt("local-helper", "1.0.0", enabled: false, isLocal: true),
             null,
             static () => { }));
 
-        viewModel.ModSearchText = "debug";
+        viewModel.ModManagement.ModSearchText = "debug";
 
-        Assert.Single(viewModel.VisibleAvailableMods);
-        Assert.Single(viewModel.VisibleInstalledMods);
+        Assert.Single(viewModel.ModManagement.VisibleAvailableMods);
+        Assert.Single(viewModel.ModManagement.VisibleInstalledMods);
 
-        viewModel.ModSearchText = string.Empty;
-        viewModel.SelectedModStatus = ModStatusFilter.Local;
+        viewModel.ModManagement.ModSearchText = string.Empty;
+        viewModel.ModManagement.SelectedModStatus = ModStatusFilter.Local;
 
-        Assert.Single(viewModel.VisibleInstalledMods);
-        Assert.Equal("local-helper", viewModel.VisibleInstalledMods[0].Id);
+        Assert.Single(viewModel.ModManagement.VisibleInstalledMods);
+        Assert.Equal("local-helper", viewModel.ModManagement.VisibleInstalledMods[0].Id);
     }
 
     [Fact]
@@ -1694,29 +1694,29 @@ public sealed class MainViewModelStateTests : IDisposable
         var third = Installed("third");
         foreach (var item in new[] { first, hidden, second, third })
         {
-            viewModel.InstalledMods.Add(item);
+            viewModel.ModManagement.InstalledMods.Add(item);
         }
         foreach (var item in new[] { first, second, third })
         {
-            viewModel.VisibleInstalledMods.Add(item);
+            viewModel.ModManagement.VisibleInstalledMods.Add(item);
         }
 
-        viewModel.SelectInstalledMod(first, control: false, shift: false);
-        viewModel.SelectInstalledMod(third, control: false, shift: true);
+        viewModel.ModManagement.SelectInstalledMod(first, control: false, shift: false);
+        viewModel.ModManagement.SelectInstalledMod(third, control: false, shift: true);
 
         Assert.True(first.IsSelected);
         Assert.True(second.IsSelected);
         Assert.True(third.IsSelected);
         Assert.False(hidden.IsSelected);
 
-        viewModel.SelectInstalledMod(second, control: true, shift: false);
+        viewModel.ModManagement.SelectInstalledMod(second, control: true, shift: false);
         Assert.False(second.IsSelected);
 
-        viewModel.ClearInstalledModSelectionCommand.Execute(null);
-        Assert.DoesNotContain(viewModel.InstalledMods, item => item.IsSelected);
+        viewModel.ModManagement.ClearInstalledModSelectionCommand.Execute(null);
+        Assert.DoesNotContain(viewModel.ModManagement.InstalledMods, item => item.IsSelected);
 
-        viewModel.SelectAllInstalledModsCommand.Execute(null);
-        Assert.All(viewModel.InstalledMods, item => Assert.True(item.IsSelected));
+        viewModel.ModManagement.SelectAllInstalledModsCommand.Execute(null);
+        Assert.All(viewModel.ModManagement.InstalledMods, item => Assert.True(item.IsSelected));
     }
 
     [Fact]
@@ -1731,10 +1731,10 @@ public sealed class MainViewModelStateTests : IDisposable
             Receipt("feature", "1.0.0", enabled: true) with { Dependencies = ["library"] },
             null,
             static () => { });
-        viewModel.InstalledMods.Add(library);
-        viewModel.InstalledMods.Add(feature);
+        viewModel.ModManagement.InstalledMods.Add(library);
+        viewModel.ModManagement.InstalledMods.Add(feature);
 
-        var plan = viewModel.CreateModRemovalPlan(bulk: true);
+        var plan = viewModel.ModManagement.CreateModRemovalPlan(bulk: true);
 
         Assert.Equal(["library"], plan.TargetModIds);
         Assert.Contains(plan.Nodes, node =>
@@ -1757,16 +1757,16 @@ public sealed class MainViewModelStateTests : IDisposable
             SupportedBuildIds = [record.BuildId]
         };
         SetCatalog(viewModel, new GameCatalog { Mods = [libraryManifest] });
-        viewModel.InstalledMods.Add(new InstalledModItemViewModel(
+        viewModel.ModManagement.InstalledMods.Add(new InstalledModItemViewModel(
             Receipt("library", "1.0.0", enabled: false),
             libraryManifest,
             static () => { }));
-        viewModel.InstalledMods.Add(new InstalledModItemViewModel(
+        viewModel.ModManagement.InstalledMods.Add(new InstalledModItemViewModel(
             Receipt("feature", "1.0.0", enabled: true) with { Dependencies = ["library"] },
             null,
             static () => { }));
 
-        var plan = viewModel.CreateModDependencyRepairPlan();
+        var plan = viewModel.ModManagement.CreateModDependencyRepairPlan();
 
         Assert.Equal(record.BuildId, plan.BuildId);
         Assert.Equal("modding-api", plan.LoaderId);
@@ -1784,13 +1784,13 @@ public sealed class MainViewModelStateTests : IDisposable
             viewModel,
             "<SelectedInstance>k__BackingField",
             new InstanceItemViewModel(record, record.BuildId, "Conflict", 2));
-        viewModel.InstalledMods.Add(Installed("first"));
-        viewModel.InstalledMods.Add(new InstalledModItemViewModel(
+        viewModel.ModManagement.InstalledMods.Add(Installed("first"));
+        viewModel.ModManagement.InstalledMods.Add(new InstalledModItemViewModel(
             Receipt("second", "1.0.0", enabled: true) with { LoaderId = "bepinex-5" },
             null,
             static () => { }));
 
-        Assert.Throws<InvalidOperationException>(() => viewModel.CreateModDependencyRepairPlan());
+        Assert.Throws<InvalidOperationException>(() => viewModel.ModManagement.CreateModDependencyRepairPlan());
     }
     [Fact]
     public async Task Bulk_mod_update_rechecks_instance_build_before_writing()
@@ -1854,9 +1854,9 @@ public sealed class MainViewModelStateTests : IDisposable
         {
             IsSelected = true
         };
-        viewModel.InstalledMods.Add(item);
+        viewModel.ModManagement.InstalledMods.Add(item);
 
-        await viewModel.UpdateSelectedModsCommand.ExecuteAsync(null);
+        await viewModel.ModManagement.UpdateSelectedModsCommand.ExecuteAsync(null);
 
         Assert.Equal("1.0.0", Assert.Single(await manager.GetInstalledAsync()).Version);
     }
@@ -1905,15 +1905,15 @@ public sealed class MainViewModelStateTests : IDisposable
         };
         SetCatalog(viewModel, new GameCatalog { Mods = [updateManifest] });
         viewModel.SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Vanilla", 1);
-        for (var attempt = 0; attempt < 100 && viewModel.InstalledMods.Count == 0; attempt++)
+        for (var attempt = 0; attempt < 100 && viewModel.ModManagement.InstalledMods.Count == 0; attempt++)
         {
             await Task.Delay(10);
         }
-        Assert.Single(viewModel.InstalledMods).IsSelected = true;
+        Assert.Single(viewModel.ModManagement.InstalledMods).IsSelected = true;
         var originalReceipt = await File.ReadAllTextAsync(receiptPath);
         await File.WriteAllTextAsync(Path.Combine(stateRoot, "loader.json"), "not-json");
 
-        await viewModel.UpdateSelectedModsCommand.ExecuteAsync(null);
+        await viewModel.ModManagement.UpdateSelectedModsCommand.ExecuteAsync(null);
 
         Assert.False(string.IsNullOrWhiteSpace(viewModel.ErrorMessage));
         Assert.Equal(originalReceipt, await File.ReadAllTextAsync(receiptPath));
@@ -1927,12 +1927,12 @@ public sealed class MainViewModelStateTests : IDisposable
         var benchwarp = Manifest("benchwarp", "1.0.0");
         SetCatalog(viewModel, new GameCatalog { Mods = [debugMod, benchwarp] });
         InvokeRebuildMarketCatalog(viewModel);
-        viewModel.InstalledMods.Add(new InstalledModItemViewModel(
+        viewModel.ModManagement.InstalledMods.Add(new InstalledModItemViewModel(
             Receipt("debugmod", "1.0.0", enabled: true),
             debugMod,
             static () => { }));
 
-        viewModel.ModSearchText = "debug";
+        viewModel.ModManagement.ModSearchText = "debug";
         viewModel.SelectDownloadSectionCommand.Execute("ModMarket");
         viewModel.MarketSearchText = "bench";
 
@@ -1940,7 +1940,7 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.False(viewModel.IsGameVersionsDownloadSection);
         Assert.Single(viewModel.VisibleMarketMods);
         Assert.Equal("benchwarp", viewModel.VisibleMarketMods[0].Id);
-        Assert.Single(viewModel.VisibleInstalledMods);
+        Assert.Single(viewModel.ModManagement.VisibleInstalledMods);
 
         viewModel.OpenMarketModCommand.Execute(benchwarp);
         Assert.True(viewModel.IsMarketDetail);
@@ -2043,22 +2043,22 @@ public sealed class MainViewModelStateTests : IDisposable
             Receipt("isolated", "1.0.0", enabled: true),
             null,
             static () => { });
-        viewModel.InstalledMods.Add(library);
-        viewModel.InstalledMods.Add(feature);
-        viewModel.InstalledMods.Add(isolated);
-        viewModel.SelectedInstalledMod = feature;
+        viewModel.ModManagement.InstalledMods.Add(library);
+        viewModel.ModManagement.InstalledMods.Add(feature);
+        viewModel.ModManagement.InstalledMods.Add(isolated);
+        viewModel.ModManagement.SelectedInstalledMod = feature;
 
-        viewModel.ShowInstalledModGraphCommand.Execute(null);
+        viewModel.ModManagement.ShowInstalledModGraphCommand.Execute(null);
 
-        Assert.True(viewModel.IsInstalledModGraphVisible);
-        Assert.Equal(["feature", "isolated", "library"], viewModel.InstalledModGraph.Nodes.Select(node => node.Id).Order());
-        var edge = Assert.Single(viewModel.InstalledModGraph.Edges);
+        Assert.True(viewModel.ModManagement.IsInstalledModGraphVisible);
+        Assert.Equal(["feature", "isolated", "library"], viewModel.DependencyGraph.Graph.Nodes.Select(node => node.Id).Order());
+        var edge = Assert.Single(viewModel.DependencyGraph.Graph.Edges);
         Assert.Equal("library", edge.Source.Id);
         Assert.Equal("feature", edge.Target.Id);
 
-        viewModel.SelectedInstalledMod = library;
+        viewModel.ModManagement.SelectedInstalledMod = library;
 
-        Assert.Equal(3, viewModel.InstalledModGraph.Nodes.Count);
+        Assert.Equal(3, viewModel.DependencyGraph.Graph.Nodes.Count);
     }
 
     [Fact]
@@ -2468,7 +2468,7 @@ public sealed class MainViewModelStateTests : IDisposable
             Tags = ["Utility"]
         };
         SetCatalog(viewModel, new GameCatalog { Mods = [manifest] });
-        viewModel.InstalledMods.Add(new InstalledModItemViewModel(
+        viewModel.ModManagement.InstalledMods.Add(new InstalledModItemViewModel(
             Receipt("hkmod:DebugMod", "1.0.0", enabled: true) with { Name = "DebugMod" },
             manifest,
             static () => { },
@@ -2476,15 +2476,15 @@ public sealed class MainViewModelStateTests : IDisposable
         {
             IsSelected = true
         });
-        viewModel.SelectedInstalledMod = viewModel.InstalledMods[0];
+        viewModel.ModManagement.SelectedInstalledMod = viewModel.ModManagement.InstalledMods[0];
         viewModel.SelectedLanguage = viewModel.LanguageOptions.Single(option =>
             option.Value == UiLanguage.SimplifiedChinese);
 
-        var projected = Assert.Single(viewModel.InstalledMods);
+        var projected = Assert.Single(viewModel.ModManagement.InstalledMods);
         Assert.Equal("调试模组", projected.PrimaryName);
         Assert.Equal("DebugMod", projected.SecondaryName);
         Assert.True(projected.IsSelected);
-        Assert.Same(projected, viewModel.SelectedInstalledMod);
+        Assert.Same(projected, viewModel.ModManagement.SelectedInstalledMod);
         await viewModel.DisposeAsync();
     }
 
@@ -2725,7 +2725,7 @@ public sealed class MainViewModelStateTests : IDisposable
 
         await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
 
-        var external = Assert.Single(viewModel.InstalledMods);
+        var external = Assert.Single(viewModel.ModManagement.InstalledMods);
         Assert.True(external.IsExternal);
         Assert.Null(external.Receipt);
         Assert.Equal(ModHealthStatus.UnmanagedExternal, external.HealthStatus);

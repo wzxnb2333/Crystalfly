@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Security.Cryptography;
@@ -103,7 +104,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private ModTranslationLoadResult? modTranslationResult;
     private ModActivityLoadResult? modActivityResult;
     private MarketModItemViewModel? selectedMarketModDisplay;
-    private string? installedModSelectionAnchorId;
     private Func<CancellationToken, Task<GameCatalog>> catalogLoader;
     private Func<Task> steamReconnect;
     private Func<
@@ -193,12 +193,72 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Loc = new LocalizationViewModel();
         downloadQueue = downloadQueueOverride ?? CreateDownloadQueue();
         downloadQueue.QueueChanged += OnDownloadQueueChanged;
+        ModManagement = new ModManagementViewModel(new ModManagementDependencies(
+            () => catalog,
+            () => Loc,
+            message => ToastRequested?.Invoke(message),
+            lifetimeCancellation.Token,
+            operation => RunInstanceMutationAsync(operation),
+            CreateModManager,
+            CreateLoaderManager,
+            CreateModInstallService,
+            ProjectMarketMod,
+            ProjectMarketMod,
+            ModOwnershipDisplay,
+            ModHealthDisplay,
+            message => ErrorMessage = message,
+            () => SelectedInstance?.Record,
+            EnqueueModDependencyRepairAsync));
+        DependencyGraph = new DependencyGraphViewModel(new DependencyGraphDependencies(
+            () => Loc,
+            ProjectMarketMod,
+            GetInstalledModGraphLayoutPath,
+            () => SelectedInstance?.Id,
+            message => ErrorMessage = message));
+        ModManagement.PropertyChanged += OnModManagementPropertyChanged;
+        ModManagement.InstalledModsRefreshed += OnInstalledModsRefreshed;
+        ModManagement.GraphVisibilityChanged += OnInstalledModGraphVisibilityChanged;
+        DependencyGraph.NodeSelectedRequested += ModManagement.SelectModFromGraph;
+        DependencyGraph.NodeToggleRequested += id => _ = ModManagement.ToggleInstalledModFromGraphAsync(id);
+        DependencyGraph.NodeDeleteRequested += RequestInstalledModRemovalFromGraph;
     }
 
     private bool IsSteamSessionLoggedOn() =>
         steamLoggedOnOverride?.Invoke() ?? steamSession?.IsLoggedOn == true;
 
+    private void OnModManagementPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
+    {
+        if (eventArgs.PropertyName == nameof(ModManagementViewModel.SelectedInstalledMod)
+            && ModManagement.IsInstalledModGraphVisible)
+        {
+            DependencyGraph.SelectNode(ModManagement.SelectedInstalledMod?.Id);
+        }
+    }
+
+    private void OnInstalledModsRefreshed()
+    {
+        if (ModManagement.IsInstalledModGraphVisible)
+        {
+            DependencyGraph.Rebuild(
+                ModManagement.InstalledMods,
+                ModManagement.SelectedInstalledMod?.Id,
+                SelectedInstance?.Id);
+        }
+    }
+
+    private void OnInstalledModGraphVisibilityChanged()
+    {
+        if (ModManagement.IsInstalledModGraphVisible)
+        {
+            OnInstalledModsRefreshed();
+        }
+    }
+
     public LocalizationViewModel Loc { get; private set; }
+
+    public ModManagementViewModel ModManagement { get; }
+
+    public DependencyGraphViewModel DependencyGraph { get; }
 
     public event Action<string>? ToastRequested;
 
@@ -215,10 +275,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public ObservableCollection<InstanceItemViewModel> SpeedrunSourceInstances { get; } = [];
 
     public ObservableCollection<LoaderManifest> AvailableLoaders { get; } = [];
-
-    public ObservableCollection<ModManifest> AvailableMods { get; } = [];
-
-    public ObservableCollection<ModManifest> VisibleAvailableMods { get; } = [];
 
     public ObservableCollection<ModManifest> MarketMods { get; } = [];
 
@@ -239,20 +295,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public ObservableCollection<SettingOption<MarketActivityFilter>> MarketActivityOptions { get; } = [];
 
     public ObservableCollection<MarketInstallTargetViewModel> MarketInstallTargets { get; } = [];
-
-    public ObservableCollection<InstalledModItemViewModel> InstalledMods { get; } = [];
-
-    public ObservableCollection<InstalledModItemViewModel> VisibleInstalledMods { get; } = [];
-
-    [ObservableProperty]
-    public partial DependencyGraphModel InstalledModGraph { get; set; } = DependencyGraphModel.Create([], []);
-
-    [ObservableProperty]
-    public partial bool IsInstalledModGraphVisible { get; set; }
-
-    public ObservableCollection<string> UnusedDependencySuggestions { get; } = [];
-
-    public ObservableCollection<SettingOption<ModStatusFilter>> ModStatusOptions { get; } = [];
 
     public ObservableCollection<InstanceLogFile> InstanceLogs { get; } = [];
 
@@ -282,22 +324,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public bool CanCloneInstance => CanNavigate && !string.IsNullOrWhiteSpace(CloneInstanceName);
 
-    public bool HasSelectedMods => InstalledMods.Any(mod => mod.IsSelected);
-
-    public int SelectedModCount => InstalledMods.Count(mod => mod.IsSelected);
-    public bool IsInstalledModListVisible => !IsInstalledModGraphVisible;
-
-    public bool IsInstalledModBulkBarVisible => IsInstalledModListVisible && HasSelectedMods;
-
-
-    public bool HasModDependencyProblems => InstalledMods.Count > 0 && !LaunchPreflight.DependenciesReady;
-
-    public bool HasUnusedDependencySuggestions => UnusedDependencySuggestions.Count > 0;
-
-    public string UnusedDependencySummary => string.Format(
-        CultureInfo.CurrentUICulture,
-        Loc["UnusedDependencyCountFormat"],
-        UnusedDependencySuggestions.Count);
+    public bool HasModDependencyProblems => ModManagement.InstalledMods.Count > 0 && !LaunchPreflight.DependenciesReady;
 
     public bool HasLaunchIssues => LaunchPreflight.Issues.Count > 0;
 
@@ -504,9 +531,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public partial string SearchText { get; set; } = string.Empty;
 
     [ObservableProperty]
-    public partial string ModSearchText { get; set; } = string.Empty;
-
-    [ObservableProperty]
     public partial string MarketSearchText { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -523,12 +547,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial SettingOption<MarketActivityFilter>? SelectedMarketActivityOption { get; set; }
-
-    [ObservableProperty]
-    public partial ModStatusFilter SelectedModStatus { get; set; } = ModStatusFilter.All;
-
-    [ObservableProperty]
-    public partial SettingOption<ModStatusFilter>? SelectedModStatusOption { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanCloneInstance))]
@@ -598,9 +616,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public partial LoaderManifest? SelectedLoader { get; set; }
 
     [ObservableProperty]
-    public partial ModManifest? SelectedAvailableMod { get; set; }
-
-    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsMarketList))]
     [NotifyPropertyChangedFor(nameof(IsMarketDetail))]
     public partial ModManifest? SelectedMarketMod { get; set; }
@@ -626,9 +641,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial MarketInstallTargetViewModel? SelectedMarketInstallTarget { get; set; }
-
-    [ObservableProperty]
-    public partial InstalledModItemViewModel? SelectedInstalledMod { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelectedMarketModInstallation))]
@@ -729,9 +741,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public bool HasSpeedrunReport => !string.IsNullOrWhiteSpace(SpeedrunReportPath);
 
     [ObservableProperty]
-    public partial string LocalModPath { get; set; } = string.Empty;
-
-    [ObservableProperty]
     public partial string LocalLoaderManifestPath { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -817,7 +826,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         CustomModLinksUrl = settings.CustomModLinks?.Url ?? string.Empty;
         RebuildSettingOptions();
         RebuildCustomModLinksOptions();
-        RebuildModStatusOptions();
+        ModManagement.RebuildStatusOptions();
         RebuildMarketCatalog();
         PopulateSpeedrunTemplates();
         PopulateDownloadBuilds();
@@ -910,7 +919,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             catalog = await catalogLoader(lifetimeCancellation.Token);
             RebuildCustomModLinksOptions();
-            RebuildModStatusOptions();
+            ModManagement.RebuildStatusOptions();
             RebuildMarketCatalog();
             PopulateSpeedrunTemplates();
             PopulateDownloadBuilds();
@@ -1070,7 +1079,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             return;
         }
-        SelectedInstalledMod = item;
+        ModManagement.SelectedInstalledMod = item;
         OpenModMarketForSelectedInstance();
         SelectedMarketMod = manifest;
     }
@@ -2176,137 +2185,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     [RelayCommand]
-    private async Task InstallSelectedModAsync()
-    {
-        if (SelectedInstance is null || SelectedAvailableMod is null)
-        {
-            ErrorMessage = Loc["SelectMod"];
-            return;
-        }
-
-        await RunInstanceMutationAsync(async record =>
-        {
-            var loader = await CreateLoaderManager(record).GetReceiptAsync()
-                ?? throw new InvalidOperationException(Loc["LoaderRequired"]);
-            var compatibleMods = ModCatalogCompatibility.ProjectForBuild(catalog.Mods, record.BuildId);
-            var order = ModDependencyResolver.ResolveInstallOrder(compatibleMods, [SelectedAvailableMod.Id]);
-            foreach (var mod in order)
-            {
-                if (!string.Equals(mod.LoaderId, loader.PackageId, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidOperationException($"{Loc["WrongLoader"]}: {mod.Name}");
-                }
-            }
-            await CreateModManager(record).InstallWithDependenciesFromUrisAsync(
-                compatibleMods,
-                [SelectedAvailableMod.Id]);
-        });
-    }
-
-    [RelayCommand]
-    private async Task ToggleSelectedModAsync()
-    {
-        if (SelectedInstance is null || SelectedInstalledMod is null)
-        {
-            ErrorMessage = Loc["SelectMod"];
-            return;
-        }
-        var modId = SelectedInstalledMod.Id;
-        var enabled = !SelectedInstalledMod.Enabled;
-        await SetInstalledModsEnabledAsync([modId], enabled);
-    }
-
-    [RelayCommand]
-    private async Task UpdateSelectedModAsync()
-    {
-        if (SelectedInstalledMod?.CatalogManifest is not ModManifest manifest
-            || !SelectedInstalledMod.HasUpdate)
-        {
-            ErrorMessage = Loc["NoUpdateAvailable"];
-            return;
-        }
-        await RunInstanceMutationAsync(record => CreateModInstallService(record).UpdateAsync(manifest.Id));
-    }
-
-    [RelayCommand]
-    private async Task UninstallSelectedModAsync()
-    {
-        if (SelectedInstance is null || SelectedInstalledMod is null)
-        {
-            ErrorMessage = Loc["SelectMod"];
-            return;
-        }
-        if (!SelectedInstalledMod.CanUninstall)
-        {
-            ErrorMessage = SelectedInstalledMod.IsPinned
-                ? Loc["UnpinBeforeUninstall"]
-                : Loc["ExternalModReadOnly"];
-            return;
-        }
-        var modId = SelectedInstalledMod.Id;
-        IReadOnlyList<InstalledModReceipt> unused = [];
-        await RunInstanceMutationAsync(async record =>
-        {
-            var manager = CreateModManager(record);
-            var before = await manager.GetInstalledAsync();
-            var removed = before.Single(mod => string.Equals(mod.Id, modId, StringComparison.OrdinalIgnoreCase));
-            await manager.UninstallIgnoringDependentsAsync(modId);
-            var remaining = await manager.GetInstalledAsync();
-            unused = InstalledModDependencyGraph.FindUnusedDependencies([removed], remaining);
-        });
-        SetUnusedDependencySuggestions(unused);
-    }
-
-    [RelayCommand]
-    private async Task TakeOverSelectedModAsync()
-    {
-        if (SelectedInstalledMod is not { CanTakeOver: true } selected)
-        {
-            return;
-        }
-        await RunInstanceMutationAsync(record =>
-            CreateModManager(record).TakeOverAsync(selected.Id, selected.Discovery));
-    }
-
-    [RelayCommand]
-    private async Task ToggleSelectedModPinnedAsync()
-    {
-        if (SelectedInstalledMod is not { CanPin: true, Receipt: { } receipt })
-        {
-            return;
-        }
-        await RunInstanceMutationAsync(record =>
-            CreateModManager(record).SetPinnedAsync(receipt.Id, !receipt.Pinned));
-    }
-
-    [RelayCommand]
-    private async Task RepairSelectedModAsync()
-    {
-        if (SelectedInstalledMod is not { CanRepair: true, CatalogManifest: { } manifest } selected)
-        {
-            return;
-        }
-        await RunInstanceMutationAsync(async record =>
-        {
-            var manager = CreateModManager(record);
-            var plan = await manager.GetRepairPlanAsync(
-                selected.Id,
-                ModCatalogCompatibility.ProjectForBuild(catalog.Mods, record.BuildId));
-            switch (plan.Action)
-            {
-                case ModRepairAction.Repair when plan.Manifest is not null:
-                    await manager.RepairFromUriAsync(plan.Manifest);
-                    break;
-                case ModRepairAction.Update when plan.Manifest is not null:
-                    await CreateModInstallService(record).UpdateAsync(plan.Manifest.Id);
-                    break;
-                default:
-                    throw new InvalidOperationException(plan.Reason);
-            }
-        });
-    }
-
-    [RelayCommand]
     private async Task RepairSelectedMarketModAsync()
     {
         if (SelectedMarketInstalledMod is not { CanReinstall: true, CatalogManifest: { } manifest })
@@ -2377,34 +2255,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     [RelayCommand]
-    private async Task AcceptSelectedLocalModFilesAsync()
-    {
-        if (SelectedInstalledMod is not { CanAcceptCurrent: true } selected)
-        {
-            return;
-        }
-        await RunInstanceMutationAsync(record =>
-            CreateModManager(record).AcceptCurrentLocalFilesAsync(selected.Id));
-    }
-
-    [RelayCommand]
-    private async Task ReimportSelectedLocalModAsync()
-    {
-        if (SelectedInstalledMod is not { CanReimport: true } selected || !File.Exists(LocalModPath))
-        {
-            ErrorMessage = Loc["LocalModPathRequired"];
-            return;
-        }
-        await RunInstanceMutationAsync(record =>
-        {
-            var manager = CreateModManager(record);
-            return string.Equals(Path.GetExtension(LocalModPath), ".dll", StringComparison.OrdinalIgnoreCase)
-                ? manager.ReimportLocalDllAsync(selected.Id, LocalModPath)
-                : manager.ReimportLocalZipAsync(selected.Id, LocalModPath);
-        });
-    }
-
-    [RelayCommand]
     private async Task AcknowledgeLaunchWarningsAsync()
     {
         if (SelectedInstance is null)
@@ -2435,235 +2285,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     : issue).ToArray()
         };
         await QueueSettingsSave();
-    }
-
-    [RelayCommand]
-    private async Task EnableSelectedModsAsync()
-    {
-        var selected = GetSelectedModReceipts();
-        if (selected.Count == 0)
-        {
-            return;
-        }
-        await SetInstalledModsEnabledAsync(selected.Select(mod => mod.Id), enabled: true);
-    }
-
-    [RelayCommand]
-    private async Task DisableSelectedModsAsync()
-    {
-        var selected = GetSelectedModReceipts();
-        if (selected.Count == 0)
-        {
-            return;
-        }
-        await SetInstalledModsEnabledAsync(selected.Select(mod => mod.Id), enabled: false);
-    }
-
-    private Task SetInstalledModsEnabledAsync(IEnumerable<string> requestedIds, bool enabled)
-    {
-        var selectedIds = requestedIds
-            .Where(id => !string.IsNullOrWhiteSpace(id))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var installed = GetManagedModReceipts();
-        var selected = installed
-            .Where(mod => selectedIds.Contains(mod.Id))
-            .ToArray();
-        if (selected.Length == 0)
-        {
-            return Task.CompletedTask;
-        }
-
-        if (enabled)
-        {
-            var disabledDependencies = selected
-                .SelectMany(mod => mod.Dependencies)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Select(id => installed.FirstOrDefault(mod => string.Equals(mod.Id, id, StringComparison.OrdinalIgnoreCase)))
-                .Where(mod => mod is not null && !mod.Enabled && !selectedIds.Contains(mod.Id))
-                .Select(mod => mod!.Name)
-                .ToArray();
-            if (disabledDependencies.Length > 0)
-            {
-                ErrorMessage = $"{Loc["DependencyProblem"]}: {string.Join(", ", disabledDependencies)}";
-                return Task.CompletedTask;
-            }
-        }
-
-        var order = InstalledModDependencyGraph.OrderDependentsFirst(installed, selectedIds);
-        if (enabled)
-        {
-            order = order.Reverse().ToArray();
-        }
-        return RunInstanceMutationAsync(async record =>
-        {
-            var manager = CreateModManager(record);
-            foreach (var mod in order.Where(mod => mod.Enabled != enabled))
-            {
-                if (enabled)
-                {
-                    await manager.SetEnabledAsync(mod.Id, enabled: true);
-                }
-                else
-                {
-                    await manager.DisableIgnoringDependentsAsync(mod.Id);
-                }
-            }
-        });
-    }
-
-    [RelayCommand]
-    private async Task UpdateSelectedModsAsync()
-    {
-        var updates = InstalledMods.Where(mod => mod.IsSelected && mod.HasUpdate).ToArray();
-        if (updates.Length == 0)
-        {
-            ErrorMessage = Loc["NoUpdateAvailable"];
-            return;
-        }
-        await RunInstanceMutationAsync(async record =>
-        {
-            foreach (var mod in updates)
-            {
-                await CreateModInstallService(record).UpdateAsync(mod.CatalogManifest!.Id);
-            }
-        });
-    }
-
-    [RelayCommand]
-    private async Task UninstallSelectedModsAsync()
-    {
-        var selected = GetSelectedModReceipts();
-        if (selected.Count == 0)
-        {
-            return;
-        }
-        var selectedIds = selected.Select(mod => mod.Id).ToArray();
-        ModBatchUninstallResult? result = null;
-        await RunInstanceMutationAsync(async record =>
-        {
-            result = await CreateModManager(record).UninstallBatchAsync(selectedIds);
-        });
-        SetUnusedDependencySuggestions(result?.UnusedDependencies ?? []);
-    }
-
-    private void SetUnusedDependencySuggestions(IReadOnlyList<InstalledModReceipt> suggestions)
-    {
-        UnusedDependencySuggestions.Clear();
-        foreach (var suggestion in suggestions)
-        {
-            UnusedDependencySuggestions.Add(suggestion.Name);
-        }
-        OnPropertyChanged(nameof(HasUnusedDependencySuggestions));
-        OnPropertyChanged(nameof(UnusedDependencySummary));
-    }
-
-
-    public ModRemovalImpactPlan CreateModRemovalPlan(bool bulk)
-    {
-        var selectedIds = bulk
-            ? InstalledMods.Where(mod => mod.IsSelected).Select(mod => mod.Id).ToArray()
-            : SelectedInstalledMod is null ? [] : [SelectedInstalledMod.Id];
-        if (selectedIds.Length == 0)
-        {
-            throw new InvalidOperationException(Loc["SelectMod"]);
-        }
-        return InstalledModDependencyGraph.CreateRemovalPlan(
-            GetManagedModReceipts(),
-            selectedIds);
-    }
-
-    public ModDependencyRepairPlan CreateModDependencyRepairPlan()
-    {
-        if (SelectedInstance is null)
-        {
-            throw new InvalidOperationException(Loc["NoInstance"]);
-        }
-        var installed = GetManagedModReceipts();
-        var loaderIds = installed
-            .Select(mod => mod.LoaderId)
-            .Where(id => !string.IsNullOrWhiteSpace(id))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        if (loaderIds.Length != 1)
-        {
-            throw new InvalidOperationException(Loc["WrongLoader"]);
-        }
-        return ModDependencyRepairPlanner.CreatePlan(
-            installed,
-            ModCatalogCompatibility.ProjectForBuild(catalog.Mods, SelectedInstance.Record.BuildId),
-            SelectedInstance.Record.BuildId,
-            loaderIds[0]);
-    }
-
-    [RelayCommand]
-    private async Task RepairModDependenciesAsync()
-    {
-        var plan = CreateModDependencyRepairPlan();
-        if (plan.Items.All(item => item.Action == ModDependencyRepairAction.Unresolved))
-        {
-            ErrorMessage = Loc["CannotRepair"];
-            return;
-        }
-        await EnqueueModDependencyRepairAsync(plan);
-    }
-    public IReadOnlyList<string> GetSelectedModExternalDependentNames(bool bulk)
-    {
-        var selectedIds = bulk
-            ? InstalledMods.Where(mod => mod.IsSelected).Select(mod => mod.Id).ToArray()
-            : SelectedInstalledMod is null ? [] : [SelectedInstalledMod.Id];
-        return InstalledModDependencyGraph.FindExternalDependents(
-                GetManagedModReceipts(),
-                selectedIds)
-            .Select(mod => mod.Name)
-            .ToArray();
-    }
-
-    public string GetSelectedModNames(bool bulk) => string.Join(
-        Environment.NewLine,
-        bulk
-            ? InstalledMods.Where(mod => mod.IsSelected).Select(mod => mod.Name)
-            : SelectedInstalledMod is null ? [] : [SelectedInstalledMod.Name]);
-
-    private IReadOnlyList<InstalledModReceipt> GetSelectedModReceipts() => InstalledMods
-        .Where(mod => mod.IsSelected && mod.Receipt is not null)
-        .Select(mod => mod.Receipt)
-        .OfType<InstalledModReceipt>()
-        .ToArray();
-
-    private IReadOnlyList<InstalledModReceipt> GetManagedModReceipts() => InstalledMods
-        .Select(mod => mod.Receipt)
-        .OfType<InstalledModReceipt>()
-        .ToArray();
-
-    [RelayCommand]
-    private async Task ImportLocalModAsync()
-    {
-        if (SelectedInstance is null || !File.Exists(LocalModPath))
-        {
-            ErrorMessage = Loc["LocalModPathRequired"];
-            return;
-        }
-        await RunInstanceMutationAsync(async record =>
-        {
-            var loader = await CreateLoaderManager(record).GetReceiptAsync()
-                ?? throw new InvalidOperationException(Loc["LoaderRequired"]);
-            var fileName = Path.GetFileNameWithoutExtension(LocalModPath);
-            var id = $"local-{fileName}";
-            var manager = CreateModManager(record);
-            if (string.Equals(Path.GetExtension(LocalModPath), ".dll", StringComparison.OrdinalIgnoreCase))
-            {
-                await manager.ImportLocalDllAsync(id, fileName, loader.PackageId, LocalModPath);
-            }
-            else if (string.Equals(Path.GetExtension(LocalModPath), ".zip", StringComparison.OrdinalIgnoreCase))
-            {
-                await manager.ImportLocalZipAsync(id, fileName, loader.PackageId, LocalModPath);
-            }
-            else
-            {
-                throw new InvalidDataException(Loc["LocalModType"]);
-            }
-            LocalModPath = string.Empty;
-        });
     }
 
     [RelayCommand]
@@ -3010,8 +2631,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     partial void OnSearchTextChanged(string value) => ApplyInstanceFilter();
 
-    partial void OnModSearchTextChanged(string value) => ApplyModFilters();
-
     partial void OnMarketSearchTextChanged(string value) => ApplyMarketFilters();
 
     partial void OnSelectedMarketBuildOptionChanged(SettingOption<string>? value) => ApplyMarketFilters();
@@ -3024,25 +2643,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     partial void OnSelectedMarketActivityOptionChanged(SettingOption<MarketActivityFilter>? value) =>
         ApplyMarketFilters();
-
-    partial void OnSelectedModStatusChanged(ModStatusFilter value) => ApplyModFilters();
-    partial void OnIsInstalledModGraphVisibleChanged(bool value)
-    {
-        OnPropertyChanged(nameof(IsInstalledModListVisible));
-        OnPropertyChanged(nameof(IsInstalledModBulkBarVisible));
-        if (value)
-        {
-            RebuildInstalledModGraph();
-        }
-    }
-
-    partial void OnSelectedInstalledModChanged(InstalledModItemViewModel? value)
-    {
-        if (IsInstalledModGraphVisible)
-        {
-            InstalledModGraph.Select(value?.Id);
-        }
-    }
 
     partial void OnIsOfflineModeChanged(bool value)
     {
@@ -3088,14 +2688,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    partial void OnSelectedModStatusOptionChanged(SettingOption<ModStatusFilter>? value)
-    {
-        if (value is not null)
-        {
-            SelectedModStatus = value.Value;
-        }
-    }
-
     partial void OnSelectedLogFileChanged(InstanceLogFile? value)
     {
         LogContent = string.Empty;
@@ -3116,10 +2708,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         IsLoadingInstanceDetails = value is not null;
         AvailableLoaders.Clear();
         SelectedLoader = null;
-        AvailableMods.Clear();
-        VisibleAvailableMods.Clear();
-        InstalledMods.Clear();
-        VisibleInstalledMods.Clear();
+        ModManagement.ClearAvailableMods();
+        ModManagement.ClearInstalledMods();
         Snapshots.Clear();
         ModPresets.Clear();
         SelectedPreset = null;
@@ -3132,7 +2722,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             State = LoaderState.Vanilla,
             Ownership = LoaderOwnership.None
         };
-        OnModSelectionChanged();
         InstanceLogs.Clear();
         SelectedLogFile = null;
         LaunchPreflight = new(false, false, false, false);
@@ -3147,12 +2736,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             {
                 SelectedLoader = AvailableLoaders[0];
             }
-            foreach (var mod in ModCatalogCompatibility.ProjectForBuild(catalog.Mods, value.Record.BuildId)
-                         .Where(mod => mod.SupportedBuildIds.Contains(value.Record.BuildId, StringComparer.OrdinalIgnoreCase)))
-            {
-                AvailableMods.Add(mod);
-            }
-            ApplyModFilters();
+            ModManagement.ReplaceAvailableMods(value.Record);
             settings = settings with { CurrentInstanceId = value.Id };
             _ = QueueSettingsSave();
             if (!Directory.Exists(VersionRoot))
@@ -3396,9 +2980,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ApplyLanguage(value.Value);
         RebuildSettingOptions();
         RebuildCustomModLinksOptions();
-        RebuildModStatusOptions();
+        ModManagement.RebuildStatusOptions();
         RebuildMarketCatalog();
-        RebuildInstalledModCatalogProjection();
+        ModManagement.RebuildCatalogProjection();
+        UpdateSelectedMarketInstallationState();
         RefreshGameDirectoryLabels();
         NotifyPreflightLabels();
         _ = QueueSettingsSave();
@@ -3511,192 +3096,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    private void ApplyModFilters()
-    {
-        VisibleAvailableMods.Clear();
-        foreach (var mod in AvailableMods.Where(mod =>
-            string.IsNullOrWhiteSpace(ModSearchText)
-            || mod.Name.Contains(ModSearchText, StringComparison.OrdinalIgnoreCase)
-            || mod.Id.Contains(ModSearchText, StringComparison.OrdinalIgnoreCase)
-            || mod.Version.Contains(ModSearchText, StringComparison.OrdinalIgnoreCase)))
-        {
-            VisibleAvailableMods.Add(mod);
-        }
-
-        VisibleInstalledMods.Clear();
-        foreach (var mod in InstalledMods.Where(mod => mod.Matches(ModSearchText, SelectedModStatus)))
-        {
-            VisibleInstalledMods.Add(mod);
-        }
-    }
-
-    [RelayCommand]
-    private void ShowInstalledModList() => IsInstalledModGraphVisible = false;
-
-    [RelayCommand]
-    private void ShowInstalledModGraph()
-    {
-        IsInstalledModGraphVisible = true;
-        RebuildInstalledModGraph();
-    }
-
-    private void RebuildInstalledModGraph()
-    {
-        var selectedId = SelectedInstalledMod?.Id
-            ?? InstalledMods.FirstOrDefault(mod => mod.HasHealthIssue)?.Id
-            ?? InstalledMods.FirstOrDefault()?.Id;
-        var definitions = new Dictionary<string, DependencyGraphNodeDefinition>(StringComparer.OrdinalIgnoreCase);
-        var edges = new List<DependencyGraphEdgeDefinition>();
-        foreach (var mod in InstalledMods)
-        {
-            var state = mod.IsExternal
-                ? DependencyGraphNodeState.External
-                : !mod.IsEnabled
-                    ? DependencyGraphNodeState.Disabled
-                    : mod.HasHealthIssue
-                        ? DependencyGraphNodeState.Attention
-                        : mod.IsLocal
-                            ? DependencyGraphNodeState.Local
-                            : DependencyGraphNodeState.Normal;
-            var status = mod.IsExternal
-                ? Loc["DependencyRelationshipUnknown"]
-                : !mod.IsEnabled
-                    ? Loc["Disabled"]
-                    : mod.HasHealthIssue
-                        ? mod.HealthDisplayName
-                        : mod.OwnershipDisplayName;
-            definitions[mod.Id] = new(
-                mod.Id,
-                mod.PrimaryName,
-                mod.SecondaryName,
-                status,
-                state,
-                CanToggle: mod.CanToggle,
-                ToggleActionLabel: mod.IsEnabled ? Loc["Disable"] : Loc["Enable"],
-                CanDelete: mod.CanUninstall);
-        }
-
-        foreach (var mod in InstalledMods.Where(mod => mod.Receipt is not null))
-        {
-            foreach (var dependencyId in mod.Receipt!.Dependencies.Distinct(StringComparer.OrdinalIgnoreCase))
-            {
-                if (!definitions.ContainsKey(dependencyId))
-                {
-                    var display = ProjectMarketMod(dependencyId);
-                    definitions[dependencyId] = new(
-                        dependencyId,
-                        display?.PrimaryName ?? dependencyId,
-                        display?.SecondaryName ?? string.Empty,
-                        Loc["Missing"],
-                        DependencyGraphNodeState.Missing);
-                }
-                edges.Add(new DependencyGraphEdgeDefinition(dependencyId, mod.Id));
-            }
-        }
-
-        var graph = DependencyGraphModel.Create(definitions.Values, edges, selectedId);
-        graph.NodeSelected = id =>
-        {
-            var selected = InstalledMods.FirstOrDefault(mod =>
-                string.Equals(mod.Id, id, StringComparison.OrdinalIgnoreCase));
-            if (selected is not null && !ReferenceEquals(SelectedInstalledMod, selected))
-            {
-                SelectedInstalledMod = selected;
-            }
-        };
-        InstalledModGraph = graph;
-        if (SelectedInstance is not { } instance)
-        {
-            return;
-        }
-
-        graph.NodePositionCommitted = () => _ = SaveInstalledModGraphLayoutAsync(graph, instance.Id);
-        graph.AutomaticLayoutRestored = () => _ = ClearInstalledModGraphLayoutAsync(graph, instance.Id);
-        graph.NodeToggleRequested = id => _ = ToggleInstalledModFromGraphAsync(id);
-        graph.NodeDeleteRequested = RequestInstalledModRemovalFromGraph;
-        _ = ApplyInstalledModGraphLayoutAsync(graph, instance.Id);
-    }
-
-    private async Task ApplyInstalledModGraphLayoutAsync(DependencyGraphModel graph, string instanceId)
-    {
-        var layout = await DependencyGraphLayoutStore.TryReadAsync(GetInstalledModGraphLayoutPath(instanceId));
-        if (layout is null
-            || !ReferenceEquals(InstalledModGraph, graph)
-            || !string.Equals(SelectedInstance?.Id, instanceId, StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        var applied = graph.ApplySavedPositions(layout.Positions);
-        if (applied.HadExpiredNodes)
-        {
-            await SaveInstalledModGraphLayoutAsync(graph, instanceId);
-        }
-    }
-
-    private async Task SaveInstalledModGraphLayoutAsync(DependencyGraphModel graph, string instanceId)
-    {
-        if (!ReferenceEquals(InstalledModGraph, graph)
-            || !string.Equals(SelectedInstance?.Id, instanceId, StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        try
-        {
-            await DependencyGraphLayoutStore.WriteAsync(
-                GetInstalledModGraphLayoutPath(instanceId),
-                new DependencyGraphLayout { Positions = new(graph.GetPositions(), StringComparer.OrdinalIgnoreCase) });
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
-        }
-    }
-
-    private async Task ClearInstalledModGraphLayoutAsync(DependencyGraphModel graph, string instanceId)
-    {
-        if (!ReferenceEquals(InstalledModGraph, graph)
-            || !string.Equals(SelectedInstance?.Id, instanceId, StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        try
-        {
-            await DependencyGraphLayoutStore.WriteAsync(
-                GetInstalledModGraphLayoutPath(instanceId),
-                new DependencyGraphLayout());
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
-        }
-    }
-
-    private async Task ToggleInstalledModFromGraphAsync(string modId)
-    {
-        var mod = InstalledMods.FirstOrDefault(candidate =>
-            string.Equals(candidate.Id, modId, StringComparison.OrdinalIgnoreCase));
-        if (mod is null || !mod.CanToggle)
-        {
-            return;
-        }
-
-        SelectedInstalledMod = mod;
-        await SetInstalledModsEnabledAsync([mod.Id], enabled: !mod.IsEnabled);
-    }
-
     private void RequestInstalledModRemovalFromGraph(string modId)
     {
-        var mod = InstalledMods.FirstOrDefault(candidate =>
+        var mod = ModManagement.InstalledMods.FirstOrDefault(candidate =>
             string.Equals(candidate.Id, modId, StringComparison.OrdinalIgnoreCase));
         if (mod is null || !mod.CanUninstall)
         {
             return;
         }
 
-        SelectedInstalledMod = mod;
+        ModManagement.SelectedInstalledMod = mod;
         GraphModRemovalRequested?.Invoke();
     }
 
@@ -3795,52 +3204,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 string.Equals(mod.Id, selectedModId, StringComparison.OrdinalIgnoreCase));
         }
         OnPropertyChanged(nameof(SelectedMarketModDisplay));
-    }
-
-    private void RebuildInstalledModCatalogProjection()
-    {
-        if (InstalledMods.Count == 0)
-        {
-            UpdateSelectedMarketInstallationState();
-            return;
-        }
-
-        var selectedIds = InstalledMods
-            .Where(mod => mod.IsSelected)
-            .Select(mod => mod.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var focusedId = SelectedInstalledMod?.Id;
-        var items = InstalledMods.ToArray();
-        var compatibleMods = SelectedInstance is null
-            ? catalog.Mods
-            : ModCatalogCompatibility.ProjectForBuild(catalog.Mods, SelectedInstance.Record.BuildId);
-        InstalledMods.Clear();
-        foreach (var item in items)
-        {
-            var receipt = item.Receipt;
-            var manifest = compatibleMods.FirstOrDefault(candidate =>
-                string.Equals(candidate.Id, item.Id, StringComparison.OrdinalIgnoreCase));
-            InstalledMods.Add(new InstalledModItemViewModel(
-                item.Discovery,
-                receipt,
-                item.HealthReport,
-                manifest,
-                OnModSelectionChanged,
-                manifest is null ? null : ProjectMarketMod(manifest),
-                ModOwnershipDisplay(item.Ownership),
-                ModHealthDisplay(item.HealthStatus))
-            {
-                IsSelected = selectedIds.Contains(item.Id)
-            });
-        }
-        UpdateSelectedMarketInstallationState();
-        SelectedInstalledMod = focusedId is null
-            ? null
-            : InstalledMods.FirstOrDefault(mod =>
-                string.Equals(mod.Id, focusedId, StringComparison.OrdinalIgnoreCase));
-        ApplyModFilters();
-        OnModSelectionChanged();
-        if (IsInstalledModGraphVisible) RebuildInstalledModGraph();
     }
 
     private void RebuildMarketOptions(
@@ -3985,7 +3348,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         SelectedMarketInstalledMod = SelectedMarketMod is null
             ? null
-            : InstalledMods.FirstOrDefault(item =>
+            : ModManagement.InstalledMods.FirstOrDefault(item =>
                 string.Equals(item.Id, SelectedMarketMod.Id, StringComparison.OrdinalIgnoreCase));
         SelectedModGlobalSettingsFile = null;
         if (SelectedInstance is null
@@ -4098,20 +3461,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         OnPropertyChanged(nameof(OfficialModCatalogError));
     }
 
-    private void RebuildModStatusOptions()
-    {
-        ModStatusOptions.Clear();
-        ModStatusOptions.Add(new(ModStatusFilter.All, Loc["FilterAll"]));
-        ModStatusOptions.Add(new(ModStatusFilter.Enabled, Loc["Enabled"]));
-        ModStatusOptions.Add(new(ModStatusFilter.Disabled, Loc["Disabled"]));
-        ModStatusOptions.Add(new(ModStatusFilter.Local, Loc["Local"]));
-        ModStatusOptions.Add(new(ModStatusFilter.Updates, Loc["Updates"]));
-        ModStatusOptions.Add(new(ModStatusFilter.External, Loc["External"]));
-        ModStatusOptions.Add(new(ModStatusFilter.Pinned, Loc["Pinned"]));
-        ModStatusOptions.Add(new(ModStatusFilter.NeedsAttention, Loc["NeedsAttentionFilter"]));
-        SelectedModStatusOption = ModStatusOptions.First(option => option.Value == SelectedModStatus);
-    }
-
     private string ModOwnershipDisplay(ModOwnership ownership) => ownership switch
     {
         ModOwnership.Managed => Loc["Installed"],
@@ -4166,88 +3515,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         LaunchIssueCode.ModHealthIndeterminate => "LaunchIssueModIndeterminate",
         _ => "LaunchIssues"
     };
-
-    private void OnModSelectionChanged()
-    {
-        OnPropertyChanged(nameof(HasSelectedMods));
-        OnPropertyChanged(nameof(SelectedModCount));
-        OnPropertyChanged(nameof(IsInstalledModBulkBarVisible));
-    }
-
-    internal void SelectInstalledMod(
-        InstalledModItemViewModel item,
-        bool control,
-        bool shift)
-    {
-        ArgumentNullException.ThrowIfNull(item);
-        SelectedInstalledMod = item;
-
-        if (shift && installedModSelectionAnchorId is not null)
-        {
-            var anchorIndex = VisibleInstalledMods
-                .Select((candidate, index) => (candidate, index))
-                .FirstOrDefault(pair => string.Equals(
-                    pair.candidate.Id,
-                    installedModSelectionAnchorId,
-                    StringComparison.OrdinalIgnoreCase)).index;
-            var itemIndex = VisibleInstalledMods.IndexOf(item);
-            var hasVisibleAnchor = anchorIndex >= 0
-                && anchorIndex < VisibleInstalledMods.Count
-                && string.Equals(
-                    VisibleInstalledMods[anchorIndex].Id,
-                    installedModSelectionAnchorId,
-                    StringComparison.OrdinalIgnoreCase);
-            if (hasVisibleAnchor && itemIndex >= 0)
-            {
-                if (!control)
-                {
-                    SetInstalledModSelection(InstalledMods, selected: false);
-                }
-                var first = Math.Min(anchorIndex, itemIndex);
-                var last = Math.Max(anchorIndex, itemIndex);
-                SetInstalledModSelection(
-                    VisibleInstalledMods.Skip(first).Take(last - first + 1),
-                    selected: true);
-                return;
-            }
-        }
-
-        if (control)
-        {
-            item.IsSelected = !item.IsSelected;
-        }
-        else
-        {
-            SetInstalledModSelection(InstalledMods, selected: false);
-            item.IsSelected = true;
-        }
-        installedModSelectionAnchorId = item.Id;
-    }
-
-    [RelayCommand]
-    private void SelectAllInstalledMods()
-    {
-        SetInstalledModSelection(InstalledMods, selected: true);
-        installedModSelectionAnchorId = InstalledMods.FirstOrDefault()?.Id;
-    }
-
-    [RelayCommand]
-    private void ClearInstalledModSelection()
-    {
-        SetInstalledModSelection(InstalledMods, selected: false);
-        SelectedInstalledMod = null;
-        installedModSelectionAnchorId = null;
-    }
-
-    private static void SetInstalledModSelection(
-        IEnumerable<InstalledModItemViewModel> mods,
-        bool selected)
-    {
-        foreach (var mod in mods)
-        {
-            mod.IsSelected = selected;
-        }
-    }
 
     private async Task LoadLogAsync(InstanceLogFile logFile)
     {
@@ -4520,30 +3787,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 : loaderReceipt.IsVerified
                     ? Loc["VerifiedCatalogLoader"]
                     : Loc["UnverifiedLocalLoader"];
-            InstalledMods.Clear();
-            foreach (var mod in discovery.Mods)
-            {
-                var receipt = installed.FirstOrDefault(candidate =>
-                    string.Equals(candidate.Id, mod.Id, StringComparison.OrdinalIgnoreCase));
-                var healthReport = modHealthReports.First(report =>
-                    string.Equals(report.ModId, mod.Id, StringComparison.OrdinalIgnoreCase));
-                var catalogManifest = ModCatalogCompatibility.ProjectForBuild(catalog.Mods, record.BuildId)
-                    .FirstOrDefault(candidate =>
-                        string.Equals(candidate.Id, mod.Id, StringComparison.OrdinalIgnoreCase));
-                InstalledMods.Add(new InstalledModItemViewModel(
-                    mod,
-                    receipt,
-                    healthReport,
-                    catalogManifest,
-                    OnModSelectionChanged,
-                    catalogManifest is null ? null : ProjectMarketMod(catalogManifest),
-                    ModOwnershipDisplay(mod.Ownership),
-                    ModHealthDisplay(healthReport.Status)));
-            }
+            ModManagement.LoadInstalledMods(discovery.Mods, installed, modHealthReports, record);
             UpdateSelectedMarketInstallationState();
-            OnModSelectionChanged();
-            ApplyModFilters();
-            if (IsInstalledModGraphVisible) RebuildInstalledModGraph();
             Snapshots.Clear();
             foreach (var snapshot in snapshots)
             {
