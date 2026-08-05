@@ -285,7 +285,7 @@ public partial class MainViewModel
             var plan = await CreateSelectedMarketInstallPlanAsync(target, lifetimeCancellation.Token);
             var group = ModInstallQueueGroupFactory.Create(plan, catalog, target.Instance.Record);
             var result = await downloadQueue.EnqueueAsync(group, lifetimeCancellation.Token);
-            ToastRequested?.Invoke(result.Added
+            NotifyToast(result.Added
                 ? Loc["AddedToDownloadQueue"]
                 : Loc["QueueTaskAlreadyExists"]);
         }
@@ -317,7 +317,7 @@ public partial class MainViewModel
             await downloadQueue.InitializeAsync(lifetimeCancellation.Token);
             var group = ModDependencyRepairQueueGroupFactory.Create(plan, catalog, SelectedInstance.Record);
             var result = await downloadQueue.EnqueueAsync(group, lifetimeCancellation.Token);
-            ToastRequested?.Invoke(result.Added
+            NotifyToast(result.Added
                 ? Loc["AddedToDownloadQueue"]
                 : Loc["QueueTaskAlreadyExists"]);
         }
@@ -359,7 +359,7 @@ public partial class MainViewModel
         DownloadStatus = result.Added
             ? Loc["AddedToDownloadQueue"]
             : Loc["QueueTaskAlreadyExists"];
-        ToastRequested?.Invoke(DownloadStatus);
+        NotifyToast(DownloadStatus);
     }
 
     [RelayCommand]
@@ -401,7 +401,7 @@ public partial class MainViewModel
             await downloadQueue.InitializeAsync(lifetimeCancellation.Token);
             var group = SteamDownloadQueueGroupFactory.CreateRepair(selected.Record, build, loader);
             var result = await downloadQueue.EnqueueAsync(group, lifetimeCancellation.Token);
-            ToastRequested?.Invoke(result.Added
+            NotifyToast(result.Added
                 ? Loc["AddedToDownloadQueue"]
                 : Loc["QueueTaskAlreadyExists"]);
         }
@@ -449,7 +449,7 @@ public partial class MainViewModel
         await downloadQueue.InitializeAsync(cancellationToken);
         var result = await downloadQueue.EnqueueAsync(group, cancellationToken);
         DownloadStatus = result.Added ? Loc["AddedToDownloadQueue"] : Loc["QueueTaskAlreadyExists"];
-        ToastRequested?.Invoke(DownloadStatus);
+        NotifyToast(DownloadStatus);
         return result.Added;
     }
 

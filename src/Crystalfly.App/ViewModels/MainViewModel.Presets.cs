@@ -186,7 +186,7 @@ public partial class MainViewModel
         {
             File.Delete(temporary);
         }
-        ToastRequested?.Invoke(Loc["PresetExported"]);
+        NotifyToast(Loc["PresetExported"]);
     }
 
     [RelayCommand]
@@ -281,13 +281,13 @@ public partial class MainViewModel
                 && step.Kind != PresetApplyStepKind.Unresolved);
             if (!automatic)
             {
-                ToastRequested?.Invoke(Loc["PresetNoChanges"]);
+                NotifyToast(Loc["PresetNoChanges"]);
                 return;
             }
             await downloadQueue.InitializeAsync(lifetimeCancellation.Token);
             var group = ModPresetQueueGroupFactory.Create(plan, catalog, SelectedInstance.Record);
             var result = await downloadQueue.EnqueueAsync(group, lifetimeCancellation.Token);
-            ToastRequested?.Invoke(result.Added
+            NotifyToast(result.Added
                 ? Loc["AddedToDownloadQueue"]
                 : Loc["QueueTaskAlreadyExists"]);
         }

@@ -241,7 +241,7 @@ public partial class MainViewModel
             {
                 foreach (SpeedrunActivityEntry activity in detection.NewActivities)
                 {
-                    ToastRequested?.Invoke(ActivityToastText(activity));
+                    NotifyToast(ActivityToastText(activity));
                 }
             }
         }

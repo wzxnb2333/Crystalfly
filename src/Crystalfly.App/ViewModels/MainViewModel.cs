@@ -200,8 +200,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public LocalizationViewModel Loc { get; private set; }
 
-    public event Action<string>? ToastRequested;
-
     public event Action? GraphModRemovalRequested;
 
     public ObservableCollection<InstanceItemViewModel> Instances { get; } = [];
@@ -1006,7 +1004,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     private void OnGameConfigSaved() =>
-        ToastRequested?.Invoke(Loc["ConfigSaved"]);
+        NotifyToast(Loc["ConfigSaved"]);
 
     [RelayCommand]
     private void SelectDownloadSection(string? section)
@@ -1618,7 +1616,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             if (result is { CleanupCompleted: false })
             {
                 StatusMessage = Loc["DeleteCleanupPending"];
-                ToastRequested?.Invoke(StatusMessage);
+                NotifyToast(StatusMessage);
             }
             else
             {
@@ -4088,7 +4086,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private void NotifyOperationCompleted()
     {
         StatusMessage = Loc["OperationComplete"];
-        ToastRequested?.Invoke(StatusMessage);
+        NotifyToast(StatusMessage);
     }
 
     private void NotifyOfficialCatalogLabels()

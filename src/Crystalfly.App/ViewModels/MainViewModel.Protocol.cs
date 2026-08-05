@@ -190,7 +190,7 @@ public partial class MainViewModel
         var result = await downloadQueue.EnqueueAsync(
             ModInstallQueueGroupFactory.Create(plan, catalog, instance.Record),
             lifetimeCancellation.Token);
-        ToastRequested?.Invoke(result.Added
+        NotifyToast(result.Added
             ? Loc["AddedToDownloadQueue"]
             : Loc["QueueTaskAlreadyExists"]);
     }
@@ -251,7 +251,7 @@ public partial class MainViewModel
         RebuildCustomModLinksOptions();
         RebuildMarketCatalog();
         StatusMessage = Loc["ChooseRoot"];
-        ToastRequested?.Invoke(Loc["ProtocolSettingsReset"]);
+        NotifyToast(Loc["ProtocolSettingsReset"]);
     }
 
     private async Task ApplyProtocolModLinksAsync(CustomModLinksDefinition? definition)
