@@ -1018,11 +1018,11 @@ public partial class MainWindow : Window
 
         if (!option.IsCustom)
         {
-            viewModel.SetAccentColor(option.Hex);
+            viewModel.Settings.SetAccentColor(option.Hex);
             return;
         }
 
-        var originalColor = viewModel.AccentColor;
+        var originalColor = viewModel.Settings.AccentColor;
         var dialog = new AccentColorDialogViewModel(
             viewModel.Loc["AccentColorPickerTitle"],
             viewModel.Loc["AccentOriginal"],
@@ -1032,25 +1032,25 @@ public partial class MainWindow : Window
             viewModel.Loc["Confirm"],
             viewModel.Loc["Cancel"],
             originalColor,
-            viewModel.PreviewAccentColor);
+            viewModel.Settings.PreviewAccentColor);
         var selected = await OverlayDialog.ShowCustomAsync<
             AccentColorDialogView,
             AccentColorDialogViewModel,
             string?>(dialog, OverlayHostId, CreateOverlayOptions());
         if (selected is null)
         {
-            viewModel.RestoreAccentColor();
+            viewModel.Settings.RestoreAccentColor();
             return;
         }
 
-        viewModel.SetAccentColor(selected);
+        viewModel.Settings.SetAccentColor(selected);
     }
 
     private void OnGlobalBackgroundScopeClicked(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is MainViewModel viewModel)
         {
-            viewModel.SelectedBackgroundScope = viewModel.BackgroundScopeOptions.First(option =>
+            viewModel.Settings.SelectedBackgroundScope = viewModel.Settings.BackgroundScopeOptions.First(option =>
                 option.Value == BackgroundEditScope.Global);
         }
     }
@@ -1059,7 +1059,7 @@ public partial class MainWindow : Window
     {
         if (DataContext is MainViewModel { CanEditInstanceBackground: true } viewModel)
         {
-            viewModel.SelectedBackgroundScope = viewModel.BackgroundScopeOptions.First(option =>
+            viewModel.Settings.SelectedBackgroundScope = viewModel.Settings.BackgroundScopeOptions.First(option =>
                 option.Value == BackgroundEditScope.CurrentInstance);
         }
     }
@@ -1085,7 +1085,7 @@ public partial class MainWindow : Window
         var path = files.FirstOrDefault()?.TryGetLocalPath();
         if (!string.IsNullOrWhiteSpace(path))
         {
-            await viewModel.SetBackgroundImageAsync(path);
+            await viewModel.Settings.SetBackgroundImageAsync(path);
         }
     }
 
@@ -1093,7 +1093,7 @@ public partial class MainWindow : Window
     {
         if (DataContext is MainViewModel viewModel)
         {
-            await viewModel.RemoveBackgroundImageAsync();
+            await viewModel.Settings.RemoveBackgroundImageAsync();
         }
     }
 

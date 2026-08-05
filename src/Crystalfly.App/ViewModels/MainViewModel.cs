@@ -193,12 +193,56 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Loc = new LocalizationViewModel();
         downloadQueue = downloadQueueOverride ?? CreateDownloadQueue();
         downloadQueue.QueueChanged += OnDownloadQueueChanged;
+        Settings = new SettingsViewModel(new SettingsDependencies(
+            Loc: () => Loc,
+            GetSettings: () => settings,
+            SetSettings: value => settings = value,
+            QueueSettingsSave: () => _ = QueueSettingsSave(),
+            SaveSettingsImmediately: SaveSettingsWithLockAsync,
+            FlushSettingsSavesAsync: FlushSettingsSavesAsync,
+            ApplyLanguage: ApplyLanguage,
+            ApplyTheme: ApplyTheme,
+            GetCatalog: () => catalog,
+            LoadCatalog: async cancellationToken =>
+            {
+                catalog = await LoadCatalogAsync(cancellationToken);
+                return catalog;
+            },
+            RefreshAfterCatalogChange: async () =>
+            {
+                RebuildMarketCatalog();
+                if (Directory.Exists(VersionRoot))
+                {
+                    await RefreshAsync();
+                }
+            },
+            RebuildModStatusOptions: RebuildModStatusOptions,
+            RebuildMarketCatalog: RebuildMarketCatalog,
+            RebuildInstalledModCatalogProjection: RebuildInstalledModCatalogProjection,
+            RefreshGameDirectoryLabels: RefreshGameDirectoryLabels,
+            NotifyPreflightLabels: NotifyPreflightLabels,
+            RebuildPresetModeOptions: RebuildPresetModeOptions,
+            NotifyOperationCompleted: NotifyOperationCompleted,
+            TestGitHubLatency: githubLatencyTestOverride is null
+                ? githubLatencyService.TestAsync
+                : githubLatencyTestOverride,
+            GetCanNavigate: () => CanNavigate,
+            GetSelectedInstance: () => SelectedInstance,
+            GetInstanceStateRoot: GetInstanceStateRoot,
+            GetVersionRoot: () => VersionRoot,
+            ApplicationDataRoot: paths.ApplicationDataRoot,
+            SetErrorMessage: message => ErrorMessage = message,
+            LifetimeCancellation: lifetimeCancellation.Token));
+        Settings.PropertyChanged += (_, eventArgs) => OnPropertyChanged(eventArgs.PropertyName);
+        Settings.ToastRequested += message => NotifyToast(message);
     }
 
     private bool IsSteamSessionLoggedOn() =>
         steamLoggedOnOverride?.Invoke() ?? steamSession?.IsLoggedOn == true;
 
     public LocalizationViewModel Loc { get; private set; }
+
+    public SettingsViewModel Settings { get; }
 
     public event Action? GraphModRemovalRequested;
 
@@ -255,20 +299,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public ObservableCollection<InstanceLogFile> InstanceLogs { get; } = [];
 
     public ObservableCollection<NamedSnapshot> Snapshots { get; } = [];
-
-    public ObservableCollection<SettingOption<UiLanguage>> LanguageOptions { get; } = [];
-
-    public ObservableCollection<SettingOption<UiTheme>> ThemeOptions { get; } = [];
-
-    public ObservableCollection<SettingOption<UiMotionPreference>> MotionOptions { get; } = [];
-
-    public ObservableCollection<AccentColorOptionViewModel> AccentColorOptions { get; } = [];
-
-    public ObservableCollection<SettingOption<GitHubDownloadRoute>> GitHubRouteOptions { get; } = [];
-
-    public ObservableCollection<SettingOption<string>> CustomModLinksBuildOptions { get; } = [];
-
-    public ObservableCollection<SettingOption<string>> CustomModLinksLoaderOptions { get; } = [];
 
     public ObservableCollection<DownloadBuildOption> DownloadBuilds { get; } = [];
 
@@ -410,16 +440,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public bool IsSettingsPage => CurrentPage == "Settings";
 
-    public bool IsGeneralSettingsSection => CurrentSettingsSection == "General";
-
-    public bool IsNetworkSettingsSection => CurrentSettingsSection == "Network";
-
-    public bool IsCatalogSettingsSection => CurrentSettingsSection == "Catalog";
-
-    public bool IsUpdatesSettingsSection => CurrentSettingsSection == "Updates";
-
-    public bool IsAboutSettingsSection => CurrentSettingsSection == "About";
-
     public bool IsGameVersionsDownloadSection => CurrentDownloadSection == "GameVersions";
 
     public bool IsModMarketDownloadSection => CurrentDownloadSection == "ModMarket";
@@ -480,14 +500,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial GameConfigViewModel? GameConfig { get; set; }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsGeneralSettingsSection))]
-    [NotifyPropertyChangedFor(nameof(IsNetworkSettingsSection))]
-    [NotifyPropertyChangedFor(nameof(IsCatalogSettingsSection))]
-    [NotifyPropertyChangedFor(nameof(IsUpdatesSettingsSection))]
-    [NotifyPropertyChangedFor(nameof(IsAboutSettingsSection))]
-    public partial string CurrentSettingsSection { get; set; } = "General";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGameVersionsDownloadSection))]
@@ -574,9 +586,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial string DownloadStatus { get; set; } = string.Empty;
-
-    [ObservableProperty]
-    public partial string CustomSourcesText { get; set; } = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanNavigate))]
@@ -750,36 +759,108 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         && !SelectedInstance.Record.BuildId.StartsWith("1.4.", StringComparison.OrdinalIgnoreCase);
 
     [ObservableProperty]
-    public partial SettingOption<UiLanguage>? SelectedLanguage { get; set; }
-
-    [ObservableProperty]
-    public partial SettingOption<UiTheme>? SelectedTheme { get; set; }
-
-    [ObservableProperty]
-    public partial SettingOption<UiMotionPreference>? SelectedMotionPreference { get; set; }
-    [ObservableProperty]
-    public partial SettingOption<GitHubDownloadRoute>? SelectedGitHubRoute { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsTestingGitHubLatency { get; set; }
-
-    [ObservableProperty]
-    public partial string GitHubDirectLatency { get; set; } = "-";
-
-    [ObservableProperty]
-    public partial string GitHubMirrorLatency { get; set; } = "-";
-
-    [ObservableProperty]
     public partial bool IsOfflineMode { get; set; }
 
-    [ObservableProperty]
-    public partial string CustomModLinksUrl { get; set; } = string.Empty;
+    public ObservableCollection<SettingOption<UiLanguage>> LanguageOptions => Settings.LanguageOptions;
 
-    [ObservableProperty]
-    public partial SettingOption<string>? SelectedCustomModLinksBuild { get; set; }
+    public ObservableCollection<AccentColorOptionViewModel> AccentColorOptions => Settings.AccentColorOptions;
 
-    [ObservableProperty]
-    public partial SettingOption<string>? SelectedCustomModLinksLoader { get; set; }
+    public SettingOption<UiLanguage>? SelectedLanguage
+    {
+        get => Settings.SelectedLanguage;
+        set => Settings.SelectedLanguage = value;
+    }
+
+    public SettingOption<UiTheme>? SelectedTheme
+    {
+        get => Settings.SelectedTheme;
+        set => Settings.SelectedTheme = value;
+    }
+
+    public SettingOption<UiMotionPreference>? SelectedMotionPreference
+    {
+        get => Settings.SelectedMotionPreference;
+        set => Settings.SelectedMotionPreference = value;
+    }
+
+    public SettingOption<GitHubDownloadRoute>? SelectedGitHubRoute
+    {
+        get => Settings.SelectedGitHubRoute;
+        set => Settings.SelectedGitHubRoute = value;
+    }
+
+    public bool IsTestingGitHubLatency => Settings.IsTestingGitHubLatency;
+
+    public string GitHubDirectLatency => Settings.GitHubDirectLatency;
+
+    public string GitHubMirrorLatency => Settings.GitHubMirrorLatency;
+
+    public string CustomSourcesText
+    {
+        get => Settings.CustomSourcesText;
+        set => Settings.CustomSourcesText = value;
+    }
+
+    public string CustomModLinksUrl
+    {
+        get => Settings.CustomModLinksUrl;
+        set => Settings.CustomModLinksUrl = value;
+    }
+
+    public UiMotionPreference EffectiveMotionPreference => Settings.EffectiveMotionPreference;
+
+    public IAsyncRelayCommand TestGitHubLatencyCommand => Settings.TestGitHubLatencyCommand;
+
+    public ObservableCollection<SettingOption<BackgroundEditScope>> BackgroundScopeOptions => Settings.BackgroundScopeOptions;
+
+    public SettingOption<BackgroundEditScope>? SelectedBackgroundScope
+    {
+        get => Settings.SelectedBackgroundScope;
+        set => Settings.SelectedBackgroundScope = value;
+    }
+
+    public bool HasActiveBackgroundImage => Settings.HasActiveBackgroundImage;
+
+    public double ActiveBackgroundOpacity => Settings.ActiveBackgroundOpacity;
+
+    public double BackgroundOpacityPercent
+    {
+        get => Settings.BackgroundOpacityPercent;
+        set => Settings.BackgroundOpacityPercent = value;
+    }
+
+    public bool HasInstanceBackgroundOverride => Settings.HasInstanceBackgroundOverride;
+
+    public bool CanEditInstanceBackground => Settings.CanEditInstanceBackground;
+
+    public bool CanChangeBackgroundOpacity => Settings.CanChangeBackgroundOpacity;
+
+    public string BackgroundScopeStatus => Settings.BackgroundScopeStatus;
+
+    public string AccentColor => Settings.AccentColor;
+
+    public string CurrentSettingsSection
+    {
+        get => Settings.CurrentSettingsSection;
+        set => Settings.CurrentSettingsSection = value;
+    }
+
+    internal void PreviewAccentColor(string accentColor) => Settings.PreviewAccentColor(accentColor);
+
+    internal void SetAccentColor(string accentColor) => Settings.SetAccentColor(accentColor);
+
+    internal void RestoreAccentColor() => Settings.RestoreAccentColor();
+
+    internal Task SetBackgroundImageAsync(
+        string sourcePath,
+        CancellationToken cancellationToken = default) =>
+        Settings.SetBackgroundImageAsync(sourcePath, cancellationToken);
+
+    internal Task RemoveBackgroundImageAsync(CancellationToken cancellationToken = default) =>
+        Settings.RemoveBackgroundImageAsync(cancellationToken);
+
+    internal Task RefreshBackgroundAppearanceAsync(CancellationToken cancellationToken = default) =>
+        Settings.RefreshBackgroundAppearanceAsync(cancellationToken);
 
 
     public Task InitializeAsync()
@@ -800,19 +881,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             TimeSpan.FromDays(7));
         settings = await CrystalflySettingsStore.LoadAsync(settingsPath);
         OnPropertyChanged(nameof(EffectiveMotionPreference));
-        persistedGlobalBackground = settings.BackgroundImage;
+        Settings.InitializeBackgroundState(settings.BackgroundImage);
         IsOfflineMode = settings.OfflineMode;
         ApplyLanguage(settings.Language);
         ApplyTheme(settings.Theme, settings.AccentColor);
-        RebuildBackgroundScopeOptions();
-        await RefreshBackgroundAppearanceAsync(lifetimeCancellation.Token);
+        Settings.RebuildBackgroundScopeOptions();
+        await Settings.RefreshBackgroundAppearanceAsync(lifetimeCancellation.Token);
         InitializeApplicationUpdateSettings();
         VersionRoot = settings.VersionRoot ?? string.Empty;
         await InitializeGameDirectoriesAsync();
-        CustomSourcesText = string.Join(
+        Settings.CustomSourcesText = string.Join(
             Environment.NewLine,
             settings.CustomCatalogs.Select(source => $"{source.Namespace}={source.Url}"));
-        CustomModLinksUrl = settings.CustomModLinks?.Url ?? string.Empty;
+        Settings.CustomModLinksUrl = settings.CustomModLinks?.Url ?? string.Empty;
         RebuildSettingOptions();
         RebuildCustomModLinksOptions();
         RebuildModStatusOptions();
@@ -1021,17 +1102,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     [RelayCommand]
-    private void SelectSettingsSection(string? section)
-    {
-        if (!CanNavigate || section is not ("General" or "Network" or "Catalog" or "Updates" or "About"))
-        {
-            return;
-        }
-
-        CurrentSettingsSection = section;
-    }
-
-    [RelayCommand]
     private void OpenMarketMod(ModManifest? mod)
     {
         if (CanNavigate && mod is not null)
@@ -1075,42 +1145,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [RelayCommand]
     private void BackToMarket() => SelectedMarketMod = null;
-
-    [RelayCommand(IncludeCancelCommand = true)]
-    private async Task TestGitHubLatencyAsync(CancellationToken cancellationToken)
-    {
-        IsTestingGitHubLatency = true;
-        GitHubDirectLatency = Loc["LatencyTesting"];
-        GitHubMirrorLatency = Loc["LatencyTesting"];
-        using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
-            cancellationToken,
-            lifetimeCancellation.Token);
-        try
-        {
-            var result = githubLatencyTestOverride is null
-                ? await githubLatencyService.TestAsync(linkedCancellation.Token)
-                : await githubLatencyTestOverride(linkedCancellation.Token);
-            GitHubDirectLatency = FormatGitHubLatency(result.Direct);
-            GitHubMirrorLatency = FormatGitHubLatency(result.Mirror);
-        }
-        catch (OperationCanceledException) when (linkedCancellation.IsCancellationRequested)
-        {
-            GitHubDirectLatency = Loc["LatencyCanceled"];
-            GitHubMirrorLatency = Loc["LatencyCanceled"];
-        }
-        finally
-        {
-            IsTestingGitHubLatency = false;
-        }
-    }
-
-    private string FormatGitHubLatency(GitHubRouteLatencyResult result) => result.Status switch
-    {
-        GitHubRouteLatencyStatus.Success when result.Latency is { } latency =>
-            $"{Math.Max(0, Math.Round(latency.TotalMilliseconds))} ms",
-        GitHubRouteLatencyStatus.Timeout => Loc["LatencyTimeout"],
-        _ => Loc["LatencyUnavailable"]
-    };
 
     [RelayCommand]
     private async Task PrepareMarketInstallTargetsAsync()
@@ -2921,91 +2955,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    [RelayCommand]
-    private async Task SaveCustomSourcesAsync()
-    {
-        var definitions = new List<CustomCatalogDefinition>();
-        try
-        {
-            foreach (var line in CustomSourcesText.Split(
-                ['\r', '\n'],
-                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                var separator = line.IndexOf('=');
-                if (separator <= 0
-                    || !Uri.TryCreate(line[(separator + 1)..], UriKind.Absolute, out var uri)
-                    || uri.Scheme != Uri.UriSchemeHttps)
-                {
-                    throw new FormatException($"Invalid custom catalog entry: {line}");
-                }
-                var sourceNamespace = line[..separator].Trim();
-                _ = CustomCatalogSource.Namespace(sourceNamespace, new GameCatalog());
-                definitions.Add(new CustomCatalogDefinition
-                {
-                    Namespace = sourceNamespace,
-                    Url = uri.AbsoluteUri
-                });
-            }
-
-            settings = settings with { CustomCatalogs = definitions };
-            await QueueSettingsSave();
-            catalog = await LoadCatalogAsync();
-            RebuildMarketCatalog();
-            if (Directory.Exists(VersionRoot))
-            {
-                await RefreshAsync();
-            }
-        }
-        catch (Exception exception) when (exception is FormatException or ArgumentException)
-        {
-            ErrorMessage = exception.Message;
-        }
-    }
-
-    [RelayCommand]
-    private async Task SaveCustomModLinksAsync()
-    {
-        try
-        {
-            CustomModLinksDefinition? definition = null;
-            if (!string.IsNullOrWhiteSpace(CustomModLinksUrl))
-            {
-                if (!Uri.TryCreate(CustomModLinksUrl.Trim(), UriKind.Absolute, out var uri)
-                    || uri.Scheme != Uri.UriSchemeHttps
-                    || SelectedCustomModLinksBuild is null
-                    || SelectedCustomModLinksLoader is null)
-                {
-                    throw new FormatException(Loc["CustomModLinksInvalid"]);
-                }
-                definition = new CustomModLinksDefinition
-                {
-                    Url = uri.AbsoluteUri,
-                    BuildId = SelectedCustomModLinksBuild.Value,
-                    LoaderId = SelectedCustomModLinksLoader.Value
-                };
-            }
-
-            settings = settings with { CustomModLinks = definition };
-            CustomModLinksUrl = definition?.Url ?? string.Empty;
-            await QueueSettingsSave();
-            catalog = await LoadCatalogAsync(lifetimeCancellation.Token);
-            RebuildCustomModLinksOptions();
-            RebuildMarketCatalog();
-            if (Directory.Exists(VersionRoot))
-            {
-                await RefreshAsync();
-            }
-            NotifyOperationCompleted();
-        }
-        catch (Exception exception) when (exception is FormatException
-            or ArgumentException
-            or IOException
-            or InvalidDataException)
-        {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
-        }
-    }
-
     partial void OnSearchTextChanged(string value) => ApplyInstanceFilter();
 
     partial void OnModSearchTextChanged(string value) => ApplyModFilters();
@@ -3134,7 +3083,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         InstanceLogs.Clear();
         SelectedLogFile = null;
         LaunchPreflight = new(false, false, false, false);
-        QueueBackgroundAppearanceRefresh();
+        Settings.QueueBackgroundAppearanceRefresh();
         if (value is not null)
         {
             foreach (var loader in catalog.Loaders.Where(loader => loader.SupportedBuildIds.Contains(value.Record.BuildId)))
@@ -3382,82 +3331,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ? value.AllowedLoadNormaliserSeconds.FirstOrDefault()
             : null;
         PopulateSpeedrunSourceInstances();
-    }
-
-    partial void OnSelectedLanguageChanged(SettingOption<UiLanguage>? value)
-    {
-        if (value is null || value.Value == settings.Language)
-        {
-            return;
-        }
-        settings = settings with { Language = value.Value };
-        ApplyLanguage(value.Value);
-        RebuildSettingOptions();
-        RebuildCustomModLinksOptions();
-        RebuildModStatusOptions();
-        RebuildMarketCatalog();
-        RebuildInstalledModCatalogProjection();
-        RefreshGameDirectoryLabels();
-        NotifyPreflightLabels();
-        _ = QueueSettingsSave();
-    }
-
-    partial void OnSelectedThemeChanged(SettingOption<UiTheme>? value)
-    {
-        if (value is null || value.Value == settings.Theme)
-        {
-            return;
-        }
-        settings = settings with { Theme = value.Value };
-        ApplyTheme(value.Value, settings.AccentColor);
-        _ = QueueSettingsSave();
-    }
-
-    partial void OnSelectedMotionPreferenceChanged(SettingOption<UiMotionPreference>? value)
-    {
-        if (value is null || value.Value == settings.MotionPreference)
-        {
-            return;
-        }
-        settings = settings with { MotionPreference = value.Value };
-        OnPropertyChanged(nameof(EffectiveMotionPreference));
-        _ = QueueSettingsSave();
-    }
-
-    public UiMotionPreference EffectiveMotionPreference => settings.MotionPreference;
-
-    internal void PreviewAccentColor(string accentColor)
-    {
-        var normalized = AccentColorPalette.Normalize(accentColor);
-        AccentThemeResources.Apply(normalized);
-        UpdateAccentColorSelection(normalized);
-    }
-
-    internal void SetAccentColor(string accentColor)
-    {
-        var normalized = AccentColorPalette.Normalize(accentColor);
-        PreviewAccentColor(normalized);
-        if (string.Equals(settings.AccentColor, normalized, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        settings = settings with { AccentColor = normalized };
-        OnPropertyChanged(nameof(AccentColor));
-        _ = QueueSettingsSave();
-    }
-
-    internal void RestoreAccentColor() => PreviewAccentColor(settings.AccentColor);
-
-    public string AccentColor => settings.AccentColor;
-    partial void OnSelectedGitHubRouteChanged(SettingOption<GitHubDownloadRoute>? value)
-    {
-        if (value is null || value.Value == settings.GitHubDownloadRoute)
-        {
-            return;
-        }
-        settings = settings with { GitHubDownloadRoute = value.Value };
-        _ = QueueSettingsSave();
     }
 
 
@@ -3896,54 +3769,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 ? translated
                 : value;
 
-    private void RebuildSettingOptions()
-    {
-        SelectedLanguage = null;
-        LanguageOptions.Clear();
-        LanguageOptions.Add(new(UiLanguage.FollowSystem, Loc["FollowSystem"]));
-        LanguageOptions.Add(new(UiLanguage.SimplifiedChinese, Loc["SimplifiedChinese"]));
-        LanguageOptions.Add(new(UiLanguage.English, Loc["English"]));
-        ThemeOptions.Clear();
-        ThemeOptions.Add(new(UiTheme.System, Loc["System"]));
-        ThemeOptions.Add(new(UiTheme.Light, Loc["Light"]));
-        ThemeOptions.Add(new(UiTheme.Dark, Loc["Dark"]));
-        MotionOptions.Clear();
-        MotionOptions.Add(new(UiMotionPreference.FollowSystem, Loc["MotionFollowSystem"]));
-        MotionOptions.Add(new(UiMotionPreference.Reduced, Loc["MotionReduced"]));
-        MotionOptions.Add(new(UiMotionPreference.Off, Loc["MotionOff"]));
-        SelectedLanguage = LanguageOptions.First(option => option.Value == settings.Language);
-        SelectedTheme = ThemeOptions.First(option => option.Value == settings.Theme);
-        SelectedMotionPreference = MotionOptions.First(option => option.Value == settings.MotionPreference);
-        RebuildAccentColorOptions();
-        RebuildBackgroundScopeOptions();
-        GitHubRouteOptions.Clear();
-        GitHubRouteOptions.Add(new(GitHubDownloadRoute.Direct, Loc["GitHubDirect"]));
-        GitHubRouteOptions.Add(new(GitHubDownloadRoute.Mirror, Loc["GitHubMirror"]));
-        SelectedGitHubRoute = GitHubRouteOptions.First(option => option.Value == settings.GitHubDownloadRoute);
-        RebuildPresetModeOptions();
-    }
+    private void RebuildSettingOptions() => Settings.RebuildSettingOptions();
 
-    private void RebuildCustomModLinksOptions()
-    {
-        var selectedBuild = settings.CustomModLinks?.BuildId;
-        var selectedLoader = settings.CustomModLinks?.LoaderId;
-        CustomModLinksBuildOptions.Clear();
-        foreach (var build in catalog.Builds.OrderBy(build => build.DisplayVersion, StringComparer.OrdinalIgnoreCase))
-        {
-            CustomModLinksBuildOptions.Add(new(build.Id, build.DisplayVersion));
-        }
-        CustomModLinksLoaderOptions.Clear();
-        foreach (var loader in catalog.Loaders
-                     .Where(loader => loader.Id.StartsWith("modding-api-", StringComparison.OrdinalIgnoreCase))
-                     .OrderBy(loader => loader.Name, StringComparer.OrdinalIgnoreCase))
-        {
-            CustomModLinksLoaderOptions.Add(new(loader.Id, $"{loader.Name} {loader.Version}"));
-        }
-        SelectedCustomModLinksBuild = CustomModLinksBuildOptions.FirstOrDefault(option =>
-            string.Equals(option.Value, selectedBuild, StringComparison.OrdinalIgnoreCase));
-        SelectedCustomModLinksLoader = CustomModLinksLoaderOptions.FirstOrDefault(option =>
-            string.Equals(option.Value, selectedLoader, StringComparison.OrdinalIgnoreCase));
-    }
+    private void RebuildCustomModLinksOptions() => Settings.RebuildCustomModLinksOptions();
 
     private void ApplyLanguage(UiLanguage language)
     {
@@ -4292,49 +4120,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    private void RebuildAccentColorOptions()
-    {
-        var names = new[]
-        {
-            Loc["AccentBlue"],
-            Loc["AccentIndigo"],
-            Loc["AccentCrystalPurple"],
-            Loc["AccentRose"],
-            Loc["AccentOrange"],
-            Loc["AccentGreen"],
-            Loc["AccentCyan"]
-        };
-        var selected = AccentColorPalette.Normalize(settings.AccentColor);
-        AccentColorOptions.Clear();
-        for (var index = 0; index < AccentColorPalette.Presets.Count; index++)
-        {
-            var hex = AccentColorPalette.Presets[index];
-            AccentColorOptions.Add(new(
-                names[index],
-                hex,
-                isCustom: false,
-                string.Equals(hex, selected, StringComparison.Ordinal)));
-        }
-
-        AccentColorOptions.Add(new(
-            Loc["AccentCustom"],
-            selected,
-            isCustom: true,
-            !AccentColorPalette.Presets.Contains(selected, StringComparer.Ordinal)));
-    }
-
-    private void UpdateAccentColorSelection(string accentColor)
-    {
-        var isPreset = AccentColorPalette.Presets.Contains(accentColor, StringComparer.Ordinal);
-        foreach (var option in AccentColorOptions)
-        {
-            option.UpdateCustomColor(accentColor);
-            option.IsSelected = option.IsCustom
-                ? !isPreset
-                : string.Equals(option.Hex, accentColor, StringComparison.Ordinal);
-        }
-    }
-
     private static void ApplyTheme(UiTheme theme, string accentColor)
     {
         if (Application.Current is null)
@@ -4350,20 +4135,30 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         AccentThemeResources.Apply(accentColor);
     }
 
-    private async Task SaveSettingsAsync()
+    private async Task SaveSettingsWithLockAsync(
+        CrystalflySettings value,
+        CancellationToken cancellationToken)
     {
-        await settingsSaveLock.WaitAsync();
+        await settingsSaveLock.WaitAsync(cancellationToken);
         try
         {
-            await CrystalflySettingsStore.SaveAsync(settingsPath, settings);
-        }
-        catch (Exception exception) when (IsExpectedSettingsException(exception))
-        {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            await CrystalflySettingsStore.SaveAsync(settingsPath, value, cancellationToken);
         }
         finally
         {
             settingsSaveLock.Release();
+        }
+    }
+
+    private async Task SaveSettingsAsync()
+    {
+        try
+        {
+            await SaveSettingsWithLockAsync(settings, CancellationToken.None);
+        }
+        catch (Exception exception) when (IsExpectedSettingsException(exception))
+        {
+            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
         }
     }
 
@@ -5108,7 +4903,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 try
                 {
                     await FlushSettingsSavesAsync();
-                    await DisposeBackgroundAppearanceAsync();
+                    await Settings.DisposeBackgroundAppearanceAsync();
                 }
                 finally
                 {
