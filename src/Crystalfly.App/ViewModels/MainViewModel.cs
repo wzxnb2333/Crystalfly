@@ -191,14 +191,27 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             new HttpClientHandler())) { Timeout = TimeSpan.FromMinutes(30) };
         githubLatencyService = new GitHubRouteLatencyService(networkPolicy, new HttpClientHandler());
         Loc = new LocalizationViewModel();
-        downloadQueue = downloadQueueOverride ?? CreateDownloadQueue();
-        downloadQueue.QueueChanged += OnDownloadQueueChanged;
+        var downloadQueue = downloadQueueOverride ?? CreateDownloadQueue();
+        DownloadCenter = new DownloadCenterViewModel(new DownloadCenterDependencies(
+            downloadQueue,
+            Loc,
+            ToastRequested,
+            message => ErrorMessage = message,
+            () => IsBusy,
+            () => VersionRoot,
+            () => SelectedInstance?.Id,
+            id => SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == id)
+                ?? SelectedInstance,
+            RefreshAsync,
+            lifetimeCancellation.Token));
     }
 
     private bool IsSteamSessionLoggedOn() =>
         steamLoggedOnOverride?.Invoke() ?? steamSession?.IsLoggedOn == true;
 
     public LocalizationViewModel Loc { get; private set; }
+
+    public DownloadCenterViewModel DownloadCenter { get; }
 
     public event Action<string>? ToastRequested;
 
@@ -425,6 +438,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public bool IsGameVersionsDownloadSection => CurrentDownloadSection == "GameVersions";
 
     public bool IsModMarketDownloadSection => CurrentDownloadSection == "ModMarket";
+
+    public bool IsDownloadQueueSection => CurrentDownloadSection == "DownloadQueue";
 
     public bool IsMarketList => SelectedMarketMod is null;
 
@@ -1655,7 +1670,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         return new InstanceDeletionConditions
         {
-            HasBlockingQueueTasks = downloadQueue.Groups.Any(group =>
+            HasBlockingQueueTasks = DownloadCenter.DownloadQueue.Groups.Any(group =>
                 string.Equals(
                     group.TargetInstanceId,
                     instanceId,
@@ -1849,7 +1864,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             IsSteamLoggedIn = true;
             SteamStatus = credential.AccountName;
             QrCodeImage = null;
-            await downloadQueue.ResumeSteamDownloadsAsync(lifetimeCancellation.Token);
+            await DownloadCenter.DownloadQueue.ResumeSteamDownloadsAsync(lifetimeCancellation.Token);
         }
         catch (Exception exception)
         {
@@ -1902,7 +1917,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             var credential = await steamSession.ConnectWithStoredTokenAsync(timeout.Token);
             IsSteamLoggedIn = true;
             SteamStatus = credential.AccountName;
-            await downloadQueue.ResumeSteamDownloadsAsync(lifetimeCancellation.Token);
+            await DownloadCenter.DownloadQueue.ResumeSteamDownloadsAsync(lifetimeCancellation.Token);
         }
         catch (Exception)
         {
@@ -1932,8 +1947,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         try
         {
-            await downloadQueue.InitializeAsync(lifetimeCancellation.Token);
-            await downloadQueue.PauseSteamDownloadsAsync(lifetimeCancellation.Token);
+            await DownloadCenter.DownloadQueue.InitializeAsync(lifetimeCancellation.Token);
+            await DownloadCenter.DownloadQueue.PauseSteamDownloadsAsync(lifetimeCancellation.Token);
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException)
         {
@@ -3959,9 +3974,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         OnPropertyChanged(nameof(SelectedSpeedrunTechnicalStatus));
         RefreshApplicationUpdateText();
         NotifyOfficialCatalogLabels();
-        if (DownloadQueueGroups.Count > 0)
+        DownloadCenter.ApplyLanguage(localization);
+        if (DownloadCenter.DownloadQueueGroups.Count > 0)
         {
-            QueueDownloadQueueProjection(downloadQueue.Groups);
+            DownloadCenter.QueueDownloadQueueProjection(DownloadCenter.DownloadQueue.Groups);
         }
 
         if (Application.Current is { } application)
@@ -5116,11 +5132,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 {
                     try
                     {
-                        await downloadQueue.DisposeAsync();
+                        await DownloadCenter.DownloadQueue.DisposeAsync();
                     }
                     finally
                     {
-                        downloadQueue.QueueChanged -= OnDownloadQueueChanged;
+                        DownloadCenter.Dispose();
                     }
                 }
             }

@@ -2141,7 +2141,7 @@
                             </StackPanel>
 
                             <StackPanel Spacing="8">
-                                <ItemsControl ItemsSource="{Binding DownloadQueueGroups}">
+                                <ItemsControl ItemsSource="{Binding DownloadCenter.DownloadQueueGroups}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:DownloadQueueGroupItemViewModel">
                                             <Border Classes="cfp-card" Margin="0,0,0,8">
@@ -2166,7 +2166,7 @@
                                                                 Classes="cfp-secondary cfp-icon"
                                                                 Width="44"
                                                                 Height="44"
-                                                                Command="{Binding #Root.DataContext.RetryQueuedDownloadCommand}"
+                                                                Command="{Binding #Root.DataContext.DownloadCenter.RetryQueuedDownloadCommand}"
                                                                 CommandParameter="{Binding Id}"
                                                                 ToolTip.Tip="{Binding #Root.DataContext.Loc[QueueRetry]}"
                                                                 AutomationProperties.Name="{Binding #Root.DataContext.Loc[QueueRetry]}"
@@ -2176,7 +2176,7 @@
                                                                 Classes="cfp-secondary cfp-icon"
                                                                 Width="44"
                                                                 Height="44"
-                                                                Command="{Binding #Root.DataContext.CancelQueuedDownloadCommand}"
+                                                                Command="{Binding #Root.DataContext.DownloadCenter.CancelQueuedDownloadCommand}"
                                                                 CommandParameter="{Binding Id}"
                                                                 ToolTip.Tip="{Binding #Root.DataContext.Loc[Cancel]}"
                                                                 AutomationProperties.Name="{Binding #Root.DataContext.Loc[Cancel]}"
@@ -2253,7 +2253,7 @@
                                 <StackPanel Spacing="12"
                                             HorizontalAlignment="Center"
                                             Margin="24"
-                                            IsVisible="{Binding DownloadQueueGroups.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}">
+                                            IsVisible="{Binding DownloadCenter.DownloadQueueGroups.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}">
                                     <TextBlock Classes="cfp-meta"
                                                MaxWidth="480"
                                                Text="{Binding Loc[DownloadQueueEmpty]}"
@@ -2629,7 +2629,7 @@
             </Grid>
         </Grid>
         </u:LoadingContainer>
-        <Button Grid.Row="2" Classes="cfp-download-fab cfp-primary" Width="44" Height="44" Margin="16" HorizontalAlignment="Right" VerticalAlignment="Bottom" Command="{Binding OpenDownloadQueueCommand}" ToolTip.Tip="{Binding ActiveDownloadSummary}" AutomationProperties.Name="{Binding Loc[DownloadQueue]}" IsVisible="{Binding HasActiveDownloads}" Content="{LucideIconContent Download, 18}" />
+        <Button Grid.Row="2" Classes="cfp-download-fab cfp-primary" Width="44" Height="44" Margin="16" HorizontalAlignment="Right" VerticalAlignment="Bottom" Command="{Binding OpenDownloadQueueCommand}" ToolTip.Tip="{Binding DownloadCenter.ActiveDownloadSummary}" AutomationProperties.Name="{Binding Loc[DownloadQueue]}" IsVisible="{Binding DownloadCenter.HasActiveDownloads}" Content="{LucideIconContent Download, 18}" />
         <u:OverlayDialogHost x:Name="MainOverlayDialogHost"
                              Grid.RowSpan="3"
                              HostId="Crystalfly.Main" />

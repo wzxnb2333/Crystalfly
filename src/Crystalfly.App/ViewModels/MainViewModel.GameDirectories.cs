@@ -235,7 +235,7 @@ public partial class MainViewModel
             {
                 throw new InvalidOperationException(Loc["CloseGameFirst"]);
             }
-            if (downloadQueue.Groups.Any(group =>
+            if (DownloadCenter.DownloadQueue.Groups.Any(group =>
                 string.Equals(
                     Path.TrimEndingDirectorySeparator(Path.GetFullPath(group.TargetInstanceRoot)),
                     source,

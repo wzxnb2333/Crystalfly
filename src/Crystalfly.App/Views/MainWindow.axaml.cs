@@ -1130,7 +1130,7 @@ public partial class MainWindow : Window
         SuspendExternalCommands();
         e.Cancel = true;
         base.OnClosing(e);
-        if (DataContext is MainViewModel { HasUnfinishedDownloads: true } viewModel)
+        if (DataContext is MainViewModel { DownloadCenter.HasUnfinishedDownloads: true } viewModel)
         {
             closeConfirmationTask ??= ConfirmCloseWithDownloadsAsync(viewModel);
             return;
@@ -1147,14 +1147,14 @@ public partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(viewModel);
         ArgumentNullException.ThrowIfNull(startUpdate);
 
-        if (viewModel.HasUnfinishedDownloads)
+        if (viewModel.DownloadCenter.HasUnfinishedDownloads)
         {
             bool confirmed = await ShowConfirmationAsync(
                 viewModel.Loc["ConfirmCloseDownloadsTitle"],
                 viewModel.Loc["ConfirmCloseDownloadsMessage"],
-                string.IsNullOrWhiteSpace(viewModel.ActiveDownloadSummary)
+                string.IsNullOrWhiteSpace(viewModel.DownloadCenter.ActiveDownloadSummary)
                     ? viewModel.Loc["DownloadQueue"]
-                    : viewModel.ActiveDownloadSummary,
+                    : viewModel.DownloadCenter.ActiveDownloadSummary,
                 viewModel,
                 isDangerous: true);
             if (!confirmed)
@@ -1181,9 +1181,9 @@ public partial class MainWindow : Window
             confirmed = await ShowConfirmationAsync(
                 viewModel.Loc["ConfirmCloseDownloadsTitle"],
                 viewModel.Loc["ConfirmCloseDownloadsMessage"],
-                string.IsNullOrWhiteSpace(viewModel.ActiveDownloadSummary)
+                string.IsNullOrWhiteSpace(viewModel.DownloadCenter.ActiveDownloadSummary)
                     ? viewModel.Loc["DownloadQueue"]
-                    : viewModel.ActiveDownloadSummary,
+                    : viewModel.DownloadCenter.ActiveDownloadSummary,
                 viewModel,
                 isDangerous: true);
             if (confirmed)
