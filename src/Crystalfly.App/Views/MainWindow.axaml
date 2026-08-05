@@ -1326,10 +1326,12 @@
                           MaxWidth="1920"
                           HorizontalAlignment="Stretch"
                           VerticalAlignment="Stretch"
+                          ColumnDefinitions="*,Auto"
                           RowDefinitions="Auto,Auto,Auto,*,Auto"
+                          ColumnSpacing="12"
                           RowSpacing="12"
                           IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Mods}">
-                        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <Grid Grid.Row="0" Grid.ColumnSpan="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Spacing="4">
                                 <TextBlock Classes="cfp-page-title" Text="{Binding Loc[InstalledMods]}" />
                                 <TextBlock Classes="cfp-meta" Text="{Binding ModManagement.SelectedModCount}" />
@@ -1351,16 +1353,22 @@
                                 <Button Classes="cfp-icon cfp-quick-action" Click="ImportLocalModPackage" ToolTip.Tip="{Binding Loc[ImportLocalMod]}" AutomationProperties.Name="{Binding Loc[ImportLocalMod]}" Content="{LucideIconContent PackagePlus, 16}" />
                                 <Button Classes="cfp-icon cfp-quick-action" Command="{Binding OpenModMarketForSelectedInstanceCommand}" ToolTip.Tip="{Binding Loc[ModMarket]}" AutomationProperties.Name="{Binding Loc[ModMarket]}" Content="{LucideIconContent Store, 16}" />
                                 <Button Classes="cfp-icon cfp-quick-action" Command="{Binding ModManagement.SelectAllInstalledModsCommand}" ToolTip.Tip="{Binding Loc[SelectAll]}" AutomationProperties.Name="{Binding Loc[SelectAll]}" Content="{LucideIconContent ListChecks, 16}" />
+                                <Button Classes="cfp-icon cfp-quick-action" Command="{Binding ModManagement.CheckForUpdatesCommand}" ToolTip.Tip="{Binding Loc[CheckAllForUpdates]}" AutomationProperties.Name="{Binding Loc[CheckAllForUpdates]}">
+                                    <Grid Width="16" Height="16">
+                                        <LucideIcon Kind="RefreshCcw" Size="16" />
+                                        <Border Classes="cfp-update-badge" Width="8" Height="8" CornerRadius="4" HorizontalAlignment="Right" VerticalAlignment="Top" Background="{DynamicResource CfAccentBrush}" IsVisible="{Binding ModManagement.HasUpdatesAvailable}" />
+                                    </Grid>
+                                </Button>
                             </WrapPanel>
                         </Grid>
-                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8"
+                        <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="*,Auto" ColumnSpacing="8"
                               IsVisible="{Binding ModManagement.IsInstalledModListVisible}">
                             <TextBox Classes="cfp-input" Text="{Binding ModManagement.ModSearchText, Mode=TwoWay}" PlaceholderText="{Binding Loc[FilterMods]}" AutomationProperties.Name="{Binding Loc[FilterMods]}" />
                             <ComboBox Grid.Column="1" Width="160" Classes="cfp-input" ItemsSource="{Binding ModManagement.ModStatusOptions}" SelectedItem="{Binding ModManagement.SelectedModStatusOption, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[FilterAll]}">
                                 <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
                             </ComboBox>
                         </Grid>
-                        <StackPanel Grid.Row="2" Spacing="6">
+                        <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Spacing="6">
                             <Border Classes="cfp-error" IsVisible="{Binding HasModDependencyProblems}">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <TextBlock Text="{Binding Loc[DependencyProblem]}" VerticalAlignment="Center" />
@@ -1378,10 +1386,25 @@
                                 Classes="cfp-list-frame cfp-dependency-graph-frame"
                                 IsVisible="{Binding ModManagement.IsInstalledModGraphVisible}">
                             <Grid RowDefinitions="Auto,*" RowSpacing="8">
-                                <Grid Margin="12,10,12,0">
+                                <Grid Margin="12,10,12,0" ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                     <TextBlock Classes="cfp-row-title"
                                                Text="{Binding Loc[DependencyGraph]}"
                                                VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                                        <Button Classes="cfp-icon"
+                                                Classes.active="{Binding DependencyGraph.IsSelectedNodeExpanded}"
+                                                Command="{Binding DependencyGraph.ExpandNodeCommand}"
+                                                CommandParameter="{Binding DependencyGraph.SelectedNodeId}"
+                                                ToolTip.Tip="{Binding Loc[ExpandNode]}"
+                                                AutomationProperties.Name="{Binding Loc[ExpandNode]}"
+                                                Content="{LucideIconContent FolderPlus, 15}" />
+                                        <Button Classes="cfp-icon"
+                                                Command="{Binding DependencyGraph.CollapseNodeCommand}"
+                                                CommandParameter="{Binding DependencyGraph.SelectedNodeId}"
+                                                ToolTip.Tip="{Binding Loc[CollapseNode]}"
+                                                AutomationProperties.Name="{Binding Loc[CollapseNode]}"
+                                                Content="{LucideIconContent FolderMinus, 15}" />
+                                    </StackPanel>
                                 </Grid>
                                 <controls:DependencyGraphView Grid.Row="1"
                                                               Margin="8"
@@ -1394,7 +1417,7 @@
                             <ListBox x:Name="InstalledModsList" Classes="cfp-list cfp-installed-mod-list" ItemsSource="{Binding ModManagement.VisibleInstalledMods}" SelectedItem="{Binding ModManagement.SelectedInstalledMod, Mode=TwoWay}" KeyDown="OnInstalledModsKeyDown">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:InstalledModItemViewModel">
-                                        <Grid Classes="cfp-installed-mod-row" Classes.selected="{Binding IsSelected}" Classes.disabled="{Binding IsEnabled, Converter={x:Static converters:BoolConverters.Not}}" Background="Transparent" ColumnDefinitions="3,*,Auto" ColumnSpacing="8" PointerPressed="OnInstalledModPointerPressed">
+                                        <Grid Classes="cfp-installed-mod-row" Classes.selected="{Binding IsSelected}" Classes.disabled="{Binding IsEnabled, Converter={x:Static converters:BoolConverters.Not}}" Classes.conflict="{Binding HasConflicts}" Background="Transparent" ColumnDefinitions="3,*,Auto" ColumnSpacing="8" PointerPressed="OnInstalledModPointerPressed">
                                             <Border Classes="cfp-installed-mod-accent" Width="3" CornerRadius="2" Background="{DynamicResource CfAccentBrush}" />
                                             <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                                 <TextBlock Classes="cfp-installed-mod-name" Text="{Binding PrimaryName}" Classes.disabled="{Binding IsEnabled, Converter={x:Static converters:BoolConverters.Not}}" TextTrimming="CharacterEllipsis" />
@@ -1404,6 +1427,7 @@
                                                     <TextBlock Classes="cfp-meta" Text="{Binding OwnershipDisplayName}" />
                                                     <TextBlock Classes="cfp-meta" Text="{Binding HealthDisplayName}" />
                                                     <TextBlock Classes="cfp-meta" Text="{Binding #Root.DataContext.Loc[Pinned]}" IsVisible="{Binding IsPinned}" />
+                                                    <TextBlock Classes="cfp-caption cfp-mod-conflict" Text="{Binding ConflictWithText}" IsVisible="{Binding HasConflicts}" Foreground="{DynamicResource CfErrorBrush}" TextTrimming="CharacterEllipsis" />
                                                 </StackPanel>
                                             </StackPanel>
                                             <StackPanel Grid.Column="2" Classes="cfp-installed-mod-actions" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
@@ -1422,6 +1446,55 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
+                        </Border>
+                        <Border Grid.Row="3"
+                                Grid.Column="1"
+                                Grid.RowSpan="2"
+                                Classes="cfp-mod-detail-panel cfp-card"
+                                Width="320"
+                                IsVisible="{Binding ModManagement.SelectedInstalledMod, Converter={x:Static converters:ObjectConverters.IsNotNull}}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Spacing="12">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Classes="cfp-section-title" Text="{Binding Loc[ModDetails]}" />
+                                        <TextBlock Classes="cfp-row-title" Text="{Binding ModManagement.SelectedInstalledMod.PrimaryName}" TextWrapping="Wrap" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Classes="cfp-meta" Text="{Binding Loc[CurrentVersion]}" />
+                                            <TextBlock Classes="cfp-meta" Text="{Binding ModManagement.SelectedInstalledMod.Version}" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding ModManagement.SelectedInstalledMod.HasLatestVersion}">
+                                            <TextBlock Classes="cfp-meta" Text="{Binding Loc[LatestVersion]}" />
+                                            <TextBlock Classes="cfp-meta" Text="{Binding ModManagement.SelectedInstalledMod.LatestVersionText}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <StackPanel Spacing="2" IsVisible="{Binding ModManagement.SelectedInstalledMod.HasConflicts}">
+                                        <TextBlock Classes="cfp-section-title" Text="{Binding Loc[FileConflicts]}" />
+                                        <TextBlock Classes="cfp-meta cfp-mod-conflict" Text="{Binding ModManagement.SelectedInstalledMod.ConflictWithText}" Foreground="{DynamicResource CfErrorBrush}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <StackPanel Spacing="2" IsVisible="{Binding ModManagement.SelectedInstalledMod.HasCatalogManifest}">
+                                        <TextBlock Classes="cfp-section-title" Text="{Binding Loc[Dependencies]}" />
+                                        <TextBlock Classes="cfp-meta" Text="{Binding ModManagement.SelectedInstalledMod.DependenciesText}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <StackPanel Spacing="2" IsVisible="{Binding ModManagement.SelectedInstalledMod.HasCatalogManifest}">
+                                        <TextBlock Classes="cfp-section-title" Text="{Binding Loc[Authors]}" />
+                                        <TextBlock Classes="cfp-meta" Text="{Binding ModManagement.SelectedInstalledMod.AuthorsText}" TextWrapping="Wrap" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding ModManagement.SelectedInstalledMod.HasRepositoryUrl}">
+                                            <TextBlock Classes="cfp-section-title" Text="{Binding Loc[Repository]}" />
+                                            <Button Classes="cfp-link" Tag="{Binding ModManagement.SelectedInstalledMod.RepositoryUrl}" Click="OpenExternalUrl" AutomationProperties.Name="{Binding Loc[Repository]}">
+                                                <TextBlock Text="{Binding ModManagement.SelectedInstalledMod.RepositoryUrl}" TextTrimming="CharacterEllipsis" />
+                                            </Button>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <StackPanel Spacing="2" IsVisible="{Binding ModManagement.SelectedInstalledMod.HasModifiedFilesText}">
+                                        <TextBlock Classes="cfp-section-title" Text="{Binding Loc[ModifiedFiles]}" />
+                                        <TextBlock Classes="cfp-meta" Text="{Binding ModManagement.SelectedInstalledMod.ModifiedFilesText}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <StackPanel Spacing="2" IsVisible="{Binding ModManagement.SelectedInstalledMod.HasInstallDate}">
+                                        <TextBlock Classes="cfp-section-title" Text="{Binding Loc[InstallHistory]}" />
+                                        <TextBlock Classes="cfp-meta" Text="{Binding ModManagement.SelectedInstalledMod.InstallDateText}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </ScrollViewer>
                         </Border>
                         <Border Grid.Row="4" Classes="cfp-mod-bulk-bar" IsVisible="{Binding ModManagement.IsInstalledModBulkBarVisible}">
                             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">

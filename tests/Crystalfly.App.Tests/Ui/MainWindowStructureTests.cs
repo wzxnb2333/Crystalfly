@@ -272,7 +272,7 @@ public sealed class MainWindowStructureTests
             && (string?)row.Attribute("Background") == "Transparent");
 
         var quickActions = manageGrid.Descendants(Avalonia + "WrapPanel").Single(panel => HasClass(panel, "cfp-mod-quick-actions"));
-        Assert.Equal(6, quickActions.Elements(Avalonia + "Button").Count());
+        Assert.Equal(7, quickActions.Elements(Avalonia + "Button").Count());
         Assert.DoesNotContain(manageGrid.Descendants(Avalonia + "Border"), border => HasClass(border, "cfp-mod-bulk-card"));
 
         var theme = File.ReadAllText(Path.Combine(
@@ -292,6 +292,54 @@ public sealed class MainWindowStructureTests
         Assert.All(iconOnlyButtons, button => Assert.False(
             string.IsNullOrWhiteSpace((string?)button.Attribute("AutomationProperties.Name")),
             $"Icon-only button is missing an automation name: {button}"));
+    }
+
+    [Fact]
+    public void Mods_workspace_has_master_detail_panel_update_check_and_conflict_highlight()
+    {
+        var document = LoadMainWindow();
+        var manageGrid = FindSectionRoot(document, "IsManagePage");
+        var modsWorkspace = manageGrid.Descendants(Avalonia + "Grid")
+            .Single(grid => HasClass(grid, "cfp-mods-workspace"));
+        var modList = manageGrid.Descendants(Avalonia + "ListBox").Single(list => HasClass(list, "cfp-installed-mod-list"));
+
+        var detailPanel = modsWorkspace.Descendants(Avalonia + "Border")
+            .Single(border => HasClass(border, "cfp-mod-detail-panel"));
+        Assert.True(HasBinding(detailPanel, "IsVisible", "ModManagement.SelectedInstalledMod"));
+        Assert.Contains(detailPanel.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "ModManagement.SelectedInstalledMod.DependenciesText"));
+        Assert.Contains(detailPanel.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "ModManagement.SelectedInstalledMod.AuthorsText"));
+        Assert.Contains(detailPanel.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "ModManagement.SelectedInstalledMod.RepositoryUrl"));
+        Assert.Contains(detailPanel.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "ModManagement.SelectedInstalledMod.LatestVersionText"));
+        Assert.Contains(detailPanel.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "ModManagement.SelectedInstalledMod.InstallDateText"));
+        Assert.Contains(detailPanel.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "ModManagement.SelectedInstalledMod.ModifiedFilesText"));
+        Assert.Contains(detailPanel.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "ModManagement.SelectedInstalledMod.ConflictWithText"));
+
+        Assert.Contains(modsWorkspace.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "ModManagement.CheckForUpdatesCommand"));
+
+        var conflictRow = modList.Descendants(Avalonia + "Grid")
+            .Single(grid => HasClass(grid, "cfp-installed-mod-row"));
+        Assert.True(HasBinding(conflictRow, "Classes.conflict", "HasConflicts"));
+        Assert.Contains(modList.Descendants(Avalonia + "TextBlock"), text =>
+            HasClass(text, "cfp-mod-conflict") && HasBinding(text, "Text", "ConflictWithText"));
+
+        var graphFrame = manageGrid.Descendants(Avalonia + "Border")
+            .Single(border => HasClass(border, "cfp-dependency-graph-frame"));
+        Assert.Contains(graphFrame.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "DependencyGraph.ExpandNodeCommand"));
+        Assert.Contains(graphFrame.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "DependencyGraph.CollapseNodeCommand"));
+
+        var quickActions = manageGrid.Descendants(Avalonia + "WrapPanel")
+            .Single(panel => HasClass(panel, "cfp-mod-quick-actions"));
+        Assert.Equal(7, quickActions.Elements(Avalonia + "Button").Count());
     }
 
     [Fact]
