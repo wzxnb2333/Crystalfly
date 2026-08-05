@@ -285,12 +285,12 @@ public sealed class ModMarketRenderingTests
                 ],
                 Mods = [mod]
             });
-        viewModel.Instances.Add(new InstanceItemViewModel(
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(
             Instance("practice", "Practice", normalRoot),
             "1.5.78.11833",
             "Vanilla",
             0));
-        viewModel.Instances.Add(new InstanceItemViewModel(
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(
             Instance("race", "Race", speedrunRoot) with { Purpose = InstancePurpose.OfficialSpeedrun },
             "1.5.78.11833",
             "Vanilla",
@@ -394,7 +394,7 @@ public sealed class ModMarketRenderingTests
         };
         typeof(MainViewModel).GetField("catalog", BindingFlags.Instance | BindingFlags.NonPublic)!
             .SetValue(viewModel, new GameCatalog { Mods = [first, second] });
-        viewModel.Instances.Add(new InstanceItemViewModel(
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(
             Instance("slow", "Slow", instanceRoot),
             "1.5.78.11833",
             "Modding API v77",
@@ -803,7 +803,7 @@ public sealed class ModMarketRenderingTests
         };
         typeof(MainViewModel).GetField("catalog", BindingFlags.Instance | BindingFlags.NonPublic)!
             .SetValue(viewModel, new GameCatalog { Mods = [mod] });
-        viewModel.Instances.Add(new InstanceItemViewModel(
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(
             instance,
             "1.5.78.11833",
             "Modding API v77",
@@ -913,7 +913,7 @@ public sealed class ModMarketRenderingTests
         };
         typeof(MainViewModel).GetField("catalog", BindingFlags.Instance | BindingFlags.NonPublic)!
             .SetValue(viewModel, new GameCatalog { Mods = [mod] });
-        viewModel.Instances.Add(new InstanceItemViewModel(
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(
             Instance("slow", "Slow", instanceRoot),
             "1.5.78.11833",
             "Modding API v77",

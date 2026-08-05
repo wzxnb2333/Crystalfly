@@ -106,7 +106,7 @@ public sealed class MainViewModelStateTests : IDisposable
             "Vanilla",
             0);
 
-        viewModel.Instances.Add(current);
+        viewModel.Instances.Instances.Add(current);
         viewModel.SelectedSpeedrunInstance = current;
 
         Assert.True(viewModel.IsSelectedSpeedrunCurrent);
@@ -393,9 +393,9 @@ public sealed class MainViewModelStateTests : IDisposable
         await using var viewModel = new MainViewModel(applicationDataRoot);
         await viewModel.InitializeAsync();
 
-        Assert.Equal(2, viewModel.GameDirectories.Count);
-        Assert.Equal(existingRoot, viewModel.SelectedGameDirectory?.Path);
-        Assert.Equal(viewModel.Loc["ScanFailed"], viewModel.GameDirectories[0].ScanStatus);
+        Assert.Equal(2, viewModel.Instances.GameDirectories.Count);
+        Assert.Equal(existingRoot, viewModel.Instances.SelectedGameDirectory?.Path);
+        Assert.Equal(viewModel.Loc["ScanFailed"], viewModel.Instances.GameDirectories[0].ScanStatus);
     }
 
     [Fact]
@@ -537,11 +537,11 @@ public sealed class MainViewModelStateTests : IDisposable
         {
             await viewModel.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(5));
             viewModel.CurrentPage = "Versions";
-            var second = viewModel.Instances.Single(instance => instance.Id == secondRecord.Id);
+            var second = viewModel.Instances.Instances.Single(instance => instance.Id == secondRecord.Id);
 
             releaseCatalog.TrySetResult(new GameCatalog());
             await backgroundDiscoveryStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            viewModel.SelectInstanceForLaunchCommand.Execute(second);
+            viewModel.Instances.SelectInstanceForLaunchCommand.Execute(second);
 
             Assert.Same(second, viewModel.SelectedInstance);
             Assert.Equal("Launch", viewModel.CurrentPage);
@@ -1432,7 +1432,7 @@ public sealed class MainViewModelStateTests : IDisposable
         var notifications = new List<string>();
         viewModel.ToastRequested += notifications.Add;
 
-        await viewModel.CloneSelectedInstanceCommand.ExecuteAsync(null);
+        await viewModel.Instances.CloneSelectedInstanceCommand.ExecuteAsync(null);
 
         Assert.Null(viewModel.ErrorMessage);
         Assert.Equal(viewModel.Loc["OperationComplete"], Assert.Single(notifications));
@@ -1568,7 +1568,7 @@ public sealed class MainViewModelStateTests : IDisposable
         viewModel.SelectedInstance = first;
         viewModel.CurrentPage = "Versions";
 
-        viewModel.SelectInstanceForLaunchCommand.Execute(second);
+        viewModel.Instances.SelectInstanceForLaunchCommand.Execute(second);
 
         Assert.Same(second, viewModel.SelectedInstance);
         Assert.Equal("Launch", viewModel.CurrentPage);
@@ -1594,14 +1594,14 @@ public sealed class MainViewModelStateTests : IDisposable
             "1.5.78.11833",
             "Vanilla",
             0);
-        viewModel.Instances.Add(alpha);
-        viewModel.Instances.Add(beta);
+        viewModel.Instances.Instances.Add(alpha);
+        viewModel.Instances.Instances.Add(beta);
 
-        viewModel.ToggleFavoriteInstanceCommand.Execute(beta);
+        viewModel.Instances.ToggleFavoriteInstanceCommand.Execute(beta);
 
-        Assert.True(viewModel.VisibleInstances[0].IsFavorite);
-        Assert.Equal("beta", viewModel.VisibleInstances[0].Id);
-        Assert.False(viewModel.VisibleInstances[1].IsFavorite);
+        Assert.True(viewModel.Instances.VisibleInstances[0].IsFavorite);
+        Assert.Equal("beta", viewModel.Instances.VisibleInstances[0].Id);
+        Assert.False(viewModel.Instances.VisibleInstances[1].IsFavorite);
     }
 
     [Fact]
@@ -1640,18 +1640,18 @@ public sealed class MainViewModelStateTests : IDisposable
             "1.4.3.2",
             "Vanilla",
             0);
-        viewModel.Instances.Add(first);
-        viewModel.Instances.Add(second);
+        viewModel.Instances.Instances.Add(first);
+        viewModel.Instances.Instances.Add(second);
         viewModel.SelectedInstance = first;
         viewModel.CurrentPage = "Versions";
 
-        await viewModel.DeleteInstanceCommand.ExecuteAsync(first);
+        await viewModel.Instances.DeleteInstanceCommand.ExecuteAsync(first);
 
         Assert.Same(first.Record, deleted);
         Assert.NotNull(evaluated);
         Assert.False(evaluated.HasBlockingQueueTasks);
         Assert.True(evaluated.TransactionsHealthy);
-        Assert.DoesNotContain(first, viewModel.Instances);
+        Assert.DoesNotContain(first, viewModel.Instances.Instances);
         Assert.Same(second, viewModel.SelectedInstance);
         Assert.Equal("Launch", viewModel.CurrentPage);
     }
@@ -2143,9 +2143,9 @@ public sealed class MainViewModelStateTests : IDisposable
             SelectedMarketMod = first
         };
         SetCatalog(viewModel, new GameCatalog { Mods = [first, second] });
-        viewModel.Instances.Add(new InstanceItemViewModel(
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(
             Instance("slow", slowRoot), "build-1", "modding-api-77", 0));
-        viewModel.Instances.Add(new InstanceItemViewModel(
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(
             Instance("vanilla", vanillaRoot), "build-1", "Vanilla", 0));
 
         var preparation = viewModel.PrepareMarketInstallTargetsCommand.ExecuteAsync(null);
@@ -2189,12 +2189,12 @@ public sealed class MainViewModelStateTests : IDisposable
             Mods = [manifest]
         });
         viewModel.SelectedMarketMod = manifest;
-        viewModel.Instances.Add(new InstanceItemViewModel(
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(
             Instance("practice", normalRoot) with { BuildId = "1.5.78.11833", Name = "Practice" },
             "1.5.78.11833",
             "Vanilla",
             0));
-        viewModel.Instances.Add(new InstanceItemViewModel(
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(
             Instance("race", speedrunRoot) with
             {
                 BuildId = "1.5.78.11833",
@@ -2271,7 +2271,7 @@ public sealed class MainViewModelStateTests : IDisposable
         var notifications = new List<string>();
         viewModel.ToastRequested += notifications.Add;
         SetCatalog(viewModel, new GameCatalog { Loaders = [loader], Mods = [mod] });
-        viewModel.Instances.Add(new InstanceItemViewModel(record, "1.5.78.11833", "Vanilla", 0));
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(record, "1.5.78.11833", "Vanilla", 0));
         viewModel.SelectedMarketMod = mod;
         await viewModel.PrepareMarketInstallTargetsCommand.ExecuteAsync(null);
 
@@ -2305,7 +2305,7 @@ public sealed class MainViewModelStateTests : IDisposable
         viewModel.VersionRoot = versionRoot;
         SetCatalog(viewModel, new GameCatalog { Mods = [mod] });
         viewModel.SelectedMarketMod = mod;
-        viewModel.Instances.Add(new InstanceItemViewModel(
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(
             Instance("broken", instanceRoot) with { BuildId = "1.5.78.11833" },
             "1.5.78.11833",
             "Unknown",
@@ -2336,7 +2336,7 @@ public sealed class MainViewModelStateTests : IDisposable
         viewModel.VersionRoot = versionRoot;
         SetCatalog(viewModel, new GameCatalog { Mods = [mod] });
         viewModel.SelectedMarketMod = mod;
-        viewModel.Instances.Add(new InstanceItemViewModel(
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(
             Instance("practice", instanceRoot) with { BuildId = "1.5.78.11833" },
             "1.5.78.11833",
             "Vanilla",
@@ -2592,7 +2592,7 @@ public sealed class MainViewModelStateTests : IDisposable
         releaseBlocker.SetResult();
         await Task.WhenAll(blocker, refresh, mutation).WaitAsync(TimeSpan.FromSeconds(5));
 
-        Assert.Contains(viewModel.Instances, instance => instance.Id == record.Id);
+        Assert.Contains(viewModel.Instances.Instances, instance => instance.Id == record.Id);
     }
 
     [Fact]

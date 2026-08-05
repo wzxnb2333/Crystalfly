@@ -230,7 +230,7 @@ public partial class MainViewModel
                 await RefreshAsync();
                 if (selectedInstanceId is not null)
                 {
-                    SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == selectedInstanceId)
+                    SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == selectedInstanceId)
                         ?? SelectedInstance;
                 }
             } while (Volatile.Read(ref queueRefreshRequested) != 0);

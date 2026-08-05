@@ -193,6 +193,53 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Loc = new LocalizationViewModel();
         downloadQueue = downloadQueueOverride ?? CreateDownloadQueue();
         downloadQueue.QueueChanged += OnDownloadQueueChanged;
+        Instances = new InstancesViewModel(new InstancesDependencies(
+            Loc: () => Loc,
+            GetSettings: () => settings,
+            SetSettings: value => settings = value,
+            QueueSettingsSave: () => _ = QueueSettingsSave(),
+            RefreshInstances: () => RefreshAsync(),
+            RefreshInstancesQuietly: () => RefreshInstancesAsync(showBusy: false),
+            GetCanNavigate: () => CanNavigate,
+            GetIsBusy: () => IsBusy,
+            SetIsBusy: value => IsBusy = value,
+            IsMutationBlocked: IsMutationBlocked,
+            RunCoordinated: (id, operation, token) => instanceOperationCoordinator.RunAsync(id, operation, token),
+            EvaluateDeletionConditions: EvaluateInstanceDeletionConditionsAsync,
+            InstanceDeletionOverride: instanceDeletionOverride,
+            IsVanillaInstanceAsync: async record =>
+                await CreateLoaderManager(record).GetStateAsync() == LoaderState.Vanilla
+                && (await CreateModManager(record).GetInstalledAsync()).Count == 0,
+            GetVersionDataRoot: paths.GetVersionDataRoot,
+            GetVersionRoot: () => VersionRoot,
+            SetVersionRoot: value => VersionRoot = value,
+            GetCatalog: () => catalog,
+            GetSelectedInstance: () => SelectedInstance,
+            SetSelectedInstance: value => SelectedInstance = value,
+            GetSelectedSpeedrunInstance: () => SelectedSpeedrunInstance,
+            SetSelectedSpeedrunInstance: value => SelectedSpeedrunInstance = value,
+            SetErrorMessage: message => ErrorMessage = message,
+            SetStatusMessage: message => StatusMessage = message,
+            SetCurrentPage: value => CurrentPage = value,
+            SetCurrentManageTab: value => CurrentManageTab = value,
+            GetCloneInstanceName: () => CloneInstanceName,
+            SetCloneInstanceName: value => CloneInstanceName = value,
+            DiscoverInstances: (root, catalog, token) => instanceDiscovery(root, catalog, token),
+            GetSearchText: () => SearchText,
+            HasBlockingDownloadForPath: path => downloadQueue.Groups.Any(group =>
+                string.Equals(
+                    Path.TrimEndingDirectorySeparator(Path.GetFullPath(group.TargetInstanceRoot)),
+                    path,
+                    StringComparison.OrdinalIgnoreCase)
+                && group.State is DownloadQueueGroupState.Pending
+                    or DownloadQueueGroupState.Running
+                    or DownloadQueueGroupState.Failed
+                    or DownloadQueueGroupState.WaitingForNetwork),
+            NotifyOperationCompleted: NotifyOperationCompleted,
+            AutoRequestGameDirectoryDiscovery: autoRequestGameDirectoryDiscovery,
+            LifetimeCancellation: lifetimeCancellation.Token));
+        Instances.PropertyChanged += (_, eventArgs) => OnPropertyChanged(eventArgs.PropertyName);
+        Instances.ToastRequested += message => NotifyToast(message);
         Settings = new SettingsViewModel(new SettingsDependencies(
             Loc: () => Loc,
             GetSettings: () => settings,
@@ -219,7 +266,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             RebuildModStatusOptions: RebuildModStatusOptions,
             RebuildMarketCatalog: RebuildMarketCatalog,
             RebuildInstalledModCatalogProjection: RebuildInstalledModCatalogProjection,
-            RefreshGameDirectoryLabels: RefreshGameDirectoryLabels,
+            RefreshGameDirectoryLabels: () => Instances.RefreshGameDirectoryLabels(),
             NotifyPreflightLabels: NotifyPreflightLabels,
             RebuildPresetModeOptions: RebuildPresetModeOptions,
             NotifyOperationCompleted: NotifyOperationCompleted,
@@ -246,13 +293,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public event Action? GraphModRemovalRequested;
 
-    public ObservableCollection<InstanceItemViewModel> Instances { get; } = [];
-
-    public ObservableCollection<InstanceItemViewModel> VisibleInstances { get; } = [];
+    public InstancesViewModel Instances { get; }
 
     public ObservableCollection<SpeedrunTemplate> SpeedrunTemplates { get; } = [];
-
-    public ObservableCollection<InstanceItemViewModel> SpeedrunInstances { get; } = [];
 
     public ObservableCollection<InstanceItemViewModel> SpeedrunSourceInstances { get; } = [];
 
@@ -889,7 +932,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         await Settings.RefreshBackgroundAppearanceAsync(lifetimeCancellation.Token);
         InitializeApplicationUpdateSettings();
         VersionRoot = settings.VersionRoot ?? string.Empty;
-        await InitializeGameDirectoriesAsync();
+        await Instances.InitializeGameDirectoriesAsync();
         Settings.CustomSourcesText = string.Join(
             Environment.NewLine,
             settings.CustomCatalogs.Select(source => $"{source.Namespace}={source.Url}"));
@@ -915,7 +958,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         await Task.WhenAll(refreshTask, InitializeDownloadQueueAsync());
         StartSpeedrunActivityRefreshLoop();
-        await CompleteGameDirectoryInitializationAsync();
+        await Instances.CompleteGameDirectoryInitializationAsync();
     }
 
     [ObservableProperty]
@@ -1158,7 +1201,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
 
         var targets = new List<MarketInstallTargetViewModel>();
-        foreach (var instance in Instances)
+        foreach (var instance in Instances.Instances)
         {
             MarketInstallTargetViewModel target;
             try
@@ -1275,17 +1318,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     [RelayCommand]
-    private void SelectInstanceForLaunch(InstanceItemViewModel? instance)
-    {
-        if (!CanNavigate || instance is null)
-        {
-            return;
-        }
-        SelectedInstance = instance;
-        CurrentPage = "Launch";
-    }
-
-    [RelayCommand]
     private void OpenInstanceSettings(InstanceItemViewModel? instance)
     {
         if (!CanNavigate || instance is null)
@@ -1384,11 +1416,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     discovered.AddRange(inspections);
                 },
                 lifetimeCancellation.Token);
-            Instances.Clear();
+            Instances.Instances.Clear();
             foreach (var item in discovered)
             {
                 var build = catalog.Builds.FirstOrDefault(candidate => candidate.Id == item.Record.BuildId);
-                Instances.Add(new InstanceItemViewModel(
+                Instances.Instances.Add(new InstanceItemViewModel(
                     item.Record,
                     build?.DisplayVersion ?? Loc["UnknownBuild"],
                     item.LoaderReceipt is null
@@ -1400,16 +1432,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     settings.FavoriteInstanceIds.Contains(item.Record.Id, StringComparer.Ordinal)));
             }
 
-            ApplyInstanceFilter();
-            SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == settings.CurrentInstanceId)
-                ?? Instances.FirstOrDefault();
+            Instances.ApplyInstanceFilter();
+            SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == settings.CurrentInstanceId)
+                ?? Instances.Instances.FirstOrDefault();
             PopulateSpeedrunInstances();
             // Restore the speedrun selection only when the remembered instance actually is one.
             // Falling back to the first speedrun instance would otherwise overwrite the remembered
             // regular-instance selection and make "remember last instance" appear broken.
-            SelectedSpeedrunInstance = SpeedrunInstances.FirstOrDefault(instance =>
+            SelectedSpeedrunInstance = Instances.SpeedrunInstances.FirstOrDefault(instance =>
                 instance.Id == settings.CurrentInstanceId)
-                ?? (settings.CurrentInstanceId is null ? SpeedrunInstances.FirstOrDefault() : null);
+                ?? (settings.CurrentInstanceId is null ? Instances.SpeedrunInstances.FirstOrDefault() : null);
             StatusMessage = Loc["StatusReady"];
         }
         catch (Exception exception) when (exception is IOException
@@ -1430,11 +1462,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private void PopulateSpeedrunInstances()
     {
-        SpeedrunInstances.Clear();
-        foreach (InstanceItemViewModel instance in Instances.Where(instance =>
+        Instances.SpeedrunInstances.Clear();
+        foreach (InstanceItemViewModel instance in Instances.Instances.Where(instance =>
                      instance.Record.Purpose == InstancePurpose.OfficialSpeedrun))
         {
-            SpeedrunInstances.Add(instance);
+            Instances.SpeedrunInstances.Add(instance);
         }
         PopulateSpeedrunSourceInstances();
     }
@@ -1448,7 +1480,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             SelectedSpeedrunSourceInstance = null;
             return;
         }
-        foreach (InstanceItemViewModel instance in Instances.Where(instance =>
+        foreach (InstanceItemViewModel instance in Instances.Instances.Where(instance =>
                      instance.Record.Purpose == InstancePurpose.General
                      && string.Equals(instance.Record.BuildId, SelectedSpeedrunTemplate.BuildId, StringComparison.Ordinal)
                      && instance.ModCount == 0
@@ -1458,218 +1490,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         SelectedSpeedrunSourceInstance = SpeedrunSourceInstances.FirstOrDefault(instance => instance.Id == selectedId)
             ?? SpeedrunSourceInstances.FirstOrDefault();
-    }
-
-    [RelayCommand]
-    private async Task CloneSelectedInstanceAsync()
-    {
-        if (SelectedInstance is null)
-        {
-            ErrorMessage = Loc["NoInstance"];
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(CloneInstanceName))
-        {
-            ErrorMessage = Loc["CloneNameRequired"];
-            return;
-        }
-        if (IsMutationBlocked())
-        {
-            return;
-        }
-
-        IsBusy = true;
-        ErrorMessage = null;
-        try
-        {
-            var source = SelectedInstance.Record;
-            InstanceRecord? clone = null;
-            await instanceOperationCoordinator.RunAsync(
-                source.Id,
-                async _ =>
-                {
-                    if (new SystemHollowKnightProcessProbe().IsRunning())
-                    {
-                        throw new InvalidOperationException(Loc["CloseGameFirst"]);
-                    }
-                    if (await CreateLoaderManager(source).GetStateAsync() != LoaderState.Vanilla
-                        || (await CreateModManager(source).GetInstalledAsync()).Count != 0)
-                    {
-                        throw new InvalidOperationException(Loc["CloneVanillaOnly"]);
-                    }
-                    clone = await InstanceCloneService.CloneAsync(
-                        source.RootPath,
-                        CloneInstanceName.Trim(),
-                        Guid.NewGuid().ToString("N"));
-                },
-                lifetimeCancellation.Token);
-            var createdClone = clone
-                ?? throw new InvalidOperationException("The instance clone was not created.");
-            CloneInstanceName = string.Empty;
-            await RefreshAsync();
-            var selectedClone = Instances.FirstOrDefault(instance => instance.Id == createdClone.Id);
-            if (selectedClone is not null)
-            {
-                SelectedInstance = selectedClone;
-                CurrentPage = "Launch";
-            }
-            NotifyOperationCompleted();
-        }
-        catch (Exception exception) when (exception is IOException
-            or InvalidDataException
-            or InvalidOperationException
-            or UnauthorizedAccessException
-            or ArgumentException)
-        {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
-
-    [RelayCommand]
-    private async Task RenameInstanceAsync(string? newName)
-    {
-        if (SelectedInstance is not { } selected || string.IsNullOrWhiteSpace(newName))
-        {
-            return;
-        }
-        if (IsMutationBlocked())
-        {
-            return;
-        }
-
-        IsBusy = true;
-        ErrorMessage = null;
-        try
-        {
-            var instanceId = selected.Id;
-            await instanceOperationCoordinator.RunAsync(
-                instanceId,
-                async cancellationToken =>
-                {
-                    if (new SystemHollowKnightProcessProbe().IsRunning())
-                    {
-                        throw new InvalidOperationException(Loc["CloseGameFirst"]);
-                    }
-                    var conditions = await EvaluateInstanceDeletionConditionsAsync(instanceId, cancellationToken);
-                    if (conditions.HasBlockingQueueTasks)
-                    {
-                        throw new InvalidOperationException(Loc["RenameBlockedDownloads"]);
-                    }
-                    if (!conditions.TransactionsHealthy)
-                    {
-                        throw new InvalidOperationException(Loc["RenameBlockedTransactions"]);
-                    }
-                    await InstanceRenameService.RenameAsync(selected.Record, newName, cancellationToken);
-                },
-                lifetimeCancellation.Token);
-
-            await RefreshInstancesAsync(showBusy: false);
-            SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == instanceId);
-            CurrentManageTab = "Overview";
-            CurrentPage = "Manage";
-            NotifyOperationCompleted();
-        }
-        catch (Exception exception) when (exception is IOException
-            or InvalidDataException
-            or InvalidOperationException
-            or UnauthorizedAccessException
-            or ArgumentException)
-        {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
-
-    [RelayCommand]
-    private async Task DeleteInstanceAsync(InstanceItemViewModel? instance)
-    {
-        if (instance is null || IsMutationBlocked())
-        {
-            return;
-        }
-
-        var originalIndex = Instances.IndexOf(instance);
-        bool wasSpeedrunInstance = instance.Record.Purpose == InstancePurpose.OfficialSpeedrun;
-        var nextId = Instances
-            .Where(candidate => !string.Equals(candidate.Id, instance.Id, StringComparison.Ordinal))
-            .ElementAtOrDefault(Math.Min(Math.Max(originalIndex, 0), Math.Max(Instances.Count - 2, 0)))
-            ?.Id;
-        IsBusy = true;
-        ErrorMessage = null;
-        try
-        {
-            InstanceDeletionResult? result = null;
-            await instanceOperationCoordinator.RunAsync(
-                instance.Id,
-                async cancellationToken =>
-                {
-                    Func<CancellationToken, ValueTask<InstanceDeletionConditions>> evaluateConditions =
-                        token => EvaluateInstanceDeletionConditionsAsync(instance.Id, token);
-                    result = instanceDeletionOverride is null
-                        ? await new InstanceDeletionService(VersionRoot).DeleteAsync(
-                            instance.Record,
-                            evaluateConditions,
-                            cancellationToken)
-                        : await instanceDeletionOverride(
-                            instance.Record,
-                            evaluateConditions,
-                            cancellationToken);
-                },
-                lifetimeCancellation.Token);
-
-            Instances.Remove(instance);
-            VisibleInstances.Remove(instance);
-            SpeedrunInstances.Remove(instance);
-            if (SelectedInstance?.Id == instance.Id)
-            {
-                SelectedInstance = nextId is null
-                    ? Instances.FirstOrDefault()
-                    : Instances.FirstOrDefault(candidate => candidate.Id == nextId)
-                        ?? Instances.FirstOrDefault();
-            }
-            if (SelectedSpeedrunInstance?.Id == instance.Id)
-            {
-                SelectedSpeedrunInstance = SpeedrunInstances.FirstOrDefault();
-            }
-            settings = settings with
-            {
-                CurrentInstanceId = SelectedInstance?.Id,
-                FavoriteInstanceIds = settings.FavoriteInstanceIds
-                    .Where(id => !string.Equals(id, instance.Id, StringComparison.Ordinal))
-                    .ToArray()
-            };
-            await QueueSettingsSave();
-            CurrentPage = wasSpeedrunInstance ? "Speedrun" : "Launch";
-            if (result is { CleanupCompleted: false })
-            {
-                StatusMessage = Loc["DeleteCleanupPending"];
-                NotifyToast(StatusMessage);
-            }
-            else
-            {
-                NotifyOperationCompleted();
-            }
-        }
-        catch (Exception exception) when (exception is IOException
-            or InvalidDataException
-            or InvalidOperationException
-            or UnauthorizedAccessException
-            or ArgumentException
-            or System.Text.Json.JsonException)
-        {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
     }
 
     private async ValueTask<InstanceDeletionConditions> EvaluateInstanceDeletionConditionsAsync(
@@ -2899,8 +2719,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             SpeedrunReminderIsError = false;
             SpeedrunEnvironmentName = string.Empty;
             await RefreshAsync();
-            SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == clone.Id);
-            SelectedSpeedrunInstance = SpeedrunInstances.FirstOrDefault(instance => instance.Id == clone.Id);
+            SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == clone.Id);
+            SelectedSpeedrunInstance = Instances.SpeedrunInstances.FirstOrDefault(instance => instance.Id == clone.Id);
         }
         catch (Exception exception) when (exception is IOException
             or InvalidDataException
@@ -2955,7 +2775,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    partial void OnSearchTextChanged(string value) => ApplyInstanceFilter();
+    partial void OnSearchTextChanged(string value) => Instances.ApplyInstanceFilter();
 
     partial void OnModSearchTextChanged(string value) => ApplyModFilters();
 
@@ -3168,7 +2988,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             SpeedrunReportPath = null;
             SpeedrunReminderIsError = false;
             await RefreshAsync();
-            SelectedSpeedrunInstance = SpeedrunInstances.FirstOrDefault(instance => instance.Id == selected.Id);
+            SelectedSpeedrunInstance = Instances.SpeedrunInstances.FirstOrDefault(instance => instance.Id == selected.Id);
         }
         catch (Exception exception) when (exception is IOException
             or InvalidDataException
@@ -3202,7 +3022,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             return;
         }
 
-        SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == value.Id) ?? value;
+        SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == value.Id) ?? value;
         SelectedSpeedrunTemplate = catalog.SpeedrunTemplates.SingleOrDefault(template =>
             string.Equals(template.Id, value.Record.SpeedrunTemplateId, StringComparison.Ordinal))
             ?? catalog.SpeedrunTemplates.SingleOrDefault(template =>
@@ -3333,54 +3153,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         PopulateSpeedrunSourceInstances();
     }
 
-
-    [RelayCommand]
-    private void ToggleFavoriteInstance(InstanceItemViewModel? instance)
-    {
-        if (instance is null)
-        {
-            return;
-        }
-
-        var updated = instance with { IsFavorite = !instance.IsFavorite };
-        var index = Instances.IndexOf(instance);
-        if (index >= 0)
-        {
-            Instances[index] = updated;
-        }
-        if (SelectedInstance?.Id == instance.Id)
-        {
-            SelectedInstance = updated;
-        }
-        settings = settings with
-        {
-            FavoriteInstanceIds = updated.IsFavorite
-                ? settings.FavoriteInstanceIds
-                    .Append(updated.Id)
-                    .Distinct(StringComparer.Ordinal)
-                    .ToArray()
-                : settings.FavoriteInstanceIds
-                    .Where(id => !string.Equals(id, updated.Id, StringComparison.Ordinal))
-                    .ToArray()
-        };
-        ApplyInstanceFilter();
-        _ = QueueSettingsSave();
-    }
-
-    private void ApplyInstanceFilter()
-    {
-        VisibleInstances.Clear();
-        foreach (var instance in Instances
-                     .Where(instance =>
-                         string.IsNullOrWhiteSpace(SearchText)
-                         || instance.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
-                         || instance.DisplayVersion.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
-                     .OrderByDescending(instance => instance.IsFavorite)
-                     .ThenBy(instance => instance.Name, StringComparer.CurrentCultureIgnoreCase))
-        {
-            VisibleInstances.Add(instance);
-        }
-    }
 
     private void ApplyModFilters()
     {
@@ -4390,7 +4162,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         try
         {
             await RefreshAsync();
-            SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == instanceId);
+            SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == instanceId);
             ErrorMessage = operationError;
         }
         catch (Exception exception) when (exception is IOException
@@ -4428,7 +4200,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 },
                 lifetimeCancellation.Token);
             await RefreshAsync();
-            SelectedInstance = Instances.FirstOrDefault(instance => instance.Id == instanceId);
+            SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == instanceId);
             NotifyOperationCompleted();
         }
         catch (Exception exception) when (exception is IOException
@@ -4476,7 +4248,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private async Task<InstanceRecord?> FindVanillaSourceAsync(string buildId, string? selectedInstanceId = null)
     {
-        foreach (var candidate in Instances.Where(instance =>
+        foreach (var candidate in Instances.Instances.Where(instance =>
                      instance.Record.BuildId == buildId
                      && (selectedInstanceId is null || instance.Id == selectedInstanceId)))
         {

@@ -487,12 +487,12 @@ public sealed class LayoutRenderingTests
             InstanceCount = instances.Length,
             ScanStatus = viewModel.Loc["ScanReady"]
         };
-        viewModel.GameDirectories.Add(gameDirectory);
-        viewModel.SelectedGameDirectory = gameDirectory;
+        viewModel.Instances.GameDirectories.Add(gameDirectory);
+        viewModel.Instances.SelectedGameDirectory = gameDirectory;
         foreach (var instance in instances)
         {
-            viewModel.Instances.Add(instance);
-            viewModel.VisibleInstances.Add(instance);
+            viewModel.Instances.Instances.Add(instance);
+            viewModel.Instances.VisibleInstances.Add(instance);
         }
         viewModel.SelectedInstance = instances[1];
 

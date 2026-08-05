@@ -55,7 +55,7 @@ public partial class MainViewModel
         ArgumentNullException.ThrowIfNull(command);
         var instance = command.InstanceId is null
             ? null
-            : Instances.FirstOrDefault(candidate =>
+            : Instances.Instances.FirstOrDefault(candidate =>
                 string.Equals(candidate.Id, command.InstanceId, StringComparison.Ordinal));
         var mod = command.ModId is null
             ? null
@@ -234,8 +234,8 @@ public partial class MainViewModel
         networkPolicy.SetOffline(false);
         IsOfflineMode = false;
         SelectedInstance = null;
-        Instances.Clear();
-        VisibleInstances.Clear();
+        Instances.Instances.Clear();
+        Instances.VisibleInstances.Clear();
         VersionRoot = string.Empty;
         CustomSourcesText = string.Empty;
         CustomModLinksUrl = string.Empty;
@@ -350,7 +350,7 @@ public partial class MainViewModel
 
     private InstanceItemViewModel SelectProtocolInstance(string id)
     {
-        var instance = Instances.SingleOrDefault(candidate =>
+        var instance = Instances.Instances.SingleOrDefault(candidate =>
             string.Equals(candidate.Id, id, StringComparison.Ordinal))
             ?? throw new KeyNotFoundException($"Instance '{id}' was not found.");
         SelectedInstance = instance;

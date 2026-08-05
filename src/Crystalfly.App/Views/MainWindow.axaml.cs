@@ -1263,11 +1263,11 @@ public partial class MainWindow : Window
             }
             if (gameDirectoryDiscoveryRequestedHandler is not null)
             {
-                toastViewModel.GameDirectoryDiscoveryRequested -= gameDirectoryDiscoveryRequestedHandler;
+                toastViewModel.Instances.GameDirectoryDiscoveryRequested -= gameDirectoryDiscoveryRequestedHandler;
             }
             if (steamDirectoryRiskRequestedHandler is not null)
             {
-                toastViewModel.SteamDirectoryRiskRequested -= steamDirectoryRiskRequestedHandler;
+                toastViewModel.Instances.SteamDirectoryRiskRequested -= steamDirectoryRiskRequestedHandler;
             }
         }
 
@@ -1286,8 +1286,8 @@ public partial class MainWindow : Window
             toastViewModel.ToastRequested += toastRequestedHandler;
             toastViewModel.PropertyChanged += OnToastViewModelPropertyChanged;
             toastViewModel.GraphModRemovalRequested += graphModRemovalRequestedHandler;
-            toastViewModel.GameDirectoryDiscoveryRequested += gameDirectoryDiscoveryRequestedHandler;
-            toastViewModel.SteamDirectoryRiskRequested += steamDirectoryRiskRequestedHandler;
+            toastViewModel.Instances.GameDirectoryDiscoveryRequested += gameDirectoryDiscoveryRequestedHandler;
+            toastViewModel.Instances.SteamDirectoryRiskRequested += steamDirectoryRiskRequestedHandler;
         }
     }
 
@@ -1435,11 +1435,11 @@ public partial class MainWindow : Window
             }
             if (gameDirectoryDiscoveryRequestedHandler is not null)
             {
-                toastViewModel.GameDirectoryDiscoveryRequested -= gameDirectoryDiscoveryRequestedHandler;
+                toastViewModel.Instances.GameDirectoryDiscoveryRequested -= gameDirectoryDiscoveryRequestedHandler;
             }
             if (steamDirectoryRiskRequestedHandler is not null)
             {
-                toastViewModel.SteamDirectoryRiskRequested -= steamDirectoryRiskRequestedHandler;
+                toastViewModel.Instances.SteamDirectoryRiskRequested -= steamDirectoryRiskRequestedHandler;
             }
             toastRequestedHandler = null;
             graphModRemovalRequestedHandler = null;
@@ -1507,7 +1507,7 @@ public partial class MainWindow : Window
         var path = folders.FirstOrDefault()?.TryGetLocalPath();
         if (!string.IsNullOrWhiteSpace(path))
         {
-            await viewModel.AddCustomGameDirectoryAsync(path);
+            await viewModel.Instances.AddCustomGameDirectoryAsync(path);
             await ShowGameDirectoryDiscoveryAsync(viewModel);
         }
     }
@@ -1517,7 +1517,7 @@ public partial class MainWindow : Window
         var dialog = new GameDirectoryDiscoveryDialogViewModel(
             viewModel.Loc["GameDirectoryDiscoveryTitle"],
             viewModel.Loc["GameDirectoryDiscoveryHint"],
-            viewModel.GameDirectoryCandidates,
+            viewModel.Instances.GameDirectoryCandidates,
             viewModel.Loc["ScanGameDirectories"],
             viewModel.Loc["AddGameDirectory"],
             viewModel.Loc["ConfirmAddDirectories"],
@@ -1528,14 +1528,14 @@ public partial class MainWindow : Window
         switch (result)
         {
             case GameDirectoryDiscoveryDialogResult.StartScan:
-                await viewModel.ScanGameDirectoriesCommand.ExecuteAsync(null);
+                await viewModel.Instances.ScanGameDirectoriesCommand.ExecuteAsync(null);
                 await ShowGameDirectoryDiscoveryAsync(viewModel);
                 break;
             case GameDirectoryDiscoveryDialogResult.AddCustom:
                 await PickAndAddGameDirectoryAsync(viewModel);
                 break;
             case GameDirectoryDiscoveryDialogResult.Confirm:
-                await viewModel.ConfirmGameDirectoryCandidatesCommand.ExecuteAsync(null);
+                await viewModel.Instances.ConfirmGameDirectoryCandidatesCommand.ExecuteAsync(null);
                 break;
         }
     }
@@ -1554,7 +1554,7 @@ public partial class MainWindow : Window
             ThreeChoiceDialogViewModel, ThreeChoiceDialogResult>(dialog, OverlayHostId, CreateOverlayOptions());
         if (result == ThreeChoiceDialogResult.Secondary)
         {
-            await viewModel.AcceptSteamGameDirectoryAsync(candidate);
+            await viewModel.Instances.AcceptSteamGameDirectoryAsync(candidate);
             return;
         }
         if (result != ThreeChoiceDialogResult.Primary)
@@ -1569,7 +1569,7 @@ public partial class MainWindow : Window
         var target = folders.FirstOrDefault()?.TryGetLocalPath();
         if (!string.IsNullOrWhiteSpace(target))
         {
-            await viewModel.MigrateSteamGameDirectoryAsync(candidate, target);
+            await viewModel.Instances.MigrateSteamGameDirectoryAsync(candidate, target);
         }
     }
 
@@ -1597,7 +1597,7 @@ public partial class MainWindow : Window
             return;
         }
         viewModel.CloneInstanceName = name;
-        await viewModel.CloneSelectedInstanceCommand.ExecuteAsync(null);
+        await viewModel.Instances.CloneSelectedInstanceCommand.ExecuteAsync(null);
         if (viewModel.SelectedInstance is { } selected
             && !string.Equals(selected.Id, instance.Id, StringComparison.Ordinal))
         {
@@ -1652,7 +1652,7 @@ public partial class MainWindow : Window
 
     private async Task ConfirmDeleteInstanceAsync(MainViewModel viewModel, InstanceItemViewModel instance)
     {
-        if (viewModel.SelectedGameDirectory?.IsSteam == true)
+        if (viewModel.Instances.SelectedGameDirectory?.IsSteam == true)
         {
             var dialog = new ThreeChoiceDialogViewModel(
                 viewModel.Loc["DeleteSteamInstanceTitle"],
@@ -1666,14 +1666,14 @@ public partial class MainWindow : Window
                 ThreeChoiceDialogViewModel, ThreeChoiceDialogResult>(dialog, OverlayHostId, CreateOverlayOptions());
             if (result == ThreeChoiceDialogResult.Secondary)
             {
-                await viewModel.UnregisterCurrentSteamDirectoryAsync();
+                await viewModel.Instances.UnregisterCurrentSteamDirectoryAsync();
             }
             else if (result == ThreeChoiceDialogResult.Primary)
             {
-                await viewModel.DeleteInstanceCommand.ExecuteAsync(instance);
+                await viewModel.Instances.DeleteInstanceCommand.ExecuteAsync(instance);
                 if (!Directory.Exists(instance.RootPath))
                 {
-                    await viewModel.UnregisterCurrentSteamDirectoryAsync();
+                    await viewModel.Instances.UnregisterCurrentSteamDirectoryAsync();
                 }
             }
             return;
@@ -1686,7 +1686,7 @@ public partial class MainWindow : Window
             isDangerous: true);
         if (confirmed)
         {
-            await viewModel.DeleteInstanceCommand.ExecuteAsync(instance);
+            await viewModel.Instances.DeleteInstanceCommand.ExecuteAsync(instance);
         }
     }
 
@@ -1709,7 +1709,7 @@ public partial class MainWindow : Window
             string?>(dialog, OverlayHostId, CreateOverlayOptions());
         if (!string.IsNullOrWhiteSpace(name))
         {
-            await viewModel.RenameInstanceCommand.ExecuteAsync(name);
+            await viewModel.Instances.RenameInstanceCommand.ExecuteAsync(name);
         }
     }
 

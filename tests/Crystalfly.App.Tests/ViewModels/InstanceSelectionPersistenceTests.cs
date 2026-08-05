@@ -42,7 +42,7 @@ public sealed class InstanceSelectionPersistenceTests
         await using var secondViewModel = CreateViewModel(appData, first, second, speedrun);
         await secondViewModel.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(15));
         Assert.Equal(second.Id, secondViewModel.SelectedInstance?.Id);
-        Assert.Contains(secondViewModel.SpeedrunInstances, instance => instance.Id == speedrun.Id);
+        Assert.Contains(secondViewModel.Instances.SpeedrunInstances, instance => instance.Id == speedrun.Id);
     }
 
     [Fact]

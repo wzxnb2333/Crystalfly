@@ -94,7 +94,7 @@ public sealed class MarketInstallDialogViewModelTests
             SelectedMarketMod = mod
         };
         SetCatalog(main, new GameCatalog { Mods = [dependency, mod] });
-        main.Instances.Add(new InstanceItemViewModel(
+        main.Instances.Instances.Add(new InstanceItemViewModel(
             new InstanceRecord
             {
                 Id = "practice",

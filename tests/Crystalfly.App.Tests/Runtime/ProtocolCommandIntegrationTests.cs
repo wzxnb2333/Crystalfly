@@ -13,7 +13,7 @@ public sealed class ProtocolCommandIntegrationTests
     {
         var root = Path.Combine(Path.GetTempPath(), "Crystalfly.Tests", Guid.NewGuid().ToString("N"));
         await using var viewModel = new MainViewModel(root);
-        viewModel.Instances.Add(new InstanceItemViewModel(
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(
             new InstanceRecord
             {
                 Id = "practice",
@@ -54,8 +54,8 @@ public sealed class ProtocolCommandIntegrationTests
         await using var viewModel = new MainViewModel(root);
         var first = Instance(root, "practice", "Practice");
         var second = Instance(root, "race", "Race");
-        viewModel.Instances.Add(first);
-        viewModel.Instances.Add(second);
+        viewModel.Instances.Instances.Add(first);
+        viewModel.Instances.Instances.Add(second);
         viewModel.SelectedInstance = first;
 
         ProtocolCommand prepared = viewModel.PrepareProtocolCommand(ProtocolCommandParser.Parse(
@@ -179,8 +179,8 @@ public sealed class ProtocolCommandIntegrationTests
             "1.5.78.11833",
             "Vanilla",
             0);
-        viewModel.Instances.Add(item);
-        viewModel.VisibleInstances.Add(item);
+        viewModel.Instances.Instances.Add(item);
+        viewModel.Instances.VisibleInstances.Add(item);
         viewModel.SelectedInstance = item;
         viewModel.VersionRoot = Path.Combine(root, "versions");
         viewModel.InstalledMods.Add(new InstalledModItemViewModel(
@@ -208,8 +208,8 @@ public sealed class ProtocolCommandIntegrationTests
             "crystalfly://app/reset-settings"));
 
         Assert.Null(viewModel.SelectedInstance);
-        Assert.Empty(viewModel.Instances);
-        Assert.Empty(viewModel.VisibleInstances);
+        Assert.Empty(viewModel.Instances.Instances);
+        Assert.Empty(viewModel.Instances.VisibleInstances);
         Assert.Empty(viewModel.InstalledMods);
         Assert.Empty(viewModel.Snapshots);
         Assert.Equal(string.Empty, viewModel.VersionRoot);

@@ -308,14 +308,14 @@ public sealed class DocumentationScreenshotTests
             InstanceCount = 1,
             ScanStatus = viewModel.Loc["ScanReady"]
         };
-        viewModel.GameDirectories.Add(gameDirectory);
-        viewModel.SelectedGameDirectory = gameDirectory;
-        viewModel.Instances.Add(instance);
-        viewModel.Instances.Add(speedrunInstance);
-        viewModel.VisibleInstances.Add(instance);
-        viewModel.VisibleInstances.Add(speedrunInstance);
+        viewModel.Instances.GameDirectories.Add(gameDirectory);
+        viewModel.Instances.SelectedGameDirectory = gameDirectory;
+        viewModel.Instances.Instances.Add(instance);
+        viewModel.Instances.Instances.Add(speedrunInstance);
+        viewModel.Instances.VisibleInstances.Add(instance);
+        viewModel.Instances.VisibleInstances.Add(speedrunInstance);
         viewModel.SpeedrunTemplates.Add(speedrunTemplate);
-        viewModel.SpeedrunInstances.Add(speedrunInstance);
+        viewModel.Instances.SpeedrunInstances.Add(speedrunInstance);
         InvokeRebuildMarketCatalog(viewModel);
         viewModel.DownloadBuilds.Add(new("1.5.78.11833", "Hollow Knight 1.5.78.11833", 9207084990026249690));
         viewModel.VisibleDownloadBuilds.Add(viewModel.DownloadBuilds[0]);
@@ -638,7 +638,7 @@ public sealed class DocumentationScreenshotTests
 
             if (state == ScreenshotState.Speedrun)
             {
-                ViewModel.SelectedSpeedrunInstance = ViewModel.SpeedrunInstances.Single();
+                ViewModel.SelectedSpeedrunInstance = ViewModel.Instances.SpeedrunInstances.Single();
                 for (var attempt = 0; attempt < 100 && ViewModel.IsLoadingInstanceDetails; attempt++)
                 {
                     await Task.Delay(10);

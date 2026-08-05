@@ -155,7 +155,7 @@ public sealed class BackgroundAppearanceViewModelTests : IDisposable
         await viewModel.RefreshBackgroundAppearanceAsync();
 
         viewModel.BackgroundOpacityPercent = 55;
-        viewModel.SelectedInstance = viewModel.Instances.Single(instance => instance.Id == second.Id);
+        viewModel.SelectedInstance = viewModel.Instances.Instances.Single(instance => instance.Id == second.Id);
         await Task.Delay(700);
 
         var firstSettings = await InstanceAppearanceSettingsStore.LoadAsync(InstanceAppearancePath(versionRoot, first.Id));

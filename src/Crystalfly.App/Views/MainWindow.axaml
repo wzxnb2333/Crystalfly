@@ -384,8 +384,8 @@
                             </StackPanel>
                             <ListBox Grid.Row="1"
                                      Classes="cfp-game-directory-list"
-                                     ItemsSource="{Binding GameDirectories}"
-                                     SelectedItem="{Binding SelectedGameDirectory, Mode=TwoWay}"
+                                     ItemsSource="{Binding Instances.GameDirectories}"
+                                     SelectedItem="{Binding Instances.SelectedGameDirectory, Mode=TwoWay}"
                                      Background="Transparent">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:GameDirectoryItemViewModel">
@@ -411,8 +411,8 @@
                                 <Button Classes="cfp-secondary" Click="AddCustomGameDirectory" HorizontalAlignment="Stretch">
                                     <StackPanel Orientation="Horizontal" Spacing="6"><LucideIcon Kind="FolderPlus" Size="15" /><TextBlock Text="{Binding Loc[AddGameDirectory]}" /></StackPanel>
                                 </Button>
-                                <Button Grid.Column="1" Classes="cfp-icon" Command="{Binding RefreshGameDirectoriesCommand}" ToolTip.Tip="{Binding Loc[RefreshGameDirectories]}" AutomationProperties.Name="{Binding Loc[RefreshGameDirectories]}" Content="{LucideIconContent RefreshCw, 15}" />
-                                <Button Grid.Column="2" Classes="cfp-icon" Command="{Binding RemoveSelectedGameDirectoryCommand}" ToolTip.Tip="{Binding Loc[RemoveGameDirectory]}" AutomationProperties.Name="{Binding Loc[RemoveGameDirectory]}" Content="{LucideIconContent Trash2, 15}" />
+                                <Button Grid.Column="1" Classes="cfp-icon" Command="{Binding Instances.RefreshGameDirectoriesCommand}" ToolTip.Tip="{Binding Loc[RefreshGameDirectories]}" AutomationProperties.Name="{Binding Loc[RefreshGameDirectories]}" Content="{LucideIconContent RefreshCw, 15}" />
+                                <Button Grid.Column="2" Classes="cfp-icon" Command="{Binding Instances.RemoveSelectedGameDirectoryCommand}" ToolTip.Tip="{Binding Loc[RemoveGameDirectory]}" AutomationProperties.Name="{Binding Loc[RemoveGameDirectory]}" Content="{LucideIconContent Trash2, 15}" />
                             </Grid>
                         </Grid>
                     </Border>
@@ -423,14 +423,14 @@
                                 <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SelectInstance]}" />
                                 <TextBlock Classes="cfp-meta" Text="{Binding Loc[InstancesHint]}" TextWrapping="Wrap" />
                             </StackPanel>
-                            <TextBox Classes="cfp-input" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="{Binding Loc[SearchInstances]}" AutomationProperties.Name="{Binding Loc[SearchInstances]}" IsVisible="{Binding GameDirectories.Count, Converter={x:Static converters:ObjectConverters.NotEqual}, ConverterParameter={StaticResource Zero}}" />
-                            <Border Classes="cfp-list-frame" IsVisible="{Binding GameDirectories.Count, Converter={x:Static converters:ObjectConverters.NotEqual}, ConverterParameter={StaticResource Zero}}">
+                            <TextBox Classes="cfp-input" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="{Binding Loc[SearchInstances]}" AutomationProperties.Name="{Binding Loc[SearchInstances]}" IsVisible="{Binding Instances.GameDirectories.Count, Converter={x:Static converters:ObjectConverters.NotEqual}, ConverterParameter={StaticResource Zero}}" />
+                            <Border Classes="cfp-list-frame" IsVisible="{Binding Instances.GameDirectories.Count, Converter={x:Static converters:ObjectConverters.NotEqual}, ConverterParameter={StaticResource Zero}}">
                                 <Grid>
-                                    <ListBox Classes="cfp-list cfp-instance-list" ItemsSource="{Binding VisibleInstances}" SelectedItem="{Binding SelectedInstance, Mode=TwoWay}">
+                                    <ListBox Classes="cfp-list cfp-instance-list" ItemsSource="{Binding Instances.VisibleInstances}" SelectedItem="{Binding SelectedInstance, Mode=TwoWay}">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate x:DataType="vm:InstanceItemViewModel">
                                                 <Grid Classes="cfp-instance-row" ColumnDefinitions="*,Auto" ColumnSpacing="8" HorizontalAlignment="Stretch">
-                                                    <Button Grid.ColumnSpan="2" Classes="cfp-instance-main" Command="{Binding #Root.DataContext.SelectInstanceForLaunchCommand}" CommandParameter="{Binding}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                                                    <Button Grid.ColumnSpan="2" Classes="cfp-instance-main" Command="{Binding #Root.DataContext.Instances.SelectInstanceForLaunchCommand}" CommandParameter="{Binding}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
                                                     <Grid Grid.Column="0" Classes="cfp-instance-summary" ColumnDefinitions="44,*" ColumnSpacing="12" HorizontalAlignment="Left" IsHitTestVisible="False">
                                                         <Border Width="40" Height="40" CornerRadius="6" Background="{DynamicResource CfSurfaceHoverBrush}">
                                                             <LucideIcon Kind="Box" Size="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -449,7 +449,7 @@
                                                         </StackPanel>
                                                     </Grid>
                                                     <StackPanel Grid.Column="1" Classes="cfp-instance-actions" Orientation="Horizontal" Spacing="2" Width="126" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                        <Button Classes="cfp-instance-action" Classes.active="{Binding IsFavorite}" Command="{Binding #Root.DataContext.ToggleFavoriteInstanceCommand}" CommandParameter="{Binding}" ToolTip.Tip="{Binding #Root.DataContext.Loc[FavoriteInstance]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[FavoriteInstance]}" Content="{LucideIconContent Star, 15}" />
+                                                        <Button Classes="cfp-instance-action" Classes.active="{Binding IsFavorite}" Command="{Binding #Root.DataContext.Instances.ToggleFavoriteInstanceCommand}" CommandParameter="{Binding}" ToolTip.Tip="{Binding #Root.DataContext.Loc[FavoriteInstance]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[FavoriteInstance]}" Content="{LucideIconContent Star, 15}" />
                                                         <Button Classes="cfp-instance-action" Click="ConfirmDeleteInstance" ToolTip.Tip="{Binding #Root.DataContext.Loc[DeleteInstance]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[DeleteInstance]}" Content="{LucideIconContent Trash2, 15}" />
                                                         <Button Classes="cfp-instance-action" Click="CloneInstanceWithName" ToolTip.Tip="{Binding #Root.DataContext.Loc[CloneInstance]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[CloneInstance]}" Content="{LucideIconContent Copy, 15}" />
                                                         <Button Classes="cfp-instance-action" Command="{Binding #Root.DataContext.OpenInstanceSettingsCommand}" CommandParameter="{Binding}" ToolTip.Tip="{Binding #Root.DataContext.Loc[ManageInstance]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[ManageInstance]}" Content="{LucideIconContent Settings, 15}" />
@@ -458,18 +458,18 @@
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
-                                    <StackPanel MinHeight="120" Margin="24" Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding VisibleInstances.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}">
+                                    <StackPanel MinHeight="120" Margin="24" Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding Instances.VisibleInstances.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}">
                                         <TextBlock Classes="cfp-meta" Text="{Binding Loc[NoInstancesAction]}" TextAlignment="Center" TextWrapping="Wrap" />
                                         <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                            <Button Classes="cfp-secondary" Command="{Binding RefreshGameDirectoriesCommand}" Content="{Binding Loc[RefreshGameDirectories]}" />
+                                            <Button Classes="cfp-secondary" Command="{Binding Instances.RefreshGameDirectoriesCommand}" Content="{Binding Loc[RefreshGameDirectories]}" />
                                             <Button Classes="cfp-secondary" Click="AddCustomGameDirectory" Content="{Binding Loc[AddGameDirectory]}" />
                                         </StackPanel>
                                     </StackPanel>
                                 </Grid>
                             </Border>
-                            <StackPanel Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding GameDirectories.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}">
+                            <StackPanel Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding Instances.GameDirectories.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}">
                                 <TextBlock Classes="cfp-meta" Text="{Binding Loc[NoGameDirectories]}" TextWrapping="Wrap" TextAlignment="Center" />
-                                <Button Classes="cfp-accent" Command="{Binding RequestGameDirectoryDiscoveryCommand}" Content="{Binding Loc[ScanGameDirectories]}" />
+                                <Button Classes="cfp-accent" Command="{Binding Instances.RequestGameDirectoryDiscoveryCommand}" Content="{Binding Loc[ScanGameDirectories]}" />
                             </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
@@ -1485,7 +1485,7 @@
                             </Grid>
                             <TextBlock Grid.Row="1" Classes="cfp-meta" Text="{Binding Loc[SpeedrunInstancesHint]}" TextWrapping="Wrap" />
                             <ListBox Grid.Row="2"
-                                     ItemsSource="{Binding SpeedrunInstances}"
+                                     ItemsSource="{Binding Instances.SpeedrunInstances}"
                                      SelectedItem="{Binding SelectedSpeedrunInstance, Mode=TwoWay}"
                                      Classes="cfp-list"
                                      AutomationProperties.Name="{Binding Loc[SpeedrunInstances]}">
