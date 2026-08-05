@@ -51,7 +51,7 @@ public partial class MainWindow : Window
     private readonly Dictionary<Control, MicroMotion> microInteractionTransforms = [];
     private long entranceAnimationGeneration;
     private DispatcherTimer? knightWalkTimer;
-    private DispatcherTimer? entranceAnimationTimer;
+    private bool entranceAnimationFrameScheduled;
     private int knightWalkFrame;
     private Task? disposeBeforeCloseTask;
     private Task? closeConfirmationTask;
@@ -512,7 +512,7 @@ public partial class MainWindow : Window
     {
         activeEntranceAnimations.Clear();
         completedEntranceAnimations.Clear();
-        entranceAnimationTimer?.Stop();
+        entranceAnimationFrameScheduled = false;
         foreach (var cancellation in entranceAnimationCancellations.Values)
         {
             cancellation.Cancel();
@@ -719,17 +719,18 @@ public partial class MainWindow : Window
 
     private void EnsureEntranceAnimationTimer()
     {
-        entranceAnimationTimer ??= new DispatcherTimer
+        if (entranceAnimationFrameScheduled)
         {
-            Interval = TimeSpan.FromMilliseconds(16)
-        };
-        entranceAnimationTimer.Tick -= OnEntranceAnimationTick;
-        entranceAnimationTimer.Tick += OnEntranceAnimationTick;
-        entranceAnimationTimer.Start();
+            return;
+        }
+
+        entranceAnimationFrameScheduled = true;
+        RequestAnimationFrame(OnEntranceAnimationFrame);
     }
 
-    private void OnEntranceAnimationTick(object? sender, EventArgs eventArgs)
+    private void OnEntranceAnimationFrame(TimeSpan _)
     {
+        entranceAnimationFrameScheduled = false;
         if (!IsMotionEnabled())
         {
             CancelEntranceAnimations();
@@ -795,8 +796,11 @@ public partial class MainWindow : Window
 
         if (activeEntranceAnimations.Count == 0)
         {
-            entranceAnimationTimer?.Stop();
+            return;
         }
+
+        entranceAnimationFrameScheduled = true;
+        RequestAnimationFrame(OnEntranceAnimationFrame);
     }
 
     private static double CalculatePageEntranceOffset(TimeSpan elapsed, CubicEaseOut fluentEasing)
@@ -883,12 +887,7 @@ public partial class MainWindow : Window
         RestoreMicroInteractionTransforms();
         entranceAnimationTargets.Clear();
         entranceAnimationGenerations.Clear();
-        if (entranceAnimationTimer is not null)
-        {
-            entranceAnimationTimer.Stop();
-            entranceAnimationTimer.Tick -= OnEntranceAnimationTick;
-            entranceAnimationTimer = null;
-        }
+        entranceAnimationFrameScheduled = false;
         activeEntranceAnimations.Clear();
         completedEntranceAnimations.Clear();
         entranceAnimationTransforms.Clear();

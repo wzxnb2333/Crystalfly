@@ -109,8 +109,8 @@ public sealed class MainWindowStructureTests
         Assert.DoesNotContain("animation.Motion.Scale", code, StringComparison.Ordinal);
         Assert.DoesNotContain("PageEntranceScale", code, StringComparison.Ordinal);
         Assert.Contains("activeEntranceAnimations", code, StringComparison.Ordinal);
-        Assert.Contains("OnEntranceAnimationTick", code, StringComparison.Ordinal);
-        Assert.Contains("Interval = TimeSpan.FromMilliseconds(16)", code, StringComparison.Ordinal);
+        Assert.Contains("OnEntranceAnimationFrame", code, StringComparison.Ordinal);
+        Assert.Contains("RequestAnimationFrame(OnEntranceAnimationFrame)", code, StringComparison.Ordinal);
         Assert.Contains("IsEntranceAnimationTarget", code, StringComparison.Ordinal);
         Assert.Contains("ConfigureMicroInteractionTransitions", code, StringComparison.Ordinal);
         Assert.Contains("TimeSpan.FromMilliseconds(80)", code, StringComparison.Ordinal);
