@@ -716,6 +716,65 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Initialize_restores_queue_and_starts_catalog_load_while_version_scan_is_blocked()
+    {
+        using var test = new TestDirectory();
+        var applicationDataRoot = test.CreateDirectory("app-data");
+        var versionRoot = test.CreateDirectory("versions");
+        await AtomicJsonStore.WriteAsync(
+            Path.Combine(applicationDataRoot, "download-queue.json"),
+            new[] { QueueGroup("restored", DownloadQueueGroupState.Completed) });
+        await CrystalflySettingsStore.SaveAsync(
+            Path.Combine(applicationDataRoot, "settings.json"),
+            new CrystalflySettings { VersionRoot = versionRoot });
+        var catalogStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var discoveryStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseDiscovery = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var viewModel = new MainViewModel(applicationDataRoot);
+        SetPrivateField(
+            viewModel,
+            "catalogLoader",
+            new Func<CancellationToken, Task<GameCatalog>>(cancellationToken =>
+            {
+                catalogStarted.TrySetResult();
+                return Task.FromResult(new GameCatalog());
+            }));
+        SetPrivateField(viewModel, "steamReconnect", new Func<Task>(() => Task.CompletedTask));
+        SetPrivateField(
+            viewModel,
+            "instanceDiscovery",
+            new Func<string, GameCatalog, CancellationToken, Task<IReadOnlyList<InstanceRecord>>>(
+                async (_, _, cancellationToken) =>
+                {
+                    discoveryStarted.TrySetResult();
+                    await releaseDiscovery.Task.WaitAsync(cancellationToken);
+                    return [];
+                }));
+
+        var initialization = viewModel.InitializeAsync();
+        try
+        {
+            await discoveryStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            // The download queue restore and the catalog load start before the
+            // instance scan, so both finish while the scan is still blocked.
+            Assert.True(catalogStarted.Task.IsCompleted);
+            await WaitUntilAsync(() => viewModel.DownloadCenter.DownloadQueue.Groups.Count == 1);
+            Assert.Equal("restored", viewModel.DownloadCenter.DownloadQueue.Groups[0].Id);
+            Assert.False(initialization.IsCompleted);
+        }
+        finally
+        {
+            releaseDiscovery.TrySetResult();
+        }
+
+        await initialization.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("restored", viewModel.DownloadCenter.DownloadQueue.Groups[0].Id);
+    }
+
+    [Fact]
     public async Task Offline_mode_change_is_persisted_without_clearing_other_settings()
     {
         using var test = new TestDirectory();
