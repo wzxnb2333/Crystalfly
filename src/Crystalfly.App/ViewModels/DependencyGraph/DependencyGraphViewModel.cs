@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace Crystalfly.App.ViewModels.DependencyGraph;
 
 public sealed record DependencyGraphDependencies(
@@ -10,6 +12,7 @@ public sealed record DependencyGraphDependencies(
 public sealed partial class DependencyGraphViewModel : ViewModelBase
 {
     private readonly DependencyGraphDependencies dependencies;
+    private string? rebuildSignature;
 
     public DependencyGraphViewModel(DependencyGraphDependencies dependencies)
     {
@@ -51,6 +54,7 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
             ?? mods.FirstOrDefault()?.Id;
         var definitions = new Dictionary<string, DependencyGraphNodeDefinition>(StringComparer.OrdinalIgnoreCase);
         var edges = new List<DependencyGraphEdgeDefinition>();
+        var signature = new StringBuilder();
         foreach (var mod in mods)
         {
             var state = mod.IsExternal
@@ -69,6 +73,15 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
                     : mod.HasHealthIssue
                         ? mod.HealthDisplayName
                         : mod.OwnershipDisplayName;
+            var toggleActionLabel = mod.IsEnabled ? Loc["Disable"] : Loc["Enable"];
+            AppendSignature(signature, mod.Id);
+            AppendSignature(signature, mod.PrimaryName);
+            AppendSignature(signature, mod.SecondaryName);
+            AppendSignature(signature, status);
+            AppendSignature(signature, state.ToString());
+            AppendSignature(signature, mod.CanToggle.ToString());
+            AppendSignature(signature, toggleActionLabel);
+            AppendSignature(signature, mod.CanUninstall.ToString());
             definitions[mod.Id] = new(
                 mod.Id,
                 mod.PrimaryName,
@@ -76,27 +89,46 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
                 status,
                 state,
                 CanToggle: mod.CanToggle,
-                ToggleActionLabel: mod.IsEnabled ? Loc["Disable"] : Loc["Enable"],
+                ToggleActionLabel: toggleActionLabel,
                 CanDelete: mod.CanUninstall);
         }
 
         foreach (var mod in mods.Where(mod => mod.Receipt is not null))
         {
-            foreach (var dependencyId in mod.Receipt!.Dependencies.Distinct(StringComparer.OrdinalIgnoreCase))
+            var dependencyIds = mod.Receipt!.Dependencies.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            foreach (var dependencyId in dependencyIds)
             {
                 if (!definitions.ContainsKey(dependencyId))
                 {
                     var display = dependencies.FindMarketMod(dependencyId);
+                    var primaryName = display?.PrimaryName ?? dependencyId;
+                    var secondaryName = display?.SecondaryName ?? string.Empty;
+                    var missingStatus = Loc["Missing"];
                     definitions[dependencyId] = new(
                         dependencyId,
-                        display?.PrimaryName ?? dependencyId,
-                        display?.SecondaryName ?? string.Empty,
-                        Loc["Missing"],
+                        primaryName,
+                        secondaryName,
+                        missingStatus,
                         DependencyGraphNodeState.Missing);
+                    AppendSignature(signature, dependencyId);
+                    AppendSignature(signature, primaryName);
+                    AppendSignature(signature, secondaryName);
+                    AppendSignature(signature, missingStatus);
+                    AppendSignature(signature, DependencyGraphNodeState.Missing.ToString());
                 }
                 edges.Add(new DependencyGraphEdgeDefinition(dependencyId, mod.Id));
+                AppendSignature(signature, dependencyId);
+                AppendSignature(signature, mod.Id);
             }
         }
+        AppendSignature(signature, targetSelectedId);
+        AppendSignature(signature, instanceId);
+
+        if (string.Equals(signature.ToString(), rebuildSignature, StringComparison.Ordinal))
+        {
+            return;
+        }
+        rebuildSignature = signature.ToString();
 
         var graph = DependencyGraphModel.Create(definitions.Values, edges, targetSelectedId);
         graph.NodeSelected = id =>
@@ -175,5 +207,10 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
         {
             dependencies.SetErrorMessage($"{Loc["OperationFailed"]}: {exception.Message}");
         }
+    }
+
+    private static void AppendSignature(StringBuilder builder, string? value)
+    {
+        builder.Append(value?.Length ?? 0).Append(':').Append(value).Append('');
     }
 }
