@@ -23,6 +23,15 @@
                     <SolidColorBrush x:Key="CfAccentSoftBrush" Color="#E2F1FF" />
                     <SolidColorBrush x:Key="CfAccentTextBrush" Color="#0F6CBD" />
                     <SolidColorBrush x:Key="CfOnAccentBrush" Color="#FFFFFF" />
+                    <!-- Semi control overrides: active track/thumb and checked state follow the accent -->
+                    <StaticResource x:Key="SliderTrackForeground" ResourceKey="CfAccentBrush" />
+                    <StaticResource x:Key="SliderThumbBorderBrush" ResourceKey="CfAccentBrush" />
+                    <StaticResource x:Key="SliderThumbPointeroverBorderBrush" ResourceKey="CfAccentHoverBrush" />
+                    <StaticResource x:Key="SliderThumbPressedBorderBrush" ResourceKey="CfAccentHoverBrush" />
+                    <StaticResource x:Key="ToggleSwitchContainerCheckedDefaultBackground" ResourceKey="CfAccentBrush" />
+                    <StaticResource x:Key="ToggleSwitchContainerCheckedPointeroverBackground" ResourceKey="CfAccentHoverBrush" />
+                    <StaticResource x:Key="ToggleSwitchContainerCheckedPressedBackground" ResourceKey="CfAccentHoverBrush" />
+                    <StaticResource x:Key="ToggleSwitchContainerCheckedDisabledBackground" ResourceKey="CfSurfaceSelectedBrush" />
                     <SolidColorBrush x:Key="CfPrimaryActionBrush" Color="#191C20" />
                     <SolidColorBrush x:Key="CfPrimaryActionHoverBrush" Color="#2B3036" />
                     <SolidColorBrush x:Key="CfOnPrimaryActionBrush" Color="#FFFFFF" />
@@ -53,6 +62,15 @@
                     <SolidColorBrush x:Key="CfAccentSoftBrush" Color="#183D5D" />
                     <SolidColorBrush x:Key="CfAccentTextBrush" Color="#83C3FB" />
                     <SolidColorBrush x:Key="CfOnAccentBrush" Color="#10202C" />
+                    <!-- Semi control overrides: active track/thumb and checked state follow the accent -->
+                    <StaticResource x:Key="SliderTrackForeground" ResourceKey="CfAccentBrush" />
+                    <StaticResource x:Key="SliderThumbBorderBrush" ResourceKey="CfAccentBrush" />
+                    <StaticResource x:Key="SliderThumbPointeroverBorderBrush" ResourceKey="CfAccentHoverBrush" />
+                    <StaticResource x:Key="SliderThumbPressedBorderBrush" ResourceKey="CfAccentHoverBrush" />
+                    <StaticResource x:Key="ToggleSwitchContainerCheckedDefaultBackground" ResourceKey="CfAccentBrush" />
+                    <StaticResource x:Key="ToggleSwitchContainerCheckedPointeroverBackground" ResourceKey="CfAccentHoverBrush" />
+                    <StaticResource x:Key="ToggleSwitchContainerCheckedPressedBackground" ResourceKey="CfAccentHoverBrush" />
+                    <StaticResource x:Key="ToggleSwitchContainerCheckedDisabledBackground" ResourceKey="CfSurfaceSelectedBrush" />
                     <SolidColorBrush x:Key="CfPrimaryActionBrush" Color="#F5F6F7" />
                     <SolidColorBrush x:Key="CfPrimaryActionHoverBrush" Color="#FFFFFF" />
                     <SolidColorBrush x:Key="CfOnPrimaryActionBrush" Color="#17191C" />
@@ -147,6 +165,11 @@
         <Setter Property="Padding" Value="12" />
     </Style>
 
+    <Style Selector="Border.cfp-accent-frame">
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
     <Style Selector="Window.background-active Border.cfp-topbar">
         <Setter Property="Background" Value="{DynamicResource CfChromeTranslucentBrush}" />
     </Style>
@@ -234,8 +257,8 @@
     </Style>
 
     <Style Selector="Border.cfp-speedrun-tab-indicator">
-        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="Background" Value="{DynamicResource CfAccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentHoverBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="BoxShadow" Value="0 2 8 0 #33000000" />
         <Setter Property="CornerRadius" Value="14" />
@@ -260,7 +283,7 @@
 
     <Style Selector="Button.cfp-speedrun-tab-segment.active">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfOnAccentBrush}" />
     </Style>
 
     <Style Selector="Border.cfp-speedrun-results">
@@ -577,17 +600,26 @@
     <Style Selector="ListBox.cfp-list > ListBoxItem:selected">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
+        <Setter Property="BorderThickness" Value="3,0,0,1" />
+        <Setter Property="Padding" Value="7,10,10,10" />
     </Style>
 
     <Style Selector="ListBox.cfp-list > ListBoxItem:pointerover">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfSurfaceSelectedHoverBrush}" />
+        <Setter Property="BorderThickness" Value="2,0,0,1" />
+        <Setter Property="Padding" Value="8,10,10,10" />
     </Style>
 
     <Style Selector="ListBox.cfp-list > ListBoxItem:selected:pointerover,
                      ListBox.cfp-list > ListBoxItem:selected:pressed">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedHoverBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentHoverBrush}" />
+        <Setter Property="BorderThickness" Value="3,0,0,1" />
+        <Setter Property="Padding" Value="7,10,10,10" />
     </Style>
 
     <Style Selector="ListBox.cfp-list > ListBoxItem:disabled">
@@ -612,6 +644,9 @@
                      ListBox.cfp-market-list > ListBoxItem:selected:pressed">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="2,2" />
     </Style>
 
     <Style Selector="Border.cfp-market-source">
@@ -643,9 +678,12 @@
         <Setter Property="MinHeight" Value="36" />
     </Style>
 
+    <Style Selector="ProgressBar">
+        <Setter Property="Foreground" Value="{DynamicResource CfAccentBrush}" />
+    </Style>
+
     <Style Selector="ProgressBar.cfp-progress">
         <Setter Property="Height" Value="3" />
-        <Setter Property="Foreground" Value="{DynamicResource CfAccentBrush}" />
     </Style>
 
     <Style Selector="Border.cfp-download-account">

@@ -814,7 +814,7 @@
                                     </Grid>
 
                                     <Grid Grid.Column="1">
-                                        <Border Classes="cfp-card" VerticalAlignment="Top" IsVisible="{Binding HasSelectedPreset}">
+                                        <Border Classes="cfp-card cfp-accent-frame" VerticalAlignment="Top" IsVisible="{Binding HasSelectedPreset}">
                                             <StackPanel Spacing="14">
                                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                                     <StackPanel Spacing="3">
@@ -1428,7 +1428,7 @@
                         <Border Grid.Row="3"
                                 Grid.Column="1"
                                 Grid.RowSpan="2"
-                                Classes="cfp-mod-detail-panel cfp-card"
+                                Classes="cfp-mod-detail-panel cfp-card cfp-accent-frame"
                                 Width="320"
                                 IsVisible="{Binding ModManagement.SelectedInstalledMod, Converter={x:Static converters:ObjectConverters.IsNotNull}}">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
