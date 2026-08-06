@@ -577,6 +577,33 @@ public sealed class DownloadQueueService : IAsyncDisposable
         }
     }
 
+    public async Task ClearCompletedAsync(CancellationToken cancellationToken = default)
+    {
+        var removed = false;
+        await mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            ThrowIfNotReady();
+            lock (sync)
+            {
+                removed = groups.RemoveAll(group =>
+                    group.State == DownloadQueueGroupState.Completed) > 0;
+            }
+            if (removed)
+            {
+                await PersistAsync(cancellationToken);
+            }
+        }
+        finally
+        {
+            mutationGate.Release();
+        }
+        if (removed)
+        {
+            NotifyChanged();
+        }
+    }
+
     public ValueTask DisposeAsync()
     {
         lock (disposeSync)

@@ -523,7 +523,7 @@ public sealed class ModMarketRenderingTests
 
             Assert.Empty(GetDialogs(context.Window));
             Assert.Null(context.ViewModel.ErrorMessage);
-            await context.ViewModel.DownloadQueue.WaitForIdleAsync();
+            await context.ViewModel.DownloadCenter.DownloadQueue.WaitForIdleAsync();
             Assert.True(File.Exists(context.InstalledModPath));
         }
         finally
@@ -570,9 +570,9 @@ public sealed class ModMarketRenderingTests
             File.Delete(InstanceSidecar.GetMarkerPath(context.InstanceRoot));
             releaseInstall.SetResult();
             await heldOperation;
-            await context.ViewModel.DownloadQueue.WaitForIdleAsync();
+            await context.ViewModel.DownloadCenter.DownloadQueue.WaitForIdleAsync();
 
-            var group = Assert.Single(context.ViewModel.DownloadQueue.Groups);
+            var group = Assert.Single(context.ViewModel.DownloadCenter.DownloadQueue.Groups);
             Assert.Equal(DownloadQueueGroupState.Failed, group.State);
             Assert.Equal(DownloadQueueItemState.Failed,
                 Assert.Single(group.Items, item => item.Kind == DownloadQueueItemKind.Loader).State);

@@ -957,6 +957,39 @@ public sealed class DownloadQueueServiceTests : IDisposable
         await Assert.ThrowsAsync<IOException>(() => queue.DisposeAsync().AsTask());
     }
 
+    [Fact]
+    public async Task ClearCompletedAsync_removes_completed_groups_and_persists()
+    {
+        var completedOne = Completed("done-one");
+        var completedTwo = Completed("done-two");
+        var active = Group("active", "feature");
+        await WriteStoredGroupsAsync([completedOne, completedTwo, active], CancellationToken.None);
+        var executor = new ControlledExecutor(blockTransfers: true);
+        await using var queue = CreateQueue(executor);
+
+        await queue.InitializeAsync();
+        await executor.WaitForStartedAsync(1);
+        await queue.ClearCompletedAsync();
+
+        var remaining = Assert.Single(queue.Groups);
+        Assert.Equal("active", remaining.Id);
+        Assert.NotEqual(DownloadQueueGroupState.Completed, remaining.State);
+        Assert.Equal("active", Assert.Single(await ReadStoredGroupsAsync()).Id);
+
+        await using var resumedQueue = CreateQueue(new ControlledExecutor(blockTransfers: true));
+        await resumedQueue.InitializeAsync();
+
+        Assert.Equal("active", Assert.Single(resumedQueue.Groups).Id);
+    }
+
+    private static DownloadQueueGroup Completed(string id)
+    {
+        var group = Group(id, id);
+        group.Items[0].State = DownloadQueueItemState.Completed;
+        group.Items[0].Stage = "Completed";
+        return group with { State = DownloadQueueGroupState.Completed, Stage = "Completed" };
+    }
+
     private DownloadQueueService CreateQueue(
         IDownloadQueueExecutor executor,
         Func<bool>? isGameRunning = null,

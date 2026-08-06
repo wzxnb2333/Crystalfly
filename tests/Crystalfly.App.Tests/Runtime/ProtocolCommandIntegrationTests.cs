@@ -90,7 +90,7 @@ public sealed class ProtocolCommandIntegrationTests
     {
         var root = Path.Combine(Path.GetTempPath(), "Crystalfly.Tests", Guid.NewGuid().ToString("N"));
         await using var viewModel = new MainViewModel(root);
-        viewModel.DownloadQueueGroups.Add(new DownloadQueueGroupItemViewModel(
+        viewModel.DownloadCenter.DownloadQueueGroups.Add(new DownloadQueueGroupItemViewModel(
             new DownloadQueueGroup
             {
                 Id = "pending",

@@ -1375,7 +1375,7 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Equal("steam:1.5.78.11833", item.PackageId);
         Assert.Equal("123456789", item.PackagePath);
         Assert.Equal("steam-depot", item.LoaderId);
-        Assert.Single(viewModel.DownloadQueueGroups);
+        Assert.Single(viewModel.DownloadCenter.DownloadQueueGroups);
         Assert.Equal(viewModel.Loc["QueueTaskAlreadyExists"], viewModel.DownloadStatus);
     }
 
@@ -2279,7 +2279,7 @@ public sealed class MainViewModelStateTests : IDisposable
 
         Assert.Null(viewModel.ErrorMessage);
         Assert.Equal(viewModel.Loc["AddedToDownloadQueue"], Assert.Single(notifications));
-        await viewModel.DownloadQueue.WaitForIdleAsync();
+        await viewModel.DownloadCenter.DownloadQueue.WaitForIdleAsync();
         Assert.True(File.Exists(Path.Combine(managedRoot, "MMHOOK_Assembly-CSharp.dll")));
         Assert.True(File.Exists(Path.Combine(managedRoot, "Mods", "Sample Mod", "mod.dll")));
     }
@@ -2641,7 +2641,7 @@ public sealed class MainViewModelStateTests : IDisposable
     {
         await using var viewModel = CreateViewModel();
         var refreshed = GetPrivateField<HashSet<string>>(
-            viewModel,
+            viewModel.DownloadCenter,
             "refreshedTerminalQueueGroups");
         refreshed.Add("retry-group");
 
@@ -2663,7 +2663,7 @@ public sealed class MainViewModelStateTests : IDisposable
     {
         await using var viewModel = CreateViewModel();
         var refreshed = GetPrivateField<HashSet<string>>(
-            viewModel,
+            viewModel.DownloadCenter,
             "refreshedTerminalQueueGroups");
 
         InvokeQueueDownloadQueueProjection(
@@ -3064,20 +3064,20 @@ public sealed class MainViewModelStateTests : IDisposable
         MainViewModel viewModel,
         params DownloadQueueGroup[] groups)
     {
-        var method = typeof(MainViewModel).GetMethod(
+        var method = typeof(DownloadCenterViewModel).GetMethod(
             "QueueDownloadQueueProjection",
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(method);
-        method.Invoke(viewModel, [groups]);
+        method.Invoke(viewModel.DownloadCenter, [groups]);
     }
 
     private static void InvokeApplyPendingDownloadQueueProjection(MainViewModel viewModel)
     {
-        var method = typeof(MainViewModel).GetMethod(
+        var method = typeof(DownloadCenterViewModel).GetMethod(
             "ApplyPendingDownloadQueueProjection",
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(method);
-        method.Invoke(viewModel, null);
+        method.Invoke(viewModel.DownloadCenter, null);
     }
 
     private static DownloadQueueGroup QueueGroup(string id, DownloadQueueGroupState state) => new()
@@ -3193,11 +3193,11 @@ public sealed class MainViewModelStateTests : IDisposable
         field.SetValue(viewModel, inspection);
     }
 
-    private static T GetPrivateField<T>(MainViewModel viewModel, string name)
+    private static T GetPrivateField<T>(object target, string name)
     {
-        var field = typeof(MainViewModel).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
+        var field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(field);
-        return Assert.IsType<T>(field.GetValue(viewModel));
+        return Assert.IsType<T>(field.GetValue(target));
     }
 
     private static T GetPrivateAssignableField<T>(MainViewModel viewModel, string name)

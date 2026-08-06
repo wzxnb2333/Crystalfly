@@ -284,9 +284,9 @@ public partial class MainViewModel
                 NotifyToast(Loc["PresetNoChanges"]);
                 return;
             }
-            await downloadQueue.InitializeAsync(lifetimeCancellation.Token);
+            await DownloadCenter.DownloadQueue.InitializeAsync(lifetimeCancellation.Token);
             var group = ModPresetQueueGroupFactory.Create(plan, catalog, SelectedInstance.Record);
-            var result = await downloadQueue.EnqueueAsync(group, lifetimeCancellation.Token);
+            var result = await DownloadCenter.EnqueueAsync(group, lifetimeCancellation.Token);
             NotifyToast(result.Added
                 ? Loc["AddedToDownloadQueue"]
                 : Loc["QueueTaskAlreadyExists"]);

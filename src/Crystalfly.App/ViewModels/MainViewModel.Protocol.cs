@@ -80,10 +80,10 @@ public partial class MainViewModel
         {
             throw new KeyNotFoundException($"Mod '{command.ModId}' was not found in the active catalog.");
         }
-        await downloadQueue.InitializeAsync(lifetimeCancellation.Token);
+        await DownloadCenter.DownloadQueue.InitializeAsync(lifetimeCancellation.Token);
         var plan = await CreateModInstallService(instance.Record)
             .CreatePlanAsync(command.ModId!, lifetimeCancellation.Token);
-        var result = await downloadQueue.EnqueueAsync(
+        var result = await DownloadCenter.EnqueueAsync(
             ModInstallQueueGroupFactory.Create(plan, catalog, instance.Record),
             lifetimeCancellation.Token);
         NotifyToast(result.Added

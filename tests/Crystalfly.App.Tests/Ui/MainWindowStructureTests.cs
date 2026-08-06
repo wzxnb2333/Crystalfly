@@ -372,6 +372,51 @@ public sealed class MainWindowStructureTests
     }
 
     [Fact]
+    public void Download_center_exposes_batch_toolbar_and_overview_bindings()
+    {
+        var document = LoadMainWindow();
+        var queueSection = FindDownloadQueueSection(document);
+
+        Assert.Contains(queueSection.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "DownloadCenter.RetryAllCommand")
+            && HasBinding(button, "IsEnabled", "DownloadCenter.CanRetryAll"));
+        Assert.Contains(queueSection.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "DownloadCenter.PauseAllCommand")
+            && HasBinding(button, "IsEnabled", "DownloadCenter.CanPauseAll"));
+        Assert.Contains(queueSection.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "DownloadCenter.ResumeAllCommand")
+            && HasBinding(button, "IsEnabled", "DownloadCenter.CanResumeAll"));
+        Assert.Contains(queueSection.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "DownloadCenter.ClearCompletedCommand")
+            && HasBinding(button, "IsEnabled", "DownloadCenter.CanClearCompleted"));
+        Assert.Contains(queueSection.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "DownloadCenter.ActiveCountText"));
+        Assert.Contains(queueSection.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "DownloadCenter.TotalSpeedText"));
+        Assert.Contains(queueSection.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "DownloadCenter.OverallEtaText"));
+    }
+
+    [Fact]
+    public void Download_queue_cards_expose_eta_duration_and_error_copy_bindings()
+    {
+        var document = LoadMainWindow();
+        var queueSection = FindDownloadQueueSection(document);
+
+        Assert.Contains(queueSection.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "EtaText"));
+        Assert.Contains(queueSection.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "DurationText")
+            && HasBinding(text, "IsVisible", "HasDuration"));
+        Assert.Contains(queueSection.Descendants(Avalonia + "TextBlock"), text =>
+            HasBinding(text, "Text", "ErrorCategoryText"));
+        Assert.Contains(queueSection.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Command", "CopyErrorCommand"));
+        Assert.Contains(queueSection.Descendants(Avalonia + "ItemsControl"), items =>
+            HasBinding(items, "ItemsSource", "DownloadCenter.DownloadQueueGroups"));
+    }
+
+    [Fact]
     public void Download_fab_and_github_latency_controls_match_layout_contract()
     {
         var document = LoadMainWindow();
@@ -614,6 +659,13 @@ public sealed class MainWindowStructureTests
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Crystalfly.slnx"))) directory = directory.Parent;
         return directory?.FullName ?? throw new DirectoryNotFoundException("Repository root was not found.");
     }
+
+    private static XElement FindDownloadQueueSection(XDocument document) =>
+        FindSectionRoot(document, "IsDownloadsPage").Descendants(Avalonia + "ScrollViewer")
+            .Single(scrollViewer =>
+                ((string?)scrollViewer.Attribute("IsVisible"))?.Contains(
+                    "IsDownloadQueueSection",
+                    StringComparison.Ordinal) == true);
 
     private static XElement FindSectionRoot(XDocument document, string visibilityProperty) => document.Descendants(Avalonia + "Grid").Single(element => ((string?)element.Attribute("IsVisible"))?.Contains(visibilityProperty, StringComparison.Ordinal) == true);
     private static bool HasClass(XElement element, string className) => ((string?)element.Attribute("Classes"))?.Split(' ', StringSplitOptions.RemoveEmptyEntries).Contains(className) == true;

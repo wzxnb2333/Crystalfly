@@ -58,7 +58,7 @@ public sealed class DownloadQueueRenderingTests
             ]
         });
         await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        for (var attempt = 0; attempt < 50 && !viewModel.HasUnfinishedDownloads; attempt++)
+        for (var attempt = 0; attempt < 50 && !viewModel.DownloadCenter.HasUnfinishedDownloads; attempt++)
         {
             Dispatcher.UIThread.RunJobs();
             await Task.Delay(10);
@@ -136,7 +136,7 @@ public sealed class DownloadQueueRenderingTests
         await WaitUntilAsync(() =>
         {
             Dispatcher.UIThread.RunJobs();
-            return viewModel.HasUnfinishedDownloads;
+            return viewModel.DownloadCenter.HasUnfinishedDownloads;
         });
 
         try
@@ -188,7 +188,7 @@ public sealed class DownloadQueueRenderingTests
         await WaitUntilAsync(() =>
         {
             Dispatcher.UIThread.RunJobs();
-            return viewModel.HasUnfinishedDownloads;
+            return viewModel.DownloadCenter.HasUnfinishedDownloads;
         });
 
         var started = false;
@@ -246,7 +246,7 @@ public sealed class DownloadQueueRenderingTests
         await WaitUntilAsync(() =>
         {
             Dispatcher.UIThread.RunJobs();
-            return viewModel.HasUnfinishedDownloads;
+            return viewModel.DownloadCenter.HasUnfinishedDownloads;
         });
 
         var started = false;
@@ -312,7 +312,7 @@ public sealed class DownloadQueueRenderingTests
         await WaitUntilAsync(() =>
         {
             Dispatcher.UIThread.RunJobs();
-            return viewModel.DownloadQueueGroups.SingleOrDefault()?.State
+            return viewModel.DownloadCenter.DownloadQueueGroups.SingleOrDefault()?.State
                 == DownloadQueueGroupState.Failed;
         });
 
@@ -383,7 +383,7 @@ public sealed class DownloadQueueRenderingTests
         var window = new MainWindow { Width = 900, Height = 600, DataContext = viewModel };
         window.Show();
         Dispatcher.UIThread.RunJobs();
-        viewModel.DownloadQueueGroups.Add(queueGroup);
+        viewModel.DownloadCenter.DownloadQueueGroups.Add(queueGroup);
         Dispatcher.UIThread.RunJobs();
 
         try
