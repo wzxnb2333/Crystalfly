@@ -19,6 +19,9 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
     private readonly CancellationToken lifetimeCancellation;
     private readonly object downloadQueueProjectionSync = new();
     private readonly HashSet<string> refreshedTerminalQueueGroups = new(StringComparer.Ordinal);
+    private readonly HashSet<string> sessionEnqueuedGroupIds = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, DownloadQueueGroupState> previousQueueStates =
+        new(StringComparer.Ordinal);
     private IReadOnlyList<DownloadQueueGroup>? pendingDownloadQueueSnapshot;
     private int downloadQueueProjectionScheduled;
     private int queueRefreshRequested;
@@ -93,7 +96,12 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(group);
-        return await downloadQueue.EnqueueAsync(group, cancellationToken);
+        var result = await downloadQueue.EnqueueAsync(group, cancellationToken);
+        if (result.Added)
+        {
+            sessionEnqueuedGroupIds.Add(group.Id);
+        }
+        return result;
     }
 
     internal void Dispose() => downloadQueue.QueueChanged -= OnDownloadQueueChanged;
@@ -156,6 +164,17 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
         var ordered = new List<DownloadQueueGroupItemViewModel>(snapshot.Count);
         foreach (var group in snapshot.OrderByDescending(group => group.CreatedAt))
         {
+            if (group.State == DownloadQueueGroupState.Completed
+                && sessionEnqueuedGroupIds.Contains(group.Id)
+                && previousQueueStates.TryGetValue(group.Id, out var previous)
+                && previous is DownloadQueueGroupState.Pending or DownloadQueueGroupState.Running)
+            {
+                toastRequested?.Invoke(string.Format(
+                    CultureInfo.CurrentCulture,
+                    loc["QueueCompletedFormat"],
+                    group.Name));
+            }
+            previousQueueStates[group.Id] = group.State;
             if (!existing.TryGetValue(group.Id, out var viewModel))
             {
                 viewModel = new DownloadQueueGroupItemViewModel(group, loc);

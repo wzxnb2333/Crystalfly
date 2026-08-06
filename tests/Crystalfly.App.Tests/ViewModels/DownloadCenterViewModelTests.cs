@@ -153,6 +153,38 @@ public sealed class DownloadCenterViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Session_enqueued_group_completion_raises_toast_but_restored_groups_are_silent()
+    {
+        var executor = new FakeQueueExecutor();
+        await using var queue = CreateQueue(executor);
+        var toasts = new List<string>();
+        var center = CreateCenter(queue, toasts);
+        await queue.InitializeAsync();
+
+        var sessionGroup = Group("session", "Session");
+        await center.EnqueueAsync(sessionGroup);
+        center.QueueDownloadQueueProjection([sessionGroup]);
+        center.ApplyPendingDownloadQueueProjection();
+        Assert.Empty(toasts);
+
+        center.QueueDownloadQueueProjection(
+            [sessionGroup with { State = DownloadQueueGroupState.Completed }]);
+        center.ApplyPendingDownloadQueueProjection();
+
+        Assert.Equal("Session finished downloading", Assert.Single(toasts));
+
+        var restored = Group("restored", "Restored");
+        center.QueueDownloadQueueProjection(
+            [restored with { State = DownloadQueueGroupState.Running }]);
+        center.ApplyPendingDownloadQueueProjection();
+        center.QueueDownloadQueueProjection(
+            [restored with { State = DownloadQueueGroupState.Completed }]);
+        center.ApplyPendingDownloadQueueProjection();
+
+        Assert.Single(toasts);
+    }
+
+    [Fact]
     public async Task Pause_all_and_resume_all_toggle_steam_groups()
     {
         var executor = new FakeQueueExecutor();
