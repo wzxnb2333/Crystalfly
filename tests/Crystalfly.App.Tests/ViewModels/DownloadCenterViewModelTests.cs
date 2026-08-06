@@ -79,6 +79,80 @@ public sealed class DownloadCenterViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Group_and_item_eta_text_use_remaining_bytes_and_hide_without_speed()
+    {
+        var localization = new LocalizationViewModel();
+        localization.Apply(UiLanguage.English);
+        var group = new DownloadQueueGroup
+        {
+            Id = "eta",
+            Name = "ETA",
+            State = DownloadQueueGroupState.Running,
+            Stage = "Downloading",
+            CompletedBytes = 250,
+            TotalBytes = 1000,
+            BytesPerSecond = 50,
+            Items =
+            [
+                new DownloadQueueItem
+                {
+                    Id = "eta-item",
+                    Name = "Item",
+                    State = DownloadQueueItemState.Transferring,
+                    Stage = "Downloading",
+                    CompletedBytes = 250,
+                    TotalBytes = 1000,
+                    BytesPerSecond = 50
+                }
+            ]
+        };
+        var viewModel = new DownloadQueueGroupItemViewModel(group, localization);
+
+        Assert.Equal("00:00:15", viewModel.EtaText);
+        Assert.Equal("00:00:15", viewModel.Items[0].EtaText);
+
+        viewModel.Update(group with
+        {
+            BytesPerSecond = 0,
+            Items = [group.Items[0] with { BytesPerSecond = 0 }]
+        }, localization);
+
+        Assert.Equal(string.Empty, viewModel.EtaText);
+        Assert.Equal(string.Empty, viewModel.Items[0].EtaText);
+    }
+
+    [Fact]
+    public async Task Overview_totals_sum_active_speed_eta_and_count()
+    {
+        var executor = new FakeQueueExecutor();
+        executor.Blocked.Add("active-a");
+        executor.Blocked.Add("active-b");
+        executor.ProgressFor = id => id switch
+        {
+            "active-a" => new PackageTransferProgress(0, 3000, 100, "Downloading"),
+            "active-b" => new PackageTransferProgress(500, 2000, 50, "Downloading"),
+            _ => new PackageTransferProgress(0, 0, 0, "Downloading")
+        };
+        await using var queue = CreateQueue(executor);
+        var center = CreateCenter(queue);
+        await queue.InitializeAsync();
+        await center.EnqueueAsync(Group("active-a", "Active A"));
+        await center.EnqueueAsync(Group("active-b", "Active B"));
+        await center.EnqueueAsync(Group("done", "Done"));
+        await WaitUntilAsync(() => queue.Groups.Count(group =>
+                group.State == DownloadQueueGroupState.Running) == 2
+            && queue.Groups.Single(group => group.Id == "done").State
+            == DownloadQueueGroupState.Completed);
+        await WaitUntilAsync(() => queue.Groups
+            .Where(group => group.Id != "done")
+            .Sum(group => group.BytesPerSecond) > 0);
+
+        Assert.Equal("150.0 B/s", center.TotalSpeedText);
+        Assert.Equal("00:00:30", center.OverallEtaText);
+        Assert.Equal("2 active downloads", center.ActiveCountText);
+    }
+
+    [Fact]
     public async Task Pause_all_and_resume_all_toggle_steam_groups()
     {
         var executor = new FakeQueueExecutor();
@@ -92,6 +166,7 @@ public sealed class DownloadCenterViewModelTests : IDisposable
         Assert.False(center.CanResumeAll);
 
         await center.PauseAllCommand.ExecuteAsync(null);
+        executor.Blocked.Remove("steam-one");
 
         var paused = Assert.Single(queue.Groups);
         Assert.Equal(DownloadQueueGroupState.Pending, paused.State);
@@ -106,8 +181,8 @@ public sealed class DownloadCenterViewModelTests : IDisposable
         Assert.False(center.CanResumeAll);
     }
 
-    private DownloadQueueService CreateQueue(IDownloadQueueExecutor executor) => new(
-        Path.Combine(root, "download-queue.json"),
+    private DownloadQueueService CreateQueue(IDownloadQueueExecutor executor, string? storeRoot = null) => new(
+        Path.Combine(storeRoot ?? root, "download-queue.json"),
         executor,
         static () => false,
         TimeSpan.FromMilliseconds(10));
@@ -185,7 +260,9 @@ public sealed class DownloadCenterViewModelTests : IDisposable
 
         public HashSet<string> Blocked { get; } = new(StringComparer.Ordinal);
 
-        public Func<string, int, Exception?>? TransferFailure { get; init; }
+        public Func<string, PackageTransferProgress>? ProgressFor { get; set; }
+
+        public Func<string, int, Exception?>? TransferFailure { get; set; }
 
         public bool RequiresGameExit(DownloadQueueItem item) => false;
 
@@ -202,7 +279,11 @@ public sealed class DownloadCenterViewModelTests : IDisposable
             await networkGate.WaitAsync(cancellationToken);
             try
             {
-                if (attempt == 1 && Blocked.Contains(group.Id))
+                if (ProgressFor?.Invoke(group.Id) is { } reported)
+                {
+                    progress.Report(reported);
+                }
+                if (Blocked.Contains(group.Id))
                 {
                     await release.Task.WaitAsync(cancellationToken);
                 }

@@ -48,6 +48,11 @@ public sealed class DownloadQueueGroupItemViewModel : ViewModelBase
 
     public bool HasError => !string.IsNullOrWhiteSpace(group.Error);
 
+    public string EtaText => QueueDisplayText.Eta(
+        group.BytesPerSecond,
+        group.CompletedBytes,
+        group.TotalBytes);
+
     public bool IsExpanded
     {
         get => isExpanded;
@@ -65,7 +70,8 @@ public sealed class DownloadQueueGroupItemViewModel : ViewModelBase
                  {
                      nameof(Name), nameof(TargetInstanceName), nameof(State), nameof(StateText),
                      nameof(StageText), nameof(Error), nameof(Progress), nameof(ProgressText),
-                     nameof(SpeedText), nameof(CanCancel), nameof(CanRetry), nameof(HasError)
+                     nameof(SpeedText), nameof(CanCancel), nameof(CanRetry), nameof(HasError),
+                     nameof(EtaText)
                  })
         {
             OnPropertyChanged(property);
@@ -125,6 +131,11 @@ public sealed class DownloadQueueItemViewModel : ViewModelBase
 
     public string SpeedText => QueueDisplayText.Speed(item.BytesPerSecond);
 
+    public string EtaText => QueueDisplayText.Eta(
+        item.BytesPerSecond,
+        item.CompletedBytes,
+        item.TotalBytes);
+
     public int RetryCount => item.RetryCount;
 
     public string RetryText => item.RetryCount > 0
@@ -143,7 +154,8 @@ public sealed class DownloadQueueItemViewModel : ViewModelBase
                  {
                      nameof(Name), nameof(Version), nameof(StateText), nameof(StageText),
                      nameof(Error), nameof(Progress), nameof(ProgressText), nameof(SpeedText),
-                     nameof(RetryCount), nameof(RetryText), nameof(HasRetries), nameof(HasError)
+                     nameof(EtaText), nameof(RetryCount), nameof(RetryText), nameof(HasRetries),
+                     nameof(HasError)
                  })
         {
             OnPropertyChanged(property);
@@ -190,6 +202,12 @@ internal static class QueueDisplayText
     public static string Speed(double bytesPerSecond) => bytesPerSecond > 0
         ? $"{FormatBytes(bytesPerSecond)}/s"
         : string.Empty;
+
+    public static string Eta(double bytesPerSecond, long completed, long total)
+        => bytesPerSecond > 0 && total > completed
+            ? TimeSpan.FromSeconds((total - completed) / bytesPerSecond)
+                .ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture)
+            : string.Empty;
 
     private static string FormatBytes(double bytes)
     {

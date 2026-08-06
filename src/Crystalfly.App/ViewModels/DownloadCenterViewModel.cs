@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using Crystalfly.App.Downloads;
@@ -62,7 +63,24 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
         ? $"{group.Name} · {group.StageText}"
         : string.Empty;
 
+    public string TotalSpeedText => QueueDisplayText.Speed(ActiveQueueGroups.Sum(group => group.BytesPerSecond));
+
+    public string OverallEtaText => QueueDisplayText.Eta(
+        ActiveQueueGroups.Sum(group => group.BytesPerSecond),
+        ActiveQueueGroups.Sum(group => group.CompletedBytes),
+        ActiveQueueGroups.Sum(group => group.TotalBytes));
+
+    public string ActiveCountText => string.Format(
+        CultureInfo.CurrentCulture,
+        loc["ActiveDownloads"],
+        ActiveQueueGroups.Count());
+
     internal DownloadQueueService DownloadQueue => downloadQueue;
+
+    private IEnumerable<DownloadQueueGroup> ActiveQueueGroups => downloadQueue.Groups.Where(group =>
+        group.State is DownloadQueueGroupState.Pending
+            or DownloadQueueGroupState.Running
+            or DownloadQueueGroupState.WaitingForNetwork);
 
     internal void ApplyLanguage(LocalizationViewModel localization)
     {
@@ -227,6 +245,9 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanResumeAll));
         OnPropertyChanged(nameof(CanCancelAll));
         OnPropertyChanged(nameof(CanClearCompleted));
+        OnPropertyChanged(nameof(TotalSpeedText));
+        OnPropertyChanged(nameof(OverallEtaText));
+        OnPropertyChanged(nameof(ActiveCountText));
     }
 
     public bool CanRetryAll => downloadQueue.Groups.Any(group =>
