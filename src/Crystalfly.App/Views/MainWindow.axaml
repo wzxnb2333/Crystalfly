@@ -25,7 +25,8 @@
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="-1"
         Icon="/Assets/crystalfly-icon.png"
-        Title="Crystalfly">
+        Title="Crystalfly"
+        Background="{DynamicResource CfWindowBrush}">
 
     <Window.Resources>
         <x:Int32 x:Key="Zero">0</x:Int32>
