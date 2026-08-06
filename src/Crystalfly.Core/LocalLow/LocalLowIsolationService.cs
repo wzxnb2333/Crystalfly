@@ -7,6 +7,7 @@ public sealed class LocalLowIsolationService
 {
     private const string JournalFileName = "journal.json";
     private const string TakeoverFileName = "takeover.json";
+    private const int MaxConcurrentBaselineInitializations = 4;
     private readonly string sharedPath;
     private readonly string storagePath;
     private readonly string localLowStatePath;
@@ -64,10 +65,24 @@ public sealed class LocalLowIsolationService
         }
 
         var takeover = await EnsureTakeoverAsync(cancellationToken);
-        foreach (string instanceId in ids)
+        // Baseline work is disk-bound (directory copy plus SHA-256 hashing), and every
+        // instance writes only to its own paths, so instances can be initialized in
+        // parallel. The bound keeps concurrent sequential read streams from thrashing
+        // the disk while still overlapping all instances when there are few of them.
+        using var gate = new SemaphoreSlim(MaxConcurrentBaselineInitializations);
+        var baselineTasks = ids.Select(async instanceId =>
         {
-            await EnsureInstanceBaselineAsync(instanceId, takeover, cancellationToken);
-        }
+            await gate.WaitAsync(cancellationToken);
+            try
+            {
+                await EnsureInstanceBaselineAsync(instanceId, takeover, cancellationToken);
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }).ToArray();
+        await Task.WhenAll(baselineTasks);
     }
 
     public async Task<LocalLowSessionJournal> SwitchInAsync(

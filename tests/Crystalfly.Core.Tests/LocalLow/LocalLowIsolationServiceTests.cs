@@ -247,6 +247,101 @@ public sealed class LocalLowIsolationServiceTests
             Path.Combine(journal.SharedPreservedPath, "user1.dat")));
     }
 
+    [Fact]
+    public async Task Initializing_many_instances_copies_baselines_concurrently()
+    {
+        using var test = new TestDirectory();
+        var shared = test.CreateDirectory("local-low", "Hollow Knight");
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        var payload = new byte[1024 * 1024];
+        Array.Fill(payload, (byte)0x5A);
+        for (var index = 0; index < 16; index++)
+        {
+            await test.WriteBytesAsync(shared, $"save-{index}.dat", payload);
+        }
+        var service = new LocalLowIsolationService(shared, storage);
+        string[] ids = ["practice-1221", "practice-1222", "race-1578", "race-1579", "steel-soul", "godhome"];
+
+        var initialization = service.InitializeBaselinesAsync(ids);
+        await AssertConcurrentStagingsAsync(service, ids);
+        await initialization;
+
+        foreach (var instanceId in ids)
+        {
+            var instance = service.GetInstanceLocalLowPath(instanceId);
+            Assert.Equal(16, Directory.GetFiles(instance).Length);
+            Assert.Equal(payload, await File.ReadAllBytesAsync(Path.Combine(instance, "save-0.dat")));
+        }
+    }
+
+    [Fact]
+    public async Task Baseline_failure_in_one_instance_does_not_interrupt_the_others()
+    {
+        using var test = new TestDirectory();
+        var shared = test.CreateDirectory("local-low", "Hollow Knight");
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        await test.WriteAsync(shared, "user1.dat", "shared-save");
+        var service = new LocalLowIsolationService(shared, storage);
+        string[] ids = ["failing", "ok-a", "ok-b"];
+        var failingStaging = service.GetInstanceLocalLowPath(ids[0]) + ".baseline-staging";
+        Directory.CreateDirectory(Path.GetDirectoryName(failingStaging)!);
+        await File.WriteAllTextAsync(failingStaging, "not-a-directory");
+
+        await Assert.ThrowsAsync<IOException>(() => service.InitializeBaselinesAsync(ids));
+
+        Assert.False(Directory.Exists(service.GetInstanceLocalLowPath(ids[0])));
+        foreach (var instanceId in ids[1..])
+        {
+            var instance = service.GetInstanceLocalLowPath(instanceId);
+            Assert.Equal("shared-save", await File.ReadAllTextAsync(Path.Combine(instance, "user1.dat")));
+        }
+    }
+
+    [Fact]
+    public async Task Baseline_initialization_propagates_cancellation()
+    {
+        using var test = new TestDirectory();
+        var shared = test.CreateDirectory("local-low", "Hollow Knight");
+        var storage = test.CreateDirectory("version", ".crystalfly");
+        var payload = new byte[1024 * 1024];
+        Array.Fill(payload, (byte)0x5A);
+        for (var index = 0; index < 16; index++)
+        {
+            await test.WriteBytesAsync(shared, $"save-{index}.dat", payload);
+        }
+        var service = new LocalLowIsolationService(shared, storage);
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(5));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            service.InitializeBaselinesAsync(["practice-1221", "race-1578"], cancellationToken: cts.Token));
+    }
+
+    private static async Task AssertConcurrentStagingsAsync(
+        LocalLowIsolationService service,
+        IReadOnlyList<string> instanceIds)
+    {
+        string[] stagingPaths = instanceIds
+            .Select(service.GetInstanceLocalLowPath)
+            .Select(path => path + ".baseline-staging")
+            .ToArray();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        try
+        {
+            while (true)
+            {
+                if (stagingPaths.Count(Directory.Exists) >= 2)
+                {
+                    return;
+                }
+                await Task.Delay(TimeSpan.FromMilliseconds(1), timeout.Token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            Assert.Fail("Expected at least two instance baseline stagings to overlap, but none did.");
+        }
+    }
+
     private static void ThrowAt(LocalLowCheckpoint actual, LocalLowCheckpoint expected)
     {
         if (actual == expected)
@@ -290,6 +385,13 @@ public sealed class LocalLowIsolationServiceTests
             var path = pathAndContent[..^1].Aggregate(directory, Path.Combine);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             await File.WriteAllTextAsync(path, content);
+        }
+
+        public Task WriteBytesAsync(string directory, string relativePath, byte[] bytes)
+        {
+            var path = Path.Combine(directory, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            return File.WriteAllBytesAsync(path, bytes);
         }
 
         public void Dispose()
