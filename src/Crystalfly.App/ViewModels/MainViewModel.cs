@@ -2941,9 +2941,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private void ApplyLanguage(UiLanguage language)
     {
-        var localization = new LocalizationViewModel();
-        localization.Apply(language);
-        Loc = localization;
+        // Reuse the existing instance instead of swapping in a new one: bindings that read
+        // Loc[key] and view models that captured the instance keep working, and every
+        // computed string property can be refreshed against the new language.
+        var previousReadyText = Loc["StatusReady"];
+        Loc.Apply(language);
         OnPropertyChanged(nameof(Loc));
         OnPropertyChanged(nameof(SelectedModContentStatusText));
         OnPropertyChanged(nameof(IsProtocolRegistered));
@@ -2951,16 +2953,23 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         OnPropertyChanged(nameof(SelectedSpeedrunTechnicalStatus));
         RefreshApplicationUpdateText();
         NotifyOfficialCatalogLabels();
-        DownloadCenter.ApplyLanguage(localization);
+        DownloadCenter.ApplyLanguage(Loc);
         if (DownloadCenter.DownloadQueueGroups.Count > 0)
         {
             DownloadCenter.QueueDownloadQueueProjection(DownloadCenter.DownloadQueue.Groups);
         }
 
+        // StatusMessage is a computed snapshot; refresh it when it shows the ready text so a
+        // language switch does not leave the old language on the status bar.
+        if (string.Equals(StatusMessage, previousReadyText, StringComparison.Ordinal))
+        {
+            StatusMessage = Loc["StatusReady"];
+        }
+
         if (Application.Current is { } application)
         {
-            SemiTheme.OverrideLocaleResources(application, localization.Culture);
-            UrsaSemiTheme.OverrideLocaleResources(application, localization.Culture);
+            SemiTheme.OverrideLocaleResources(application, Loc.Culture);
+            UrsaSemiTheme.OverrideLocaleResources(application, Loc.Culture);
         }
     }
 
