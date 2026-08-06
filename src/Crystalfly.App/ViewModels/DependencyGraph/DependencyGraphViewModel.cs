@@ -146,6 +146,7 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
             NodeSelectedRequested?.Invoke(id);
         };
         Graph = graph;
+        OnPropertyChanged(nameof(Graph));
         SelectedNodeId = targetSelectedId;
         OnPropertyChanged(nameof(IsSelectedNodeExpanded));
         if (string.IsNullOrWhiteSpace(instanceId))
