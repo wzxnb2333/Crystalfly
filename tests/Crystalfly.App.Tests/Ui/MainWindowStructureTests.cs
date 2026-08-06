@@ -664,9 +664,9 @@ public sealed class MainWindowStructureTests
     }
 
     private static XElement FindDownloadQueueSection(XDocument document) =>
-        FindSectionRoot(document, "IsDownloadsPage").Descendants(Avalonia + "ScrollViewer")
-            .Single(scrollViewer =>
-                ((string?)scrollViewer.Attribute("IsVisible"))?.Contains(
+        FindSectionRoot(document, "IsDownloadsPage").Descendants()
+            .Single(element =>
+                ((string?)element.Attribute("IsVisible"))?.Contains(
                     "IsDownloadQueueSection",
                     StringComparison.Ordinal) == true);
 
