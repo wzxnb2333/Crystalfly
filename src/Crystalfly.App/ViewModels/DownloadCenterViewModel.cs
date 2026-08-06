@@ -20,8 +20,9 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
     private readonly object downloadQueueProjectionSync = new();
     private readonly HashSet<string> refreshedTerminalQueueGroups = new(StringComparer.Ordinal);
     private readonly HashSet<string> sessionEnqueuedGroupIds = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, DownloadQueueGroupState> previousQueueStates =
-        new(StringComparer.Ordinal);
+    private Dictionary<string, DownloadQueueGroup> lastAppliedGroups = new(StringComparer.Ordinal);
+    private int projectionEpoch;
+    private int lastAppliedProjectionEpoch;
     private IReadOnlyList<DownloadQueueGroup>? pendingDownloadQueueSnapshot;
     private int downloadQueueProjectionScheduled;
     private int queueRefreshRequested;
@@ -128,6 +129,12 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
     {
         ArgumentNullException.ThrowIfNull(localization);
         loc = localization;
+        lock (downloadQueueProjectionSync)
+        {
+            // Localized text is derived from the same group data, so a language
+            // change must force the projection to re-render existing groups.
+            projectionEpoch++;
+        }
     }
 
     internal async Task<DownloadQueueEnqueueResult> EnqueueAsync(
@@ -154,6 +161,10 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
         var scheduleRefresh = false;
         lock (downloadQueueProjectionSync)
         {
+            if (SnapshotMatchesLastApplied(groups))
+            {
+                return;
+            }
             foreach (var group in groups.Where(group => group.State is
                          DownloadQueueGroupState.Pending
                              or DownloadQueueGroupState.Running
@@ -188,64 +199,209 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
     internal void ApplyPendingDownloadQueueProjection()
     {
         IReadOnlyList<DownloadQueueGroup>? snapshot;
+        Dictionary<string, DownloadQueueGroup> lastApplied;
+        var forceReRender = false;
         lock (downloadQueueProjectionSync)
         {
             snapshot = pendingDownloadQueueSnapshot;
             pendingDownloadQueueSnapshot = null;
             downloadQueueProjectionScheduled = 0;
-        }
-        if (snapshot is null || lifetimeCancellation.IsCancellationRequested)
-        {
-            return;
+            if (snapshot is null || lifetimeCancellation.IsCancellationRequested)
+            {
+                return;
+            }
+            lastApplied = lastAppliedGroups;
+            // A projection epoch bump (language change) must re-render every
+            // group even when the underlying data is unchanged.
+            forceReRender = projectionEpoch != lastAppliedProjectionEpoch;
+            if (!forceReRender && GroupsMatchLastApplied(snapshot, lastApplied))
+            {
+                return;
+            }
         }
 
-        var existing = DownloadQueueGroups.ToDictionary(group => group.Id, StringComparer.Ordinal);
-        var ordered = new List<DownloadQueueGroupItemViewModel>(snapshot.Count);
-        foreach (var group in snapshot
-                     .OrderBy(group => StatePriority(group.State))
-                     .ThenByDescending(group => group.CreatedAt))
+        ApplyProjection(snapshot, lastApplied, forceReRender);
+
+        lock (downloadQueueProjectionSync)
+        {
+            lastAppliedGroups = BuildLastApplied(snapshot);
+            lastAppliedProjectionEpoch = projectionEpoch;
+        }
+        NotifyDownloadQueueProperties();
+    }
+
+    private void ApplyProjection(
+        IReadOnlyList<DownloadQueueGroup> snapshot,
+        Dictionary<string, DownloadQueueGroup> lastApplied,
+        bool forceReRender)
+    {
+        var snapshotIds = new HashSet<string>(snapshot.Count, StringComparer.Ordinal);
+        foreach (var group in snapshot)
+        {
+            snapshotIds.Add(group.Id);
+        }
+
+        var ordered = snapshot
+            .OrderBy(group => StatePriority(group.State))
+            .ThenByDescending(group => group.CreatedAt)
+            .ToArray();
+
+        var existing = new Dictionary<string, DownloadQueueGroupItemViewModel>(
+            DownloadQueueGroups.Count,
+            StringComparer.Ordinal);
+        foreach (var viewModel in DownloadQueueGroups)
+        {
+            existing[viewModel.Id] = viewModel;
+        }
+
+        foreach (var group in ordered)
         {
             if (group.State == DownloadQueueGroupState.Completed
                 && sessionEnqueuedGroupIds.Contains(group.Id)
-                && previousQueueStates.TryGetValue(group.Id, out var previous)
-                && previous is DownloadQueueGroupState.Pending or DownloadQueueGroupState.Running)
+                && lastApplied.TryGetValue(group.Id, out var previous)
+                && previous.State is DownloadQueueGroupState.Pending or DownloadQueueGroupState.Running)
             {
                 toastRequested?.Invoke(string.Format(
                     CultureInfo.CurrentCulture,
                     loc["QueueCompletedFormat"],
                     group.Name));
             }
-            previousQueueStates[group.Id] = group.State;
             if (!existing.TryGetValue(group.Id, out var viewModel))
             {
                 viewModel = new DownloadQueueGroupItemViewModel(group, loc);
+                existing[group.Id] = viewModel;
+                DownloadQueueGroups.Add(viewModel);
             }
-            else
+            else if (forceReRender
+                || !lastApplied.TryGetValue(group.Id, out var lastSeen)
+                || !ProjectedGroupsEqual(lastSeen, group))
             {
                 viewModel.Update(group, loc);
             }
-            ordered.Add(viewModel);
         }
+
         for (var index = DownloadQueueGroups.Count - 1; index >= 0; index--)
         {
-            if (ordered.All(group => group.Id != DownloadQueueGroups[index].Id))
+            if (!snapshotIds.Contains(DownloadQueueGroups[index].Id))
             {
                 DownloadQueueGroups.RemoveAt(index);
             }
         }
-        for (var index = 0; index < ordered.Count; index++)
+
+        var orderedViewModels = new List<DownloadQueueGroupItemViewModel>(ordered.Length);
+        foreach (var group in ordered)
         {
-            var current = DownloadQueueGroups.IndexOf(ordered[index]);
-            if (current < 0)
+            orderedViewModels.Add(existing[group.Id]);
+        }
+        var reorderNeeded = false;
+        for (var index = 0; index < orderedViewModels.Count; index++)
+        {
+            if (!ReferenceEquals(DownloadQueueGroups[index], orderedViewModels[index]))
             {
-                DownloadQueueGroups.Insert(index, ordered[index]);
+                reorderNeeded = true;
+                break;
             }
-            else if (current != index)
+        }
+        if (reorderNeeded)
+        {
+            for (var index = 0; index < orderedViewModels.Count; index++)
             {
+                if (ReferenceEquals(DownloadQueueGroups[index], orderedViewModels[index]))
+                {
+                    continue;
+                }
+                var current = DownloadQueueGroups.IndexOf(orderedViewModels[index]);
                 DownloadQueueGroups.Move(current, index);
             }
         }
-        NotifyDownloadQueueProperties();
+    }
+
+    private bool SnapshotMatchesLastApplied(IReadOnlyList<DownloadQueueGroup> snapshot) =>
+        projectionEpoch == lastAppliedProjectionEpoch
+        && GroupsMatchLastApplied(snapshot, lastAppliedGroups);
+
+    private static bool GroupsMatchLastApplied(
+        IReadOnlyList<DownloadQueueGroup> snapshot,
+        Dictionary<string, DownloadQueueGroup> lastApplied)
+    {
+        if (snapshot.Count != lastApplied.Count)
+        {
+            return false;
+        }
+        foreach (var group in snapshot)
+        {
+            if (!lastApplied.TryGetValue(group.Id, out var previous)
+                || !ProjectedGroupsEqual(previous, group))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static Dictionary<string, DownloadQueueGroup> BuildLastApplied(
+        IReadOnlyList<DownloadQueueGroup> snapshot)
+    {
+        var lastApplied = new Dictionary<string, DownloadQueueGroup>(snapshot.Count, StringComparer.Ordinal);
+        foreach (var group in snapshot)
+        {
+            lastApplied[group.Id] = group;
+        }
+        return lastApplied;
+    }
+
+    private static bool ProjectedGroupsEqual(DownloadQueueGroup first, DownloadQueueGroup second)
+    {
+        if (ReferenceEquals(first, second))
+        {
+            return true;
+        }
+        return first.Name == second.Name
+            && first.TargetInstanceName == second.TargetInstanceName
+            && first.State == second.State
+            && first.Stage == second.Stage
+            && first.Error == second.Error
+            && first.CompletedBytes == second.CompletedBytes
+            && first.TotalBytes == second.TotalBytes
+            && first.BytesPerSecond == second.BytesPerSecond
+            && first.CreatedAt == second.CreatedAt
+            && first.StartedAt == second.StartedAt
+            && first.CompletedAt == second.CompletedAt
+            && ProjectedItemsEqual(first.Items, second.Items);
+    }
+
+    private static bool ProjectedItemsEqual(
+        IReadOnlyList<DownloadQueueItem> first,
+        IReadOnlyList<DownloadQueueItem> second)
+    {
+        if (ReferenceEquals(first, second))
+        {
+            return true;
+        }
+        if (first.Count != second.Count)
+        {
+            return false;
+        }
+        for (var index = 0; index < first.Count; index++)
+        {
+            var firstItem = first[index];
+            var secondItem = second[index];
+            if (firstItem.Name != secondItem.Name
+                || firstItem.Version != secondItem.Version
+                || firstItem.State != secondItem.State
+                || firstItem.Stage != secondItem.Stage
+                || firstItem.Error != secondItem.Error
+                || firstItem.RetryCount != secondItem.RetryCount
+                || firstItem.CompletedBytes != secondItem.CompletedBytes
+                || firstItem.TotalBytes != secondItem.TotalBytes
+                || firstItem.BytesPerSecond != secondItem.BytesPerSecond
+                || firstItem.StartedAt != secondItem.StartedAt
+                || firstItem.CompletedAt != secondItem.CompletedAt)
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void ScheduleRefreshAfterQueueMutation()
