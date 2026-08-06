@@ -387,8 +387,27 @@ public partial class MainViewModel
         SelectedPresetModeOption = PresetModeOptions.First(option => option.Value == selected);
     }
 
+    // Re-renders the apply-plan step texts (Action/State) and the copy-name suffix
+    // after the application language switches.
+    private void RefreshPresetApplySteps()
+    {
+        if (lastPresetApplyPlan is not null)
+        {
+            ProjectPresetApplySteps(lastPresetApplyPlan);
+        }
+    }
+
+    private void RefreshPresetCopyName()
+    {
+        if (SelectedPreset is not null)
+        {
+            PresetCopyName = $"{SelectedPreset.Name} - {Loc["CopySuffix"]}";
+        }
+    }
+
     private void ProjectPresetApplySteps(PresetApplyPlan plan)
     {
+        lastPresetApplyPlan = plan;
         PresetApplySteps.Clear();
         foreach (var step in plan.Steps)
         {

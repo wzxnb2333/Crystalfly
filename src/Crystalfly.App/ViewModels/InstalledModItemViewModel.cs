@@ -86,9 +86,19 @@ public partial class InstalledModItemViewModel : ViewModelBase
 
     public MarketModItemViewModel? MarketDisplay { get; }
 
-    public string OwnershipDisplayName { get; }
+    public string OwnershipDisplayName { get; private set; }
 
-    public string HealthDisplayName { get; }
+    public string HealthDisplayName { get; private set; }
+
+    // Refreshes the localized ownership/health display names captured at projection time
+    // when the application language changes.
+    internal void UpdateLocalization(string ownershipDisplayName, string healthDisplayName)
+    {
+        OwnershipDisplayName = ownershipDisplayName;
+        HealthDisplayName = healthDisplayName;
+        OnPropertyChanged(nameof(OwnershipDisplayName));
+        OnPropertyChanged(nameof(HealthDisplayName));
+    }
 
     public string Id => Discovery.Id;
 

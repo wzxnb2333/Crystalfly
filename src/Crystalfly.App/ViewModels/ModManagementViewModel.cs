@@ -116,6 +116,17 @@ public partial class ModManagementViewModel : ViewModelBase
         SelectedModStatusOption = ModStatusOptions.First(option => option.Value == SelectedModStatus);
     }
 
+    // Rebuilds every Loc-derived value of this view model after the application
+    // language switches: filter option labels, installed Mod items (ownership and
+    // health display names) and the unused-dependency summary.
+    internal void RefreshLocalization()
+    {
+        RebuildStatusOptions();
+        RebuildCatalogProjection();
+        OnPropertyChanged(nameof(UnusedDependencySummary));
+        OnPropertyChanged(nameof(HasUnusedDependencySuggestions));
+    }
+
     public void ReplaceAvailableMods(InstanceRecord record)
     {
         AvailableMods.Clear();

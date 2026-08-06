@@ -2435,6 +2435,198 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Language_switch_refreshes_preflight_and_status_bar_labels()
+    {
+        var viewModel = CreateViewModel();
+        Assert.Equal("未选择实例", viewModel.LaunchReadinessTitle);
+
+        InvokeApplyLanguage(viewModel, UiLanguage.English);
+
+        Assert.Equal("No instance selected", viewModel.LaunchReadinessTitle);
+        Assert.Equal(
+            "Choose a version root to discover Hollow Knight instances.",
+            viewModel.LaunchReadinessHint);
+        Assert.Equal("Select an environment or create a new one.", viewModel.SelectedSpeedrunTechnicalStatus);
+        await viewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Language_switch_reprojects_installed_mod_item_display_names()
+    {
+        var viewModel = CreateViewModel();
+        var instanceRoot = applicationData.CreateDirectory("mods-l10n-instance");
+        var record = Instance("practice", instanceRoot);
+        var mods = new[]
+        {
+            new ModDiscoveryEntry
+            {
+                Id = "mod",
+                Name = "Mod",
+                LoaderId = "modding-api-77",
+                InstallRoot = instanceRoot,
+                Enabled = true,
+                Ownership = ModOwnership.Managed,
+                Files = [],
+                EntryFiles = []
+            }
+        };
+        viewModel.ModManagement.LoadInstalledMods(
+            mods,
+            [],
+            [new ModHealthReport { ModId = "mod", Status = ModHealthStatus.Healthy }],
+            record);
+        var item = Assert.Single(viewModel.ModManagement.InstalledMods);
+        Assert.Equal("已安装", item.OwnershipDisplayName);
+        Assert.Equal("正常", item.HealthDisplayName);
+
+        InvokeApplyLanguage(viewModel, UiLanguage.English);
+
+        item = Assert.Single(viewModel.ModManagement.InstalledMods);
+        Assert.Equal("Installed", item.OwnershipDisplayName);
+        Assert.Equal("Healthy", item.HealthDisplayName);
+        await viewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Language_switch_reprojects_download_queue_texts()
+    {
+        var viewModel = CreateViewModel();
+        InvokeQueueDownloadQueueProjection(viewModel, QueueGroup("group", DownloadQueueGroupState.Completed));
+        InvokeApplyPendingDownloadQueueProjection(viewModel);
+        var group = Assert.Single(viewModel.DownloadCenter.DownloadQueueGroups);
+        Assert.Equal("已完成", group.StateText);
+
+        InvokeApplyLanguage(viewModel, UiLanguage.English);
+        InvokeApplyPendingDownloadQueueProjection(viewModel);
+
+        Assert.Equal("Completed", group.StateText);
+        Assert.Equal("Completed", group.Items[0].StateText);
+        await viewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Language_switch_refreshes_speedrun_activity_texts_and_items()
+    {
+        string root = applicationData.CreateDirectory("speedrun-l10n");
+        // Seed a stale baseline so the refresh detects the returned run as a new world record.
+        var baselineAt = DateTimeOffset.Parse("2026-07-31T00:00:00Z");
+        var board = new SpeedrunBoardDescriptor(
+            SpeedrunGame.HollowKnight,
+            "category-any",
+            "Any%",
+            null,
+            null,
+            []);
+        await AtomicJsonStore.WriteAsync(
+            Path.Combine(root, "speedrun-activity.json"),
+            new SpeedrunActivityDocument
+            {
+                Boards = new Dictionary<string, SpeedrunBoardBaseline>(StringComparer.Ordinal)
+                {
+                    [board.Key] = new(
+                        board,
+                        baselineAt,
+                        [new("old-run", 1, "Old Runner", "PT40M", 2400, baselineAt, null)])
+                }
+            },
+            CancellationToken.None);
+
+        using var policy = new NetworkPolicy();
+        using var httpClient = new HttpClient(new NewRecordSpeedrunResponseHandler());
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        await using var viewModel = new MainViewModel(
+            root,
+            speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Speedrun"
+        };
+        await viewModel.RefreshSpeedrunActivityCommand.ExecuteAsync(null);
+
+        Assert.Equal("监控已建立", viewModel.SpeedrunActivityStatus);
+        var activity = Assert.Single(viewModel.SpeedrunActivities);
+        Assert.Equal("世界纪录", activity.KindText);
+        Assert.Equal("空洞骑士 · Any%", activity.BoardName);
+
+        InvokeApplyLanguage(viewModel, UiLanguage.English);
+
+        Assert.Equal("Monitoring active", viewModel.SpeedrunActivityStatus);
+        activity = Assert.Single(viewModel.SpeedrunActivities);
+        Assert.Equal("World record", activity.KindText);
+        Assert.Equal("Hollow Knight · Any%", activity.BoardName);
+        await viewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Language_switch_refreshes_preset_apply_step_texts()
+    {
+        var viewModel = CreateViewModel();
+        var plan = new PresetApplyPlan
+        {
+            Preset = new ModPreset
+            {
+                Id = "preset",
+                Name = "Pack",
+                GameBuildId = "build-1",
+                LoaderId = "modding-api-77"
+            },
+            Steps =
+            [
+                new PresetApplyStep
+                {
+                    Kind = PresetApplyStepKind.Install,
+                    State = PresetApplyStepState.Pending,
+                    ModId = "mod",
+                    Reason = string.Empty
+                },
+                new PresetApplyStep
+                {
+                    Kind = PresetApplyStepKind.Enable,
+                    State = PresetApplyStepState.Satisfied,
+                    ModId = "mod2",
+                    Reason = string.Empty
+                }
+            ],
+            PreApplyStates = []
+        };
+        var projectSteps = typeof(MainViewModel).GetMethod(
+            "ProjectPresetApplySteps",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(projectSteps);
+        projectSteps.Invoke(viewModel, [plan]);
+        Assert.Equal("安装", viewModel.PresetApplySteps[0].Action);
+        Assert.Equal("将更改", viewModel.PresetApplySteps[0].State);
+        Assert.Equal("启用", viewModel.PresetApplySteps[1].Action);
+        Assert.Equal("已就绪", viewModel.PresetApplySteps[1].State);
+
+        InvokeApplyLanguage(viewModel, UiLanguage.English);
+
+        Assert.Equal("Install", viewModel.PresetApplySteps[0].Action);
+        Assert.Equal("Will change", viewModel.PresetApplySteps[0].State);
+        Assert.Equal("Enable", viewModel.PresetApplySteps[1].Action);
+        Assert.Equal("Ready", viewModel.PresetApplySteps[1].State);
+        await viewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Language_switch_refreshes_settings_option_labels()
+    {
+        var viewModel = CreateViewModel();
+        InvokeRebuildSettingOptions(viewModel);
+        Assert.Contains(viewModel.LanguageOptions, option => option.Name == "简体中文");
+
+        InvokeApplyLanguage(viewModel, UiLanguage.English);
+
+        Assert.Contains(viewModel.LanguageOptions, option => option.Name == "Simplified Chinese");
+        Assert.Contains(viewModel.Settings.ThemeOptions, option => option.Name == "Dark");
+        Assert.Contains(viewModel.Settings.MotionOptions, option => option.Name == "Follow system");
+        Assert.Contains(viewModel.Settings.GitHubRouteOptions, option => option.Name == "GitHub mirror");
+        await viewModel.DisposeAsync();
+    }
+
+    [Fact]
     public async Task Applying_language_notifies_official_catalog_labels()
     {
         var viewModel = CreateViewModel();

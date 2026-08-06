@@ -96,6 +96,18 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     private string GlobalAppearanceDirectory => Path.Combine(dependencies.ApplicationDataRoot, "appearance");
 
+    // Rebuilds every Loc-derived option label and computed text of this view model
+    // after the application language switches.
+    internal void RefreshLocalization()
+    {
+        RebuildSettingOptions();
+        RebuildCustomModLinksOptions();
+        RebuildBackgroundScopeOptions();
+        OnPropertyChanged(nameof(BackgroundScopeStatus));
+        OnPropertyChanged(nameof(BackgroundRemoveLabel));
+        OnPropertyChanged(nameof(BackgroundInstanceName));
+    }
+
     internal void InitializeBackgroundState(BackgroundImageSettings? backgroundImage)
     {
         persistedGlobalBackground = backgroundImage;

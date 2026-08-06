@@ -78,6 +78,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly GitHubRouteLatencyService githubLatencyService;
     private readonly IProtocolRegistrationService protocolRegistrationService;
     private readonly bool autoRequestGameDirectoryDiscovery;
+    private IReadOnlyList<(InstanceRecord Record, LoaderState LoaderState, InstalledPackageReceipt? LoaderReceipt, int ModCount)>? lastInstanceProjection;
+    private string? speedrunReminderLocalizationKey;
+    private string? speedrunReminderSuffix;
+    private bool speedrunReminderVisible = true;
+    private string? speedrunReminderTrackedStatus;
+    private string? loaderVerificationLocalizationKey;
+    private string? loaderVerificationTrackedStatus;
+    private bool suppressInstanceDetailsReload;
+    private PresetApplyPlan? lastPresetApplyPlan;
     private CrystalflySettings settings = new();
     private Task settingsSaveQueue = Task.CompletedTask;
     private Task steamOfflineTransitionTask = Task.CompletedTask;
@@ -1457,20 +1466,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     discovered.AddRange(inspections);
                 },
                 lifetimeCancellation.Token);
+            lastInstanceProjection = discovered;
             Instances.Instances.Clear();
             foreach (var item in discovered)
             {
-                var build = catalog.Builds.FirstOrDefault(candidate => candidate.Id == item.Record.BuildId);
-                Instances.Instances.Add(new InstanceItemViewModel(
-                    item.Record,
-                    build?.DisplayVersion ?? Loc["UnknownBuild"],
-                    item.LoaderReceipt is null
-                        ? item.LoaderState.ToString()
-                        : item.LoaderReceipt.IsVerified
-                            ? item.LoaderReceipt.PackageId
-                            : $"{item.LoaderReceipt.PackageId} · {Loc["Unverified"]}",
-                    item.ModCount,
-                    settings.FavoriteInstanceIds.Contains(item.Record.Id, StringComparer.Ordinal)));
+                Instances.Instances.Add(ProjectInstanceItem(item, settings));
             }
 
             Instances.ApplyInstanceFilter();
@@ -1498,6 +1498,62 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             {
                 IsBusy = false;
             }
+        }
+    }
+
+    private InstanceItemViewModel ProjectInstanceItem(
+        (InstanceRecord Record, LoaderState LoaderState, InstalledPackageReceipt? LoaderReceipt, int ModCount) item,
+        CrystalflySettings settings)
+    {
+        var build = catalog.Builds.FirstOrDefault(candidate => candidate.Id == item.Record.BuildId);
+        return new InstanceItemViewModel(
+            item.Record,
+            build?.DisplayVersion ?? Loc["UnknownBuild"],
+            item.LoaderReceipt is null
+                ? item.LoaderState.ToString()
+                : item.LoaderReceipt.IsVerified
+                    ? item.LoaderReceipt.PackageId
+                    : $"{item.LoaderReceipt.PackageId} · {Loc["Unverified"]}",
+            item.ModCount,
+            settings.FavoriteInstanceIds.Contains(item.Record.Id, StringComparer.Ordinal));
+    }
+
+    // Re-projects the instance list from the last disk inspection when the language
+    // switches so DisplayVersion/LoaderDisplay localized fragments ("Unknown build",
+    // "Unverified") refresh without re-scanning the game directory. The selected
+    // instances are re-resolved to their new items but the details reload is suppressed:
+    // re-selecting the same instance must not clear and reload the Mod list or presets
+    // that were just refreshed against the new language.
+    private void ReprojectInstances()
+    {
+        if (lastInstanceProjection is not { } discovered || discovered.Count == 0)
+        {
+            return;
+        }
+        var selectedId = SelectedInstance?.Id;
+        var speedrunId = SelectedSpeedrunInstance?.Id;
+        suppressInstanceDetailsReload = true;
+        try
+        {
+            Instances.Instances.Clear();
+            foreach (var item in discovered)
+            {
+                Instances.Instances.Add(ProjectInstanceItem(item, settings));
+            }
+            Instances.ApplyInstanceFilter();
+            SelectedInstance = selectedId is null
+                ? Instances.Instances.FirstOrDefault()
+                : Instances.Instances.FirstOrDefault(instance => instance.Id == selectedId)
+                    ?? Instances.Instances.FirstOrDefault();
+            PopulateSpeedrunInstances();
+            SelectedSpeedrunInstance = speedrunId is null
+                ? (selectedId is null ? Instances.SpeedrunInstances.FirstOrDefault() : null)
+                : Instances.SpeedrunInstances.FirstOrDefault(instance => instance.Id == speedrunId)
+                    ?? (selectedId is null ? Instances.SpeedrunInstances.FirstOrDefault() : null);
+        }
+        finally
+        {
+            suppressInstanceDetailsReload = false;
         }
     }
 
@@ -2064,7 +2120,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 record.BuildId);
             await CreateLoaderManager(record).InstallLocalFromFileAsync(package);
             LocalLoaderManifestPath = string.Empty;
-            LoaderVerificationStatus = Loc["UnverifiedLocalLoader"];
+            SetLoaderVerificationStatus("UnverifiedLocalLoader");
         });
     }
 
@@ -2363,11 +2419,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 lifetimeCancellation.Token);
             var clone = createdInstance
                 ?? throw new InvalidOperationException("The speedrun instance was not created.");
-            SpeedrunStatus = SelectedSpeedrunTemplate.IsOfficial
+            SetSpeedrunReminder(SelectedSpeedrunTemplate.IsOfficial
                 && catalog.SpeedrunFileManifests.Any(manifest => manifest.Id == SelectedSpeedrunTemplate.FileManifestId)
-                    ? Loc["SpeedrunNeedsVerification"]
-                : Loc["SpeedrunUnverified"];
-            SpeedrunReminderText = SpeedrunStatus;
+                    ? "SpeedrunNeedsVerification"
+                    : "SpeedrunUnverified");
             SpeedrunReportPath = null;
             SpeedrunReminderIsError = false;
             SpeedrunEnvironmentName = string.Empty;
@@ -2498,6 +2553,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     partial void OnSelectedInstanceChanged(InstanceItemViewModel? value)
     {
+        // A language-switch re-projection re-resolves the selection to a new item
+        // instance without clearing and reloading the already-localized details.
+        if (suppressInstanceDetailsReload)
+        {
+            return;
+        }
         long generation = Interlocked.Increment(ref detailsLoadGeneration);
         var previousLoadCancellation = Interlocked.Exchange(ref detailsLoadCancellation, null);
         previousLoadCancellation?.Cancel();
@@ -2599,8 +2660,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                             }));
                 },
                 lifetimeCancellation.Token);
-            SpeedrunStatus = Loc["SpeedrunNeedsVerification"];
-            SpeedrunReminderText = SpeedrunStatus;
+            SetSpeedrunReminder("SpeedrunNeedsVerification");
             SpeedrunReportPath = null;
             SpeedrunReminderIsError = false;
             await RefreshAsync();
@@ -2623,12 +2683,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         SpeedrunReportPath = null;
         SpeedrunReminderIsError = false;
-        SpeedrunStatus = value is null
-            ? string.Empty
+        SetSpeedrunReminder(value is null
+            ? null
             : RuntimePatchesPolicy.IsLegacyTemplate(value.Record.SpeedrunTemplateId)
-                ? Loc["SpeedrunTemplateExpired"]
-                : Loc["SpeedrunNeedsVerification"];
-        SpeedrunReminderText = SpeedrunStatus;
+                ? "SpeedrunTemplateExpired"
+                : "SpeedrunNeedsVerification");
         if (value is null)
         {
             RuntimePatchesScreenShakeModifier = false;
@@ -2669,8 +2728,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             RuntimePatchesTextMasher = false;
             if (!IsSelectedSpeedrunLegacy)
             {
-                SpeedrunStatus = $"{Loc["SpeedrunConfigurationInvalid"]}: {exception.Message}";
-                SpeedrunReminderText = SpeedrunStatus;
+                SetSpeedrunReminder("SpeedrunConfigurationInvalid", suffix: $": {exception.Message}");
                 SpeedrunReminderIsError = true;
             }
         }
@@ -2947,12 +3005,29 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var previousReadyText = Loc["StatusReady"];
         Loc.Apply(language);
         OnPropertyChanged(nameof(Loc));
+        // Computed properties capture Loc[key] values at evaluation time; notify them all
+        // so they re-evaluate against the new language, and re-project every item list
+        // whose view models snapshot localized display names.
+        NotifyPreflightLabels();
         OnPropertyChanged(nameof(SelectedModContentStatusText));
         OnPropertyChanged(nameof(IsProtocolRegistered));
         OnPropertyChanged(nameof(ProtocolRegistrationStatus));
         OnPropertyChanged(nameof(SelectedSpeedrunTechnicalStatus));
         RefreshApplicationUpdateText();
         NotifyOfficialCatalogLabels();
+        RefreshSpeedrunActivityLocalization();
+        RefreshSpeedrunReminder();
+        RefreshLoaderVerificationStatus();
+        RebuildPresetModeOptions();
+        RefreshPresetCopyName();
+        RefreshPresetApplySteps();
+        RebuildMarketCatalog();
+        PopulateDownloadBuilds();
+        ReprojectInstances();
+        Settings.RefreshLocalization();
+        ModManagement.RefreshLocalization();
+        UpdateSelectedMarketInstallationState();
+        Instances.RefreshGameDirectoryLabels();
         DownloadCenter.ApplyLanguage(Loc);
         if (DownloadCenter.DownloadQueueGroups.Count > 0)
         {
@@ -2971,6 +3046,53 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             SemiTheme.OverrideLocaleResources(application, Loc.Culture);
             UrsaSemiTheme.OverrideLocaleResources(application, Loc.Culture);
         }
+    }
+
+    // Speedrun reminder/status lines snapshot Loc[key] at set time; remember the key and
+    // the exact text that was set so a language switch can re-render the current line
+    // without resurrecting a stale one that a later operation already replaced.
+    private void SetSpeedrunReminder(string? localizationKey, bool visible = true, string? suffix = null)
+    {
+        speedrunReminderLocalizationKey = localizationKey;
+        speedrunReminderSuffix = suffix;
+        speedrunReminderVisible = visible;
+        var status = localizationKey is null ? string.Empty : Loc[localizationKey] + (suffix ?? string.Empty);
+        SpeedrunStatus = status;
+        speedrunReminderTrackedStatus = status;
+        SpeedrunReminderText = visible ? status : string.Empty;
+    }
+
+    private void RefreshSpeedrunReminder()
+    {
+        if (speedrunReminderLocalizationKey is not { } key
+            || speedrunReminderTrackedStatus is null
+            || !string.Equals(SpeedrunStatus, speedrunReminderTrackedStatus, StringComparison.Ordinal))
+        {
+            return;
+        }
+        var status = Loc[key] + (speedrunReminderSuffix ?? string.Empty);
+        SpeedrunStatus = status;
+        speedrunReminderTrackedStatus = status;
+        SpeedrunReminderText = speedrunReminderVisible ? status : string.Empty;
+    }
+
+    private void SetLoaderVerificationStatus(string? localizationKey)
+    {
+        loaderVerificationLocalizationKey = localizationKey;
+        loaderVerificationTrackedStatus = LoaderVerificationStatus;
+        LoaderVerificationStatus = localizationKey is null ? string.Empty : Loc[localizationKey];
+    }
+
+    private void RefreshLoaderVerificationStatus()
+    {
+        if (loaderVerificationLocalizationKey is not { } key
+            || loaderVerificationTrackedStatus is null
+            || !string.Equals(LoaderVerificationStatus, loaderVerificationTrackedStatus, StringComparison.Ordinal))
+        {
+            return;
+        }
+        LoaderVerificationStatus = Loc[key];
+        loaderVerificationTrackedStatus = LoaderVerificationStatus;
     }
 
     partial void OnSelectedMarketModChanged(ModManifest? value)
@@ -3381,18 +3503,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 : [];
             var canRecoverLoaderReceipt = orphanedLoaderIds.Length == 1
                 && FindCatalogLoader(orphanedLoaderIds[0], record.BuildId) is not null;
-            LoaderVerificationStatus = canRecoverLoaderReceipt
-                ? Loc["LoaderReceiptRecoveryAvailable"]
+            SetLoaderVerificationStatus(canRecoverLoaderReceipt
+                ? "LoaderReceiptRecoveryAvailable"
                 : loaderReceipt is null
                 ? loaderState switch
                 {
-                    LoaderState.BepInEx or LoaderState.Drifted => Loc["ExternalLoaderBlocked"],
-                    LoaderState.Conflict => Loc["LoaderConflict"],
-                    _ => string.Empty
+                    LoaderState.BepInEx or LoaderState.Drifted => "ExternalLoaderBlocked",
+                    LoaderState.Conflict => "LoaderConflict",
+                    _ => null
                 }
                 : loaderReceipt.IsVerified
-                    ? Loc["VerifiedCatalogLoader"]
-                    : Loc["UnverifiedLocalLoader"];
+                    ? "VerifiedCatalogLoader"
+                    : "UnverifiedLocalLoader");
             ModManagement.LoadInstalledMods(discovery.Mods, installed, modHealthReports, record);
             UpdateSelectedMarketInstallationState();
             Snapshots.Clear();
@@ -3603,19 +3725,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 HasLocalLowIssue = hasLocalLowIssue,
                 ReportsDirectory = Path.Combine(GetInstanceStateRoot(instance.Id), "speedrun-reports")
             });
-        SpeedrunStatus = template.IsOfficial
+        var verificationStatusKey = template.IsOfficial
             ? result.Report.IsOfficiallyVerified
                 ? result.Report.Issues.Any(issue => issue.Severity == SpeedrunIssueSeverity.RuleWarning)
-                    ? Loc["SpeedrunVerifiedWithWarnings"]
-                    : Loc["SpeedrunVerified"]
-                : Loc["SpeedrunVerificationFailed"]
-            : Loc["SpeedrunUnverifiedReport"];
+                    ? "SpeedrunVerifiedWithWarnings"
+                    : "SpeedrunVerified"
+                : "SpeedrunVerificationFailed"
+            : "SpeedrunUnverifiedReport";
+        var reminderVisible = !(template.IsOfficial
+            && result.Report.IsOfficiallyVerified
+            && !result.Report.Issues.Any(issue => issue.Severity == SpeedrunIssueSeverity.RuleWarning));
+        SetSpeedrunReminder(verificationStatusKey, visible: reminderVisible);
         SpeedrunReportPath = result.ReportPath;
         SpeedrunReminderIsError = !result.Report.IsOfficiallyVerified;
-        SpeedrunReminderText = template.IsOfficial && result.Report.IsOfficiallyVerified
-            && !result.Report.Issues.Any(issue => issue.Severity == SpeedrunIssueSeverity.RuleWarning)
-                ? string.Empty
-                : SpeedrunStatus;
         if (template.IsOfficial && !result.Report.IsOfficiallyVerified)
         {
             throw new InvalidOperationException(Loc["SpeedrunVerificationFailed"]);

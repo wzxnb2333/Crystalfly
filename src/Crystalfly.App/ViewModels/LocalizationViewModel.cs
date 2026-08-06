@@ -1332,6 +1332,15 @@ public sealed class LocalizationViewModel : ViewModelBase
                 && CultureInfo.CurrentUICulture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase));
         Culture = CultureInfo.GetCultureInfo(useChinese ? "zh-CN" : "en-US");
         values = useChinese ? Chinese : English;
-        OnPropertyChanged("Item[]");
+        // Avalonia registers indexer binding paths (Loc[key]) under the CLR indexer
+        // property name "Item"; WPF-style "Item[]" notifications are ignored by its
+        // INPC accessor, so indexer bindings never refreshed after a language switch.
+        OnPropertyChanged(IndexerChangedNotification);
     }
+
+    private const string IndexerChangedNotification = "Item";
+
+    // Test-only hook: lets binding tests exercise the exact Avalonia INPC contract for
+    // indexer refreshes without constructing a second language dictionary.
+    internal void RaiseTestNotification(string? propertyName) => OnPropertyChanged(propertyName);
 }

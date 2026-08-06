@@ -14,6 +14,14 @@ public partial class MainViewModel
     private Task speedrunLeaderboardLoadTask = Task.CompletedTask;
     private long speedrunLeaderboardLoadGeneration;
     private DateTimeOffset? speedrunActivityLastLoadedAt;
+    private DateTimeOffset? speedrunActivityFetchedAt;
+    private int speedrunActivityFailureCount;
+    private IReadOnlyList<SpeedrunDataStatus> speedrunActivityStatuses = [];
+    private bool speedrunActivityShowLoading;
+    private bool speedrunActivityStatusCleared;
+    private bool speedrunActivityUnavailable;
+    private string? speedrunActivityErrorOverride;
+    private bool speedrunActivityLoadStarted;
     private static readonly TimeSpan SpeedrunActivityCacheLifetime = TimeSpan.FromMinutes(15);
     private static TimeSpan SpeedrunActivityRefreshInterval = TimeSpan.FromMinutes(15);
 
@@ -162,8 +170,13 @@ public partial class MainViewModel
             replacement.Token);
         CancellationToken cancellationToken = linked.Token;
         IsSpeedrunActivityLoading = showLoading;
-        SpeedrunActivityError = null;
-        SpeedrunActivityStatus = showLoading ? Loc["SpeedrunActivityLoading"] : string.Empty;
+        speedrunActivityLoadStarted = true;
+        speedrunActivityShowLoading = showLoading;
+        speedrunActivityStatusCleared = !showLoading;
+        speedrunActivityUnavailable = false;
+        speedrunActivityErrorOverride = null;
+        speedrunActivityFailureCount = 0;
+        UpdateSpeedrunActivityTexts();
 
         try
         {
@@ -222,19 +235,16 @@ public partial class MainViewModel
                 successful,
                 speedrunComClient.UtcNow);
             await AtomicJsonStore.WriteAsync(SpeedrunActivityPath, detection.Document, cancellationToken);
+            speedrunActivityStatuses = statuses;
+            speedrunActivityFailureCount = failures.Count;
+            speedrunActivityFetchedAt = fetchedAt;
+            speedrunActivityShowLoading = false;
+            speedrunActivityStatusCleared = false;
+            speedrunActivityUnavailable = false;
+            speedrunActivityErrorOverride = null;
+            UpdateSpeedrunActivityTexts();
             Replace(SpeedrunActivities, detection.Document.Activities.Select(ProjectActivity));
             ApplySpeedrunActivityFilter();
-            SpeedrunActivityError = failures.Count == 0
-                ? null
-                : string.Format(CultureInfo.CurrentCulture, Loc["SpeedrunActivityPartialFailure"], failures.Count);
-            SpeedrunActivityStatus = statuses.Count > 0 && statuses.All(status => status == SpeedrunDataStatus.Offline)
-                ? Loc["OfflineMode"]
-                : statuses.Any(status => status == SpeedrunDataStatus.Cached)
-                    ? Loc["SpeedrunActivityCached"]
-                    : Loc["SpeedrunActivityReady"];
-            SpeedrunActivityUpdatedAt = fetchedAt is { } value
-                ? string.Format(CultureInfo.CurrentCulture, Loc["SpeedrunActivityUpdatedAt"], value.ToLocalTime().ToString("g", CultureInfo.CurrentCulture))
-                : string.Empty;
             speedrunActivityLastLoadedAt = speedrunComClient.UtcNow;
 
             if (CurrentPage == "Speedrun")
@@ -250,8 +260,11 @@ public partial class MainViewModel
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
         {
-            SpeedrunActivityError = exception.Message;
-            SpeedrunActivityStatus = Loc["SpeedrunActivityUnavailable"];
+            speedrunActivityUnavailable = true;
+            speedrunActivityErrorOverride = exception.Message;
+            speedrunActivityShowLoading = false;
+            speedrunActivityStatusCleared = false;
+            UpdateSpeedrunActivityTexts();
         }
         finally
         {
@@ -261,6 +274,65 @@ public partial class MainViewModel
                 OnPropertyChanged(nameof(ShowSpeedrunActivityEmptyState));
             }
         }
+    }
+
+    // Re-renders the activity status line, error, checked-at text and the activity
+    // items after the application language switches, using the state captured by the
+    // last board load.
+    internal void RefreshSpeedrunActivityLocalization()
+    {
+        if (!speedrunActivityLoadStarted)
+        {
+            return;
+        }
+        UpdateSpeedrunActivityTexts();
+        // Materialize before Replace: Replace clears the target collection first, so a
+        // lazy enumeration over it would observe the already-cleared collection.
+        var items = SpeedrunActivities.Select(item => ProjectActivity(item.Entry)).ToArray();
+        Replace(SpeedrunActivities, items);
+        ApplySpeedrunActivityFilter();
+    }
+
+    private void UpdateSpeedrunActivityTexts()
+    {
+        if (speedrunActivityShowLoading)
+        {
+            SpeedrunActivityStatus = Loc["SpeedrunActivityLoading"];
+        }
+        else if (speedrunActivityStatusCleared)
+        {
+            SpeedrunActivityStatus = string.Empty;
+        }
+        else if (speedrunActivityUnavailable)
+        {
+            SpeedrunActivityStatus = Loc["SpeedrunActivityUnavailable"];
+        }
+        else if (speedrunActivityStatuses.Count > 0
+            && speedrunActivityStatuses.All(status => status == SpeedrunDataStatus.Offline))
+        {
+            SpeedrunActivityStatus = Loc["OfflineMode"];
+        }
+        else if (speedrunActivityStatuses.Any(status => status == SpeedrunDataStatus.Cached))
+        {
+            SpeedrunActivityStatus = Loc["SpeedrunActivityCached"];
+        }
+        else
+        {
+            SpeedrunActivityStatus = Loc["SpeedrunActivityReady"];
+        }
+        SpeedrunActivityError = speedrunActivityErrorOverride
+            ?? (speedrunActivityFailureCount > 0
+                ? string.Format(
+                    CultureInfo.CurrentCulture,
+                    Loc["SpeedrunActivityPartialFailure"],
+                    speedrunActivityFailureCount)
+                : null);
+        SpeedrunActivityUpdatedAt = speedrunActivityFetchedAt is { } fetchedAt
+            ? string.Format(
+                CultureInfo.CurrentCulture,
+                Loc["SpeedrunActivityUpdatedAt"],
+                fetchedAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture))
+            : string.Empty;
     }
 
     private string ActivityToastText(SpeedrunActivityEntry activity) => string.Format(
