@@ -80,6 +80,37 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
 
     internal DownloadQueueService DownloadQueue => downloadQueue;
 
+    internal static DownloadErrorCategory ClassifyError(string? error, DownloadQueueGroupState state)
+    {
+        if (state == DownloadQueueGroupState.WaitingForNetwork)
+        {
+            return DownloadErrorCategory.Offline;
+        }
+        if (string.IsNullOrWhiteSpace(error))
+        {
+            return DownloadErrorCategory.Other;
+        }
+        if (error.Contains("offline", StringComparison.OrdinalIgnoreCase))
+        {
+            return DownloadErrorCategory.Offline;
+        }
+        if (error.Contains("SHA-256", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("hash", StringComparison.OrdinalIgnoreCase))
+        {
+            return DownloadErrorCategory.Verification;
+        }
+        if (error.Contains("HTTP", StringComparison.OrdinalIgnoreCase))
+        {
+            return DownloadErrorCategory.Network;
+        }
+        if (error.Contains("access", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("permission", StringComparison.OrdinalIgnoreCase))
+        {
+            return DownloadErrorCategory.Permission;
+        }
+        return DownloadErrorCategory.Other;
+    }
+
     private IEnumerable<DownloadQueueGroup> ActiveQueueGroups => downloadQueue.Groups.Where(group =>
         group.State is DownloadQueueGroupState.Pending
             or DownloadQueueGroupState.Running

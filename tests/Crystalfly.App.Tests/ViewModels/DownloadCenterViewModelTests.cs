@@ -1,6 +1,11 @@
 using System.Collections.Concurrent;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Headless.XUnit;
+using Avalonia.Input.Platform;
 using Crystalfly.App.Downloads;
 using Crystalfly.App.ViewModels;
+using Crystalfly.App.Views;
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Packages;
 
@@ -152,6 +157,102 @@ public sealed class DownloadCenterViewModelTests : IDisposable
         Assert.Equal("2 active downloads", center.ActiveCountText);
     }
 
+    [Theory]
+    [InlineData("Offline mode is active", DownloadErrorCategory.Offline)]
+    [InlineData("The download was paused because Crystalfly went offline", DownloadErrorCategory.Offline)]
+    [InlineData("SHA-256 mismatch for the downloaded package", DownloadErrorCategory.Verification)]
+    [InlineData("hash verification failed", DownloadErrorCategory.Verification)]
+    [InlineData("HTTP 404 from the download route", DownloadErrorCategory.Network)]
+    [InlineData("Access to the staging directory is denied", DownloadErrorCategory.Permission)]
+    [InlineData("permission denied", DownloadErrorCategory.Permission)]
+    [InlineData("Something unexpected happened", DownloadErrorCategory.Other)]
+    public void Error_category_is_inferred_from_error_text(
+        string error,
+        DownloadErrorCategory expected)
+    {
+        var localization = new LocalizationViewModel();
+        localization.Apply(UiLanguage.English);
+        var viewModel = new DownloadQueueGroupItemViewModel(FailedGroup(error), localization);
+
+        Assert.Equal(expected, viewModel.ErrorCategory);
+    }
+
+    [Fact]
+    public void Error_category_is_offline_for_network_waiting_groups_and_text_is_localized()
+    {
+        var localization = new LocalizationViewModel();
+        localization.Apply(UiLanguage.English);
+        var waiting = new DownloadQueueGroup
+        {
+            Id = "waiting",
+            Name = "Waiting",
+            State = DownloadQueueGroupState.WaitingForNetwork,
+            Stage = "Waiting for network",
+            Items = [new DownloadQueueItem { Id = "item", Name = "Item" }]
+        };
+        var viewModel = new DownloadQueueGroupItemViewModel(waiting, localization);
+
+        Assert.Equal(DownloadErrorCategory.Offline, viewModel.ErrorCategory);
+        Assert.Equal("Offline", viewModel.ErrorCategoryText);
+
+        viewModel.Update(FailedGroup("SHA-256 mismatch"), localization);
+
+        Assert.Equal(DownloadErrorCategory.Verification, viewModel.ErrorCategory);
+        Assert.Equal("Verification", viewModel.ErrorCategoryText);
+    }
+
+    [Fact]
+    public void Duration_text_formats_started_and_completed_times()
+    {
+        var localization = new LocalizationViewModel();
+        localization.Apply(UiLanguage.English);
+        var started = DateTimeOffset.UtcNow;
+        var group = FailedGroup("failed") with
+        {
+            StartedAt = started,
+            CompletedAt = started.AddMinutes(10)
+        };
+        var viewModel = new DownloadQueueGroupItemViewModel(group, localization);
+
+        Assert.Equal("00:10:00", viewModel.DurationText);
+        Assert.True(viewModel.HasDuration);
+
+        viewModel.Update(group with { CompletedAt = null }, localization);
+
+        Assert.Equal(string.Empty, viewModel.DurationText);
+        Assert.False(viewModel.HasDuration);
+    }
+
+    [AvaloniaFact]
+    public async Task Copy_error_command_writes_the_error_to_the_clipboard()
+    {
+        var localization = new LocalizationViewModel();
+        localization.Apply(UiLanguage.English);
+        var viewModel = new DownloadQueueGroupItemViewModel(
+            FailedGroup("HTTP 500 from the download route"),
+            localization);
+        var window = new MainWindow { Width = 900, Height = 600, DataContext = new MainViewModel(root) };
+        window.Show();
+        DownloadQueueGroupItemViewModel.ClipboardResolverOverride = () => window.Clipboard;
+        try
+        {
+            await viewModel.CopyErrorCommand.ExecuteAsync(null);
+
+            Assert.Equal(
+                "HTTP 500 from the download route",
+                await window.Clipboard!.TryGetTextAsync());
+        }
+        finally
+        {
+            DownloadQueueGroupItemViewModel.ClipboardResolverOverride = null;
+            typeof(MainWindow)
+                .GetField("closeAfterDispose", System.Reflection.BindingFlags.Instance
+                    | System.Reflection.BindingFlags.NonPublic)!
+                .SetValue(window, true);
+            window.Close();
+        }
+    }
+
     [Fact]
     public async Task Session_enqueued_group_completion_raises_toast_but_restored_groups_are_silent()
     {
@@ -237,6 +338,27 @@ public sealed class DownloadCenterViewModelTests : IDisposable
             RefreshAsync: static () => Task.CompletedTask,
             LifetimeCancellation: CancellationToken.None));
     }
+
+    private static DownloadQueueGroup FailedGroup(string error) => new()
+    {
+        Id = "failed",
+        DeduplicationKey = "instance:failed",
+        Name = "Failed",
+        TargetInstanceName = "Instance",
+        State = DownloadQueueGroupState.Failed,
+        Stage = "Failed",
+        Error = error,
+        Items =
+        [
+            new DownloadQueueItem
+            {
+                Id = "failed:item",
+                Name = "Failed item",
+                State = DownloadQueueItemState.Failed,
+                Error = error
+            }
+        ]
+    };
 
     private DownloadQueueGroup Group(string id, string name) => new()
     {

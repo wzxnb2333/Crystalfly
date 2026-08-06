@@ -1,10 +1,23 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input.Platform;
+using CommunityToolkit.Mvvm.Input;
 using Crystalfly.App.Downloads;
 
 namespace Crystalfly.App.ViewModels;
 
-public sealed class DownloadQueueGroupItemViewModel : ViewModelBase
+public enum DownloadErrorCategory
+{
+    Offline,
+    Network,
+    Verification,
+    Permission,
+    Other
+}
+
+public sealed partial class DownloadQueueGroupItemViewModel : ViewModelBase
 {
     private DownloadQueueGroup group;
     private LocalizationViewModel localization;
@@ -48,10 +61,48 @@ public sealed class DownloadQueueGroupItemViewModel : ViewModelBase
 
     public bool HasError => !string.IsNullOrWhiteSpace(group.Error);
 
+    public DownloadErrorCategory ErrorCategory =>
+        DownloadCenterViewModel.ClassifyError(group.Error, group.State);
+
+    public string ErrorCategoryText => localization[$"DownloadError{ErrorCategory}"];
+
+    public string DurationText => group.StartedAt is { } started && group.CompletedAt is { } completed
+        ? (completed - started).ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture)
+        : string.Empty;
+
+    public bool HasDuration => group.StartedAt is not null && group.CompletedAt is not null;
+
     public string EtaText => QueueDisplayText.Eta(
         group.BytesPerSecond,
         group.CompletedBytes,
         group.TotalBytes);
+
+    [RelayCommand]
+    private async Task CopyErrorAsync()
+    {
+        if (string.IsNullOrWhiteSpace(group.Error))
+        {
+            return;
+        }
+        if (ResolveClipboard() is { } clipboard)
+        {
+            await clipboard.SetTextAsync(group.Error);
+        }
+    }
+
+    internal static Func<IClipboard?>? ClipboardResolverOverride { get; set; }
+
+    private static IClipboard? ResolveClipboard()
+    {
+        if (ClipboardResolverOverride is { } resolverOverride)
+        {
+            return resolverOverride();
+        }
+        return Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime
+            { MainWindow: { } window }
+            ? window.Clipboard
+            : null;
+    }
 
     public bool IsExpanded
     {
@@ -71,7 +122,8 @@ public sealed class DownloadQueueGroupItemViewModel : ViewModelBase
                      nameof(Name), nameof(TargetInstanceName), nameof(State), nameof(StateText),
                      nameof(StageText), nameof(Error), nameof(Progress), nameof(ProgressText),
                      nameof(SpeedText), nameof(CanCancel), nameof(CanRetry), nameof(HasError),
-                     nameof(EtaText)
+                     nameof(EtaText), nameof(ErrorCategory), nameof(ErrorCategoryText),
+                     nameof(DurationText), nameof(HasDuration)
                  })
         {
             OnPropertyChanged(property);
