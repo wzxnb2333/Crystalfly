@@ -1800,10 +1800,10 @@
                     </Border>
 
                     <ScrollViewer Grid.Column="1"
-                                  IsVisible="{Binding IsGameVersionsDownloadSection}"
                                   HorizontalContentAlignment="Stretch"
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Classes="cfp-workspace cfp-subpage"
+                                    IsVisible="{Binding IsGameVersionsDownloadSection}"
                                     Margin="24"
                                     Spacing="16"
                                     MaxWidth="1920"
@@ -2177,10 +2177,10 @@
                     </Grid>
 
                     <ScrollViewer Grid.Column="1"
-                                  IsVisible="{Binding IsDownloadQueueSection}"
                                   HorizontalContentAlignment="Stretch"
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Classes="cfp-workspace cfp-subpage"
+                                    IsVisible="{Binding IsDownloadQueueSection}"
                                     Margin="24"
                                     Spacing="16"
                                     MaxWidth="1200"
