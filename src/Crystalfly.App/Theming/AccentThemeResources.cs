@@ -13,7 +13,10 @@ internal sealed record AccentThemePalette(
     Color AccentText,
     Color OnAccent,
     Color SurfaceSelected,
-    Color SurfaceSelectedHover);
+    Color SurfaceSelectedHover,
+    Color WindowAccent,
+    Color CardAccent,
+    Color CardBorderAccent);
 
 internal static class AccentThemeResources
 {
@@ -21,11 +24,18 @@ internal static class AccentThemeResources
     private static readonly Color DarkSurface = Color.Parse("#242628");
     private static readonly Color DarkBase = Color.Parse("#151617");
 
+    // Static text colors that sit on the derived window/card backgrounds;
+    // the derivation below guarantees WCAG AA (>= 4.5:1) against the muted tone.
+    private static readonly Color LightMutedText = Color.Parse("#5F6670");
+    private static readonly Color DarkMutedText = Color.Parse("#A1A7AF");
+
     public static AccentThemePalette Build(string accentColor, bool dark)
     {
         var accent = Color.Parse(AccentColorPalette.Normalize(accentColor));
         var surface = dark ? DarkSurface : LightSurface;
         var direction = dark ? Colors.White : Colors.Black;
+        var baseColor = dark ? DarkBase : Colors.White;
+        var mutedText = dark ? DarkMutedText : LightMutedText;
         return new AccentThemePalette(
             surface,
             accent,
@@ -36,7 +46,10 @@ internal static class AccentThemeResources
                 ? Colors.Black
                 : Colors.White,
             Blend(accent, dark ? DarkBase : Colors.White, dark ? 0.76 : 0.88),
-            Blend(accent, dark ? DarkBase : Colors.White, dark ? 0.66 : 0.82));
+            Blend(accent, dark ? DarkBase : Colors.White, dark ? 0.66 : 0.82),
+            EnsureContrast(Blend(accent, baseColor, dark ? 0.80 : 0.90), mutedText, baseColor),
+            EnsureContrast(Blend(accent, baseColor, dark ? 0.72 : 0.82), mutedText, baseColor),
+            Blend(accent, baseColor, dark ? 0.58 : 0.72));
     }
 
     public static void Apply(string accentColor)
@@ -59,6 +72,9 @@ internal static class AccentThemeResources
         SetColor("CfOnAccentBrush", variant, palette.OnAccent);
         SetColor("CfSurfaceSelectedBrush", variant, palette.SurfaceSelected);
         SetColor("CfSurfaceSelectedHoverBrush", variant, palette.SurfaceSelectedHover);
+        SetColor("CfWindowAccentBrush", variant, palette.WindowAccent);
+        SetColor("CfCardAccentBrush", variant, palette.CardAccent);
+        SetColor("CfCardAccentBorderBrush", variant, palette.CardBorderAccent);
     }
 
     private static void SetColor(string key, ThemeVariant variant, Color color)
