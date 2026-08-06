@@ -34,46 +34,6 @@ public sealed class AccentThemeResourcesTests
         Assert.True(ContrastRatio(palette.AccentText, palette.Surface) >= 4.5);
     }
 
-    public static TheoryData<string, bool> BackgroundCases
-    {
-        get
-        {
-            var data = new TheoryData<string, bool>();
-            foreach (var color in AccentColorPalette.Presets
-                .Append("#FDE68A")
-                .Append("#000000")
-                .Append("#FFFFFF")
-                .Append("#111111"))
-            {
-                data.Add(color, false);
-                data.Add(color, true);
-            }
-            return data;
-        }
-    }
-
-    [Theory]
-    [MemberData(nameof(BackgroundCases))]
-    public void Derived_backgrounds_keep_body_and_muted_text_readable(string accent, bool dark)
-    {
-        var palette = AccentThemeResources.Build(accent, dark);
-        var text = dark ? Color.Parse("#F5F6F7") : Color.Parse("#14171B");
-        var muted = dark ? Color.Parse("#A1A7AF") : Color.Parse("#5F6670");
-
-        Assert.True(
-            ContrastRatio(text, palette.WindowAccent) >= 4.5,
-            $"Body text on window background was {ContrastRatio(text, palette.WindowAccent):F2}:1.");
-        Assert.True(
-            ContrastRatio(muted, palette.WindowAccent) >= 4.5,
-            $"Muted text on window background was {ContrastRatio(muted, palette.WindowAccent):F2}:1.");
-        Assert.True(
-            ContrastRatio(text, palette.CardAccent) >= 4.5,
-            $"Body text on card background was {ContrastRatio(text, palette.CardAccent):F2}:1.");
-        Assert.True(
-            ContrastRatio(muted, palette.CardAccent) >= 4.5,
-            $"Muted text on card background was {ContrastRatio(muted, palette.CardAccent):F2}:1.");
-    }
-
     [Fact]
     public void Build_uses_fixed_light_and_dark_blends()
     {
@@ -84,29 +44,6 @@ public sealed class AccentThemeResourcesTests
         Assert.Equal(Blend(Color.Parse("#0F6CBD"), Colors.White, 0.12), dark.Hover);
         Assert.Equal(Blend(Color.Parse("#0F6CBD"), Colors.White, 0.88), light.Soft);
         Assert.Equal(Blend(Color.Parse("#0F6CBD"), Color.Parse("#151617"), 0.76), dark.Soft);
-    }
-
-    [Fact]
-    public void Build_derives_window_card_and_border_from_the_default_accent()
-    {
-        var light = AccentThemeResources.Build("#0F6CBD", dark: false);
-        var dark = AccentThemeResources.Build("#0F6CBD", dark: true);
-
-        Assert.Equal(Color.Parse("#E7F0F8"), light.WindowAccent);
-        Assert.Equal(Color.Parse("#D4E5F3"), light.CardAccent);
-        Assert.Equal(Color.Parse("#BCD6ED"), light.CardBorderAccent);
-        Assert.Equal(Color.Parse("#142738"), dark.WindowAccent);
-        Assert.Equal(Color.Parse("#132E45"), dark.CardAccent);
-        Assert.Equal(Color.Parse("#123A5D"), dark.CardBorderAccent);
-    }
-
-    [Fact]
-    public void Build_dark_window_clamps_very_light_accents_to_keep_text_readable()
-    {
-        var dark = AccentThemeResources.Build("#FFFFFF", dark: true);
-
-        Assert.NotEqual(Blend(Color.Parse("#FFFFFF"), Color.Parse("#151617"), 0.80), dark.WindowAccent);
-        Assert.True(ContrastRatio(Color.Parse("#A1A7AF"), dark.WindowAccent) >= 4.5);
     }
 
     [AvaloniaFact]
@@ -124,24 +61,6 @@ public sealed class AccentThemeResourcesTests
             Assert.Equal(
                 AccentThemeResources.Build("#BE185D", dark: true).Soft,
                 ResourceColor("CfAccentSoftBrush", ThemeVariant.Dark));
-            Assert.Equal(
-                AccentThemeResources.Build("#BE185D", dark: false).WindowAccent,
-                ResourceColor("CfWindowAccentBrush", ThemeVariant.Light));
-            Assert.Equal(
-                AccentThemeResources.Build("#BE185D", dark: true).WindowAccent,
-                ResourceColor("CfWindowAccentBrush", ThemeVariant.Dark));
-            Assert.Equal(
-                AccentThemeResources.Build("#BE185D", dark: false).CardAccent,
-                ResourceColor("CfCardAccentBrush", ThemeVariant.Light));
-            Assert.Equal(
-                AccentThemeResources.Build("#BE185D", dark: true).CardAccent,
-                ResourceColor("CfCardAccentBrush", ThemeVariant.Dark));
-            Assert.Equal(
-                AccentThemeResources.Build("#BE185D", dark: false).CardBorderAccent,
-                ResourceColor("CfCardAccentBorderBrush", ThemeVariant.Light));
-            Assert.Equal(
-                AccentThemeResources.Build("#BE185D", dark: true).CardBorderAccent,
-                ResourceColor("CfCardAccentBorderBrush", ThemeVariant.Dark));
         }
         finally
         {

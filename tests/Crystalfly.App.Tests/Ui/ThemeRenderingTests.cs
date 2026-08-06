@@ -12,7 +12,6 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using Crystalfly.App.Theming;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.Views;
 using Crystalfly.Core.Configuration;
@@ -150,32 +149,6 @@ public sealed class ThemeRenderingTests
         }
         finally
         {
-            window.Close();
-        }
-    }
-
-    [AvaloniaTheory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Window_and_card_backgrounds_render_the_derived_accent_brushes(bool darkTheme)
-    {
-        Application.Current!.RequestedThemeVariant = darkTheme ? ThemeVariant.Dark : ThemeVariant.Light;
-        var card = new Border();
-        card.Classes.Add("cfp-card");
-        var window = ShowInWindow(card);
-        try
-        {
-            AccentThemeResources.Apply("#BE185D");
-            var palette = AccentThemeResources.Build("#BE185D", darkTheme);
-
-            Assert.Equal(palette.WindowAccent, ColorOf(window.Background));
-            Assert.Equal(palette.CardAccent, ColorOf(card.Background));
-            Assert.Equal(palette.CardBorderAccent, ColorOf(card.BorderBrush));
-            Assert.Equal(1, card.BorderThickness.Top);
-        }
-        finally
-        {
-            AccentThemeResources.Apply(AccentColorPalette.DefaultColor);
             window.Close();
         }
     }

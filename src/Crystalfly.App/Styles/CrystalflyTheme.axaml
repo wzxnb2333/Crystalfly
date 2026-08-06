@@ -5,7 +5,6 @@
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="CfWindowBrush" Color="#FBFBFC" />
-                    <SolidColorBrush x:Key="CfWindowAccentBrush" Color="#E7F0F8" />
                     <SolidColorBrush x:Key="CfChromeBrush" Color="#F3F4F6" />
                     <SolidColorBrush x:Key="CfChromeTranslucentBrush" Color="#D1F3F4F6" />
                     <SolidColorBrush x:Key="CfRailBrush" Color="#F7F7F8" />
@@ -15,8 +14,6 @@
                     <SolidColorBrush x:Key="CfSurfaceHoverBrush" Color="#E7E8EB" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedBrush" Color="#DDEEFF" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedHoverBrush" Color="#CDE5FA" />
-                    <SolidColorBrush x:Key="CfCardAccentBrush" Color="#D4E5F3" />
-                    <SolidColorBrush x:Key="CfCardAccentBorderBrush" Color="#BCD6ED" />
                     <SolidColorBrush x:Key="CfBorderBrush" Color="#DADCE0" />
                     <SolidColorBrush x:Key="CfEdgeBrush" Color="#9AA2AC" />
                     <SolidColorBrush x:Key="CfTextBrush" Color="#14171B" />
@@ -47,7 +44,6 @@
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="CfWindowBrush" Color="#151617" />
-                    <SolidColorBrush x:Key="CfWindowAccentBrush" Color="#142738" />
                     <SolidColorBrush x:Key="CfChromeBrush" Color="#202123" />
                     <SolidColorBrush x:Key="CfChromeTranslucentBrush" Color="#D1202123" />
                     <SolidColorBrush x:Key="CfRailBrush" Color="#1B1C1E" />
@@ -57,8 +53,6 @@
                     <SolidColorBrush x:Key="CfSurfaceHoverBrush" Color="#303337" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedBrush" Color="#173D5E" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedHoverBrush" Color="#1E4C73" />
-                    <SolidColorBrush x:Key="CfCardAccentBrush" Color="#132E45" />
-                    <SolidColorBrush x:Key="CfCardAccentBorderBrush" Color="#123A5D" />
                     <SolidColorBrush x:Key="CfBorderBrush" Color="#36393D" />
                     <SolidColorBrush x:Key="CfEdgeBrush" Color="#565C66" />
                     <SolidColorBrush x:Key="CfTextBrush" Color="#F5F6F7" />
@@ -92,7 +86,7 @@
     </Styles.Resources>
 
     <Style Selector="Window.cfp-window">
-        <Setter Property="Background" Value="{DynamicResource CfWindowAccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource CfWindowBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
         <Setter Property="FontSize" Value="13" />
     </Style>
@@ -166,9 +160,7 @@
     </Style>
 
     <Style Selector="Border.cfp-card">
-        <Setter Property="Background" Value="{DynamicResource CfCardAccentBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource CfCardAccentBorderBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
         <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Padding" Value="12" />
     </Style>
