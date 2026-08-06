@@ -80,6 +80,14 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
 
     internal DownloadQueueService DownloadQueue => downloadQueue;
 
+    private static int StatePriority(DownloadQueueGroupState state) => state switch
+    {
+        DownloadQueueGroupState.Pending or DownloadQueueGroupState.Running
+            or DownloadQueueGroupState.WaitingForNetwork => 0,
+        DownloadQueueGroupState.Failed => 1,
+        _ => 2
+    };
+
     internal static DownloadErrorCategory ClassifyError(string? error, DownloadQueueGroupState state)
     {
         if (state == DownloadQueueGroupState.WaitingForNetwork)
@@ -193,7 +201,9 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
 
         var existing = DownloadQueueGroups.ToDictionary(group => group.Id, StringComparer.Ordinal);
         var ordered = new List<DownloadQueueGroupItemViewModel>(snapshot.Count);
-        foreach (var group in snapshot.OrderByDescending(group => group.CreatedAt))
+        foreach (var group in snapshot
+                     .OrderBy(group => StatePriority(group.State))
+                     .ThenByDescending(group => group.CreatedAt))
         {
             if (group.State == DownloadQueueGroupState.Completed
                 && sessionEnqueuedGroupIds.Contains(group.Id)

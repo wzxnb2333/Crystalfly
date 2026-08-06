@@ -2140,6 +2140,40 @@
                                            TextWrapping="Wrap" />
                             </StackPanel>
 
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="12"
+                                        IsVisible="{Binding DownloadCenter.HasActiveDownloads}">
+                                <TextBlock Classes="cfp-caption"
+                                           Text="{Binding DownloadCenter.ActiveCountText}" />
+                                <TextBlock Classes="cfp-caption"
+                                           Text="{Binding DownloadCenter.TotalSpeedText}" />
+                                <TextBlock Classes="cfp-caption"
+                                           Text="{Binding DownloadCenter.OverallEtaText}" />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Classes="cfp-secondary"
+                                        Command="{Binding DownloadCenter.RetryAllCommand}"
+                                        IsEnabled="{Binding DownloadCenter.CanRetryAll}"
+                                        AutomationProperties.Name="{Binding Loc[QueueRetryAll]}"
+                                        Content="{Binding Loc[QueueRetryAll]}" />
+                                <Button Classes="cfp-secondary"
+                                        Command="{Binding DownloadCenter.PauseAllCommand}"
+                                        IsEnabled="{Binding DownloadCenter.CanPauseAll}"
+                                        AutomationProperties.Name="{Binding Loc[QueuePauseAll]}"
+                                        Content="{Binding Loc[QueuePauseAll]}" />
+                                <Button Classes="cfp-secondary"
+                                        Command="{Binding DownloadCenter.ResumeAllCommand}"
+                                        IsEnabled="{Binding DownloadCenter.CanResumeAll}"
+                                        AutomationProperties.Name="{Binding Loc[QueueResumeAll]}"
+                                        Content="{Binding Loc[QueueResumeAll]}" />
+                                <Button Classes="cfp-secondary"
+                                        Command="{Binding DownloadCenter.ClearCompletedCommand}"
+                                        IsEnabled="{Binding DownloadCenter.CanClearCompleted}"
+                                        AutomationProperties.Name="{Binding Loc[QueueClearCompleted]}"
+                                        Content="{Binding Loc[QueueClearCompleted]}" />
+                            </StackPanel>
+
                             <StackPanel Spacing="8">
                                 <ItemsControl ItemsSource="{Binding DownloadCenter.DownloadQueueGroups}">
                                     <ItemsControl.ItemTemplate>
@@ -2161,6 +2195,9 @@
                                                                     <Run Text="{Binding StageText}" />
                                                                 </TextBlock.Inlines>
                                                             </TextBlock>
+                                                            <TextBlock Classes="cfp-caption"
+                                                                       Text="{Binding DurationText}"
+                                                                       IsVisible="{Binding HasDuration}" />
                                                         </StackPanel>
                                                         <Button Grid.Column="1"
                                                                 Classes="cfp-secondary cfp-icon"
@@ -2191,13 +2228,30 @@
                                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                                                             <TextBlock Classes="cfp-caption" Text="{Binding ProgressText}" />
                                                             <TextBlock Classes="cfp-caption" Text="{Binding SpeedText}" />
+                                                            <TextBlock Classes="cfp-caption" Text="{Binding EtaText}" />
                                                         </StackPanel>
                                                     </Grid>
-                                                    <TextBlock Classes="cfp-caption"
-                                                               Foreground="{DynamicResource CfErrorBrush}"
-                                                               Text="{Binding Error}"
-                                                               TextWrapping="Wrap"
-                                                               IsVisible="{Binding HasError}" />
+                                                    <Grid ColumnDefinitions="Auto,*,Auto"
+                                                          ColumnSpacing="8"
+                                                          IsVisible="{Binding HasError}">
+                                                        <Border Classes="cfp-badge" VerticalAlignment="Top">
+                                                            <TextBlock Classes="cfp-caption"
+                                                                       Text="{Binding ErrorCategoryText}" />
+                                                        </Border>
+                                                        <TextBlock Grid.Column="1"
+                                                                   Classes="cfp-caption"
+                                                                   Foreground="{DynamicResource CfErrorBrush}"
+                                                                   Text="{Binding Error}"
+                                                                   TextWrapping="Wrap" />
+                                                        <Button Grid.Column="2"
+                                                                Classes="cfp-secondary cfp-icon"
+                                                                Width="32"
+                                                                Height="32"
+                                                                Command="{Binding CopyErrorCommand}"
+                                                                ToolTip.Tip="{Binding #Root.DataContext.Loc[QueueCopyError]}"
+                                                                AutomationProperties.Name="{Binding #Root.DataContext.Loc[QueueCopyError]}"
+                                                                Content="{LucideIconContent Copy, 15}" />
+                                                    </Grid>
                                                     <Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
                                                         <Expander.Header>
                                                             <TextBlock Classes="cfp-caption"

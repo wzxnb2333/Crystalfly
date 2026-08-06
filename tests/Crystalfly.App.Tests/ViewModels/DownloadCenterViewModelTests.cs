@@ -254,6 +254,42 @@ public sealed class DownloadCenterViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Projection_orders_active_groups_first_then_failed_then_completed()
+    {
+        await using var queue = CreateQueue(new FakeQueueExecutor());
+        var center = CreateCenter(queue);
+        var active = Group("active", "Active") with
+        {
+            State = DownloadQueueGroupState.Running,
+            Stage = "Downloading"
+        };
+        var failed = Group("failed", "Failed") with
+        {
+            State = DownloadQueueGroupState.Failed,
+            Stage = "Failed"
+        };
+        var completed = Group("completed", "Completed") with
+        {
+            State = DownloadQueueGroupState.Completed,
+            Stage = "Completed",
+            CreatedAt = DateTimeOffset.UtcNow.AddHours(1)
+        };
+        var olderActive = Group("older-active", "Older active") with
+        {
+            State = DownloadQueueGroupState.Running,
+            Stage = "Downloading",
+            CreatedAt = DateTimeOffset.UtcNow.AddHours(-1)
+        };
+
+        center.QueueDownloadQueueProjection([completed, failed, active, olderActive]);
+        center.ApplyPendingDownloadQueueProjection();
+
+        Assert.Equal(
+            ["active", "older-active", "failed", "completed"],
+            center.DownloadQueueGroups.Select(group => group.Id));
+    }
+
+    [Fact]
     public async Task Session_enqueued_group_completion_raises_toast_but_restored_groups_are_silent()
     {
         var executor = new FakeQueueExecutor();
