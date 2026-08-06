@@ -1026,6 +1026,7 @@
                                 </StackPanel>
 
                                 <StackPanel Spacing="12"
+                                            Classes="cfp-subpage"
                                             IsVisible="{Binding $parent[Window].((vm:MainViewModel)DataContext).IsEditingSave}"
                                             DataContext="{Binding SaveEditor}">
                                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
@@ -1575,7 +1576,7 @@
                                       PointerPressed="OnSpeedrunWorkspacePointerPressed"
                                       PointerReleased="OnSpeedrunWorkspacePointerReleased">
                             <Grid>
-                        <Grid Classes="cfp-workspace" RowDefinitions="Auto,Auto,*" RowSpacing="12" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
+                        <Grid Classes="cfp-workspace cfp-subpage" RowDefinitions="Auto,Auto,*" RowSpacing="12" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
                             <Border Classes="cfp-card cfp-speedrun-summary"
                                     Padding="14"
                                     IsVisible="{Binding HasSelectedSpeedrunInstance}">
@@ -1704,7 +1705,7 @@
                                 </StackPanel>
                             </Border>
                         </Grid>
-                        <Grid Classes="cfp-workspace cfp-speedrun-activity" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="10" IsVisible="{Binding IsSpeedrunActivityTab}">
+                        <Grid Classes="cfp-workspace cfp-speedrun-activity cfp-subpage" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="10" IsVisible="{Binding IsSpeedrunActivityTab}">
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                                 <StackPanel Spacing="3">
                                     <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunActivityTitle]}" />
@@ -2031,7 +2032,7 @@
                         <ScrollViewer IsVisible="{Binding IsMarketDetail}"
                                       HorizontalContentAlignment="Stretch"
                                       HorizontalScrollBarVisibility="Disabled">
-                            <StackPanel Classes="cfp-workspace" Margin="24" Spacing="16" MaxWidth="1200" HorizontalAlignment="Stretch">
+                            <StackPanel Classes="cfp-workspace cfp-subpage" Margin="24" Spacing="16" MaxWidth="1200" HorizontalAlignment="Stretch">
                                 <Button Classes="cfp-secondary"
                                         HorizontalAlignment="Left"
                                         Command="{Binding BackToMarketCommand}"
