@@ -2424,7 +2424,10 @@ public sealed class MainViewModelStateTests : IDisposable
         viewModel.SelectedLanguage = english;
 
         Assert.Contains(nameof(MainViewModel.Loc), changedProperties);
-        Assert.NotSame(previousLocalization, viewModel.Loc);
+        // The LocalizationViewModel instance is reused on purpose so that bindings and
+        // captured references keep working; the language values themselves must switch.
+        Assert.Same(previousLocalization, viewModel.Loc);
+        Assert.Equal("Ready", viewModel.Loc["StatusReady"]);
         Assert.Same(
             viewModel.LanguageOptions.Single(option => option.Value == english.Value),
             viewModel.SelectedLanguage);
