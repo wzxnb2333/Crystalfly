@@ -290,6 +290,183 @@ public sealed class DownloadCenterViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Applying_an_unchanged_snapshot_does_not_rebuild_or_notify()
+    {
+        await using var queue = CreateQueue(new FakeQueueExecutor());
+        var center = CreateCenter(queue);
+        var active = Group("active", "Active") with
+        {
+            State = DownloadQueueGroupState.Running,
+            Stage = "Downloading"
+        };
+        var failed = FailedGroup("failed");
+        var completed = Group("completed", "Completed") with
+        {
+            State = DownloadQueueGroupState.Completed,
+            Stage = "Completed"
+        };
+
+        center.QueueDownloadQueueProjection([active, failed, completed]);
+        center.ApplyPendingDownloadQueueProjection();
+        var instances = center.DownloadQueueGroups.ToArray();
+
+        var centerNotifications = 0;
+        center.PropertyChanged += (_, _) => centerNotifications++;
+        var groupNotifications = 0;
+        foreach (var viewModel in center.DownloadQueueGroups)
+        {
+            viewModel.PropertyChanged += (_, _) => groupNotifications++;
+        }
+
+        center.QueueDownloadQueueProjection([active, failed, completed]);
+        center.ApplyPendingDownloadQueueProjection();
+
+        Assert.Equal(0, centerNotifications);
+        Assert.Equal(0, groupNotifications);
+        Assert.Equal(instances, center.DownloadQueueGroups);
+    }
+
+    [Fact]
+    public async Task Projection_updates_only_the_group_whose_data_changed()
+    {
+        await using var queue = CreateQueue(new FakeQueueExecutor());
+        var center = CreateCenter(queue);
+        var first = Group("first", "First") with
+        {
+            State = DownloadQueueGroupState.Running,
+            Stage = "Downloading",
+            CreatedAt = DateTimeOffset.UtcNow.AddMinutes(1)
+        };
+        var second = Group("second", "Second") with
+        {
+            State = DownloadQueueGroupState.Running,
+            Stage = "Downloading",
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        center.QueueDownloadQueueProjection([first, second]);
+        center.ApplyPendingDownloadQueueProjection();
+        var firstViewModel = center.DownloadQueueGroups.Single(group => group.Id == "first");
+        var secondViewModel = center.DownloadQueueGroups.Single(group => group.Id == "second");
+        var firstNotifications = 0;
+        firstViewModel.PropertyChanged += (_, _) => firstNotifications++;
+        var secondNotifications = 0;
+        secondViewModel.PropertyChanged += (_, _) => secondNotifications++;
+
+        center.QueueDownloadQueueProjection(
+            [first, second with { CompletedBytes = 500, TotalBytes = 1000, BytesPerSecond = 100 }]);
+        center.ApplyPendingDownloadQueueProjection();
+
+        Assert.Equal(0, firstNotifications);
+        Assert.True(secondNotifications > 0);
+        Assert.Same(firstViewModel, center.DownloadQueueGroups[0]);
+        Assert.Same(secondViewModel, center.DownloadQueueGroups[1]);
+        Assert.Equal(0.5, secondViewModel.Progress);
+    }
+
+    [Fact]
+    public async Task Projection_moves_a_group_when_its_state_changes_and_preserves_view_models()
+    {
+        await using var queue = CreateQueue(new FakeQueueExecutor());
+        var center = CreateCenter(queue);
+        var created = DateTimeOffset.UtcNow;
+        var first = Group("first", "First") with
+        {
+            State = DownloadQueueGroupState.Running,
+            Stage = "Downloading",
+            CreatedAt = created.AddMinutes(2)
+        };
+        var second = Group("second", "Second") with
+        {
+            State = DownloadQueueGroupState.Running,
+            Stage = "Downloading",
+            CreatedAt = created.AddMinutes(1)
+        };
+        var third = Group("third", "Third") with
+        {
+            State = DownloadQueueGroupState.Running,
+            Stage = "Downloading",
+            CreatedAt = created
+        };
+
+        center.QueueDownloadQueueProjection([first, second, third]);
+        center.ApplyPendingDownloadQueueProjection();
+        Assert.Equal(["first", "second", "third"], center.DownloadQueueGroups.Select(group => group.Id));
+        var firstViewModel = center.DownloadQueueGroups[0];
+        var secondViewModel = center.DownloadQueueGroups[1];
+        var thirdViewModel = center.DownloadQueueGroups[2];
+
+        center.QueueDownloadQueueProjection(
+            [first with { State = DownloadQueueGroupState.Failed, Stage = "Failed" }, second, third]);
+        center.ApplyPendingDownloadQueueProjection();
+
+        Assert.Equal(["second", "third", "first"], center.DownloadQueueGroups.Select(group => group.Id));
+        Assert.Same(firstViewModel, center.DownloadQueueGroups[2]);
+        Assert.Same(secondViewModel, center.DownloadQueueGroups[0]);
+        Assert.Same(thirdViewModel, center.DownloadQueueGroups[1]);
+        Assert.Equal(DownloadQueueGroupState.Failed, firstViewModel.State);
+    }
+
+    [Fact]
+    public async Task Projection_removes_groups_that_left_the_snapshot_and_keeps_remaining_instances()
+    {
+        await using var queue = CreateQueue(new FakeQueueExecutor());
+        var center = CreateCenter(queue);
+        var first = Group("first", "First") with
+        {
+            State = DownloadQueueGroupState.Running,
+            Stage = "Downloading"
+        };
+        var second = Group("second", "Second") with
+        {
+            State = DownloadQueueGroupState.Completed,
+            Stage = "Completed"
+        };
+        var third = Group("third", "Third") with
+        {
+            State = DownloadQueueGroupState.Completed,
+            Stage = "Completed"
+        };
+
+        center.QueueDownloadQueueProjection([first, second, third]);
+        center.ApplyPendingDownloadQueueProjection();
+        var firstViewModel = center.DownloadQueueGroups.Single(group => group.Id == "first");
+        var thirdViewModel = center.DownloadQueueGroups.Single(group => group.Id == "third");
+
+        center.QueueDownloadQueueProjection([first, third]);
+        center.ApplyPendingDownloadQueueProjection();
+
+        Assert.Equal(["first", "third"], center.DownloadQueueGroups.Select(group => group.Id));
+        Assert.Same(firstViewModel, center.DownloadQueueGroups[0]);
+        Assert.Same(thirdViewModel, center.DownloadQueueGroups[1]);
+    }
+
+    [Fact]
+    public async Task Language_change_reapplies_projection_to_localize_existing_groups()
+    {
+        await using var queue = CreateQueue(new FakeQueueExecutor());
+        var center = CreateCenter(queue);
+        var active = Group("active", "Active") with
+        {
+            State = DownloadQueueGroupState.Running,
+            Stage = "Downloading"
+        };
+        center.QueueDownloadQueueProjection([active]);
+        center.ApplyPendingDownloadQueueProjection();
+        var viewModel = Assert.Single(center.DownloadQueueGroups);
+        var notifications = 0;
+        viewModel.PropertyChanged += (_, _) => notifications++;
+
+        var localization = new LocalizationViewModel();
+        localization.Apply(UiLanguage.SimplifiedChinese);
+        center.ApplyLanguage(localization);
+        center.QueueDownloadQueueProjection([active]);
+        center.ApplyPendingDownloadQueueProjection();
+
+        Assert.True(notifications > 0);
+    }
+
+    [Fact]
     public async Task Session_enqueued_group_completion_raises_toast_but_restored_groups_are_silent()
     {
         var executor = new FakeQueueExecutor();
