@@ -12,6 +12,8 @@ public sealed record DependencyGraphDependencies(
 public sealed partial class DependencyGraphViewModel : ViewModelBase
 {
     private readonly DependencyGraphDependencies dependencies;
+    private readonly object layoutCacheLock = new();
+    private readonly Dictionary<string, DependencyGraphLayout?> cachedLayouts = new(StringComparer.OrdinalIgnoreCase);
     private string? rebuildSignature;
 
     public DependencyGraphViewModel(DependencyGraphDependencies dependencies)
@@ -153,8 +155,7 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
 
     private async Task ApplyInstalledModGraphLayoutAsync(DependencyGraphModel graph, string instanceId)
     {
-        var layout = await DependencyGraphLayoutStore.TryReadAsync(
-            dependencies.GetInstalledModGraphLayoutPath(instanceId));
+        var layout = await GetCachedLayoutAsync(instanceId);
         if (layout is null
             || !ReferenceEquals(Graph, graph)
             || !string.Equals(dependencies.GetSelectedInstanceId(), instanceId, StringComparison.OrdinalIgnoreCase))
@@ -169,6 +170,26 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
         }
     }
 
+    private async Task<DependencyGraphLayout?> GetCachedLayoutAsync(string instanceId)
+    {
+        lock (layoutCacheLock)
+        {
+            if (cachedLayouts.TryGetValue(instanceId, out var cached))
+            {
+                return cached;
+            }
+        }
+
+        var layout = await DependencyGraphLayoutStore.TryReadAsync(
+            dependencies.GetInstalledModGraphLayoutPath(instanceId));
+        lock (layoutCacheLock)
+        {
+            // A write that completed while the read was in flight wins over the stale read.
+            cachedLayouts.TryAdd(instanceId, layout);
+        }
+        return layout;
+    }
+
     private async Task SaveInstalledModGraphLayoutAsync(DependencyGraphModel graph, string instanceId)
     {
         if (!ReferenceEquals(Graph, graph)
@@ -177,16 +198,9 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
             return;
         }
 
-        try
-        {
-            await DependencyGraphLayoutStore.WriteAsync(
-                dependencies.GetInstalledModGraphLayoutPath(instanceId),
-                new DependencyGraphLayout { Positions = new(graph.GetPositions(), StringComparer.OrdinalIgnoreCase) });
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            dependencies.SetErrorMessage($"{Loc["OperationFailed"]}: {exception.Message}");
-        }
+        await WriteLayoutIfChangedAsync(
+            instanceId,
+            new DependencyGraphLayout { Positions = new(graph.GetPositions(), StringComparer.OrdinalIgnoreCase) });
     }
 
     private async Task ClearInstalledModGraphLayoutAsync(DependencyGraphModel graph, string instanceId)
@@ -197,16 +211,60 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
             return;
         }
 
+        await WriteLayoutIfChangedAsync(instanceId, new DependencyGraphLayout());
+    }
+
+    private async Task WriteLayoutIfChangedAsync(string instanceId, DependencyGraphLayout layout)
+    {
+        lock (layoutCacheLock)
+        {
+            if (cachedLayouts.TryGetValue(instanceId, out var cached)
+                && LayoutsEqual(cached, layout))
+            {
+                return;
+            }
+        }
+
         try
         {
             await DependencyGraphLayoutStore.WriteAsync(
                 dependencies.GetInstalledModGraphLayoutPath(instanceId),
-                new DependencyGraphLayout());
+                layout);
+            lock (layoutCacheLock)
+            {
+                cachedLayouts[instanceId] = layout;
+            }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             dependencies.SetErrorMessage($"{Loc["OperationFailed"]}: {exception.Message}");
         }
+    }
+
+    private static bool LayoutsEqual(DependencyGraphLayout? cached, DependencyGraphLayout layout)
+    {
+        if (cached is null)
+        {
+            return false;
+        }
+
+        var cachedPositions = cached.Positions;
+        var positions = layout.Positions;
+        if (cachedPositions.Count != positions.Count)
+        {
+            return false;
+        }
+
+        foreach (var (id, position) in cachedPositions)
+        {
+            if (!positions.TryGetValue(id, out var other)
+                || other.X != position.X
+                || other.Y != position.Y)
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static void AppendSignature(StringBuilder builder, string? value)
