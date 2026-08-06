@@ -1,5 +1,3 @@
-using CommunityToolkit.Mvvm.Input;
-
 namespace Crystalfly.App.ViewModels.DependencyGraph;
 
 public sealed record DependencyGraphDependencies(
@@ -31,52 +29,14 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
 
     public string? SelectedNodeId { get; private set; }
 
-    public HashSet<string> ExpandedNodeIds { get; } = new(StringComparer.OrdinalIgnoreCase);
-
-    public bool IsSelectedNodeExpanded => SelectedNodeId is not null && IsExpanded(SelectedNodeId);
-
-    public bool IsExpanded(string id) => ExpandedNodeIds.Contains(id);
-
     public IReadOnlyList<string> MissingNodeIds => Graph.Nodes
         .Where(node => node.IsMissing)
         .Select(node => node.Id)
         .ToArray();
 
-    [RelayCommand]
-    private void ExpandNode(string? id)
-    {
-        if (string.IsNullOrWhiteSpace(id) || !IsNodePresent(id))
-        {
-            return;
-        }
-        ExpandedNodeIds.Add(id);
-        NotifyExpansionStateChanged();
-    }
-
-    [RelayCommand]
-    private void CollapseNode(string? id)
-    {
-        if (string.IsNullOrWhiteSpace(id) || !IsNodePresent(id))
-        {
-            return;
-        }
-        ExpandedNodeIds.Remove(id);
-        NotifyExpansionStateChanged();
-    }
-
-    private void NotifyExpansionStateChanged()
-    {
-        OnPropertyChanged(nameof(IsSelectedNodeExpanded));
-        OnPropertyChanged(nameof(IsExpanded));
-    }
-
-    private bool IsNodePresent(string id) => Graph.Nodes.Any(node =>
-        string.Equals(node.Id, id, StringComparison.OrdinalIgnoreCase));
-
     public void SelectNode(string? id)
     {
         SelectedNodeId = id;
-        OnPropertyChanged(nameof(IsSelectedNodeExpanded));
         Graph.Select(id);
     }
 
@@ -142,13 +102,11 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
         graph.NodeSelected = id =>
         {
             SelectedNodeId = id;
-            OnPropertyChanged(nameof(IsSelectedNodeExpanded));
             NodeSelectedRequested?.Invoke(id);
         };
         Graph = graph;
         OnPropertyChanged(nameof(Graph));
         SelectedNodeId = targetSelectedId;
-        OnPropertyChanged(nameof(IsSelectedNodeExpanded));
         if (string.IsNullOrWhiteSpace(instanceId))
         {
             return;

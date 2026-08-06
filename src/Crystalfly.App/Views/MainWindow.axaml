@@ -1385,32 +1385,9 @@
                         <Border Grid.Row="3"
                                 Classes="cfp-list-frame cfp-dependency-graph-frame"
                                 IsVisible="{Binding ModManagement.IsInstalledModGraphVisible}">
-                            <Grid RowDefinitions="Auto,*" RowSpacing="8">
-                                <Grid Margin="12,10,12,0" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                    <TextBlock Classes="cfp-row-title"
-                                               Text="{Binding Loc[DependencyGraph]}"
-                                               VerticalAlignment="Center" />
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
-                                        <Button Classes="cfp-icon"
-                                                Classes.active="{Binding DependencyGraph.IsSelectedNodeExpanded}"
-                                                Command="{Binding DependencyGraph.ExpandNodeCommand}"
-                                                CommandParameter="{Binding DependencyGraph.SelectedNodeId}"
-                                                ToolTip.Tip="{Binding Loc[ExpandNode]}"
-                                                AutomationProperties.Name="{Binding Loc[ExpandNode]}"
-                                                Content="{LucideIconContent FolderPlus, 15}" />
-                                        <Button Classes="cfp-icon"
-                                                Command="{Binding DependencyGraph.CollapseNodeCommand}"
-                                                CommandParameter="{Binding DependencyGraph.SelectedNodeId}"
-                                                ToolTip.Tip="{Binding Loc[CollapseNode]}"
-                                                AutomationProperties.Name="{Binding Loc[CollapseNode]}"
-                                                Content="{LucideIconContent FolderMinus, 15}" />
-                                    </StackPanel>
-                                </Grid>
-                                <controls:DependencyGraphView Grid.Row="1"
-                                                              Margin="8"
-                                                              MinHeight="340"
-                                                              DataContext="{Binding DependencyGraph.Graph}" />
-                            </Grid>
+                            <controls:DependencyGraphView Margin="8"
+                                                          MinHeight="340"
+                                                          DataContext="{Binding DependencyGraph.Graph}" />
                         </Border>
                         <Border Grid.Row="3" Classes="cfp-list-frame"
                                 IsVisible="{Binding ModManagement.IsInstalledModListVisible}">

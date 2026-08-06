@@ -345,9 +345,12 @@ public sealed class MainWindowStructureTests
 
         var graphFrame = manageGrid.Descendants(Avalonia + "Border")
             .Single(border => HasClass(border, "cfp-dependency-graph-frame"));
-        Assert.Contains(graphFrame.Descendants(Avalonia + "Button"), button =>
+        // The graph frame hosts the DependencyGraphView directly — no title bar and no
+        // expand/collapse buttons (they had no effect on the flat graph).
+        Assert.Contains(graphFrame.Descendants(), element => element.Name.LocalName == "DependencyGraphView");
+        Assert.DoesNotContain(graphFrame.Descendants(Avalonia + "Button"), button =>
             HasBinding(button, "Command", "DependencyGraph.ExpandNodeCommand"));
-        Assert.Contains(graphFrame.Descendants(Avalonia + "Button"), button =>
+        Assert.DoesNotContain(graphFrame.Descendants(Avalonia + "Button"), button =>
             HasBinding(button, "Command", "DependencyGraph.CollapseNodeCommand"));
 
         var quickActions = manageGrid.Descendants(Avalonia + "WrapPanel")
