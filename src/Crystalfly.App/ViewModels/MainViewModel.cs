@@ -962,6 +962,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ApplyTheme(settings.Theme, settings.AccentColor);
         Settings.RebuildBackgroundScopeOptions();
         await Settings.RefreshBackgroundAppearanceAsync(lifetimeCancellation.Token);
+        // The download queue restore and the remote catalog load only depend on
+        // the loaded settings, so they start in parallel with game-directory
+        // setup and the instance scan instead of serially after them. The
+        // catalog refresh task still awaits the first instance scan before it
+        // re-scans with the loaded catalog, so the scan ordering is unchanged.
+        var downloadQueueTask = InitializeDownloadQueueAsync();
+        var catalogLoadTask = catalogLoader(lifetimeCancellation.Token);
         InitializeApplicationUpdateSettings();
         VersionRoot = settings.VersionRoot ?? string.Empty;
         await Instances.InitializeGameDirectoriesAsync();
@@ -983,12 +990,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var refreshTask = Directory.Exists(VersionRoot)
             ? RefreshAsync()
             : Task.CompletedTask;
-        catalogRefreshTask = RefreshCatalogInBackgroundAsync(refreshTask);
+        catalogRefreshTask = RefreshCatalogInBackgroundAsync(refreshTask, catalogLoadTask);
         if (!Directory.Exists(VersionRoot))
         {
             StatusMessage = Loc["ChooseRoot"];
         }
-        await Task.WhenAll(refreshTask, InitializeDownloadQueueAsync());
+        await Task.WhenAll(refreshTask, downloadQueueTask);
         StartSpeedrunActivityRefreshLoop();
         await Instances.CompleteGameDirectoryInitializationAsync();
     }
@@ -1058,11 +1065,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                                    ?? SpeedrunTemplates.FirstOrDefault();
     }
 
-    private async Task RefreshCatalogInBackgroundAsync(Task initialInstanceRefresh)
+    private async Task RefreshCatalogInBackgroundAsync(
+        Task initialInstanceRefresh,
+        Task<GameCatalog> catalogLoad)
     {
         try
         {
-            catalog = await catalogLoader(lifetimeCancellation.Token);
+            catalog = await catalogLoad;
             RebuildCustomModLinksOptions();
             ModManagement.RebuildStatusOptions();
             RebuildMarketCatalog();
