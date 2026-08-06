@@ -72,8 +72,8 @@ public sealed class MainWindowCodeBehindTests : IDisposable
     {
         await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"));
         viewModel.Loc.Apply(UiLanguage.SimplifiedChinese);
-        viewModel.InstalledMods.Add(Installed("feature", enabled: true, dependencies: ["middle"]));
-        viewModel.InstalledMods.Add(Installed("middle", enabled: false, dependencies: ["base"]));
+        viewModel.ModManagement.InstalledMods.Add(Installed("feature", enabled: true, dependencies: ["middle"]));
+        viewModel.ModManagement.InstalledMods.Add(Installed("middle", enabled: false, dependencies: ["base"]));
         var plan = new ModDependencyRepairPlan
         {
             BuildId = "build",

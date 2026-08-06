@@ -858,8 +858,8 @@ public sealed class DocumentationScreenshotTests
 
         private void PrepareInstalledModHealth()
         {
-            ViewModel.InstalledMods.Clear();
-            ViewModel.VisibleInstalledMods.Clear();
+            ViewModel.ModManagement.InstalledMods.Clear();
+            ViewModel.ModManagement.VisibleInstalledMods.Clear();
 
             var managedReceipt = new InstalledModReceipt
             {
@@ -926,11 +926,11 @@ public sealed class DocumentationScreenshotTests
                 ownershipDisplayName: ViewModel.Loc["External"],
                 healthDisplayName: ViewModel.Loc["ModHealthUnmanagedExternal"]);
 
-            ViewModel.InstalledMods.Add(managed);
-            ViewModel.InstalledMods.Add(external);
-            ViewModel.VisibleInstalledMods.Add(managed);
-            ViewModel.VisibleInstalledMods.Add(external);
-            ViewModel.SelectedInstalledMod = external;
+            ViewModel.ModManagement.InstalledMods.Add(managed);
+            ViewModel.ModManagement.InstalledMods.Add(external);
+            ViewModel.ModManagement.VisibleInstalledMods.Add(managed);
+            ViewModel.ModManagement.VisibleInstalledMods.Add(external);
+            ViewModel.ModManagement.SelectedInstalledMod = external;
         }
 
         private void PrepareModPresets()

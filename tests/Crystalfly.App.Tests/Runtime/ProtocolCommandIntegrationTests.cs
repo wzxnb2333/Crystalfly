@@ -183,7 +183,7 @@ public sealed class ProtocolCommandIntegrationTests
         viewModel.Instances.VisibleInstances.Add(item);
         viewModel.SelectedInstance = item;
         viewModel.VersionRoot = Path.Combine(root, "versions");
-        viewModel.InstalledMods.Add(new InstalledModItemViewModel(
+        viewModel.ModManagement.InstalledMods.Add(new InstalledModItemViewModel(
             new InstalledModReceipt
             {
                 Id = "local",
@@ -210,7 +210,7 @@ public sealed class ProtocolCommandIntegrationTests
         Assert.Null(viewModel.SelectedInstance);
         Assert.Empty(viewModel.Instances.Instances);
         Assert.Empty(viewModel.Instances.VisibleInstances);
-        Assert.Empty(viewModel.InstalledMods);
+        Assert.Empty(viewModel.ModManagement.InstalledMods);
         Assert.Empty(viewModel.Snapshots);
         Assert.Equal(string.Empty, viewModel.VersionRoot);
         Assert.Equal("Launch", viewModel.CurrentPage);

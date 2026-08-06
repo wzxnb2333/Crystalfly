@@ -170,8 +170,8 @@ public sealed class LayoutRenderingTests
         {
             IsSelected = true
         };
-        viewModel.InstalledMods.Add(item);
-        viewModel.VisibleInstalledMods.Add(item);
+        viewModel.ModManagement.InstalledMods.Add(item);
+        viewModel.ModManagement.VisibleInstalledMods.Add(item);
 
         var window = new MainWindow { Width = 900, Height = 600, DataContext = viewModel };
         window.Show();
