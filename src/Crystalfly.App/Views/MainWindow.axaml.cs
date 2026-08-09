@@ -61,6 +61,14 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // 行的内容容器(ContentPresenter)会在行悬停/选中时拦截空白区域的指针按下,
+        // 且 ListBoxItem 会在冒泡阶段标记事件已处理;因此选择逻辑必须在隧道阶段、
+        // 以 ListBox 为根注册,才能覆盖行内任意非交互区域。
+        InstalledModsList.AddHandler(
+            InputElement.PointerPressedEvent,
+            OnInstalledModPointerPressed,
+            RoutingStrategies.Tunnel,
+            handledEventsToo: true);
         MainOverlayDialogHost.Children.CollectionChanged += OnOverlayHostChildrenChanged;
         toastManager = new WindowToastManager(this) { MaxItems = 3 };
         motionCoordinator = new MotionCoordinator(

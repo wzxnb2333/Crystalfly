@@ -20,9 +20,10 @@ public partial class MainWindow
     private void OnInstalledModPointerPressed(object? sender, PointerPressedEventArgs eventArgs)
     {
         if (eventArgs.GetCurrentPoint(this).Properties.PointerUpdateKind != PointerUpdateKind.LeftButtonPressed
-            || eventArgs.Source is Avalonia.Visual visual && visual.FindAncestorOfType<Button>() is not null
-            || DataContext is not MainViewModel viewModel
-            || sender is not Control { DataContext: InstalledModItemViewModel item })
+            || eventArgs.Source is not Avalonia.Visual visual
+            || visual.FindAncestorOfType<Button>() is not null
+            || visual.FindAncestorOfType<ListBoxItem>() is not { DataContext: InstalledModItemViewModel item }
+            || DataContext is not MainViewModel viewModel)
         {
             return;
         }
