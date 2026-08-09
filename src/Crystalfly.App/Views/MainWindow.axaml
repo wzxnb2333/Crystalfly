@@ -1396,7 +1396,7 @@
                             <ListBox x:Name="InstalledModsList" Classes="cfp-list cfp-installed-mod-list" ItemsSource="{Binding ModManagement.VisibleInstalledMods}" SelectedItem="{Binding ModManagement.SelectedInstalledMod, Mode=TwoWay}" KeyDown="OnInstalledModsKeyDown">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:InstalledModItemViewModel">
-                                        <Grid Classes="cfp-installed-mod-row" Classes.selected="{Binding IsSelected}" Classes.disabled="{Binding IsEnabled, Converter={x:Static converters:BoolConverters.Not}}" Classes.conflict="{Binding HasConflicts}" Background="Transparent" ColumnDefinitions="3,*,Auto" ColumnSpacing="8" PointerPressed="OnInstalledModPointerPressed">
+                                        <Grid Classes="cfp-installed-mod-row" Classes.selected="{Binding IsSelected}" Classes.disabled="{Binding IsEnabled, Converter={x:Static converters:BoolConverters.Not}}" Classes.conflict="{Binding HasConflicts}" Background="Transparent" ColumnDefinitions="3,*,Auto" ColumnSpacing="8">
                                             <Border Classes="cfp-installed-mod-accent" Width="3" CornerRadius="2" Background="{DynamicResource CfAccentBrush}" />
                                             <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                                 <TextBlock Classes="cfp-installed-mod-name" Text="{Binding PrimaryName}" Classes.disabled="{Binding IsEnabled, Converter={x:Static converters:BoolConverters.Not}}" TextTrimming="CharacterEllipsis" />
