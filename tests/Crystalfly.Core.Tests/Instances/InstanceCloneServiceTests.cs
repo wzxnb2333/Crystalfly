@@ -75,7 +75,7 @@ public sealed class InstanceCloneServiceTests : IDisposable
         Assert.IsType<IOException>(clones.Single(task => task.IsFaulted).Exception!.GetBaseException());
         Assert.True(Directory.Exists(destination));
         Assert.True(File.Exists(Path.Combine(destination, "hollow_knight.exe")));
-        Assert.Contains((await InstanceSidecar.LoadAsync(destination)).Id, new[] { "first", "second" });
+        Assert.Contains((await InstanceSidecar.LoadAsync(destination))!.Id, new[] { "first", "second" });
     }
 
     [Theory]

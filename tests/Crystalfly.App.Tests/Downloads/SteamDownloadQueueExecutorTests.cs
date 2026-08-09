@@ -210,7 +210,7 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
 
         await executor.InstallAsync(group, item, CancellationToken.None);
 
-        InstanceRecord instance = await InstanceSidecar.LoadAsync(group.TargetInstanceRoot);
+        InstanceRecord instance = (await InstanceSidecar.LoadAsync(group.TargetInstanceRoot))!;
         Assert.Equal(group.TargetInstanceId, instance.Id);
         Assert.Equal("latest-known", instance.BuildId);
         Assert.Equal(InstanceProvisioningMode.Downloaded, instance.ProvisioningMode);
@@ -512,7 +512,7 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
             group, item, new ProgressCapture(_ => { }), networkGate, CancellationToken.None);
         await executor.InstallAsync(group, item, CancellationToken.None);
 
-        InstanceRecord instance = await InstanceSidecar.LoadAsync(group.TargetInstanceRoot);
+        InstanceRecord instance = (await InstanceSidecar.LoadAsync(group.TargetInstanceRoot))!;
         Assert.Equal("steam-public-42", instance.BuildId);
     }
 
@@ -528,7 +528,7 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
         await executor.TransferAsync(group, item, new ProgressCapture(_ => { }), networkGate, CancellationToken.None);
         await executor.InstallAsync(group, item, CancellationToken.None);
 
-        InstanceRecord instance = await InstanceSidecar.LoadAsync(group.TargetInstanceRoot);
+        InstanceRecord instance = (await InstanceSidecar.LoadAsync(group.TargetInstanceRoot))!;
         Assert.Equal("known-build", instance.BuildId);
     }
 
@@ -544,7 +544,7 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
         await executor.TransferAsync(group, item, new ProgressCapture(_ => { }), networkGate, CancellationToken.None);
         await executor.InstallAsync(group, item, CancellationToken.None);
 
-        InstanceRecord instance = await InstanceSidecar.LoadAsync(group.TargetInstanceRoot);
+        InstanceRecord instance = (await InstanceSidecar.LoadAsync(group.TargetInstanceRoot))!;
         Assert.Equal("steam-manifest-42", instance.BuildId);
     }
 
@@ -585,7 +585,7 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
             group, item, new ProgressCapture(_ => { }), networkGate, CancellationToken.None);
         await executor.InstallAsync(group, item, CancellationToken.None);
 
-        InstanceRecord instance = await InstanceSidecar.LoadAsync(group.TargetInstanceRoot);
+        InstanceRecord instance = (await InstanceSidecar.LoadAsync(group.TargetInstanceRoot))!;
         Assert.Equal(group.TargetInstanceId, instance.Id);
         Assert.Equal(group.TargetInstanceName, instance.Name);
         Assert.Equal("expected-build", instance.BuildId);
@@ -613,7 +613,7 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
             group, item, new ProgressCapture(_ => { }), networkGate, CancellationToken.None);
         await executor.InstallAsync(group, item, CancellationToken.None);
 
-        InstanceRecord instance = await InstanceSidecar.LoadAsync(group.TargetInstanceRoot);
+        InstanceRecord instance = (await InstanceSidecar.LoadAsync(group.TargetInstanceRoot))!;
         Assert.Equal(group.TargetInstanceId, instance.Id);
         Assert.Equal(group.TargetInstanceName, instance.Name);
         Assert.Equal("expected-build", instance.BuildId);

@@ -22,7 +22,10 @@ public static class InstanceCloneService
             throw new IOException($"Destination '{destinationRoot}' already exists.");
         }
 
-        var sourceRecord = await InstanceSidecar.LoadAsync(sourceRoot, cancellationToken);
+        var sourceRecord = await InstanceSidecar.LoadAsync(sourceRoot, cancellationToken)
+            ?? throw new InvalidDataException(
+                $"Instance sidecar metadata is missing; expected '{InstanceSidecar.GetMarkerPath(sourceRoot)}'. "
+                + "The instance may be corrupted.");
         var stagingRoot = Path.Combine(versionRoot, ".crystalfly", "staging", $"clone-{Guid.NewGuid():N}");
         var destinationOwned = false;
         try

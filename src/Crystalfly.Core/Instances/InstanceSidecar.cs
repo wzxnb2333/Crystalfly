@@ -23,21 +23,46 @@ public static class InstanceSidecar
             cancellationToken);
     }
 
-    public static async Task<InstanceRecord> LoadAsync(
+    public static async Task<InstanceRecord?> LoadAsync(
         string instanceRoot,
         CancellationToken cancellationToken = default)
     {
-        var marker = await AtomicJsonStore.ReadAsync<InstanceMarker>(
-            GetMarkerPath(instanceRoot),
-            cancellationToken);
-        var record = await AtomicJsonStore.ReadAsync<InstanceRecord>(
-            GetMetadataPath(instanceRoot, marker.InstanceId),
-            cancellationToken);
+        var marker = await ReadMarkerAsync(instanceRoot, cancellationToken);
+        if (marker is null)
+        {
+            return null;
+        }
+        var metadataPath = GetMetadataPath(instanceRoot, marker.InstanceId);
+        if (!File.Exists(metadataPath))
+        {
+            return null;
+        }
+        var record = await AtomicJsonStore.ReadAsync<InstanceRecord>(metadataPath, cancellationToken);
         if (!string.Equals(record.Id, marker.InstanceId, StringComparison.Ordinal))
         {
             throw new InvalidDataException("Instance marker and metadata IDs do not match.");
         }
         return record with { RootPath = Path.GetFullPath(instanceRoot) };
+    }
+
+    public static async Task<string?> ReadMarkerInstanceIdAsync(
+        string instanceRoot,
+        CancellationToken cancellationToken = default)
+    {
+        var marker = await ReadMarkerAsync(instanceRoot, cancellationToken);
+        return marker?.InstanceId;
+    }
+
+    private static async Task<InstanceMarker?> ReadMarkerAsync(
+        string instanceRoot,
+        CancellationToken cancellationToken)
+    {
+        var markerPath = GetMarkerPath(instanceRoot);
+        if (!File.Exists(markerPath))
+        {
+            return null;
+        }
+        return await AtomicJsonStore.ReadAsync<InstanceMarker>(markerPath, cancellationToken);
     }
 
     public static string GetMarkerPath(string instanceRoot) =>

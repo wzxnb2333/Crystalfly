@@ -52,6 +52,7 @@ public sealed class InstanceSidecarTests : IDisposable
 
         var record = await InstanceSidecar.LoadAsync(renamedRoot);
 
+        Assert.NotNull(record);
         Assert.Equal(renamedRoot, record.RootPath);
     }
 
@@ -69,6 +70,7 @@ public sealed class InstanceSidecarTests : IDisposable
 
         var loaded = await InstanceSidecar.LoadAsync(scannedRoot);
 
+        Assert.NotNull(loaded);
         Assert.Equal(scannedRoot, loaded.RootPath);
     }
 
@@ -81,6 +83,44 @@ public sealed class InstanceSidecarTests : IDisposable
         var record = CreateRecord(instanceRoot) with { Id = instanceId };
 
         await Assert.ThrowsAsync<ArgumentException>(() => InstanceSidecar.SaveAsync(record));
+    }
+
+    [Fact]
+    public async Task Load_returns_null_when_marker_is_missing()
+    {
+        var instanceRoot = Directory.CreateDirectory(Path.Combine(root, "versions", "Practice")).FullName;
+
+        var loaded = await InstanceSidecar.LoadAsync(instanceRoot);
+
+        Assert.Null(loaded);
+    }
+
+    [Fact]
+    public async Task Load_returns_null_when_metadata_directory_is_missing()
+    {
+        var instanceRoot = Directory.CreateDirectory(Path.Combine(root, "versions", "Practice")).FullName;
+        var record = CreateRecord(instanceRoot);
+        await InstanceSidecar.SaveAsync(record);
+        Directory.Delete(
+            Path.GetDirectoryName(InstanceSidecar.GetMetadataPath(instanceRoot, record.Id))!,
+            recursive: true);
+
+        var loaded = await InstanceSidecar.LoadAsync(instanceRoot);
+
+        Assert.Null(loaded);
+    }
+
+    [Fact]
+    public async Task Load_returns_null_when_metadata_file_is_missing()
+    {
+        var instanceRoot = Directory.CreateDirectory(Path.Combine(root, "versions", "Practice")).FullName;
+        var record = CreateRecord(instanceRoot);
+        await InstanceSidecar.SaveAsync(record);
+        File.Delete(InstanceSidecar.GetMetadataPath(instanceRoot, record.Id));
+
+        var loaded = await InstanceSidecar.LoadAsync(instanceRoot);
+
+        Assert.Null(loaded);
     }
 
     [Fact]

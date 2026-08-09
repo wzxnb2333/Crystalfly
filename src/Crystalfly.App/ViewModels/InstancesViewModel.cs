@@ -543,12 +543,19 @@ public sealed partial class InstancesViewModel : ViewModelBase
         {
             var record = await InstanceSidecar.LoadAsync(source, dependencies.LifetimeCancellation);
             GameDirectoryMigrationResult? coordinatedResult = null;
-            await dependencies.RunCoordinated(
-                record.Id,
-                async cancellationToken => coordinatedResult = await MigrateCoreAsync(cancellationToken),
-                dependencies.LifetimeCancellation);
-            result = coordinatedResult
-                ?? throw new InvalidOperationException(dependencies.Loc()["OperationFailed"]);
+            if (record is null)
+            {
+                result = await MigrateCoreAsync(dependencies.LifetimeCancellation);
+            }
+            else
+            {
+                await dependencies.RunCoordinated(
+                    record.Id,
+                    async cancellationToken => coordinatedResult = await MigrateCoreAsync(cancellationToken),
+                    dependencies.LifetimeCancellation);
+                result = coordinatedResult
+                    ?? throw new InvalidOperationException(dependencies.Loc()["OperationFailed"]);
+            }
         }
         else
         {

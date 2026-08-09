@@ -151,7 +151,7 @@ public sealed class CatalogPackageQueueExecutorTests : IDisposable
         {
             await fixture.Executor.InstallAsync(fixture.Group, item, CancellationToken.None);
         }
-        var record = await InstanceSidecar.LoadAsync(fixture.InstanceRoot);
+        var record = (await InstanceSidecar.LoadAsync(fixture.InstanceRoot))!;
         await InstanceSidecar.SaveAsync(record with { Purpose = InstancePurpose.OfficialSpeedrun });
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -394,7 +394,7 @@ public sealed class CatalogPackageQueueExecutorTests : IDisposable
     {
         using var fixture = await CreateFixtureAsync();
         var repair = RepairGroup(fixture, fixture.Group.Items[1]);
-        var instance = await InstanceSidecar.LoadAsync(fixture.InstanceRoot);
+        var instance = (await InstanceSidecar.LoadAsync(fixture.InstanceRoot))!;
         await InstanceSidecar.SaveAsync(instance with { BuildId = "changed" });
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -430,7 +430,7 @@ public sealed class CatalogPackageQueueExecutorTests : IDisposable
         await fixture.Executor.TransferAsync(
             fixture.Group, loader, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
         await fixture.Executor.InstallAsync(fixture.Group, loader, CancellationToken.None);
-        var instance = await InstanceSidecar.LoadAsync(fixture.InstanceRoot);
+        var instance = (await InstanceSidecar.LoadAsync(fixture.InstanceRoot))!;
         var preset = Preset(instance, ModPresetApplyMode.Append);
         var plan = new PresetApplyPlan
         {
@@ -467,7 +467,7 @@ public sealed class CatalogPackageQueueExecutorTests : IDisposable
             await fixture.Executor.InstallAsync(fixture.Group, item, CancellationToken.None);
         }
         var manager = ModManager(fixture);
-        var instance = await InstanceSidecar.LoadAsync(fixture.InstanceRoot);
+        var instance = (await InstanceSidecar.LoadAsync(fixture.InstanceRoot))!;
         var preset = Preset(instance, ModPresetApplyMode.Exact);
         var plan = new PresetApplyPlan
         {
@@ -509,7 +509,7 @@ public sealed class CatalogPackageQueueExecutorTests : IDisposable
         }
         var manager = ModManager(fixture);
         await manager.SetEnabledAsync("feature", enabled: false);
-        var instance = await InstanceSidecar.LoadAsync(fixture.InstanceRoot);
+        var instance = (await InstanceSidecar.LoadAsync(fixture.InstanceRoot))!;
         var plan = new PresetApplyPlan
         {
             Preset = Preset(instance, ModPresetApplyMode.Exact),
@@ -648,7 +648,7 @@ public sealed class CatalogPackageQueueExecutorTests : IDisposable
         string buildId)
     {
         using var fixture = await CreateFixtureAsync();
-        var record = await InstanceSidecar.LoadAsync(fixture.InstanceRoot);
+        var record = (await InstanceSidecar.LoadAsync(fixture.InstanceRoot))!;
         await InstanceSidecar.SaveAsync(record with { Purpose = purpose, BuildId = buildId });
         var item = fixture.Group.Items.Single(candidate => candidate.Kind == DownloadQueueItemKind.Loader);
         var group = fixture.Group with

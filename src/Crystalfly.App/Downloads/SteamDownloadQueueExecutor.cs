@@ -181,7 +181,10 @@ public sealed class SteamDownloadQueueExecutor(
         var destination = Path.GetFullPath(group.TargetInstanceRoot);
         var statePath = Path.Combine(staging, InstanceDirectory.PendingDownloadMarkerFileName);
         _ = await ReadTransferStateAsync(statePath, group, item, cancellationToken);
-        var instance = await InstanceSidecar.LoadAsync(destination, cancellationToken);
+        var instance = await InstanceSidecar.LoadAsync(destination, cancellationToken)
+            ?? throw new InvalidDataException(
+                $"Repair target sidecar metadata is missing; expected '{InstanceSidecar.GetMarkerPath(destination)}'. "
+                + "The instance may be corrupted.");
         if (!string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal)
             || !string.Equals(instance.BuildId, group.ExpectedBuildId, StringComparison.OrdinalIgnoreCase))
         {
@@ -258,7 +261,10 @@ public sealed class SteamDownloadQueueExecutor(
     {
         if (File.Exists(InstanceSidecar.GetMarkerPath(destination)))
         {
-            InstanceRecord existing = await InstanceSidecar.LoadAsync(destination, cancellationToken);
+            InstanceRecord existing = await InstanceSidecar.LoadAsync(destination, cancellationToken)
+                ?? throw new InvalidDataException(
+                    $"Existing Steam instance sidecar metadata is missing; expected '{InstanceSidecar.GetMarkerPath(destination)}'. "
+                    + "The instance may be corrupted.");
             if (!IsMatchingInstance(existing, group, destination, buildId))
             {
                 throw new InvalidDataException("Existing Steam instance target does not match the queue request.");

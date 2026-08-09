@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Crystalfly.Core.Models;
 
 namespace Crystalfly.Core.Instances;
@@ -26,25 +27,58 @@ public static class InstanceImportService
             if (File.Exists(InstanceSidecar.GetMarkerPath(path)))
             {
                 var existing = await InstanceSidecar.LoadAsync(path, cancellationToken);
-                existing = await UpgradeVerifiedSteamManifestAsync(existing, catalog, cancellationToken);
+                if (existing is null)
+                {
+                    existing = await RecreateFromMarkerAsync(path, catalog, cancellationToken);
+                }
+                else
+                {
+                    existing = await UpgradeVerifiedSteamManifestAsync(existing, catalog, cancellationToken);
+                }
                 instances.Add(existing);
                 continue;
             }
 
-            var fingerprint = await BuildFingerprintService.CalculateAsync(path, cancellationToken);
-            var build = BuildFingerprintService.FindBuild(catalog.Builds, fingerprint);
-            var record = new InstanceRecord
-            {
-                Id = Guid.NewGuid().ToString("N"),
-                Name = Path.GetFileName(path),
-                RootPath = path,
-                BuildId = build?.Id ?? "unknown",
-                CreatedAt = DateTimeOffset.UtcNow
-            };
-            await InstanceSidecar.SaveAsync(record, cancellationToken);
-            instances.Add(record);
+            instances.Add(await RegisterAsync(path, instanceId: null, catalog, cancellationToken));
         }
         return instances;
+    }
+
+    private static async Task<InstanceRecord> RecreateFromMarkerAsync(
+        string path,
+        GameCatalog catalog,
+        CancellationToken cancellationToken)
+    {
+        string? instanceId;
+        try
+        {
+            instanceId = await InstanceSidecar.ReadMarkerInstanceIdAsync(path, cancellationToken);
+        }
+        catch (JsonException)
+        {
+            instanceId = null;
+        }
+        return await RegisterAsync(path, instanceId, catalog, cancellationToken);
+    }
+
+    private static async Task<InstanceRecord> RegisterAsync(
+        string path,
+        string? instanceId,
+        GameCatalog catalog,
+        CancellationToken cancellationToken)
+    {
+        var fingerprint = await BuildFingerprintService.CalculateAsync(path, cancellationToken);
+        var build = BuildFingerprintService.FindBuild(catalog.Builds, fingerprint);
+        var record = new InstanceRecord
+        {
+            Id = instanceId ?? Guid.NewGuid().ToString("N"),
+            Name = Path.GetFileName(path),
+            RootPath = path,
+            BuildId = build?.Id ?? "unknown",
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        await InstanceSidecar.SaveAsync(record, cancellationToken);
+        return record;
     }
 
     private static async Task<InstanceRecord> UpgradeVerifiedSteamManifestAsync(

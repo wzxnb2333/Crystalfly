@@ -71,7 +71,7 @@ public sealed class InstanceImportServiceTests : IDisposable
         var discovered = await InstanceImportService.DiscoverAsync(root, catalog);
 
         Assert.Equal("verified-build", Assert.Single(discovered).BuildId);
-        Assert.Equal("verified-build", (await InstanceSidecar.LoadAsync(instanceRoot)).BuildId);
+        Assert.Equal("verified-build", (await InstanceSidecar.LoadAsync(instanceRoot))!.BuildId);
     }
 
     [Fact]
@@ -107,7 +107,31 @@ public sealed class InstanceImportServiceTests : IDisposable
         var discovered = await InstanceImportService.DiscoverAsync(root, catalog);
 
         Assert.Equal("steam-manifest-42", Assert.Single(discovered).BuildId);
-        Assert.Equal("steam-manifest-42", (await InstanceSidecar.LoadAsync(instanceRoot)).BuildId);
+        Assert.Equal("steam-manifest-42", (await InstanceSidecar.LoadAsync(instanceRoot))!.BuildId);
+    }
+
+    [Fact]
+    public async Task Discover_recreates_metadata_when_marker_exists_without_metadata()
+    {
+        var instanceRoot = await CreateGameAsync("orphaned", "orphaned");
+        var record = new InstanceRecord
+        {
+            Id = "orphaned-instance",
+            Name = "orphaned",
+            RootPath = instanceRoot,
+            BuildId = "unknown",
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        await InstanceSidecar.SaveAsync(record);
+        Directory.Delete(
+            Path.GetDirectoryName(InstanceSidecar.GetMetadataPath(instanceRoot, record.Id))!,
+            recursive: true);
+
+        var discovered = await InstanceImportService.DiscoverAsync(root, new GameCatalog { Builds = [] });
+
+        var recreated = Assert.Single(discovered);
+        Assert.Equal("orphaned-instance", recreated.Id);
+        Assert.Equal(record.BuildId, (await InstanceSidecar.LoadAsync(instanceRoot))!.BuildId);
     }
 
     private async Task<string> CreateGameAsync(string directory, string content)

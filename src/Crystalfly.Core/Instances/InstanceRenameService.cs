@@ -34,7 +34,10 @@ public static class InstanceRenameService
 
         var name = newName.Trim();
         var destination = InstanceDirectory.ResolveUnderRoot(versionRoot, name);
-        var existing = await InstanceSidecar.LoadAsync(source, cancellationToken);
+        var existing = await InstanceSidecar.LoadAsync(source, cancellationToken)
+            ?? throw new InvalidDataException(
+                $"Instance sidecar metadata is missing; expected '{InstanceSidecar.GetMarkerPath(source)}'. "
+                + "The instance may be corrupted.");
         if (!string.Equals(existing.Id, record.Id, StringComparison.Ordinal))
         {
             throw new InvalidDataException("Instance sidecar does not match the selected instance.");

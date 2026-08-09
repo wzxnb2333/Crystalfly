@@ -85,7 +85,10 @@ public sealed class InstanceDeletionService
         var instanceRoot = ValidateInstanceRoot(instance.RootPath);
         ValidateConditions(await evaluateConditions(cancellationToken));
 
-        var sidecar = await InstanceSidecar.LoadAsync(instanceRoot, cancellationToken);
+        var sidecar = await InstanceSidecar.LoadAsync(instanceRoot, cancellationToken)
+            ?? throw new InvalidDataException(
+                $"Instance sidecar metadata is missing; expected '{InstanceSidecar.GetMarkerPath(instanceRoot)}'. "
+                + "The instance may be corrupted.");
         if (!string.Equals(sidecar.Id, instance.Id, StringComparison.Ordinal))
         {
             throw new InvalidDataException("Instance sidecar ID does not match the selected instance.");

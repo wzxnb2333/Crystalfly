@@ -145,7 +145,10 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
             async token =>
             {
                 var paths = GetPaths(group);
-                var instance = await InstanceSidecar.LoadAsync(paths.InstanceRoot, token);
+                var instance = await InstanceSidecar.LoadAsync(paths.InstanceRoot, token)
+                    ?? throw new InvalidDataException(
+                        $"Download target sidecar metadata is missing; expected '{InstanceSidecar.GetMarkerPath(paths.InstanceRoot)}'. "
+                        + "The instance may be corrupted.");
                 if (!string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal))
                 {
                     throw new InvalidDataException("Download target does not match the instance sidecar.");
@@ -224,7 +227,10 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
         CancellationToken cancellationToken)
     {
         var paths = GetPaths(group);
-        var instance = await InstanceSidecar.LoadAsync(paths.InstanceRoot, cancellationToken);
+        var instance = await InstanceSidecar.LoadAsync(paths.InstanceRoot, cancellationToken)
+            ?? throw new InvalidDataException(
+                $"Download target sidecar metadata is missing; expected '{InstanceSidecar.GetMarkerPath(paths.InstanceRoot)}'. "
+                + "The instance may be corrupted.");
         if (!string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal))
         {
             throw new InvalidDataException("Download target does not match the instance sidecar.");
@@ -474,7 +480,10 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
         }
 
         var paths = GetPaths(group);
-        var instance = await InstanceSidecar.LoadAsync(paths.InstanceRoot, cancellationToken);
+        var instance = await InstanceSidecar.LoadAsync(paths.InstanceRoot, cancellationToken)
+            ?? throw new InvalidDataException(
+                $"Dependency repair target sidecar metadata is missing; expected '{InstanceSidecar.GetMarkerPath(paths.InstanceRoot)}'. "
+                + "The instance may be corrupted.");
         if (!string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal)
             || !string.Equals(instance.BuildId, group.ExpectedBuildId, StringComparison.OrdinalIgnoreCase))
         {
@@ -572,7 +581,10 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
             throw new InvalidDataException("The preset queue item is invalid.");
         }
         var paths = GetPaths(group);
-        var instance = await InstanceSidecar.LoadAsync(paths.InstanceRoot, cancellationToken);
+        var instance = await InstanceSidecar.LoadAsync(paths.InstanceRoot, cancellationToken)
+            ?? throw new InvalidDataException(
+                $"Preset target sidecar metadata is missing; expected '{InstanceSidecar.GetMarkerPath(paths.InstanceRoot)}'. "
+                + "The instance may be corrupted.");
         if (!string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal)
             || !string.Equals(instance.BuildId, group.ExpectedBuildId, StringComparison.OrdinalIgnoreCase))
         {
