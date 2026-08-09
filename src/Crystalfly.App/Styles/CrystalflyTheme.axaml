@@ -601,7 +601,7 @@
         <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
-        <Setter Property="BorderThickness" Value="3,0,0,1" />
+        <Setter Property="BorderThickness" Value="3,0,0,0" />
         <Setter Property="Padding" Value="7,10,10,10" />
     </Style>
 
@@ -609,7 +609,7 @@
         <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfSurfaceSelectedHoverBrush}" />
-        <Setter Property="BorderThickness" Value="2,0,0,1" />
+        <Setter Property="BorderThickness" Value="2,0,0,0" />
         <Setter Property="Padding" Value="8,10,10,10" />
     </Style>
 
@@ -618,7 +618,7 @@
         <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedHoverBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfAccentHoverBrush}" />
-        <Setter Property="BorderThickness" Value="3,0,0,1" />
+        <Setter Property="BorderThickness" Value="3,0,0,0" />
         <Setter Property="Padding" Value="7,10,10,10" />
     </Style>
 
