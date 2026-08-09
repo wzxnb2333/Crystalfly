@@ -17,6 +17,21 @@ public sealed class SteamNetworkConfigurationTests
     }
 
     [Fact]
+    public async Task Configuration_prefers_the_proxy_compatible_https_CM_endpoint()
+    {
+        SteamConfiguration configuration = SteamNetworkConfiguration.Create(new WebProxy());
+
+        var servers = (await configuration.ServerListProvider.FetchServerListAsync()).ToArray();
+
+        Assert.NotEmpty(servers);
+        Assert.All(servers, server =>
+        {
+            Assert.Equal(443, server.GetPort());
+            Assert.Equal(ProtocolTypes.WebSocket, server.ProtocolTypes);
+        });
+    }
+
+    [Fact]
     public async Task Every_Steam_http_purpose_routes_requests_through_the_supplied_proxy()
     {
         using var listener = new TcpListener(IPAddress.Loopback, 0);

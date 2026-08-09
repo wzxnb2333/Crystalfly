@@ -1,5 +1,6 @@
 using System.Net;
 using SteamKit2;
+using SteamKit2.Discovery;
 
 namespace Crystalfly.Steam.Networking;
 
@@ -8,8 +9,16 @@ public static class SteamNetworkConfiguration
     public static SteamConfiguration Create(IWebProxy proxy)
     {
         ArgumentNullException.ThrowIfNull(proxy);
+        var serverList = new MemoryServerListProvider();
+        // Steam Directory often ranks WebSocket endpoints on 270xx ahead of 443.
+        // Forward proxies and Steam accelerators commonly only carry HTTPS on 443.
+        serverList.UpdateServerListAsync(
+            [ServerRecord.CreateWebSocketServer(SmartCMServerList.DefaultServerWebsocket)])
+            .GetAwaiter()
+            .GetResult();
         return SteamConfiguration.Create(builder => builder
             .WithProtocolTypes(ProtocolTypes.WebSocket)
+            .WithServerListProvider(serverList)
             .WithConnectionTimeout(TimeSpan.FromSeconds(15))
             .WithHttpClientFactory(purpose => CreateHttpClient(proxy, purpose)));
     }
