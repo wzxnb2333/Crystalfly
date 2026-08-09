@@ -1800,10 +1800,11 @@
                     </Border>
 
                     <ScrollViewer Grid.Column="1"
+                                  Classes="cfp-subpage"
+                                  IsVisible="{Binding IsGameVersionsDownloadSection}"
                                   HorizontalContentAlignment="Stretch"
                                   HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Classes="cfp-workspace cfp-subpage"
-                                    IsVisible="{Binding IsGameVersionsDownloadSection}"
+                        <StackPanel Classes="cfp-workspace"
                                     Margin="24"
                                     Spacing="16"
                                     MaxWidth="1920"
@@ -2029,10 +2030,11 @@
                             </Grid>
                         </Grid>
 
-                        <ScrollViewer IsVisible="{Binding IsMarketDetail}"
+                        <ScrollViewer Classes="cfp-subpage"
+                                      IsVisible="{Binding IsMarketDetail}"
                                       HorizontalContentAlignment="Stretch"
                                       HorizontalScrollBarVisibility="Disabled">
-                            <StackPanel Classes="cfp-workspace cfp-subpage" Margin="24" Spacing="16" MaxWidth="1200" HorizontalAlignment="Stretch">
+                            <StackPanel Classes="cfp-workspace" Margin="24" Spacing="16" MaxWidth="1200" HorizontalAlignment="Stretch">
                                 <Button Classes="cfp-secondary"
                                         HorizontalAlignment="Left"
                                         Command="{Binding BackToMarketCommand}"
@@ -2177,10 +2179,11 @@
                     </Grid>
 
                     <ScrollViewer Grid.Column="1"
+                                  Classes="cfp-subpage"
+                                  IsVisible="{Binding IsDownloadQueueSection}"
                                   HorizontalContentAlignment="Stretch"
                                   HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Classes="cfp-workspace cfp-subpage"
-                                    IsVisible="{Binding IsDownloadQueueSection}"
+                        <StackPanel Classes="cfp-workspace"
                                     Margin="24"
                                     Spacing="16"
                                     MaxWidth="1200"

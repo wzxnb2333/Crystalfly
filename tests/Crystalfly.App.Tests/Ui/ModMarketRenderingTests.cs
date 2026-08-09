@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -118,6 +119,131 @@ public sealed class ModMarketRenderingTests
             Assert.Equal(Avalonia.Media.TextTrimming.None, label.TextTrimming);
             Assert.True(label.Bounds.Width >= 109,
                 $"Game versions received only {label.Bounds.Width:F1}px at {width}x{height}.");
+        }
+        finally
+        {
+            CloseImmediately(window);
+        }
+    }
+
+    [AvaloniaFact]
+    public void Market_list_items_receive_pointer_clicks()
+    {
+        var (window, viewModel) = Show(page: "Downloads", downloadSection: "ModMarket");
+        var mods = Enumerable.Range(0, 20)
+            .Select(i => new ModManifest
+            {
+                Id = "mod-" + i,
+                Name = "Mod Number " + i,
+                Version = "1.0.0",
+                DownloadUrl = "https://example.invalid/mod-" + i + ".zip",
+                Sha256 = new string('0', 64),
+                LoaderId = "sample-loader"
+            })
+            .ToArray();
+        foreach (var mod in mods)
+        {
+            viewModel.VisibleMarketDisplayMods.Add(new MarketModItemViewModel(
+                mod, null, new Dictionary<string, string>(), chinese: false));
+        }
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            var list = window.GetVisualDescendants()
+                .OfType<ListBox>()
+                .Single(control => control.Classes.Contains("cfp-market-list"));
+            var button = list.GetVisualDescendants().OfType<Button>()
+                .First(item => item.IsEffectivelyVisible);
+            var center = button.TranslatePoint(
+                new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window) ?? default;
+            Assert.NotEqual(default, center);
+
+            // The pointer event must reach the item instead of being swallowed
+            // by an overlapping sibling surface (regression: always-visible
+            // section scroll viewers sat above the market and captured hits).
+            window.MouseDown(center, MouseButton.Left, RawInputModifiers.None);
+            window.MouseUp(center, MouseButton.Left, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal("Mod Number 0", viewModel.SelectedMarketMod?.Name);
+            Assert.True(viewModel.IsMarketDetail);
+        }
+        finally
+        {
+            CloseImmediately(window);
+        }
+    }
+
+    [AvaloniaFact]
+    public void Market_list_scrolls_with_the_mouse_wheel()
+    {
+        var (window, viewModel) = Show(page: "Downloads", downloadSection: "ModMarket");
+        for (var i = 0; i < 40; i++)
+        {
+            viewModel.VisibleMarketDisplayMods.Add(new MarketModItemViewModel(
+                new ModManifest
+                {
+                    Id = "mod-" + i,
+                    Name = "Mod Number " + i,
+                    Version = "1.0.0",
+                    DownloadUrl = "https://example.invalid/mod-" + i + ".zip",
+                    Sha256 = new string('0', 64),
+                    LoaderId = "sample-loader"
+                },
+                null,
+                new Dictionary<string, string>(),
+                chinese: false));
+        }
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            var list = window.GetVisualDescendants()
+                .OfType<ListBox>()
+                .Single(control => control.Classes.Contains("cfp-market-list"));
+            var scroll = list.Scroll!;
+            Assert.True(scroll.Extent.Height > scroll.Viewport.Height,
+                "List content must overflow its viewport for the wheel test to be meaningful.");
+            var center = list.TranslatePoint(
+                new Point(list.Bounds.Width / 2, list.Bounds.Height / 2), window) ?? default;
+            Assert.NotEqual(default, center);
+
+            window.MouseWheel(center, new Vector(0, -120), RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.True(scroll.Offset.Y > 0,
+                $"Wheel event did not scroll the market list (offset stayed {scroll.Offset.Y}).");
+        }
+        finally
+        {
+            CloseImmediately(window);
+        }
+    }
+
+    [AvaloniaFact]
+    public void Game_versions_section_receives_pointer_hits_when_selected()
+    {
+        var (window, viewModel) = Show(page: "Downloads", downloadSection: "GameVersions");
+        try
+        {
+            var viewer = window.GetVisualDescendants().OfType<ScrollViewer>()
+                .Single(scroll => scroll.Classes.Contains("cfp-subpage")
+                    && scroll.IsEffectivelyVisible);
+            var downloadButton = viewer.GetVisualDescendants().OfType<Button>()
+                .Single(button => button.IsEffectivelyVisible
+                    && button.Classes.Contains("cfp-primary")
+                    && button.Command == viewModel.DownloadBuildCommand);
+            var center = downloadButton.TranslatePoint(
+                new Point(downloadButton.Bounds.Width / 2, downloadButton.Bounds.Height / 2), window) ?? default;
+            Assert.NotEqual(default, center);
+
+            // The game versions surface must not be shadowed by the other
+            // (hidden) download sections.
+            var hit = window.InputHitTest(center) as Control;
+            Assert.NotNull(hit);
+            Assert.True(downloadButton.IsVisualAncestorOf(hit) || hit.IsVisualAncestorOf(downloadButton),
+                $"Hit at the download button landed on {hit.GetType().Name} instead.");
         }
         finally
         {

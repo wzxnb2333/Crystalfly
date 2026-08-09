@@ -618,11 +618,18 @@ public sealed class MainWindowStructureTests
         Assert.Contains(packs.Descendants(Avalonia + "ItemsControl"), items =>
             HasBinding(items, "ItemsSource", "VisibleSelectedModPackEntries"));
 
-        foreach (var visibility in new[] { "IsDownloadsPage", "IsSettingsPage" })
-        {
-            var page = FindSectionRoot(document, visibility);
-            Assert.Contains(page.Descendants(Avalonia + "StackPanel"), panel => HasClass(panel, "cfp-subpage"));
-        }
+        // The downloads page keeps its section visibility markers on the section
+        // scroll viewers (motion class rides the same element so the entrance
+        // animation fires and the viewer drops out of hit testing when hidden).
+        var downloadsPage = FindSectionRoot(document, "IsDownloadsPage");
+        Assert.Contains(downloadsPage.Descendants(Avalonia + "ScrollViewer"), scroll =>
+            HasClass(scroll, "cfp-subpage")
+            && ((string?)scroll.Attribute("IsVisible"))?.Contains("IsGameVersionsDownloadSection", StringComparison.Ordinal) == true);
+        Assert.Contains(downloadsPage.Descendants(Avalonia + "ScrollViewer"), scroll =>
+            HasClass(scroll, "cfp-subpage")
+            && ((string?)scroll.Attribute("IsVisible"))?.Contains("IsDownloadQueueSection", StringComparison.Ordinal) == true);
+        var settingsPage = FindSectionRoot(document, "IsSettingsPage");
+        Assert.Contains(settingsPage.Descendants(Avalonia + "StackPanel"), panel => HasClass(panel, "cfp-subpage"));
 
         var code = File.ReadAllText(Path.Combine(
             FindRepositoryRoot(),
