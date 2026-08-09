@@ -597,6 +597,11 @@ public sealed partial class InstancesViewModel : ViewModelBase
             GameDirectoryDiscoveryCompleted = true,
             VersionRoot = registration.Path
         });
+        // A newly registered version root must carry its .crystalfly metadata root
+        // (instances, downloads, transactions) before any scan or queue touches it;
+        // a brand-new user adding their first game directory would otherwise fail
+        // to install a game version into the directory.
+        Directory.CreateDirectory(dependencies.GetVersionDataRoot(registration.Path));
         foreach (var pending in GameDirectoryCandidates
                      .Where(item => string.Equals(
                          Directory.GetParent(item.Path)?.FullName,
