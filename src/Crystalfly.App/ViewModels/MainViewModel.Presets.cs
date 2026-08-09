@@ -16,6 +16,13 @@ public partial class MainViewModel
 
     private PresetShareClient? presetShareClient;
 
+    // Guards every swap of the mod-pack collections. The mutation-command reload
+    // (LoadModPresetsAsync) can overlap an instance-details load, and both replace
+    // ModPresets/VisibleModPacks with a Clear+Add sequence; interleaving those
+    // sequences duplicates (or corrupts) the entries, so the swaps must be mutually
+    // exclusive. The lock is only ever taken around synchronous, await-free blocks.
+    private readonly object presetCollectionGate = new();
+
     public ObservableCollection<ModPreset> ModPresets { get; } = [];
 
     public ObservableCollection<SettingOption<ModPresetApplyMode>> PresetModeOptions { get; } = [];
@@ -363,17 +370,24 @@ public partial class MainViewModel
         var selectedId = SelectedPreset?.Id;
         var service = CreateModPresetService(record);
         var presets = await service.GetAllAsync(cancellationToken);
-        ModPresets.Clear();
-        foreach (var preset in presets)
+        var hasRestorePoint = await service.HasRestorePointAsync(cancellationToken);
+        // Swap the collection atomically: the mutation-command reload can overlap
+        // an instance-details load that also replaces ModPresets, and interleaving
+        // the two Clear+Add sequences would duplicate (or corrupt) the list.
+        lock (presetCollectionGate)
         {
-            ModPresets.Add(preset);
+            ModPresets.Clear();
+            foreach (var preset in presets)
+            {
+                ModPresets.Add(preset);
+            }
+            SelectedPreset = selectedId is null
+                ? ModPresets.FirstOrDefault()
+                : ModPresets.FirstOrDefault(preset => preset.Id == selectedId)
+                    ?? ModPresets.FirstOrDefault();
+            RefreshModPackWorkspace();
         }
-        SelectedPreset = selectedId is null
-            ? ModPresets.FirstOrDefault()
-            : ModPresets.FirstOrDefault(preset => preset.Id == selectedId)
-                ?? ModPresets.FirstOrDefault();
-        RefreshModPackWorkspace();
-        HasPresetRestorePoint = await service.HasRestorePointAsync(cancellationToken);
+        HasPresetRestorePoint = hasRestorePoint;
     }
 
     private void RebuildPresetModeOptions()
@@ -469,29 +483,35 @@ public partial class MainViewModel
     private void RefreshVisibleModPacks()
     {
         var search = ModPackSearchText.Trim();
-        VisibleModPacks.Clear();
-        foreach (var preset in ModPresets.Where(preset => string.IsNullOrWhiteSpace(search)
-            || preset.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)))
+        lock (presetCollectionGate)
         {
-            VisibleModPacks.Add(preset);
+            VisibleModPacks.Clear();
+            foreach (var preset in ModPresets.Where(preset => string.IsNullOrWhiteSpace(search)
+                || preset.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)))
+            {
+                VisibleModPacks.Add(preset);
+            }
         }
     }
 
     private void RefreshVisibleSelectedModPackEntries()
     {
         var search = ModPackEntrySearchText.Trim();
-        VisibleSelectedModPackEntries.Clear();
-        if (SelectedPreset is null)
+        lock (presetCollectionGate)
         {
-            return;
-        }
+            VisibleSelectedModPackEntries.Clear();
+            if (SelectedPreset is null)
+            {
+                return;
+            }
 
-        foreach (var entry in SelectedPreset.Entries.Where(entry => string.IsNullOrWhiteSpace(search)
-            || entry.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)
-            || (entry.Id?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
-            || (entry.Version?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)))
-        {
-            VisibleSelectedModPackEntries.Add(entry);
+            foreach (var entry in SelectedPreset.Entries.Where(entry => string.IsNullOrWhiteSpace(search)
+                || entry.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)
+                || (entry.Id?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (entry.Version?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)))
+            {
+                VisibleSelectedModPackEntries.Add(entry);
+            }
         }
     }
 }

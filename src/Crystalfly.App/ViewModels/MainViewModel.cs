@@ -2571,10 +2571,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ModManagement.ClearAvailableMods();
         ModManagement.ClearInstalledMods();
         Snapshots.Clear();
-        ModPresets.Clear();
-        SelectedPreset = null;
-        VisibleModPacks.Clear();
-        VisibleSelectedModPackEntries.Clear();
+        lock (presetCollectionGate)
+        {
+            ModPresets.Clear();
+            SelectedPreset = null;
+            VisibleModPacks.Clear();
+            VisibleSelectedModPackEntries.Clear();
+        }
         HasPresetRestorePoint = false;
         UpdateSelectedMarketInstallationState();
         currentLoaderInspection = new LoaderInspection
@@ -3522,17 +3525,20 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             {
                 Snapshots.Add(snapshot);
             }
-            var selectedPresetId = SelectedPreset?.Id;
-            ModPresets.Clear();
-            foreach (var preset in presets)
+            lock (presetCollectionGate)
             {
-                ModPresets.Add(preset);
+                var selectedPresetId = SelectedPreset?.Id;
+                ModPresets.Clear();
+                foreach (var preset in presets)
+                {
+                    ModPresets.Add(preset);
+                }
+                SelectedPreset = selectedPresetId is null
+                    ? ModPresets.FirstOrDefault()
+                    : ModPresets.FirstOrDefault(preset => preset.Id == selectedPresetId)
+                        ?? ModPresets.FirstOrDefault();
+                RefreshModPackWorkspace();
             }
-            SelectedPreset = selectedPresetId is null
-                ? ModPresets.FirstOrDefault()
-                : ModPresets.FirstOrDefault(preset => preset.Id == selectedPresetId)
-                    ?? ModPresets.FirstOrDefault();
-            RefreshModPackWorkspace();
             HasPresetRestorePoint = hasPresetRestorePoint;
             InstanceLogs.Clear();
             foreach (var log in logs)

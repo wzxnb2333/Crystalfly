@@ -3305,6 +3305,22 @@ public sealed class MainViewModelStateTests : IDisposable
             [record, generation, CancellationToken.None]));
     }
 
+    private static Task InvokeLoadModPresetsAsync(
+        MainViewModel viewModel,
+        InstanceRecord record)
+    {
+        var method = typeof(MainViewModel).GetMethod(
+            "LoadModPresetsAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        return Assert.IsAssignableFrom<Task>(method.Invoke(
+            viewModel,
+            [record, CancellationToken.None]));
+    }
+
+    private static string PresetFileName(string id) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(id))) + ".json";
+
     private static Task InvokeRefreshAsync(MainViewModel viewModel)
     {
         var method = typeof(MainViewModel).GetMethod(
@@ -3517,6 +3533,71 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Equal(practice, viewModel.SelectedPreset);
         Assert.Equal("hkmod:Helper", Assert.Single(viewModel.VisibleSelectedModPackEntries).Id);
         Assert.True(viewModel.IsSelectedPresetEntriesExpanded);
+    }
+
+    [Fact]
+    public async Task Preset_reload_racing_instance_details_load_never_duplicates_mod_presets()
+    {
+        using var test = new TestDirectory();
+        var applicationDataRoot = test.CreateDirectory("app-data");
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "practice");
+        var record = Instance("practice", instanceRoot);
+        var presetsRoot = Path.Combine(versionRoot, ".crystalfly", "instances", record.Id, "presets");
+        Directory.CreateDirectory(presetsRoot);
+        var presets = Enumerable.Range(0, 200).Select(index => new ModPreset
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = $"Preset {index:0000}",
+            GameBuildId = record.BuildId,
+            LoaderId = "modding-api-77",
+            ApplyMode = ModPresetApplyMode.Append,
+            Entries = []
+        }).ToArray();
+        foreach (var preset in presets)
+        {
+            await File.WriteAllTextAsync(
+                Path.Combine(presetsRoot, PresetFileName(preset.Id)),
+                System.Text.Json.JsonSerializer.Serialize(preset, CrystalflyJson.Options));
+        }
+        await using var viewModel = new MainViewModel(applicationDataRoot)
+        {
+            VersionRoot = versionRoot
+        };
+        var delays = new[] { 0, 5, 10, 20, 40 };
+        var worstCount = 0;
+        for (var round = 0; round < 20; round++)
+        {
+            viewModel.SelectedInstance = new InstanceItemViewModel(
+                record,
+                record.BuildId,
+                round % 2 == 0 ? "Vanilla" : "BepInEx",
+                round);
+            await Task.Delay(delays[round % delays.Length]);
+            var first = InvokeLoadModPresetsAsync(viewModel, record);
+            var second = InvokeLoadModPresetsAsync(viewModel, record);
+            await Task.WhenAll(first, second);
+            await WaitUntilAsync(() => !viewModel.IsLoadingInstanceDetails);
+            worstCount = Math.Max(worstCount, viewModel.ModPresets.Count);
+            Assert.True(
+                viewModel.ModPresets.Count == presets.Length,
+                $"round {round} delay={delays[round % delays.Length]}: "
+                + $"ModPresets={viewModel.ModPresets.Count} (worst={worstCount}) "
+                + $"Visible={viewModel.VisibleModPacks.Count}");
+            Assert.Equal(
+                presets.Length,
+                viewModel.ModPresets.Select(preset => preset.Id)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Count());
+            Assert.Equal(viewModel.ModPresets.Count, viewModel.VisibleModPacks.Count);
+
+            // A later reload must keep the user's selection instead of snapping
+            // back to the first entry.
+            viewModel.SelectedPreset = viewModel.ModPresets.First(preset => preset.Id == presets[7].Id);
+            await InvokeLoadModPresetsAsync(viewModel, record);
+            Assert.Equal(presets[7].Id, viewModel.SelectedPreset?.Id);
+            Assert.Equal(presets.Length, viewModel.ModPresets.Count);
+        }
     }
 
     [Fact]
