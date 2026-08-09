@@ -1318,6 +1318,96 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Steam_sign_in_retries_transient_connection_failures_before_showing_the_QR_code()
+    {
+        var attempts = 0;
+        await using var viewModel = new MainViewModel(
+            applicationData.CreateDirectory("steam-retry"),
+            qrSignInOverride: _ => Interlocked.Increment(ref attempts) < 3
+                ? Task.FromException<RefreshTokenCredential>(new HttpRequestException("connection reset"))
+                : Task.FromResult(new RefreshTokenCredential("runner", "token")));
+
+        await viewModel.SignInWithQrCommand.ExecuteAsync(null);
+
+        Assert.Equal(3, attempts);
+        Assert.True(viewModel.IsSteamLoggedIn);
+        Assert.Equal("runner", viewModel.SteamStatus);
+    }
+
+    [Fact]
+    public async Task System_proxy_change_pauses_Steam_work_and_reconnects_the_saved_account()
+    {
+        string root = applicationData.CreateDirectory("proxy-change");
+        File.WriteAllText(Path.Combine(root, "steam-token.dat"), "fixture");
+        var snapshots = new Queue<SystemProxySnapshot>(
+        [
+            SystemProxySnapshot.Direct,
+            new(true, "HTTP", "127.0.0.1:7890", null)
+        ]);
+        using var proxy = new SystemProxyService(
+            WebRequest.GetSystemWebProxy,
+            () => snapshots.Dequeue(),
+            startMonitoring: false);
+        await using var viewModel = new MainViewModel(root, systemProxyOverride: proxy);
+        var reconnects = 0;
+        SetPrivateField(
+            viewModel,
+            "steamReconnect",
+            new Func<Task>(() =>
+            {
+                Interlocked.Increment(ref reconnects);
+                return Task.CompletedTask;
+            }));
+
+        proxy.Refresh();
+
+        await WaitUntilAsync(() => Volatile.Read(ref reconnects) == 1);
+        Assert.Equal(viewModel.Loc["SteamProxyDetected"], viewModel.SteamNetworkStatus);
+    }
+
+    [Fact]
+    public async Task System_proxy_change_automatically_requests_a_fresh_QR_code()
+    {
+        string root = applicationData.CreateDirectory("proxy-change-qr");
+        var snapshots = new Queue<SystemProxySnapshot>(
+        [
+            SystemProxySnapshot.Direct,
+            new(true, "HTTP", "127.0.0.1:7890", null)
+        ]);
+        using var proxy = new SystemProxyService(
+            WebRequest.GetSystemWebProxy,
+            () => snapshots.Dequeue(),
+            startMonitoring: false);
+        var firstAttemptStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var attempts = 0;
+        await using var viewModel = new MainViewModel(
+            root,
+            qrSignInOverride: async cancellationToken =>
+            {
+                if (Interlocked.Increment(ref attempts) == 1)
+                {
+                    firstAttemptStarted.SetResult();
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                }
+                return new RefreshTokenCredential("runner", "token");
+            },
+            systemProxyOverride: proxy);
+
+        await SignInAndChangeProxyAsync();
+
+        await WaitUntilAsync(() => Volatile.Read(ref attempts) == 2 && viewModel.IsSteamLoggedIn);
+        Assert.Equal("runner", viewModel.SteamStatus);
+
+        async Task SignInAndChangeProxyAsync()
+        {
+            Task signIn = viewModel.SignInWithQrCommand.ExecuteAsync(null);
+            await firstAttemptStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            proxy.Refresh();
+            await signIn;
+        }
+    }
+
+    [Fact]
     public async Task Dispose_cancels_and_waits_for_running_Steam_sign_in()
     {
         var signInStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

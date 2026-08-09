@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Avalonia;
@@ -45,6 +46,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly HttpClient directMetadataHttpClient;
     private readonly HttpClient packageHttpClient;
     private readonly NetworkPolicy networkPolicy;
+    private readonly SystemProxyService systemProxy;
     private readonly CrystalflyPaths paths;
     private readonly string settingsPath;
     private GameCatalog catalog;
@@ -56,6 +58,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly SemaphoreSlim runtimePatchesConfigurationSaveLock = new(1, 1);
     private readonly CancellationTokenSource lifetimeCancellation = new();
     private readonly object settingsSaveQueueLock = new();
+    private readonly object steamReconnectQueueLock = new();
     private readonly object disposeLock = new();
     private readonly Func<Task>? launchOverride;
     private readonly Func<CancellationToken, Task>? downloadOverride;
@@ -95,6 +98,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly ProtocolService protocolService;
     private SteamAuthenticationSession? steamSession;
     private CancellationTokenSource? steamSignInCancellation;
+    private int steamQrChallengeReceived;
+    private int steamQrRestartPending;
     private CancellationTokenSource? downloadCancellation;
     private InstanceRuntimeSession? runtimeSession;
     private Bitmap? qrCodeImage;
@@ -153,7 +158,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             Task<ApplicationUpdateCheckResult>>? applicationUpdateCheckOverride = null,
         IProtocolRegistrationService? protocolRegistrationService = null,
         Func<bool>? gameProcessRunningOverride = null,
-        SpeedrunComClient? speedrunComClientOverride = null)
+        SpeedrunComClient? speedrunComClientOverride = null,
+        SystemProxyService? systemProxyOverride = null)
     {
         this.launchOverride = launchOverride;
         this.downloadOverride = downloadOverride;
@@ -183,13 +189,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         modTranslations = EmbeddedModTranslationCatalog.Load();
         modActivityCatalog = EmbeddedModActivityCatalog.Load();
         networkPolicy = new NetworkPolicy();
+        systemProxy = systemProxyOverride ?? new SystemProxyService();
         metadataHttpClient = new HttpClient(new GitHubDownloadRouteHandler(
             () => settings.GitHubDownloadRoute,
             networkPolicy,
-            new HttpClientHandler())) { Timeout = TimeSpan.FromSeconds(15) };
+            CreateSystemProxyHandler())) { Timeout = TimeSpan.FromSeconds(15) };
         directMetadataHttpClient = new HttpClient(new NetworkPolicyHandler(
             networkPolicy,
-            new HttpClientHandler())) { Timeout = TimeSpan.FromSeconds(15) };
+            CreateSystemProxyHandler())) { Timeout = TimeSpan.FromSeconds(15) };
         speedrunComClient = speedrunComClientOverride ?? new SpeedrunComClient(
             directMetadataHttpClient,
             Path.Combine(paths.ApplicationDataRoot, "speedrun-cache"),
@@ -197,9 +204,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         packageHttpClient = new HttpClient(new GitHubDownloadRouteHandler(
             () => settings.GitHubDownloadRoute,
             networkPolicy,
-            new HttpClientHandler())) { Timeout = TimeSpan.FromMinutes(30) };
-        githubLatencyService = new GitHubRouteLatencyService(networkPolicy, new HttpClientHandler());
+            CreateSystemProxyHandler())) { Timeout = TimeSpan.FromMinutes(30) };
+        githubLatencyService = new GitHubRouteLatencyService(networkPolicy, CreateSystemProxyHandler());
         Loc = new LocalizationViewModel();
+        SteamNetworkStatus = FormatSteamNetworkStatus(systemProxy.Current);
+        systemProxy.Changed += OnSystemProxyChanged;
         var downloadQueue = downloadQueueOverride ?? CreateDownloadQueue();
         Instances = new InstancesViewModel(new InstancesDependencies(
             Loc: () => Loc,
@@ -667,6 +676,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial string SteamStatus { get; set; } = "Not signed in";
+
+    [ObservableProperty]
+    public partial string SteamNetworkStatus { get; set; } = string.Empty;
 
     [ObservableProperty]
     public partial DownloadBuildOption? SelectedDownloadBuild { get; set; }
@@ -1776,28 +1788,20 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
 
         ErrorMessage = null;
-        SteamStatus = "Connecting to Steam...";
+        SteamStatus = Loc["SteamConnecting"];
         IsSteamLoggedIn = false;
+        Interlocked.Exchange(ref steamQrChallengeReceived, 0);
         var gateTaken = false;
         try
         {
             await steamConnectionGate.WaitAsync(signInCancellation.Token);
             gateTaken = true;
             await DisposeCurrentSteamSessionAsync();
-            RefreshTokenCredential credential;
-            if (qrSignInOverride is not null)
-            {
-                credential = await qrSignInOverride(signInCancellation.Token);
-            }
-            else
-            {
-                steamSession = new SteamAuthenticationSession(tokenStore);
-                steamSession.QrChallengeChanged += OnQrChallengeChanged;
-                credential = await steamSession.ConnectWithQrAsync(signInCancellation.Token);
-            }
+            RefreshTokenCredential credential = await ConnectWithQrRetryAsync(signInCancellation.Token);
             IsSteamLoggedIn = true;
             SteamStatus = credential.AccountName;
             QrCodeImage = null;
+            await DownloadCenter.DownloadQueue.InitializeAsync(lifetimeCancellation.Token);
             await DownloadCenter.DownloadQueue.ResumeSteamDownloadsAsync(lifetimeCancellation.Token);
         }
         catch (Exception exception)
@@ -1845,15 +1849,34 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             await steamConnectionGate.WaitAsync(lifetimeCancellation.Token);
             gateTaken = true;
-            steamSession = new SteamAuthenticationSession(tokenStore);
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation.Token);
-            timeout.CancelAfter(TimeSpan.FromSeconds(20));
-            var credential = await steamSession.ConnectWithStoredTokenAsync(timeout.Token);
-            IsSteamLoggedIn = true;
-            SteamStatus = credential.AccountName;
-            await DownloadCenter.DownloadQueue.ResumeSteamDownloadsAsync(lifetimeCancellation.Token);
+            for (var attempt = 1; attempt <= 3; attempt++)
+            {
+                try
+                {
+                    await DisposeCurrentSteamSessionAsync();
+                    steamSession = CreateSteamSession(includeQrEvents: false);
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation.Token);
+                    timeout.CancelAfter(TimeSpan.FromSeconds(20));
+                    var credential = await steamSession.ConnectWithStoredTokenAsync(timeout.Token);
+                    IsSteamLoggedIn = true;
+                    SteamStatus = credential.AccountName;
+                    SteamNetworkStatus = FormatSteamNetworkStatus(systemProxy.Current);
+                    await DownloadCenter.DownloadQueue.InitializeAsync(lifetimeCancellation.Token);
+                    await DownloadCenter.DownloadQueue.ResumeSteamDownloadsAsync(lifetimeCancellation.Token);
+                    return;
+                }
+                catch (Exception exception) when (
+                    attempt < 3
+                    && IsTransientSteamNetworkFailure(exception)
+                    && !lifetimeCancellation.IsCancellationRequested)
+                {
+                    await DisposeCurrentSteamSessionAsync();
+                    SteamStatus = Loc["SteamNetworkReconnecting"];
+                    await Task.Delay(TimeSpan.FromSeconds(attempt), lifetimeCancellation.Token);
+                }
+            }
         }
-        catch (Exception)
+        catch (Exception exception) when (!lifetimeCancellation.IsCancellationRequested)
         {
             if (gateTaken)
             {
@@ -1866,6 +1889,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 }
             }
             SteamStatus = "Not signed in";
+            SteamNetworkStatus = FormatSteamNetworkFailure(exception);
         }
         finally
         {
@@ -1874,6 +1898,70 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 steamConnectionGate.Release();
             }
         }
+    }
+
+    private async Task<RefreshTokenCredential> ConnectWithQrRetryAsync(CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            try
+            {
+                if (qrSignInOverride is not null)
+                {
+                    return await qrSignInOverride(cancellationToken);
+                }
+                steamSession = CreateSteamSession(includeQrEvents: true);
+                return await steamSession.ConnectWithQrAsync(cancellationToken);
+            }
+            catch (Exception exception) when (
+                attempt < 3
+                && !cancellationToken.IsCancellationRequested
+                && Volatile.Read(ref steamQrChallengeReceived) == 0
+                && IsTransientSteamNetworkFailure(exception))
+            {
+                await DisposeCurrentSteamSessionAsync();
+                SteamStatus = Loc["SteamNetworkReconnecting"];
+                await Task.Delay(TimeSpan.FromMilliseconds(250 * attempt), cancellationToken);
+            }
+        }
+
+        throw new InvalidOperationException("Steam QR sign-in retry loop ended without a result.");
+    }
+
+    [RelayCommand]
+    private async Task RefreshSteamNetworkAsync()
+    {
+        if (IsOfflineMode || lifetimeCancellation.IsCancellationRequested)
+        {
+            SteamNetworkStatus = Loc["OfflineMode"];
+            return;
+        }
+
+        SystemProxySnapshot previous = systemProxy.Current;
+        systemProxy.Refresh();
+        SteamNetworkStatus = FormatSteamNetworkStatus(systemProxy.Current);
+        if (File.Exists(Path.Combine(paths.ApplicationDataRoot, "steam-token.dat")))
+        {
+            if (previous == systemProxy.Current)
+            {
+                QueueSteamReconnect();
+            }
+            Task reconnect;
+            lock (steamReconnectQueueLock)
+            {
+                reconnect = steamReconnectTask;
+            }
+            await reconnect;
+            return;
+        }
+
+        Volatile.Read(ref steamSignInCancellation)?.Cancel();
+        Task? signIn = SignInWithQrCommand.ExecutionTask;
+        if (signIn is not null)
+        {
+            await signIn;
+        }
+        await SignInWithQrCommand.ExecuteAsync(null);
     }
 
     [RelayCommand]
@@ -3021,6 +3109,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         RefreshSpeedrunActivityLocalization();
         RefreshSpeedrunReminder();
         RefreshLoaderVerificationStatus();
+        SteamNetworkStatus = FormatSteamNetworkStatus(systemProxy.Current);
         RebuildPresetModeOptions();
         RefreshPresetCopyName();
         RefreshPresetApplySteps();
@@ -3759,6 +3848,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             return;
         }
 
+        Interlocked.Exchange(ref steamQrChallengeReceived, 1);
+
         byte[] bytes;
         try
         {
@@ -3797,7 +3888,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 image = new Bitmap(stream);
                 QrCodeImage = image;
                 image = null;
-                SteamStatus = "Scan with the Steam mobile app";
+                SteamStatus = Loc["SteamScanQr"];
             }
             catch (Exception exception)
             {
@@ -3806,6 +3897,159 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
         });
     }
+
+    private void OnSystemProxyChanged(object? sender, SystemProxyChangedEventArgs eventArgs)
+    {
+        void ApplyChange()
+        {
+            SteamNetworkStatus = FormatSteamNetworkStatus(eventArgs.Current);
+            if (Volatile.Read(ref steamSignInCancellation) is { } signIn && !IsSteamLoggedIn)
+            {
+                if (Interlocked.Exchange(ref steamQrRestartPending, 1) == 0)
+                {
+                    _ = RestartSteamQrAfterCurrentAttemptAsync(SignInWithQrCommand.ExecutionTask);
+                }
+                signIn.Cancel();
+                SteamStatus = Loc["SteamNetworkReconnecting"];
+                return;
+            }
+            QueueSteamReconnect();
+        }
+
+        if (Application.Current is not null && !Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(ApplyChange);
+        }
+        else
+        {
+            ApplyChange();
+        }
+    }
+
+    private async Task RestartSteamQrAfterCurrentAttemptAsync(Task? currentAttempt)
+    {
+        try
+        {
+            if (currentAttempt is not null)
+            {
+                await currentAttempt;
+            }
+            if (!IsOfflineMode && !lifetimeCancellation.IsCancellationRequested && !IsSteamLoggedIn)
+            {
+                await SignInWithQrCommand.ExecuteAsync(null);
+            }
+        }
+        catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            Interlocked.Exchange(ref steamQrRestartPending, 0);
+        }
+    }
+
+    private void OnSteamConnectionLost(object? sender, SteamConnectionLostEventArgs eventArgs)
+    {
+        void ApplyDisconnect()
+        {
+            if (!ReferenceEquals(sender, steamSession) || lifetimeCancellation.IsCancellationRequested)
+            {
+                return;
+            }
+            IsSteamLoggedIn = false;
+            SteamStatus = Loc["SteamNetworkReconnecting"];
+            SteamNetworkStatus = FormatSteamNetworkFailure(eventArgs.Exception);
+            QueueSteamReconnect();
+        }
+
+        if (Application.Current is not null && !Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(ApplyDisconnect);
+        }
+        else
+        {
+            ApplyDisconnect();
+        }
+    }
+
+    private void QueueSteamReconnect()
+    {
+        if (IsOfflineMode
+            || lifetimeCancellation.IsCancellationRequested
+            || !File.Exists(Path.Combine(paths.ApplicationDataRoot, "steam-token.dat")))
+        {
+            return;
+        }
+
+        lock (steamReconnectQueueLock)
+        {
+            steamReconnectTask = ReconnectSteamAfterAsync(steamReconnectTask);
+        }
+    }
+
+    private async Task ReconnectSteamAfterAsync(Task previous)
+    {
+        try
+        {
+            await previous;
+        }
+        catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
+        {
+            return;
+        }
+
+        if (IsOfflineMode || lifetimeCancellation.IsCancellationRequested)
+        {
+            return;
+        }
+
+        await DownloadCenter.DownloadQueue.InitializeAsync(lifetimeCancellation.Token);
+        await DownloadCenter.DownloadQueue.PauseSteamDownloadsAsync(lifetimeCancellation.Token);
+        IsSteamLoggedIn = false;
+        SteamStatus = Loc["SteamNetworkReconnecting"];
+        await steamReconnect();
+    }
+
+    private SteamAuthenticationSession CreateSteamSession(bool includeQrEvents)
+    {
+        var session = new SteamAuthenticationSession(tokenStore, systemProxy: systemProxy);
+        session.ConnectionLost += OnSteamConnectionLost;
+        if (includeQrEvents)
+        {
+            session.QrChallengeChanged += OnQrChallengeChanged;
+        }
+        return session;
+    }
+
+    private HttpClientHandler CreateSystemProxyHandler() => new()
+    {
+        Proxy = systemProxy,
+        UseProxy = true
+    };
+
+    private string FormatSteamNetworkStatus(SystemProxySnapshot snapshot) =>
+        Loc[snapshot.Enabled ? "SteamProxyDetected" : "SteamProxyDirect"];
+
+    private string FormatSteamNetworkFailure(Exception exception)
+    {
+        if (exception is OperationCanceledException or TimeoutException)
+        {
+            return Loc["SteamNetworkTimeout"];
+        }
+        if (exception is HttpRequestException { StatusCode: { } statusCode })
+        {
+            return $"{Loc["SteamNetworkHttpError"]} · {(int)statusCode}";
+        }
+        if (exception is HttpRequestException or IOException)
+        {
+            return Loc["SteamNetworkDisconnected"];
+        }
+        return Loc["SteamNetworkUnavailable"];
+    }
+
+    private static bool IsTransientSteamNetworkFailure(Exception exception) =>
+        exception is IOException or HttpRequestException or TimeoutException or OperationCanceledException
+        || (exception.InnerException is not null && IsTransientSteamNetworkFailure(exception.InnerException));
 
     private async Task<GameCatalog> LoadCatalogAsync(CancellationToken cancellationToken = default)
     {
@@ -3952,6 +4196,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
 
         session.QrChallengeChanged -= OnQrChallengeChanged;
+        session.ConnectionLost -= OnSteamConnectionLost;
         await session.DisposeAsync();
     }
 
@@ -4120,12 +4365,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             finally
             {
                 QrCodeImage = null;
+                systemProxy.Changed -= OnSystemProxyChanged;
                 steamConnectionGate.Dispose();
                 metadataHttpClient.Dispose();
                 directMetadataHttpClient.Dispose();
                 packageHttpClient.Dispose();
                 githubLatencyService.Dispose();
                 networkPolicy.Dispose();
+                systemProxy.Dispose();
                 lifetimeCancellation.Dispose();
             }
         }

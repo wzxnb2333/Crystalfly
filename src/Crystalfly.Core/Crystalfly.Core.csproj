@@ -16,5 +16,6 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Crystalfly.Core.Tests" />
+    <InternalsVisibleTo Include="Crystalfly.App.Tests" />
   </ItemGroup>
 </Project>

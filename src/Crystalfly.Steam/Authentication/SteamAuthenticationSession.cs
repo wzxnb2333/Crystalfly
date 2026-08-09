@@ -1,3 +1,5 @@
+using System.Net;
+using Crystalfly.Steam.Networking;
 using Crystalfly.Steam.Security;
 using SteamKit2;
 using SteamKit2.Authentication;
@@ -23,10 +25,12 @@ public sealed class SteamAuthenticationSession : IAsyncDisposable
     public SteamAuthenticationSession(
         DpapiRefreshTokenStore tokenStore,
         ISteamGuardCallback? guardCallback = null,
-        SteamClient? client = null)
+        SteamClient? client = null,
+        IWebProxy? systemProxy = null)
     {
         _tokenStore = tokenStore;
-        _client = client ?? new SteamClient();
+        _client = client ?? new SteamClient(SteamNetworkConfiguration.Create(
+            systemProxy ?? WebRequest.GetSystemWebProxy()));
         _callbacks = new CallbackManager(_client);
         _user = _client.GetHandler<SteamUser>()
             ?? throw new InvalidOperationException("SteamUser handler is unavailable.");
@@ -37,6 +41,7 @@ public sealed class SteamAuthenticationSession : IAsyncDisposable
     }
 
     public event EventHandler<QrChallengeEventArgs>? QrChallengeChanged;
+    public event EventHandler<SteamConnectionLostEventArgs>? ConnectionLost;
 
     public SteamClient Client => _client;
     public bool IsLoggedOn => _loginCompleted && _client.IsConnected;
@@ -191,6 +196,7 @@ public sealed class SteamAuthenticationSession : IAsyncDisposable
         _connected.TrySetException(exception);
         _loggedOn.TrySetException(exception);
         _loginCompleted = false;
+        ConnectionLost?.Invoke(this, new SteamConnectionLostEventArgs(exception));
     }
 
     private void OnLoggedOn(SteamUser.LoggedOnCallback callback)

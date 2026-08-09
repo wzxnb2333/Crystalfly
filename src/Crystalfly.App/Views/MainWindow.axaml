@@ -1819,6 +1819,7 @@
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                         <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SteamAccount]}" />
                                         <TextBlock Classes="cfp-meta" Text="{Binding SteamStatus}" TextWrapping="Wrap" />
+                                        <TextBlock Classes="cfp-meta" Text="{Binding SteamNetworkStatus}" TextWrapping="Wrap" />
                                     </StackPanel>
                                     <Button Grid.Column="2" Classes="cfp-accent" Command="{Binding SignInWithQrCommand}" IsVisible="{Binding IsSteamLoggedIn, Converter={x:Static converters:BoolConverters.Not}}">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -1834,6 +1835,12 @@
                                     </Button>
                                 </Grid>
                             </Border>
+                            <Button Classes="cfp-link" Command="{Binding RefreshSteamNetworkCommand}" HorizontalAlignment="Left" MinHeight="36">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <LucideIcon Kind="RefreshCw" Size="14" />
+                                    <TextBlock Text="{Binding Loc[RefreshSteamNetwork]}" />
+                                </StackPanel>
+                            </Button>
                             <Border Classes="cfp-download-qr" IsVisible="{Binding QrCodeImage, Converter={x:Static converters:ObjectConverters.IsNotNull}}">
                                 <Image Width="180" Height="180" Source="{Binding QrCodeImage}" AutomationProperties.Name="{Binding Loc[SignInQr]}" />
                             </Border>
