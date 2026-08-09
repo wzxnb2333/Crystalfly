@@ -744,6 +744,12 @@
     <Style Selector="Button.cfp-download-fab"><Setter Property="CornerRadius" Value="22"/><Setter Property="Padding" Value="0"/><Setter Property="MinHeight" Value="44"/><Setter Property="MinWidth" Value="44"/></Style>
     <Style Selector="Border.cfp-latency-result"><Setter Property="Padding" Value="8,6"/><Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}"/><Setter Property="CornerRadius" Value="6"/></Style>
     <Style Selector="StackPanel.cfp-manage-nav"><Setter Property="HorizontalAlignment" Value="Stretch"/></Style>
+    <!-- The accent bar is hidden by default and only shows on the selected row(s), so the
+         per-row accent element stays the single selection indicator (including multi-select). -->
+    <Style Selector="Grid.cfp-installed-mod-row Border.cfp-installed-mod-accent"><Setter Property="Opacity" Value="0"/></Style>
     <Style Selector="Grid.cfp-installed-mod-row.selected Border.cfp-installed-mod-accent"><Setter Property="Opacity" Value="1"/></Style>
+    <!-- The installed-mod list has its own per-row accent indicator; do not add the generic
+         list selection border on top of it. -->
+    <Style Selector="ListBox.cfp-installed-mod-list > ListBoxItem:selected"><Setter Property="BorderThickness" Value="0"/></Style>
 
 </Styles>
