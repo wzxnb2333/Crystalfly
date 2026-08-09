@@ -144,7 +144,13 @@ public static class LaunchPreflightEvaluator
         }
         if (loaderState == LoaderState.Drifted)
         {
-            issues.Add(Blocking(LaunchIssueCode.LoaderDrifted));
+            // Drifted loader files on a user-supplied directory are the user's own setup;
+            // surface them as forceable so launching stays possible with explicit consent.
+            issues.Add(new LaunchPreflightIssue
+            {
+                Code = LaunchIssueCode.LoaderDrifted,
+                Severity = LaunchIssueSeverity.Forceable
+            });
         }
         if (!isKnownBuild && loaderState != LoaderState.Vanilla)
         {
