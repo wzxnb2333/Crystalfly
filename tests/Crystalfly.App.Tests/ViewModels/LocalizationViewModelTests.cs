@@ -38,7 +38,15 @@ public sealed class LocalizationViewModelTests
         { "LatencyTesting", "Testing...", "测试中..." },
         { "LatencyTimeout", "Timeout", "超时" },
         { "LatencyUnavailable", "Unavailable", "不可用" },
-        { "LatencyCanceled", "Canceled", "已取消" }
+        { "LatencyCanceled", "Canceled", "已取消" },
+        { "ErrorDirectoryNotFound", "A directory was not found", "目录不存在" },
+        { "ErrorFileNotFound", "A file was not found", "文件不存在" },
+        { "ErrorFileLocked", "A file is being used by another process", "文件正被其他进程占用" },
+        { "ErrorAccessDenied", "Access was denied", "拒绝访问" },
+        { "ErrorNetworkRequestFailed", "The network request failed", "网络请求失败" },
+        { "ErrorNetworkTimeout", "The network request timed out", "网络请求超时" },
+        { "ErrorDataInvalid", "The data is invalid or malformed", "数据无效或格式损坏" },
+        { "ErrorVerificationFailed", "File verification failed", "文件校验失败" }
     };
 
     [Theory]

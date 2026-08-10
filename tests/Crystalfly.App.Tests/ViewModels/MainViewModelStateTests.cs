@@ -2464,7 +2464,7 @@ public sealed class MainViewModelStateTests : IDisposable
 
         var target = Assert.Single(viewModel.MarketInstallTargets);
         Assert.False(target.IsAvailable);
-        Assert.Contains(viewModel.Loc["OperationFailed"], target.StatusText, StringComparison.Ordinal);
+        Assert.Equal(viewModel.Loc["ErrorDataInvalid"], target.StatusText);
     }
 
     [Theory]
@@ -2857,7 +2857,7 @@ public sealed class MainViewModelStateTests : IDisposable
 
         await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
 
-        Assert.StartsWith(viewModel.Loc["OperationFailed"], viewModel.ErrorMessage);
+        Assert.StartsWith(viewModel.Loc["ErrorAccessDenied"], viewModel.ErrorMessage);
     }
 
     [Fact]

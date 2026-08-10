@@ -46,7 +46,7 @@ public partial class MainWindow
             or UnauthorizedAccessException
             or ArgumentException)
         {
-            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
         }
     }
 

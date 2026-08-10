@@ -217,7 +217,7 @@ public partial class MainViewModel
             or InvalidOperationException
             or OperationCanceledException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -250,7 +250,7 @@ public partial class MainViewModel
             or ArgumentException
             or OperationCanceledException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -306,7 +306,7 @@ public partial class MainViewModel
             or KeyNotFoundException
             or ArgumentException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -355,7 +355,7 @@ public partial class MainViewModel
             or ArgumentException
             or System.Text.Json.JsonException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
         finally
         {

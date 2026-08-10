@@ -123,7 +123,7 @@ public partial class MainWindow : Window
             }
             catch (Exception exception)
             {
-                viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+                viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
             }
             finally
             {
@@ -202,7 +202,7 @@ public partial class MainWindow : Window
         {
             if (DataContext is MainViewModel viewModel)
             {
-                viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+                viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
             }
         }
     }
@@ -409,7 +409,7 @@ public partial class MainWindow : Window
         }
         catch (InvalidOperationException exception)
         {
-            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -627,7 +627,7 @@ public partial class MainWindow : Window
             catch (Exception exception) when (exception is ProtocolCommandException
                 or InvalidOperationException)
             {
-                viewModel.ErrorMessage = $"{viewModel.Loc["InvalidExternalCommand"]}: {exception.Message}";
+                viewModel.ErrorMessage = $"{viewModel.Loc["InvalidExternalCommand"]}: {viewModel.Loc.ErrorMessageFor(exception)}";
                 return;
             }
 
@@ -681,7 +681,7 @@ public partial class MainWindow : Window
                 or System.Text.Json.JsonException
                 or Win32Exception)
             {
-                viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+                viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
             }
         }
         finally
@@ -707,7 +707,7 @@ public partial class MainWindow : Window
         {
             if (DataContext is MainViewModel viewModel)
             {
-                viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+                viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
             }
         }
     }

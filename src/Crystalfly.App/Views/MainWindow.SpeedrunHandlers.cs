@@ -62,7 +62,7 @@ public partial class MainWindow
         }
         catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
         {
-            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -86,7 +86,7 @@ public partial class MainWindow
         }
         catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException)
         {
-            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -109,7 +109,7 @@ public partial class MainWindow
         {
             if (DataContext is MainViewModel viewModel)
             {
-                viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+                viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
             }
         }
     }

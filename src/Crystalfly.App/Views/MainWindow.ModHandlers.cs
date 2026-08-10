@@ -103,7 +103,7 @@ public partial class MainWindow
             or ArgumentException
             or Win32Exception)
         {
-            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -322,7 +322,7 @@ public partial class MainWindow
         }
         catch (Exception exception) when (exception is InvalidOperationException or KeyNotFoundException)
         {
-            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -385,7 +385,7 @@ public partial class MainWindow
             or ArgumentException
             or Win32Exception)
         {
-            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -428,7 +428,7 @@ public partial class MainWindow
             or ArgumentException
             or Win32Exception)
         {
-            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
         }
     }
 

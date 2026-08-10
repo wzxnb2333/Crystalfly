@@ -237,7 +237,7 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            dependencies.SetErrorMessage($"{Loc["OperationFailed"]}: {exception.Message}");
+            dependencies.SetErrorMessage(Loc.ErrorMessageFor(exception));
         }
     }
 

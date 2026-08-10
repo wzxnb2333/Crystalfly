@@ -240,7 +240,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
                                           or InvalidDataException
                                           or InvalidOperationException)
         {
-            dependencies.SetErrorMessage($"{dependencies.Loc()["OperationFailed"]}: {exception.Message}");
+            dependencies.SetErrorMessage(dependencies.Loc().ErrorMessageFor(exception));
         }
     }
 
@@ -284,7 +284,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
                                           or UnauthorizedAccessException
                                           or InvalidOperationException)
         {
-            dependencies.SetErrorMessage($"{dependencies.Loc()["OperationFailed"]}: {exception.Message}");
+            dependencies.SetErrorMessage(dependencies.Loc().ErrorMessageFor(exception));
         }
     }
 
@@ -519,7 +519,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            dependencies.SetErrorMessage($"{dependencies.Loc()["OperationFailed"]}: {exception.Message}");
+            dependencies.SetErrorMessage(dependencies.Loc().ErrorMessageFor(exception));
         }
     }
 
@@ -549,7 +549,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
                                           or UnauthorizedAccessException
                                           or InvalidOperationException)
         {
-            dependencies.SetErrorMessage($"{dependencies.Loc()["OperationFailed"]}: {exception.Message}");
+            dependencies.SetErrorMessage(dependencies.Loc().ErrorMessageFor(exception));
         }
     }
 
@@ -798,7 +798,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
             or IOException
             or InvalidDataException)
         {
-            dependencies.SetErrorMessage($"{dependencies.Loc()["OperationFailed"]}: {exception.Message}");
+            dependencies.SetErrorMessage(dependencies.Loc().ErrorMessageFor(exception));
         }
     }
 

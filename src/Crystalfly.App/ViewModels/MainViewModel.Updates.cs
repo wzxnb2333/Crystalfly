@@ -165,7 +165,7 @@ public partial class MainViewModel
         ArgumentNullException.ThrowIfNull(exception);
         lastApplicationUpdateStatus = null;
         ApplicationUpdateStatus = Loc["UpdateCheckFailed"];
-        ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+        ErrorMessage = Loc.ErrorMessageFor(exception);
     }
 
     partial void OnIsAutomaticUpdateCheckEnabledChanged(bool value)

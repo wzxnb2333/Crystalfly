@@ -65,7 +65,7 @@ public partial class App : Application
             if (Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
                 && desktop.MainWindow?.DataContext is MainViewModel viewModel)
             {
-                viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+                viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
             }
         }
     }

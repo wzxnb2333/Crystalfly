@@ -253,6 +253,14 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["Restore"] = "Restore",
         ["StatusChecking"] = "Checking instances...",
         ["StatusReady"] = "Ready",
+        ["ErrorDirectoryNotFound"] = "A directory was not found",
+        ["ErrorFileNotFound"] = "A file was not found",
+        ["ErrorFileLocked"] = "A file is being used by another process",
+        ["ErrorAccessDenied"] = "Access was denied",
+        ["ErrorNetworkRequestFailed"] = "The network request failed",
+        ["ErrorNetworkTimeout"] = "The network request timed out",
+        ["ErrorDataInvalid"] = "The data is invalid or malformed",
+        ["ErrorVerificationFailed"] = "File verification failed",
         ["OperationFailed"] = "Operation failed"
         ,["OperationComplete"] = "Operation completed"
         ,["SelectLoader"] = "Select a Loader first."
@@ -921,6 +929,14 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["Restore"] = "恢复",
         ["StatusChecking"] = "正在检查实例...",
         ["StatusReady"] = "就绪",
+        ["ErrorDirectoryNotFound"] = "目录不存在",
+        ["ErrorFileNotFound"] = "文件不存在",
+        ["ErrorFileLocked"] = "文件正被其他进程占用",
+        ["ErrorAccessDenied"] = "拒绝访问",
+        ["ErrorNetworkRequestFailed"] = "网络请求失败",
+        ["ErrorNetworkTimeout"] = "网络请求超时",
+        ["ErrorDataInvalid"] = "数据无效或格式损坏",
+        ["ErrorVerificationFailed"] = "文件校验失败",
         ["OperationFailed"] = "操作失败"
         ,["OperationComplete"] = "操作完成"
         ,["SelectLoader"] = "请先选择 Loader。"
@@ -1365,4 +1381,59 @@ public sealed class LocalizationViewModel : ViewModelBase
     // Test-only hook: lets binding tests exercise the exact Avalonia INPC contract for
     // indexer refreshes without constructing a second language dictionary.
     internal void RaiseTestNotification(string? propertyName) => OnPropertyChanged(propertyName);
+
+    /// <summary>
+    /// Formats an exception for user-visible display. Exceptions whose meaning is
+    /// recognizable (directory/file missing, access denied, network failure, ...) are
+    /// mapped to a localized message; everything else falls back to the generic
+    /// "Operation failed" wording with the original (English) exception message as detail.
+    /// </summary>
+    public string ErrorMessageFor(Exception exception)
+    {
+        var key = LocalizedErrorKey(exception);
+        return key is not null && values.TryGetValue(key, out var localized)
+            ? localized
+            : $"{values["OperationFailed"]}: {exception.Message}";
+    }
+
+    private static string? LocalizedErrorKey(Exception exception)
+    {
+        if (exception is DirectoryNotFoundException)
+        {
+            return "ErrorDirectoryNotFound";
+        }
+        if (exception is FileNotFoundException)
+        {
+            return "ErrorFileNotFound";
+        }
+        if (exception is UnauthorizedAccessException)
+        {
+            return "ErrorAccessDenied";
+        }
+        if (exception is HttpRequestException)
+        {
+            return "ErrorNetworkRequestFailed";
+        }
+        if (exception is TimeoutException)
+        {
+            return "ErrorNetworkTimeout";
+        }
+        if (exception is InvalidDataException or System.Text.Json.JsonException)
+        {
+            return "ErrorDataInvalid";
+        }
+        if (exception is System.Security.Cryptography.CryptographicException)
+        {
+            return "ErrorVerificationFailed";
+        }
+        if (exception is IOException ioException && IsFileLocked(ioException))
+        {
+            return "ErrorFileLocked";
+        }
+        return null;
+    }
+
+    private static bool IsFileLocked(IOException exception) =>
+        exception.HResult is unchecked((int)0x80070020) or unchecked((int)0x80070021) // ERROR_SHARING_VIOLATION / ERROR_LOCK_VIOLATION
+        || exception.Message.Contains("being used by another process", StringComparison.OrdinalIgnoreCase);
 }

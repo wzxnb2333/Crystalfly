@@ -118,7 +118,7 @@ public partial class MainViewModel
             or ArgumentException
             or System.Text.Json.JsonException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -150,7 +150,7 @@ public partial class MainViewModel
             or ArgumentException
             or System.Text.Json.JsonException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
     }
     private async Task EnqueueSteamBuildAsync()
@@ -232,7 +232,7 @@ public partial class MainViewModel
             or ArgumentException
             or System.Text.Json.JsonException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
     }
 

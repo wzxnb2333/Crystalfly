@@ -502,7 +502,7 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
             {
                 if (failures++ == 0)
                 {
-                    firstFailure = exception.Message;
+                    firstFailure = loc.ErrorMessageFor(exception);
                 }
             }
         }
@@ -521,7 +521,7 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException)
         {
-            errorReported?.Invoke($"{loc["OperationFailed"]}: {exception.Message}");
+            errorReported?.Invoke(loc.ErrorMessageFor(exception));
         }
     }
 
@@ -534,7 +534,7 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException)
         {
-            errorReported?.Invoke($"{loc["OperationFailed"]}: {exception.Message}");
+            errorReported?.Invoke(loc.ErrorMessageFor(exception));
         }
     }
 
@@ -557,7 +557,7 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
             {
                 if (failures++ == 0)
                 {
-                    firstFailure = exception.Message;
+                    firstFailure = loc.ErrorMessageFor(exception);
                 }
             }
         }
@@ -576,7 +576,7 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException)
         {
-            errorReported?.Invoke($"{loc["OperationFailed"]}: {exception.Message}");
+            errorReported?.Invoke(loc.ErrorMessageFor(exception));
         }
     }
 
@@ -596,7 +596,7 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
             or KeyNotFoundException
             or AggregateException)
         {
-            errorReported?.Invoke($"{loc["OperationFailed"]}: {exception.Message}");
+            errorReported?.Invoke(loc.ErrorMessageFor(exception));
         }
     }
 
@@ -615,7 +615,7 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
             or InvalidOperationException
             or KeyNotFoundException)
         {
-            errorReported?.Invoke($"{loc["OperationFailed"]}: {exception.Message}");
+            errorReported?.Invoke(loc.ErrorMessageFor(exception));
         }
     }
 }

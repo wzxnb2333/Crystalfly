@@ -1184,7 +1184,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             if (ReferenceEquals(GameConfig, viewModel))
             {
                 GameConfig = null;
-                ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+                ErrorMessage = Loc.ErrorMessageFor(exception);
             }
         }
     }
@@ -1293,7 +1293,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     instance,
                     instance.DisplayVersion,
                     instance.LoaderDisplay,
-                    $"{Loc["OperationFailed"]}: {exception.Message}",
+                    Loc.ErrorMessageFor(exception),
                     IsAvailable: false,
                     RequiresLoader: false);
             }
@@ -1502,7 +1502,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             or InvalidDataException
             or InvalidOperationException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
         finally
         {
@@ -1725,7 +1725,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             if (!(SpeedrunReminderIsError && SpeedrunReportPath is not null))
             {
-                ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+                ErrorMessage = Loc.ErrorMessageFor(exception);
             }
             if (runtimeSession is not null && !new SystemHollowKnightProcessProbe().IsRunning())
             {
@@ -2267,7 +2267,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             or UnauthorizedAccessException
             or InvalidOperationException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -2420,7 +2420,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             if (ReferenceEquals(SaveEditor, editor))
             {
                 SaveEditor = null;
-                ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+                ErrorMessage = Loc.ErrorMessageFor(exception);
             }
         }
     }
@@ -2543,7 +2543,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 }
                 catch (Exception cleanupException) when (cleanupException is IOException or UnauthorizedAccessException)
                 {
-                    ErrorMessage = $"{Loc["OperationFailed"]}: {cleanupException.Message}";
+                    ErrorMessage = Loc.ErrorMessageFor(cleanupException);
                 }
             }
             if (!preserveForRecovery && createdRoot is not null && Directory.Exists(createdRoot))
@@ -2554,12 +2554,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 }
                 catch (Exception cleanupException) when (cleanupException is IOException or UnauthorizedAccessException)
                 {
-                    ErrorMessage = $"{Loc["OperationFailed"]}: {cleanupException.Message}";
+                    ErrorMessage = Loc.ErrorMessageFor(cleanupException);
                 }
             }
             ErrorMessage = string.IsNullOrWhiteSpace(ErrorMessage)
-                ? $"{Loc["OperationFailed"]}: {exception.Message}"
-                : $"{Loc["OperationFailed"]}: {exception.Message} {ErrorMessage}";
+                ? Loc.ErrorMessageFor(exception)
+                : $"{Loc.ErrorMessageFor(exception)} {ErrorMessage}";
             if (preserveForRecovery)
             {
                 ErrorMessage += $" {Loc["RecoveryNeedsAttention"]}";
@@ -2762,7 +2762,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             or InvalidOperationException
             or UnauthorizedAccessException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
         finally
         {
@@ -2819,7 +2819,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             RuntimePatchesTextMasher = false;
             if (!IsSelectedSpeedrunLegacy)
             {
-                SetSpeedrunReminder("SpeedrunConfigurationInvalid", suffix: $": {exception.Message}");
+                SetSpeedrunReminder("SpeedrunConfigurationInvalid", suffix: $": {Loc.ErrorMessageFor(exception)}");
                 SpeedrunReminderIsError = true;
             }
         }
@@ -2861,7 +2861,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
         finally
         {
@@ -3223,7 +3223,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             or UnauthorizedAccessException
             or ArgumentException)
         {
-            SelectedModContentError = exception.Message;
+            SelectedModContentError = Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -3289,7 +3289,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             if (generation == Volatile.Read(ref selectedModContentLoadGeneration))
             {
                 SelectedModContentStatus = ModContentLoadStatus.Unavailable;
-                SelectedModContentError = exception.Message;
+                SelectedModContentError = Loc.ErrorMessageFor(exception);
             }
         }
         finally
@@ -3381,7 +3381,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -3410,7 +3410,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -3452,7 +3452,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception exception) when (IsExpectedSettingsException(exception))
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -3642,7 +3642,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception exception) when (IsExpectedInstanceDetailsException(exception))
         {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {exception.Message}";
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
         finally
         {
@@ -3673,7 +3673,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             or InvalidOperationException
             or System.Text.Json.JsonException)
         {
-            ErrorMessage = $"{operationError} {Loc["RefreshFailed"]}: {exception.Message}";
+            ErrorMessage = $"{operationError} {Loc["RefreshFailed"]}: {Loc.ErrorMessageFor(exception)}";
         }
     }
 
@@ -3715,7 +3715,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             or ArgumentException
             or System.Text.Json.JsonException)
         {
-            var operationError = $"{Loc["OperationFailed"]}: {exception.Message}";
+            var operationError = Loc.ErrorMessageFor(exception);
             await RefreshAfterFailedMutationAsync(instanceId, operationError);
         }
         finally
@@ -4078,7 +4078,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 or UnauthorizedAccessException
                 or ArgumentException)
             {
-                customModLinksError = exception.Message;
+                customModLinksError = Loc.ErrorMessageFor(exception);
             }
         }
         else
@@ -4146,7 +4146,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 or ArgumentException
                 || exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
             {
-                customCatalogErrors.Add($"{definition.Namespace}: {exception.Message}");
+                customCatalogErrors.Add($"{definition.Namespace}: {Loc.ErrorMessageFor(exception)}");
             }
         }
         var customMerge = CatalogProvider.MergeCustomCatalogs(result, customCatalogs);

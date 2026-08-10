@@ -166,7 +166,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
             or UnauthorizedAccessException
             or ArgumentException)
         {
-            dependencies.SetErrorMessage($"{dependencies.Loc()["OperationFailed"]}: {exception.Message}");
+            dependencies.SetErrorMessage(dependencies.Loc().ErrorMessageFor(exception));
         }
         finally
         {
@@ -224,7 +224,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
             or UnauthorizedAccessException
             or ArgumentException)
         {
-            dependencies.SetErrorMessage($"{dependencies.Loc()["OperationFailed"]}: {exception.Message}");
+            dependencies.SetErrorMessage(dependencies.Loc().ErrorMessageFor(exception));
         }
         finally
         {
@@ -311,7 +311,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
             or ArgumentException
             or System.Text.Json.JsonException)
         {
-            dependencies.SetErrorMessage($"{dependencies.Loc()["OperationFailed"]}: {exception.Message}");
+            dependencies.SetErrorMessage(dependencies.Loc().ErrorMessageFor(exception));
         }
         finally
         {
@@ -443,7 +443,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
         {
-            dependencies.SetErrorMessage($"{dependencies.Loc()["OperationFailed"]}: {exception.Message}");
+            dependencies.SetErrorMessage(dependencies.Loc().ErrorMessageFor(exception));
         }
         finally
         {

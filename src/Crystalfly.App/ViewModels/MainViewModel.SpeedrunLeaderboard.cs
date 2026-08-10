@@ -149,7 +149,7 @@ public partial class MainViewModel
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException)
                 {
-                    SpeedrunActivityError = exception.Message;
+                    SpeedrunActivityError = Loc.ErrorMessageFor(exception);
                 }
             }
         }
@@ -261,7 +261,7 @@ public partial class MainViewModel
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
         {
             speedrunActivityUnavailable = true;
-            speedrunActivityErrorOverride = exception.Message;
+            speedrunActivityErrorOverride = Loc.ErrorMessageFor(exception);
             speedrunActivityShowLoading = false;
             speedrunActivityStatusCleared = false;
             UpdateSpeedrunActivityTexts();

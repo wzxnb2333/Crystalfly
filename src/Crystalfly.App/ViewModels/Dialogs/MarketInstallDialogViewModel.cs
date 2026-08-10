@@ -140,7 +140,7 @@ public sealed partial class MarketInstallDialogViewModel : ViewModelBase, IDialo
         {
             if (generation == Volatile.Read(ref planGeneration))
             {
-                DialogError = $"{main.Loc["OperationFailed"]}: {exception.Message}";
+                DialogError = main.Loc.ErrorMessageFor(exception);
             }
         }
         finally

@@ -60,7 +60,7 @@ public partial class MainWindow
             or KeyNotFoundException
             or ArgumentException)
         {
-            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
         }
     }
 
@@ -253,7 +253,7 @@ public partial class MainWindow
         }
         catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException)
         {
-            viewModel.ErrorMessage = $"{viewModel.Loc["OperationFailed"]}: {exception.Message}";
+            viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
             return false;
         }
     }
