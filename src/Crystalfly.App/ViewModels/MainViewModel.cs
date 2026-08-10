@@ -79,6 +79,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         CancellationToken,
         Task<InstanceDeletionResult>>? instanceDeletionOverride;
     private readonly GitHubRouteLatencyService githubLatencyService;
+    private readonly GitHubRoutePreference githubRoutePreference;
     private readonly IProtocolRegistrationService protocolRegistrationService;
     private readonly bool autoRequestGameDirectoryDiscovery;
     private IReadOnlyList<(InstanceRecord Record, LoaderState LoaderState, InstalledPackageReceipt? LoaderReceipt, int ModCount)>? lastInstanceProjection;
@@ -190,10 +191,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         modActivityCatalog = EmbeddedModActivityCatalog.Load();
         networkPolicy = new NetworkPolicy();
         systemProxy = systemProxyOverride ?? new SystemProxyService();
+        githubRoutePreference = new GitHubRoutePreference();
         metadataHttpClient = new HttpClient(new GitHubDownloadRouteHandler(
             () => settings.GitHubDownloadRoute,
             networkPolicy,
-            CreateSystemProxyHandler())) { Timeout = TimeSpan.FromSeconds(15) };
+            CreateSystemProxyHandler(),
+            githubRoutePreference)) { Timeout = TimeSpan.FromSeconds(15) };
         directMetadataHttpClient = new HttpClient(new NetworkPolicyHandler(
             networkPolicy,
             CreateSystemProxyHandler())) { Timeout = TimeSpan.FromSeconds(15) };
@@ -204,8 +207,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         packageHttpClient = new HttpClient(new GitHubDownloadRouteHandler(
             () => settings.GitHubDownloadRoute,
             networkPolicy,
-            CreateSystemProxyHandler())) { Timeout = TimeSpan.FromMinutes(30) };
-        githubLatencyService = new GitHubRouteLatencyService(networkPolicy, CreateSystemProxyHandler());
+            CreateSystemProxyHandler(),
+            githubRoutePreference)) { Timeout = TimeSpan.FromMinutes(30) };
+        githubLatencyService = new GitHubRouteLatencyService(
+            networkPolicy,
+            CreateSystemProxyHandler(),
+            null,
+            null,
+            githubRoutePreference);
         Loc = new LocalizationViewModel();
         SteamNetworkStatus = FormatSteamNetworkStatus(systemProxy.Current);
         systemProxy.Changed += OnSystemProxyChanged;
@@ -288,7 +297,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             RebuildPresetModeOptions: RebuildPresetModeOptions,
             NotifyOperationCompleted: NotifyOperationCompleted,
             TestGitHubLatency: githubLatencyTestOverride is null
-                ? githubLatencyService.TestAsync
+                ? cancellationToken => githubLatencyService.TestAsync(
+                    [
+                        GitHubDownloadRoute.Direct,
+                        GitHubDownloadRoute.GhProxyOrg,
+                        GitHubDownloadRoute.Mirror,
+                        GitHubDownloadRoute.GhProxyNet,
+                        GitHubDownloadRoute.GhFastTop
+                    ],
+                    cancellationToken)
                 : githubLatencyTestOverride,
             GetCanNavigate: () => CanNavigate,
             GetSelectedInstance: () => SelectedInstance,
@@ -998,6 +1015,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             settings.CustomCatalogs.Select(source => $"{source.Namespace}={source.Url}"));
         Settings.CustomModLinksUrl = settings.CustomModLinks?.Url ?? string.Empty;
         RebuildSettingOptions();
+        if (settings.GitHubDownloadRoute == GitHubDownloadRoute.Auto)
+        {
+            _ = Settings.TestGitHubLatencyCommand.ExecuteAsync(null);
+        }
         RebuildCustomModLinksOptions();
         ModManagement.RebuildStatusOptions();
         RebuildMarketCatalog();

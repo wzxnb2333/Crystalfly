@@ -59,11 +59,15 @@ public sealed class GitHubDownloadRouteHandlerTests
         Assert.Empty(capture.Requests);
     }
 
-    [Fact]
-    public async Task Handler_falls_back_to_direct_url_when_mirror_returns_bad_request()
+    [Theory]
+    [InlineData(System.Net.HttpStatusCode.BadRequest)]
+    [InlineData(System.Net.HttpStatusCode.Forbidden)]
+    [InlineData(System.Net.HttpStatusCode.TooManyRequests)]
+    public async Task Handler_falls_back_to_direct_url_when_mirror_rejects_request(
+        System.Net.HttpStatusCode mirrorStatus)
     {
         var capture = new StatusSequenceHandler(
-            new HttpResponseMessage(System.Net.HttpStatusCode.BadRequest),
+            new HttpResponseMessage(mirrorStatus),
             new HttpResponseMessage(System.Net.HttpStatusCode.OK));
         using var client = new HttpClient(new GitHubDownloadRouteHandler(
             () => GitHubDownloadRoute.Mirror,
@@ -79,6 +83,68 @@ public sealed class GitHubDownloadRouteHandlerTests
                 "https://github.com/owner/repo/releases/latest/download/update-manifest.v1.json"
             ],
             capture.Requests);
+    }
+
+    [Theory]
+    [InlineData(GitHubDownloadRoute.GhProxyOrg, "https://gh-proxy.org/")]
+    [InlineData(GitHubDownloadRoute.GhProxyNet, "https://ghproxy.net/")]
+    [InlineData(GitHubDownloadRoute.GhFastTop, "https://ghfast.top/")]
+    public void Rewrite_uses_the_selected_mirror_prefix(GitHubDownloadRoute route, string prefix)
+    {
+        var result = GitHubDownloadRouteHandler.Rewrite(
+            new Uri("https://github.com/owner/repo/releases/download/v1/package.zip"),
+            route);
+
+        Assert.Equal(
+            $"{prefix}https://github.com/owner/repo/releases/download/v1/package.zip",
+            result.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task Handler_auto_route_tries_mirror_pool_until_a_successful_response()
+    {
+        var capture = new StatusSequenceHandler(
+            new HttpResponseMessage(System.Net.HttpStatusCode.BadGateway),
+            new HttpResponseMessage(System.Net.HttpStatusCode.NotFound),
+            new HttpResponseMessage(System.Net.HttpStatusCode.OK));
+        using var client = new HttpClient(new GitHubDownloadRouteHandler(
+            () => GitHubDownloadRoute.Auto,
+            capture));
+
+        using var response = await client.GetAsync(
+            "https://github.com/owner/repo/releases/download/v1/package.zip");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            [
+                "https://gh-proxy.org/https://github.com/owner/repo/releases/download/v1/package.zip",
+                "https://ghproxy.net/https://github.com/owner/repo/releases/download/v1/package.zip",
+                "https://ghfast.top/https://github.com/owner/repo/releases/download/v1/package.zip"
+            ],
+            capture.Requests);
+    }
+
+    [Fact]
+    public async Task Handler_auto_route_starts_with_the_fastest_probed_route()
+    {
+        var preference = new GitHubRoutePreference();
+        preference.UpdateFromLatency(
+        [
+            new(GitHubDownloadRoute.Direct, GitHubRouteLatencyStatus.Success, TimeSpan.FromMilliseconds(90)),
+            new(GitHubDownloadRoute.GhProxyNet, GitHubRouteLatencyStatus.Success, TimeSpan.FromMilliseconds(20)),
+            new(GitHubDownloadRoute.GhProxyOrg, GitHubRouteLatencyStatus.Timeout, null)
+        ]);
+        var capture = new CaptureHandler();
+        using var client = new HttpClient(new GitHubDownloadRouteHandler(
+            () => GitHubDownloadRoute.Auto,
+            capture,
+            preference));
+
+        await client.GetAsync("https://github.com/owner/repo/releases/download/v1/package.zip");
+
+        Assert.Equal(
+            "https://ghproxy.net/https://github.com/owner/repo/releases/download/v1/package.zip",
+            Assert.Single(capture.Requests));
     }
 
     [Fact]

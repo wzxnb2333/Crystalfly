@@ -665,6 +665,15 @@ public sealed partial class SettingsViewModel : ViewModelBase
     public partial string GitHubMirrorLatency { get; set; } = "-";
 
     [ObservableProperty]
+    public partial string GitHubGhProxyOrgLatency { get; set; } = "-";
+
+    [ObservableProperty]
+    public partial string GitHubGhProxyNetLatency { get; set; } = "-";
+
+    [ObservableProperty]
+    public partial string GitHubGhFastTopLatency { get; set; } = "-";
+
+    [ObservableProperty]
     public partial string CustomModLinksUrl { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -697,25 +706,42 @@ public sealed partial class SettingsViewModel : ViewModelBase
         IsTestingGitHubLatency = true;
         GitHubDirectLatency = dependencies.Loc()["LatencyTesting"];
         GitHubMirrorLatency = dependencies.Loc()["LatencyTesting"];
+        GitHubGhProxyOrgLatency = dependencies.Loc()["LatencyTesting"];
+        GitHubGhProxyNetLatency = dependencies.Loc()["LatencyTesting"];
+        GitHubGhFastTopLatency = dependencies.Loc()["LatencyTesting"];
         using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken,
             dependencies.LifetimeCancellation);
         try
         {
             var result = await dependencies.TestGitHubLatency(linkedCancellation.Token);
-            GitHubDirectLatency = FormatGitHubLatency(result.Direct);
-            GitHubMirrorLatency = FormatGitHubLatency(result.Mirror);
+            IReadOnlyDictionary<GitHubDownloadRoute, GitHubRouteLatencyResult> results =
+                result.Routes.ToDictionary(item => item.Route);
+            GitHubDirectLatency = FormatGitHubLatency(results, GitHubDownloadRoute.Direct);
+            GitHubMirrorLatency = FormatGitHubLatency(results, GitHubDownloadRoute.Mirror);
+            GitHubGhProxyOrgLatency = FormatGitHubLatency(results, GitHubDownloadRoute.GhProxyOrg);
+            GitHubGhProxyNetLatency = FormatGitHubLatency(results, GitHubDownloadRoute.GhProxyNet);
+            GitHubGhFastTopLatency = FormatGitHubLatency(results, GitHubDownloadRoute.GhFastTop);
         }
         catch (OperationCanceledException) when (linkedCancellation.IsCancellationRequested)
         {
             GitHubDirectLatency = dependencies.Loc()["LatencyCanceled"];
             GitHubMirrorLatency = dependencies.Loc()["LatencyCanceled"];
+            GitHubGhProxyOrgLatency = dependencies.Loc()["LatencyCanceled"];
+            GitHubGhProxyNetLatency = dependencies.Loc()["LatencyCanceled"];
+            GitHubGhFastTopLatency = dependencies.Loc()["LatencyCanceled"];
         }
         finally
         {
             IsTestingGitHubLatency = false;
         }
     }
+
+    private string FormatGitHubLatency(
+        IReadOnlyDictionary<GitHubDownloadRoute, GitHubRouteLatencyResult> results,
+        GitHubDownloadRoute route) => results.TryGetValue(route, out GitHubRouteLatencyResult? result)
+            ? FormatGitHubLatency(result)
+            : dependencies.Loc()["LatencyUnavailable"];
 
     private string FormatGitHubLatency(GitHubRouteLatencyResult result) => result.Status switch
     {
@@ -824,8 +850,12 @@ public sealed partial class SettingsViewModel : ViewModelBase
         RebuildAccentColorOptions();
         RebuildBackgroundScopeOptions();
         GitHubRouteOptions.Clear();
+        GitHubRouteOptions.Add(new(GitHubDownloadRoute.Auto, dependencies.Loc()["GitHubAuto"]));
         GitHubRouteOptions.Add(new(GitHubDownloadRoute.Direct, dependencies.Loc()["GitHubDirect"]));
+        GitHubRouteOptions.Add(new(GitHubDownloadRoute.GhProxyOrg, dependencies.Loc()["GitHubGhProxyOrg"]));
         GitHubRouteOptions.Add(new(GitHubDownloadRoute.Mirror, dependencies.Loc()["GitHubMirror"]));
+        GitHubRouteOptions.Add(new(GitHubDownloadRoute.GhProxyNet, dependencies.Loc()["GitHubGhProxyNet"]));
+        GitHubRouteOptions.Add(new(GitHubDownloadRoute.GhFastTop, dependencies.Loc()["GitHubGhFastTop"]));
         SelectedGitHubRoute = GitHubRouteOptions.First(option => option.Value == settings.GitHubDownloadRoute);
         dependencies.RebuildPresetModeOptions();
     }
@@ -968,6 +998,10 @@ public sealed partial class SettingsViewModel : ViewModelBase
         }
         dependencies.SetSettings(dependencies.GetSettings() with { GitHubDownloadRoute = value.Value });
         dependencies.QueueSettingsSave();
+        if (value.Value == GitHubDownloadRoute.Auto && !IsTestingGitHubLatency)
+        {
+            _ = TestGitHubLatencyCommand.ExecuteAsync(null);
+        }
     }
 
     private static bool IsExpectedSettingsException(Exception exception) =>

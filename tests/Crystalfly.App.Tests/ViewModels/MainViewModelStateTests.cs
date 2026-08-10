@@ -2713,6 +2713,16 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Contains(viewModel.Settings.ThemeOptions, option => option.Name == "Dark");
         Assert.Contains(viewModel.Settings.MotionOptions, option => option.Name == "Follow system");
         Assert.Contains(viewModel.Settings.GitHubRouteOptions, option => option.Name == "GitHub mirror");
+        Assert.Equal(
+            [
+                GitHubDownloadRoute.Auto,
+                GitHubDownloadRoute.Direct,
+                GitHubDownloadRoute.GhProxyOrg,
+                GitHubDownloadRoute.Mirror,
+                GitHubDownloadRoute.GhProxyNet,
+                GitHubDownloadRoute.GhFastTop
+            ],
+            viewModel.Settings.GitHubRouteOptions.Select(option => option.Value));
         await viewModel.DisposeAsync();
     }
 

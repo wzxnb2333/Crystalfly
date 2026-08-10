@@ -1,4 +1,5 @@
 using System.Net;
+using System.Collections.Concurrent;
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Networking;
 
@@ -54,6 +55,39 @@ public sealed class GitHubRouteLatencyServiceTests
         GitHubRouteLatencyTestResult result = await test;
         Assert.Equal(GitHubRouteLatencyStatus.Success, result.Direct.Status);
         Assert.Equal(GitHubRouteLatencyStatus.Success, result.Mirror.Status);
+    }
+
+    [Fact]
+    public async Task TestAsync_can_probe_the_configured_mirror_pool_in_parallel()
+    {
+        var requests = new ConcurrentBag<string>();
+        var handler = new StubHandler((request, _) =>
+        {
+            requests.Add(request.RequestUri!.AbsoluteUri);
+            return Task.FromResult(Success());
+        });
+        using var service = new GitHubRouteLatencyService(handler);
+
+        GitHubRouteLatencyTestResult result = await service.TestAsync(
+        [
+            GitHubDownloadRoute.Direct,
+            GitHubDownloadRoute.GhProxyOrg,
+            GitHubDownloadRoute.Mirror,
+            GitHubDownloadRoute.GhProxyNet,
+            GitHubDownloadRoute.GhFastTop
+        ]);
+
+        Assert.Equal(5, result.Routes.Count);
+        Assert.Contains(
+            GitHubDownloadRouteHandler.Rewrite(
+                GitHubRouteLatencyService.ProbeUri,
+                GitHubDownloadRoute.GhProxyOrg).AbsoluteUri,
+            requests);
+        Assert.Contains(
+            GitHubDownloadRouteHandler.Rewrite(
+                GitHubRouteLatencyService.ProbeUri,
+                GitHubDownloadRoute.GhFastTop).AbsoluteUri,
+            requests);
     }
 
     [Fact]

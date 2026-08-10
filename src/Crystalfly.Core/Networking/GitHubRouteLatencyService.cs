@@ -16,7 +16,18 @@ public sealed record GitHubRouteLatencyResult(
 
 public sealed record GitHubRouteLatencyTestResult(
     GitHubRouteLatencyResult Direct,
-    GitHubRouteLatencyResult Mirror);
+    GitHubRouteLatencyResult Mirror)
+{
+    public IReadOnlyList<GitHubRouteLatencyResult> Routes { get; init; } = [Direct, Mirror];
+
+    public GitHubRouteLatencyTestResult(IReadOnlyList<GitHubRouteLatencyResult> routes)
+        : this(
+            routes.First(result => result.Route == GitHubDownloadRoute.Direct),
+            routes.First(result => result.Route == GitHubDownloadRoute.Mirror))
+    {
+        Routes = routes;
+    }
+}
 
 public sealed class GitHubRouteLatencyService : IDisposable
 {
@@ -27,6 +38,7 @@ public sealed class GitHubRouteLatencyService : IDisposable
     private readonly HttpClient httpClient;
     private readonly TimeProvider timeProvider;
     private readonly TimeSpan timeout;
+    private readonly GitHubRoutePreference? routePreference;
 
     public GitHubRouteLatencyService(
         HttpMessageHandler handler,
@@ -46,6 +58,16 @@ public sealed class GitHubRouteLatencyService : IDisposable
     }
 
     public GitHubRouteLatencyService(
+        HttpMessageHandler handler,
+        TimeProvider? timeProvider,
+        TimeSpan? timeout,
+        GitHubRoutePreference routePreference)
+        : this(handler, timeProvider, timeout)
+    {
+        this.routePreference = routePreference ?? throw new ArgumentNullException(nameof(routePreference));
+    }
+
+    public GitHubRouteLatencyService(
         INetworkPolicy networkPolicy,
         HttpMessageHandler handler,
         TimeProvider? timeProvider = null,
@@ -54,18 +76,43 @@ public sealed class GitHubRouteLatencyService : IDisposable
     {
     }
 
+    public GitHubRouteLatencyService(
+        INetworkPolicy networkPolicy,
+        HttpMessageHandler handler,
+        TimeProvider? timeProvider,
+        TimeSpan? timeout,
+        GitHubRoutePreference routePreference)
+        : this(new NetworkPolicyHandler(networkPolicy, handler), timeProvider, timeout, routePreference)
+    {
+    }
+
     public async Task<GitHubRouteLatencyTestResult> TestAsync(
         CancellationToken cancellationToken = default)
     {
-        Task<GitHubRouteLatencyResult> direct = ProbeAsync(
-            GitHubDownloadRoute.Direct,
+        return await TestAsync(
+            [GitHubDownloadRoute.Direct, GitHubDownloadRoute.Mirror],
             cancellationToken);
-        Task<GitHubRouteLatencyResult> mirror = ProbeAsync(
-            GitHubDownloadRoute.Mirror,
-            cancellationToken);
+    }
 
-        await Task.WhenAll(direct, mirror);
-        return new GitHubRouteLatencyTestResult(await direct, await mirror);
+    public async Task<GitHubRouteLatencyTestResult> TestAsync(
+        IReadOnlyList<GitHubDownloadRoute> routes,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(routes);
+        if (routes.Count == 0 || routes.Distinct().Count() != routes.Count)
+        {
+            throw new ArgumentException("At least one unique GitHub route is required.", nameof(routes));
+        }
+
+        if (!routes.Contains(GitHubDownloadRoute.Direct) || !routes.Contains(GitHubDownloadRoute.Mirror))
+        {
+            throw new ArgumentException("The latency result must include the legacy direct and mirror routes.", nameof(routes));
+        }
+
+        GitHubRouteLatencyResult[] results = await Task.WhenAll(
+            routes.Select(route => ProbeAsync(route, cancellationToken)));
+        routePreference?.UpdateFromLatency(results);
+        return new GitHubRouteLatencyTestResult(results);
     }
 
     public void Dispose() => httpClient.Dispose();

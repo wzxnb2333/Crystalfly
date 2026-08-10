@@ -435,6 +435,9 @@ public sealed class MainWindowStructureTests
         Assert.Contains(settingsGrid.Descendants(Avalonia + "Button"), button => HasBinding(button, "Command", "TestGitHubLatencyCommand"));
         Assert.Contains(settingsGrid.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", "GitHubDirectLatency"));
         Assert.Contains(settingsGrid.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", "GitHubMirrorLatency"));
+        Assert.Contains(settingsGrid.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", "GitHubGhProxyOrgLatency"));
+        Assert.Contains(settingsGrid.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", "GitHubGhProxyNetLatency"));
+        Assert.Contains(settingsGrid.Descendants(Avalonia + "TextBlock"), text => HasBinding(text, "Text", "GitHubGhFastTopLatency"));
         Assert.Contains(settingsGrid.Descendants(Avalonia + "TextBox"), textBox =>
             HasBinding(textBox, "Text", "CustomModLinksUrl"));
         Assert.Contains(settingsGrid.Descendants(Avalonia + "ComboBox"), comboBox =>

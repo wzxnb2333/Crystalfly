@@ -63,7 +63,11 @@ public static class AccentColorPalette
 public enum GitHubDownloadRoute
 {
     Direct,
-    Mirror
+    Mirror,
+    Auto,
+    GhProxyOrg,
+    GhProxyNet,
+    GhFastTop
 }
 
 public sealed record BackgroundImageSettings
