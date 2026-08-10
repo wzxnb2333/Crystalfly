@@ -44,7 +44,7 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 - 全局离线模式会断开 Steam 登录会话，使目录、翻译、自定义目录、Mod 和 Steam 下载只使用已验证缓存；网络队列等待恢复在线，不影响本地实例管理。
 - 在实例日志页查看 BepInEx、Modding API 和 `Player.log` 的最新内容及来源路径。
 - 通过 SteamKit2 扫码登录下载 public 分支与任意手动输入的 Windows Depot Manifest；自动跟随 Windows 系统代理并使用 WebSocket 登录通道，代理变化或非主动断线会暂停 Steam 队列并重连已保存账号。未验证历史版本仅允许原版启动，目录后续收录相同文件指纹时会自动升级为正式构建。同一文件最多十六路并发下载 Chunk，完成后生成 `steam_appid.txt`，refresh token 仅以当前 Windows 用户的 DPAPI 加密保存。
-- 设置页可在 GitHub 直连与 GitHub 镜像间切换并分别测试延迟；镜像仅代理官方 GitHub 目录和 GitHub 托管安装包，Steam、自定义目录及其他下载地址保持原线路，包校验规则不变。
+- 设置页可在 GitHub 直连与 GitHub 镜像间切换并分别测试延迟；镜像仅代理官方 GitHub 目录和 GitHub 托管安装包，镜像拒绝请求或暂时不可用时自动回退 GitHub 直连。Steam、自定义目录及其他下载地址保持原线路，包校验规则不变。
 - 设置页支持全局背景图片与当前实例独立覆盖，可调节图片不透明度；实例移除独立背景后自动恢复全局背景。
 - 启动前切换实例 LocalLow，退出后写回，并恢复原共享数据。
 - 创建永久命名“存档快照”；快照仅包含实例的非日志 LocalLow，事务临时恢复点成功后自动清理。
@@ -207,7 +207,7 @@ The current development release is `0.9.1`. This round produces unsigned local W
 - Displays detected BepInEx, Modding API, and `Player.log` files with their source paths and refreshable tail content.
 - Imports local loaders only through a validated Crystalfly manifest and keeps them marked unverified.
 - Uses SteamKit2 for QR authentication and downloads the public branch plus any user-entered Windows Depot Manifest. It follows the Windows system proxy with a WebSocket login transport, pausing Steam work and reconnecting saved accounts after a proxy change or unexpected disconnect. Unverified historical versions remain vanilla-only and upgrade automatically when a later catalog entry matches their Manifest and file fingerprint. Each file uses up to sixteen concurrent chunk requests; completed instances receive `steam_appid.txt`, and refresh tokens are protected with Windows DPAPI for the current user.
-- Lets users switch between direct GitHub access and a GitHub mirror and test each route latency. Only official GitHub catalogs and GitHub-hosted packages are proxied; Steam, custom catalogs, and other download URLs keep their original route, with the same package verification.
+- Lets users switch between direct GitHub access and a GitHub mirror and test each route latency. Only official GitHub catalogs and GitHub-hosted packages are proxied; requests fall back to direct GitHub access when the mirror rejects a request or is temporarily unavailable. Steam, custom catalogs, and other download URLs keep their original route, with the same package verification.
 - Swaps per-instance LocalLow data before launch, captures it after exit, then restores the original shared data.
 - Creates persistent named save snapshots containing only non-log LocalLow data, plus dedicated speedrun copies with template-specific tools and a pre-launch report.
 - Edits the selected instance's isolated `AppConfig.ini` while preserving unknown settings and committing changes through atomic replacement.

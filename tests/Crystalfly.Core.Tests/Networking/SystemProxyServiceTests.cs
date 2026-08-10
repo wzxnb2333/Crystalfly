@@ -53,4 +53,24 @@ public sealed class SystemProxyServiceTests
         Assert.Equal("127.0.0.1:7890", changes[0].Endpoint);
         Assert.Equal("https://proxy.test/config.pac", changes[1].AutomaticConfigurationUrl);
     }
+
+    [Fact]
+    public void Requests_ignore_reverse_proxy_content_urls_misreported_as_system_proxies()
+    {
+        var destination = new Uri(
+            "https://github.com/wzxnb2333/Crystalfly/releases/latest/download/update-manifest.v1.json");
+        using var service = new SystemProxyService(
+            () => new WebProxy(
+                "https://gh-proxy.com/https://github.com/wzxnb2333/Crystalfly/releases/latest/download/update-manifest.v1.json"),
+            () => new SystemProxySnapshot(
+                true,
+                "HTTP",
+                "https://gh-proxy.com/https://github.com/wzxnb2333/Crystalfly/releases/latest/download/update-manifest.v1.json",
+                null),
+            startMonitoring: false);
+
+        Uri proxy = service.GetProxy(destination);
+
+        Assert.Equal(destination, proxy);
+    }
 }

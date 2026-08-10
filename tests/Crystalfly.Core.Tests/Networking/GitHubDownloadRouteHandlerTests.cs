@@ -59,6 +59,50 @@ public sealed class GitHubDownloadRouteHandlerTests
         Assert.Empty(capture.Requests);
     }
 
+    [Fact]
+    public async Task Handler_falls_back_to_direct_url_when_mirror_returns_bad_request()
+    {
+        var capture = new StatusSequenceHandler(
+            new HttpResponseMessage(System.Net.HttpStatusCode.BadRequest),
+            new HttpResponseMessage(System.Net.HttpStatusCode.OK));
+        using var client = new HttpClient(new GitHubDownloadRouteHandler(
+            () => GitHubDownloadRoute.Mirror,
+            capture));
+
+        using var response = await client.GetAsync(
+            "https://github.com/owner/repo/releases/latest/download/update-manifest.v1.json");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            [
+                "https://gh-proxy.com/https://github.com/owner/repo/releases/latest/download/update-manifest.v1.json",
+                "https://github.com/owner/repo/releases/latest/download/update-manifest.v1.json"
+            ],
+            capture.Requests);
+    }
+
+    [Fact]
+    public async Task Handler_falls_back_to_direct_url_when_mirror_tunnel_fails()
+    {
+        var capture = new ThrowThenResponseHandler(
+            new HttpRequestException("proxy tunnel request failed"),
+            new HttpResponseMessage(System.Net.HttpStatusCode.OK));
+        using var client = new HttpClient(new GitHubDownloadRouteHandler(
+            () => GitHubDownloadRoute.Mirror,
+            capture));
+
+        using var response = await client.GetAsync(
+            "https://github.com/owner/repo/releases/latest/download/update-manifest.v1.json");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            [
+                "https://gh-proxy.com/https://github.com/owner/repo/releases/latest/download/update-manifest.v1.json",
+                "https://github.com/owner/repo/releases/latest/download/update-manifest.v1.json"
+            ],
+            capture.Requests);
+    }
+
     private sealed class CaptureHandler : HttpMessageHandler
     {
         public List<string> Requests { get; } = [];
@@ -69,6 +113,43 @@ public sealed class GitHubDownloadRouteHandlerTests
         {
             Requests.Add(request.RequestUri!.AbsoluteUri);
             return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK));
+        }
+    }
+
+    private sealed class StatusSequenceHandler(params HttpResponseMessage[] responses) : HttpMessageHandler
+    {
+        private readonly Queue<HttpResponseMessage> responses = new(responses);
+
+        public List<string> Requests { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Requests.Add(request.RequestUri!.AbsoluteUri);
+            return Task.FromResult(responses.Dequeue());
+        }
+    }
+
+    private sealed class ThrowThenResponseHandler(
+        HttpRequestException firstException,
+        HttpResponseMessage response) : HttpMessageHandler
+    {
+        private int requestCount;
+
+        public List<string> Requests { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Requests.Add(request.RequestUri!.AbsoluteUri);
+            if (Interlocked.Increment(ref requestCount) == 1)
+            {
+                throw firstException;
+            }
+
+            return Task.FromResult(response);
         }
     }
 }

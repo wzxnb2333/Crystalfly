@@ -75,7 +75,8 @@ public sealed class SystemProxyService : IWebProxy, IDisposable
     public Uri GetProxy(Uri destination)
     {
         ArgumentNullException.ThrowIfNull(destination);
-        return ResolveProxy().GetProxy(destination) ?? destination;
+        Uri? resolved = ResolveProxy().GetProxy(destination);
+        return IsUsableProxyEndpoint(resolved) ? resolved! : destination;
     }
 
     public bool IsBypassed(Uri host)
@@ -176,4 +177,25 @@ public sealed class SystemProxyService : IWebProxy, IDisposable
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static bool IsUsableProxyEndpoint(Uri? proxy)
+    {
+        if (proxy is null)
+        {
+            return false;
+        }
+        if (!proxy.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+            && !proxy.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(proxy.Host)
+            || !string.IsNullOrEmpty(proxy.Query)
+            || !string.IsNullOrEmpty(proxy.Fragment))
+        {
+            return false;
+        }
+
+        // A system proxy is an endpoint, not a reverse-proxy URL. A path such
+        // as /https://github.com/... makes HttpClient attempt to tunnel through
+        // the full content URL and results in a misleading 400 response.
+        return string.IsNullOrEmpty(proxy.AbsolutePath) || proxy.AbsolutePath == "/";
+    }
 }
