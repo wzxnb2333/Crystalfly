@@ -75,14 +75,31 @@ public sealed class SystemProxyService : IWebProxy, IDisposable
     public Uri GetProxy(Uri destination)
     {
         ArgumentNullException.ThrowIfNull(destination);
-        Uri? resolved = ResolveProxy().GetProxy(destination);
-        return IsUsableProxyEndpoint(resolved) ? resolved! : destination;
+        IWebProxy proxy = ResolveProxy();
+        if (proxy.IsBypassed(destination))
+        {
+            return destination;
+        }
+
+        Uri? resolved = proxy.GetProxy(destination);
+        return IsUsableProxyEndpoint(resolved) && !Uri.Equals(resolved, destination)
+            ? resolved!
+            : destination;
     }
 
     public bool IsBypassed(Uri host)
     {
         ArgumentNullException.ThrowIfNull(host);
-        return ResolveProxy().IsBypassed(host);
+        IWebProxy proxy = ResolveProxy();
+        if (proxy.IsBypassed(host))
+        {
+            return true;
+        }
+
+        Uri? resolved = proxy.GetProxy(host);
+        return resolved is null
+            || Uri.Equals(resolved, host)
+            || !IsUsableProxyEndpoint(resolved);
     }
 
     public void Refresh()

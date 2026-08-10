@@ -73,4 +73,26 @@ public sealed class SystemProxyServiceTests
 
         Assert.Equal(destination, proxy);
     }
+
+    [Fact]
+    public void Direct_resolver_result_is_reported_as_bypassed_instead_of_used_as_a_tunnel()
+    {
+        var destination = new Uri("https://raw.githubusercontent.com/owner/repo/main/catalog.json");
+        using var service = new SystemProxyService(
+            () => new DestinationProxy(),
+            () => SystemProxySnapshot.Direct,
+            startMonitoring: false);
+
+        Assert.True(service.IsBypassed(destination));
+        Assert.Equal(destination, service.GetProxy(destination));
+    }
+
+    private sealed class DestinationProxy : IWebProxy
+    {
+        public ICredentials? Credentials { get; set; }
+
+        public Uri GetProxy(Uri destination) => destination;
+
+        public bool IsBypassed(Uri host) => false;
+    }
 }
