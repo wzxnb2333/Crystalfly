@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-02T22:05:43.0000000+00:00",
-  "sourceRevision": "5a11e17b16c2c1c98e0ddad4061c5eb2894f15b8",
+  "generatedAt": "2026-08-09T17:40:54.0000000+00:00",
+  "sourceRevision": "e09e51e6bb4846bd37712cb3b0244808c54d9322",
   "entries": [
     {
       "id": "hkmod:AbsRad Configurable Attacks",
@@ -26,7 +26,7 @@
     {
       "id": "hkmod:AccessRandomizer",
       "addedAt": "2024-05-03T15:28:18.0000000+00:00",
-      "updatedAt": "2026-06-24T16:29:07.0000000+00:00"
+      "updatedAt": "2026-08-06T15:11:31.0000000+00:00"
     },
     {
       "id": "hkmod:AdBlocker",
@@ -76,7 +76,7 @@
     {
       "id": "hkmod:AlphabetRando",
       "addedAt": "2026-02-13T08:42:21.0000000+00:00",
-      "updatedAt": "2026-07-22T15:16:28.0000000+00:00"
+      "updatedAt": "2026-08-06T06:05:09.0000000+00:00"
     },
     {
       "id": "hkmod:AlreadyEnoughPlayMaker",
@@ -136,7 +136,7 @@
     {
       "id": "hkmod:Architect",
       "addedAt": "2025-06-17T15:45:52.0000000+00:00",
-      "updatedAt": "2026-08-01T18:45:15.0000000+00:00"
+      "updatedAt": "2026-08-08T10:16:46.0000000+00:00"
     },
     {
       "id": "hkmod:ArchitectLegacy",
@@ -331,7 +331,7 @@
     {
       "id": "hkmod:Breakable Wall Randomizer",
       "addedAt": "2023-02-27T17:41:04.0000000+00:00",
-      "updatedAt": "2026-07-17T18:23:52.0000000+00:00"
+      "updatedAt": "2026-08-06T15:11:31.0000000+00:00"
     },
     {
       "id": "hkmod:BrokeLocUtil",
@@ -486,7 +486,7 @@
     {
       "id": "hkmod:CombatRandomizer",
       "addedAt": "2024-08-02T17:52:50.0000000+00:00",
-      "updatedAt": "2024-11-06T14:55:08.0000000+00:00"
+      "updatedAt": "2026-08-07T21:15:30.0000000+00:00"
     },
     {
       "id": "hkmod:CompanionCloth",
@@ -512,6 +512,11 @@
       "id": "hkmod:ConnectionMetadataInjector",
       "addedAt": "2022-03-01T03:54:34.0000000+00:00",
       "updatedAt": "2023-04-07T19:10:11.0000000+00:00"
+    },
+    {
+      "id": "hkmod:ConnectionSettingsRando",
+      "addedAt": "2026-08-05T16:34:22.0000000+00:00",
+      "updatedAt": "2026-08-07T21:15:30.0000000+00:00"
     },
     {
       "id": "hkmod:ContainerConfig",
@@ -541,7 +546,7 @@
     {
       "id": "hkmod:CorpseDreamRando",
       "addedAt": "2026-02-26T14:40:21.0000000+00:00",
-      "updatedAt": "2026-04-17T08:14:09.0000000+00:00"
+      "updatedAt": "2026-08-06T06:05:09.0000000+00:00"
     },
     {
       "id": "hkmod:Corrupted Kin",
@@ -716,7 +721,7 @@
     {
       "id": "hkmod:DarknessRandomizer",
       "addedAt": "2022-09-04T05:23:53.0000000+00:00",
-      "updatedAt": "2026-01-15T23:06:16.0000000+00:00"
+      "updatedAt": "2026-08-07T15:30:00.0000000+00:00"
     },
     {
       "id": "hkmod:Dash Slash Plus",
@@ -1076,7 +1081,7 @@
     {
       "id": "hkmod:FlowerRandomizer",
       "addedAt": "2024-11-09T09:38:23.0000000+00:00",
-      "updatedAt": "2026-03-02T22:44:05.0000000+00:00"
+      "updatedAt": "2026-08-06T15:11:31.0000000+00:00"
     },
     {
       "id": "hkmod:Flukemaster",
@@ -1216,7 +1221,7 @@
     {
       "id": "hkmod:GeoRando",
       "addedAt": "2026-01-24T08:24:38.0000000+00:00",
-      "updatedAt": "2026-03-13T21:25:14.0000000+00:00"
+      "updatedAt": "2026-08-06T06:05:09.0000000+00:00"
     },
     {
       "id": "hkmod:Ghost Macro",
@@ -1276,7 +1281,7 @@
     {
       "id": "hkmod:GodhomeRandomizer",
       "addedAt": "2024-04-04T18:37:55.0000000+00:00",
-      "updatedAt": "2026-01-24T12:30:01.0000000+00:00"
+      "updatedAt": "2026-08-06T15:11:31.0000000+00:00"
     },
     {
       "id": "hkmod:Godseeker Memory Jump",
@@ -1361,7 +1366,7 @@
     {
       "id": "hkmod:HKBattle",
       "addedAt": "2026-06-27T18:38:54.0000000+00:00",
-      "updatedAt": "2026-07-12T09:59:40.0000000+00:00"
+      "updatedAt": "2026-08-05T16:39:42.0000000+00:00"
     },
     {
       "id": "hkmod:HKHKHKHKHK",
@@ -1711,7 +1716,7 @@
     {
       "id": "hkmod:Knight of Nights",
       "addedAt": "2026-01-12T09:20:40.0000000+00:00",
-      "updatedAt": "2026-07-28T15:15:54.0000000+00:00"
+      "updatedAt": "2026-08-07T15:30:00.0000000+00:00"
     },
     {
       "id": "hkmod:Konpanion",
@@ -1806,12 +1811,12 @@
     {
       "id": "hkmod:Lore Randomizer",
       "addedAt": "2023-03-12T20:22:41.0000000+00:00",
-      "updatedAt": "2026-07-18T09:24:30.0000000+00:00"
+      "updatedAt": "2026-08-07T15:32:07.0000000+00:00"
     },
     {
       "id": "hkmod:LoreCore",
       "addedAt": "2023-03-12T20:22:41.0000000+00:00",
-      "updatedAt": "2026-07-18T09:24:30.0000000+00:00"
+      "updatedAt": "2026-08-07T15:32:07.0000000+00:00"
     },
     {
       "id": "hkmod:Lost Artifacts",
@@ -1936,7 +1941,7 @@
     {
       "id": "hkmod:MilliGolf",
       "addedAt": "2024-08-13T07:41:48.0000000+00:00",
-      "updatedAt": "2025-12-30T09:20:28.0000000+00:00"
+      "updatedAt": "2026-08-06T06:05:09.0000000+00:00"
     },
     {
       "id": "hkmod:Mimicpocalypse",
@@ -2021,7 +2026,7 @@
     {
       "id": "hkmod:MoreStags",
       "addedAt": "2026-02-22T00:17:04.0000000+00:00",
-      "updatedAt": "2026-06-21T09:06:23.0000000+00:00"
+      "updatedAt": "2026-08-06T06:05:09.0000000+00:00"
     },
     {
       "id": "hkmod:MossBeast",
@@ -2051,7 +2056,7 @@
     {
       "id": "hkmod:MurderRando",
       "addedAt": "2026-02-26T20:42:30.0000000+00:00",
-      "updatedAt": "2026-03-02T22:44:05.0000000+00:00"
+      "updatedAt": "2026-08-06T15:11:31.0000000+00:00"
     },
     {
       "id": "hkmod:MuteBosses",
@@ -2561,7 +2566,7 @@
     {
       "id": "hkmod:RegretRecoveryRestoration",
       "addedAt": "2026-03-09T09:55:30.0000000+00:00",
-      "updatedAt": "2026-03-13T21:25:14.0000000+00:00"
+      "updatedAt": "2026-08-06T06:05:09.0000000+00:00"
     },
     {
       "id": "hkmod:Remove Haunted Foes",
@@ -2831,7 +2836,7 @@
     {
       "id": "hkmod:Smart Nail",
       "addedAt": "2025-05-25T17:44:06.0000000+00:00",
-      "updatedAt": "2025-06-21T19:58:21.0000000+00:00"
+      "updatedAt": "2026-08-09T17:40:54.0000000+00:00"
     },
     {
       "id": "hkmod:SmashKnight",
@@ -3016,7 +3021,7 @@
     {
       "id": "hkmod:TheRealTransitionRando",
       "addedAt": "2026-03-03T04:49:51.0000000+00:00",
-      "updatedAt": "2026-05-26T05:41:02.0000000+00:00"
+      "updatedAt": "2026-08-06T06:05:09.0000000+00:00"
     },
     {
       "id": "hkmod:ThecurseofSly",
@@ -3156,7 +3161,7 @@
     {
       "id": "hkmod:VendorRando",
       "addedAt": "2025-07-21T08:36:49.0000000+00:00",
-      "updatedAt": "2026-04-26T21:48:38.0000000+00:00"
+      "updatedAt": "2026-08-06T06:05:09.0000000+00:00"
     },
     {
       "id": "hkmod:VengeflyBombardier",
@@ -3241,7 +3246,7 @@
     {
       "id": "hkmod:YetAnotherRandoConnection",
       "addedAt": "2025-08-12T12:50:38.0000000+00:00",
-      "updatedAt": "2026-06-29T05:01:25.0000000+00:00"
+      "updatedAt": "2026-08-06T06:05:09.0000000+00:00"
     },
     {
       "id": "hkmod:ZaliantsSurprise",
