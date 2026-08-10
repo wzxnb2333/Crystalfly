@@ -58,6 +58,7 @@ public partial class MainViewModel
                 ApplicationUpdateCheckStatus.UpToDate => Loc["ApplicationUpToDate"],
                 ApplicationUpdateCheckStatus.VersionSkipped => Loc["UpdateVersionSkipped"],
                 ApplicationUpdateCheckStatus.UpdateAvailable => Loc["ApplicationUpdateAvailableFormat"],
+                ApplicationUpdateCheckStatus.Unavailable => Loc["UpdateManifestUnavailable"],
                 _ => Loc["UpdateCheckFailed"]
             },
             lastAvailableApplicationVersion ?? string.Empty);

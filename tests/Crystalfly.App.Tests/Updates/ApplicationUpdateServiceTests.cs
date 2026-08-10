@@ -194,6 +194,22 @@ public sealed class ApplicationUpdateServiceTests : IDisposable
         Assert.NotNull(result.CheckedAt);
     }
 
+    [Fact]
+    public async Task CheckAsync_reports_unavailable_without_throwing_when_latest_release_has_no_manifest()
+    {
+        using var client = new HttpClient(new StubHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.NotFound)));
+        using var policy = new NetworkPolicy();
+        var timeProvider = new TestTimeProvider(new DateTimeOffset(2026, 8, 10, 12, 0, 0, TimeSpan.Zero));
+        var service = CreateService(client, policy, CreateManifest("1.0.0"), timeProvider);
+
+        var result = await service.CheckAsync(new CrystalflySettings(), force: true);
+
+        Assert.Equal(ApplicationUpdateCheckStatus.Unavailable, result.Status);
+        Assert.Equal(timeProvider.GetUtcNow(), result.CheckedAt);
+        Assert.Null(result.Manifest);
+    }
+
     [Theory]
     [InlineData("0.6.0")]
     [InlineData("0.5.9")]

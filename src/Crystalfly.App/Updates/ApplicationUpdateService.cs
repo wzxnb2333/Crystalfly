@@ -14,7 +14,8 @@ public enum ApplicationUpdateCheckStatus
     NotDue,
     UpToDate,
     VersionSkipped,
-    UpdateAvailable
+    UpdateAvailable,
+    Unavailable
 }
 
 public sealed record ApplicationUpdateCheckResult(
@@ -174,6 +175,12 @@ public sealed class ApplicationUpdateService
                     manifestUri,
                     HttpCompletionOption.ResponseHeadersRead,
                     linkedCancellation.Token).ConfigureAwait(false);
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    DateTimeOffset unavailableCheckedAt = timeProvider.GetUtcNow();
+                    lastSuccessfulCheckAt = unavailableCheckedAt;
+                    return new(ApplicationUpdateCheckStatus.Unavailable, CheckedAt: unavailableCheckedAt);
+                }
                 response.EnsureSuccessStatusCode();
 
                 string document = await ReadManifestDocumentAsync(
