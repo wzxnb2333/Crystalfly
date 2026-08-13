@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using Crystalfly.Steam.Downloads;
 using SteamKit2;
+using SteamKit2.CDN;
 
 namespace Crystalfly.Steam.Tests.Downloads;
 
@@ -261,6 +262,112 @@ public sealed class SteamKitContentDeliveryClientTests
 
         Assert.Equal(2, downloadAttempts);
         Assert.Equal(1, tokenRequests);
+    }
+
+    [Fact]
+    public void SelectContentServer_prefers_https_over_http()
+    {
+        var servers = new[]
+        {
+            CreateServer(host: "http-cdn", protocol: Server.ConnectionProtocol.HTTP, weightedLoad: 1),
+            CreateServer(host: "https-cdn", protocol: Server.ConnectionProtocol.HTTPS, weightedLoad: 9)
+        };
+
+        Server selected = SteamKitContentDeliveryClient.SelectContentServer(servers, appId: 367520);
+
+        Assert.Equal("https-cdn", selected.Host);
+        Assert.Equal(Server.ConnectionProtocol.HTTPS, selected.Protocol);
+    }
+
+    [Fact]
+    public void SelectContentServer_falls_back_to_http_when_no_https_is_available()
+    {
+        var servers = new[]
+        {
+            CreateServer(host: "http-cdn", protocol: Server.ConnectionProtocol.HTTP, weightedLoad: 4),
+            CreateServer(host: "http-cdn-2", protocol: Server.ConnectionProtocol.HTTP, weightedLoad: 1)
+        };
+
+        Server selected = SteamKitContentDeliveryClient.SelectContentServer(servers, appId: 367520);
+
+        Assert.Equal("http-cdn-2", selected.Host);
+        Assert.Equal(Server.ConnectionProtocol.HTTP, selected.Protocol);
+    }
+
+    [Fact]
+    public void SelectContentServer_skips_proxy_servers_before_accepting_http()
+    {
+        var servers = new[]
+        {
+            CreateServer(host: "proxy", protocol: Server.ConnectionProtocol.HTTPS, weightedLoad: 1, useAsProxy: true),
+            CreateServer(host: "http-cdn", protocol: Server.ConnectionProtocol.HTTP, weightedLoad: 2)
+        };
+
+        Server selected = SteamKitContentDeliveryClient.SelectContentServer(servers, appId: 367520);
+
+        Assert.Equal("http-cdn", selected.Host);
+    }
+
+    [Fact]
+    public void SelectContentServer_filters_servers_that_deny_the_app()
+    {
+        var servers = new[]
+        {
+            CreateServer(host: "restricted", protocol: Server.ConnectionProtocol.HTTPS, weightedLoad: 1,
+                allowedAppIds: [480]),
+            CreateServer(host: "open", protocol: Server.ConnectionProtocol.HTTP, weightedLoad: 2)
+        };
+
+        Server selected = SteamKitContentDeliveryClient.SelectContentServer(servers, appId: 367520);
+
+        Assert.Equal("open", selected.Host);
+    }
+
+    [Fact]
+    public void SelectContentServer_throws_with_diagnostics_when_nothing_is_usable()
+    {
+        var servers = new[]
+        {
+            CreateServer(host: "proxy-only", protocol: Server.ConnectionProtocol.HTTPS, weightedLoad: 1, useAsProxy: true),
+            CreateServer(host: "denied", protocol: Server.ConnectionProtocol.HTTP, weightedLoad: 1, allowedAppIds: [480])
+        };
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+            SteamKitContentDeliveryClient.SelectContentServer(servers, appId: 367520));
+
+        Assert.Contains("no suitable content server", exception.Message);
+        Assert.Contains("2 server(s) returned", exception.Message);
+        Assert.Contains("1 HTTPS", exception.Message);
+        Assert.Contains("1 proxy", exception.Message);
+    }
+
+    [Fact]
+    public void SelectContentServer_throws_when_the_list_is_empty()
+    {
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+            SteamKitContentDeliveryClient.SelectContentServer([], appId: 367520));
+
+        Assert.Contains("0 server(s) returned", exception.Message);
+    }
+
+    private static Server CreateServer(
+        string host,
+        Server.ConnectionProtocol protocol,
+        int weightedLoad,
+        bool useAsProxy = false,
+        uint[]? allowedAppIds = null)
+    {
+        var server = new Server();
+        SetProperty(nameof(Server.Host), host);
+        SetProperty(nameof(Server.Protocol), protocol);
+        SetProperty(nameof(Server.Port), protocol == Server.ConnectionProtocol.HTTPS ? 443 : 80);
+        SetProperty(nameof(Server.WeightedLoad), (uint)weightedLoad);
+        SetProperty(nameof(Server.UseAsProxy), useAsProxy);
+        SetProperty(nameof(Server.AllowedAppIds), allowedAppIds ?? []);
+        return server;
+
+        void SetProperty(string name, object value) =>
+            server.GetType().GetProperty(name)!.SetMethod!.Invoke(server, [value]);
     }
 
     private static SteamKitWebRequestException CreateWebRequestException(HttpStatusCode statusCode) =>

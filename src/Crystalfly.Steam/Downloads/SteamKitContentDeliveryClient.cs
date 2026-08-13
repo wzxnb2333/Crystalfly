@@ -50,13 +50,7 @@ public sealed class SteamKitContentDeliveryClient : ISteamContentDeliveryClient,
             throw new InvalidOperationException($"Steam denied the depot key request: {depotKey.Result}.");
 
         IReadOnlyCollection<Server> servers = await _content.GetServersForSteamPipe(maxNumServers: 20);
-        Server server = servers
-            .Where(candidate => !candidate.UseAsProxy &&
-                candidate.Protocol == Server.ConnectionProtocol.HTTPS &&
-                (candidate.AllowedAppIds.Length == 0 || candidate.AllowedAppIds.Contains(appId)))
-            .OrderBy(static candidate => candidate.WeightedLoad)
-            .FirstOrDefault()
-            ?? throw new InvalidOperationException("Steam returned no suitable HTTPS content server.");
+        Server server = SelectContentServer(servers, appId);
         Server? proxy = servers.FirstOrDefault(static candidate => candidate.UseAsProxy);
         if (string.IsNullOrWhiteSpace(server.Host))
             throw new InvalidOperationException("Steam returned a content server without a host name.");
@@ -162,6 +156,43 @@ public sealed class SteamKitContentDeliveryClient : ISteamContentDeliveryClient,
     {
         _cdn.Dispose();
         _cdnAuthTokenGate.Dispose();
+    }
+
+    internal static Server SelectContentServer(
+        IReadOnlyCollection<Server> servers,
+        uint appId)
+    {
+        ArgumentNullException.ThrowIfNull(servers);
+        static bool AcceptsApp(Server candidate, uint appId) =>
+            candidate.AllowedAppIds.Length == 0 || candidate.AllowedAppIds.Contains(appId);
+        static bool IsUsable(Server candidate, uint appId) =>
+            !candidate.UseAsProxy && AcceptsApp(candidate, appId);
+
+        Server? server = servers
+            .Where(candidate => IsUsable(candidate, appId)
+                && candidate.Protocol == Server.ConnectionProtocol.HTTPS)
+            .OrderBy(static candidate => candidate.WeightedLoad)
+            .FirstOrDefault();
+        if (server is not null)
+        {
+            return server;
+        }
+
+        server = servers
+            .Where(candidate => IsUsable(candidate, appId))
+            .OrderBy(static candidate => candidate.WeightedLoad)
+            .FirstOrDefault();
+        if (server is not null)
+        {
+            return server;
+        }
+
+        int total = servers.Count;
+        int https = servers.Count(candidate => candidate.Protocol == Server.ConnectionProtocol.HTTPS);
+        int proxies = servers.Count(static candidate => candidate.UseAsProxy);
+        throw new InvalidOperationException(
+            $"Steam returned no suitable content server: {total} server(s) returned, "
+            + $"{https} HTTPS, {proxies} proxy, app {appId}.");
     }
 
     internal static async Task<T> DownloadWithSharedCdnAuthAsync<T>(
