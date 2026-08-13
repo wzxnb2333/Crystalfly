@@ -43,6 +43,9 @@ public sealed partial class InstancesViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsScanningGameDirectories { get; set; }
 
+    [ObservableProperty]
+    public partial string GameDirectoryScanProgress { get; set; } = string.Empty;
+
     public bool IsGameDirectoryDiscoveryRequired =>
         GameDirectories.Count == 0 && !dependencies.GetSettings().GameDirectoryDiscoveryCompleted;
 
@@ -442,7 +445,9 @@ public sealed partial class InstancesViewModel : ViewModelBase
             }));
 
             var treeScan = await new GameDirectoryTreeScanner().ScanAllDrivesAsync(
-                dependencies.LifetimeCancellation);
+                dependencies.LifetimeCancellation,
+                new Progress<int>(checkedDirectories => GameDirectoryScanProgress =
+                    string.Format(dependencies.Loc()["ScanGameDirectoriesProgress"], checkedDirectories)));
             AddCandidates(treeScan.Candidates);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)

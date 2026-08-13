@@ -31,15 +31,20 @@ public sealed class GameDirectoryTreeScanner
         this.maxDepth = maxDepth ?? DefaultMaxDepth;
     }
 
-    public Task<GameDirectoryScanResult> ScanAllDrivesAsync(CancellationToken cancellationToken = default) =>
-        Task.Run(() => ScanAllDrives(cancellationToken), cancellationToken);
+    public Task<GameDirectoryScanResult> ScanAllDrivesAsync(
+        CancellationToken cancellationToken = default,
+        IProgress<int>? progress = null) =>
+        Task.Run(() => ScanAllDrives(cancellationToken, progress), cancellationToken);
 
-    private GameDirectoryScanResult ScanAllDrives(CancellationToken cancellationToken)
+    private GameDirectoryScanResult ScanAllDrives(
+        CancellationToken cancellationToken,
+        IProgress<int>? progress)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var candidates = new List<GameDirectoryCandidate>();
         var skipped = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var visited = 0;
 
         foreach (string root in getRoots())
         {
@@ -48,7 +53,7 @@ public sealed class GameDirectoryTreeScanner
             {
                 continue;
             }
-            ScanRoot(root, candidates, skipped, seen, cancellationToken);
+            ScanRoot(root, candidates, skipped, seen, cancellationToken, progress, ref visited);
         }
 
         return new GameDirectoryScanResult
@@ -66,7 +71,9 @@ public sealed class GameDirectoryTreeScanner
         ICollection<GameDirectoryCandidate> candidates,
         ISet<string> skipped,
         ISet<string> seen,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IProgress<int>? progress,
+        ref int visited)
     {
         string fullRoot;
         try
@@ -85,6 +92,10 @@ public sealed class GameDirectoryTreeScanner
         {
             cancellationToken.ThrowIfCancellationRequested();
             var (path, depth) = pending.Pop();
+            if (++visited % 250 == 0)
+            {
+                progress?.Report(visited);
+            }
             if (!seen.Add(path))
             {
                 continue;
