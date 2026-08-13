@@ -15,6 +15,7 @@ node_modules/
 *.user
 *.suo
 *.log
+TestResults/
 .env
 .env.*
 !services/preset-share/.env.example
