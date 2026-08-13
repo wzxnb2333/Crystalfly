@@ -297,6 +297,30 @@ public sealed class LayoutRenderingTests
                 .Single(button => button.Classes.Contains("cfp-primary")
                     && Equals(button.Content, viewModel.Loc["SpeedrunCreate"]));
             Assert.Equal(HorizontalAlignment.Stretch, createButton.HorizontalAlignment);
+
+            // 底部切换条不再独占一行，而是悬浮在内容之上、锚定页面底部并水平居中。
+            var tabSwitch = window.GetVisualDescendants()
+                .OfType<Border>()
+                .Single(border => border.Classes.Contains("cfp-speedrun-tab-switch"));
+            Assert.True(tabSwitch.IsEffectivelyVisible);
+            var tabBottom = tabSwitch.TranslatePoint(new Point(0, tabSwitch.Bounds.Height), window);
+            var tabCenter = tabSwitch.TranslatePoint(new Point(tabSwitch.Bounds.Width / 2, 0), window);
+            Assert.NotNull(tabBottom);
+            Assert.NotNull(tabCenter);
+            Assert.InRange(window.Height - tabBottom.Value.Y, 8, 28);
+            Assert.InRange(Math.Abs(tabCenter.Value.X - window.Width / 2), 0, 2);
+
+            var workspaceScroll = window.GetVisualDescendants()
+                .OfType<Grid>()
+                .Single(grid => grid.Classes.Contains("cfp-workspace") && grid.IsEffectivelyVisible)
+                .FindAncestorOfType<ScrollViewer>();
+            Assert.NotNull(workspaceScroll);
+            var scrollBottom = workspaceScroll.TranslatePoint(new Point(0, workspaceScroll.Bounds.Height), window);
+            Assert.NotNull(scrollBottom);
+            // 内容区延伸至页面底部（不再是「切换条 + 上方内容」的两行结构）
+            Assert.InRange(window.Height - 16 - scrollBottom.Value.Y, 0, 1.5);
+            // 切换条悬浮在内容之上
+            Assert.True(tabBottom.Value.Y <= scrollBottom.Value.Y + 0.5);
         }
         finally
         {

@@ -208,7 +208,9 @@ public sealed class MainWindowStructureTests
             && HasBinding(button, "Classes.active", "IsSpeedrunActivityTab"));
         var tabSwitch = speedrun.Descendants(Avalonia + "Border")
             .Single(border => HasClass(border, "cfp-speedrun-tab-switch"));
-        Assert.Equal("1", (string?)tabSwitch.Attribute("Grid.Row"));
+        Assert.Null(tabSwitch.Attribute("Grid.Row"));
+        Assert.Equal("Bottom", (string?)tabSwitch.Attribute("VerticalAlignment"));
+        Assert.Equal("10", (string?)tabSwitch.Attribute("ZIndex"));
         Assert.Contains(tabSwitch.Descendants(Avalonia + "Border"), border =>
             HasClass(border, "cfp-speedrun-tab-indicator")
             && (string?)border.Attribute("Grid.Column") == "0"

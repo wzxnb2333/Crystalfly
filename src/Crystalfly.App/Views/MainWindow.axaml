@@ -1574,11 +1574,12 @@
                         </Grid>
                     </Border>
                     <ScrollViewer Grid.Column="1"
+                                      x:Name="SpeedrunWorkspace"
                                       HorizontalScrollBarVisibility="Disabled"
                                       PointerPressed="OnSpeedrunWorkspacePointerPressed"
                                       PointerReleased="OnSpeedrunWorkspacePointerReleased">
-                            <Grid>
-                        <Grid Classes="cfp-workspace cfp-subpage" RowDefinitions="Auto,Auto,*" RowSpacing="12" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
+                            <Grid MinHeight="{Binding #SpeedrunWorkspace.Bounds.Height}">
+                        <Grid Classes="cfp-workspace cfp-subpage" RowDefinitions="Auto,Auto,*" RowSpacing="12" Margin="0,0,0,44" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
                             <Border Classes="cfp-card cfp-speedrun-summary"
                                     Padding="14"
                                     IsVisible="{Binding HasSelectedSpeedrunInstance}">
@@ -1649,7 +1650,7 @@
                                     <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunHint]}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Row="1"
+                            <Border Grid.Row="2"
                                     Classes="cfp-card cfp-speedrun-config"
                                     Padding="14"
                                     IsVisible="{Binding HasSelectedSpeedrunInstance}"
@@ -1697,7 +1698,7 @@
                                     <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunFeatureWarnings]}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Row="2"
+                            <Border Grid.Row="1"
                                     Classes="cfp-card"
                                     Padding="14"
                                     IsVisible="{Binding IsSelectedSpeedrunLegacy}">
