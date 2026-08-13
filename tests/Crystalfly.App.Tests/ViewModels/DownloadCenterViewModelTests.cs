@@ -521,7 +521,7 @@ public sealed class DownloadCenterViewModelTests : IDisposable
         Assert.True(center.CanResumeAll);
 
         await center.ResumeAllCommand.ExecuteAsync(null);
-        await queue.WaitForIdleAsync();
+        await WaitUntilAsync(() => queue.Groups.Single().State == DownloadQueueGroupState.Completed);
 
         Assert.Equal(DownloadQueueGroupState.Completed, Assert.Single(queue.Groups).State);
         Assert.False(center.CanResumeAll);
