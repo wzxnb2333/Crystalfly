@@ -27,11 +27,7 @@ public sealed class DownloadQueueRenderingTests
             TimeSpan.FromMilliseconds(10));
         var viewModel = new MainViewModel(
             root,
-            null,
-            null,
-            null,
-            null,
-            queue);
+            downloadQueueOverride: queue);
         var window = new MainWindow { Width = 900, Height = 600 };
         window.Show();
         window.DataContext = viewModel;
@@ -126,7 +122,7 @@ public sealed class DownloadQueueRenderingTests
             executor,
             static () => false,
             TimeSpan.FromMilliseconds(10));
-        var viewModel = new MainViewModel(root, null, null, null, null, queue);
+        var viewModel = new MainViewModel(root, downloadQueueOverride: queue);
         var window = new MainWindow { Width = 900, Height = 600 };
         window.Show();
         window.DataContext = viewModel;
@@ -179,7 +175,7 @@ public sealed class DownloadQueueRenderingTests
             executor,
             static () => false,
             TimeSpan.FromMilliseconds(10));
-        var viewModel = new MainViewModel(root, null, null, null, null, queue);
+        var viewModel = new MainViewModel(root, downloadQueueOverride: queue);
         var window = new MainWindow { Width = 900, Height = 600, DataContext = viewModel };
         window.Show();
         await queue.InitializeAsync();
@@ -237,7 +233,7 @@ public sealed class DownloadQueueRenderingTests
             executor,
             static () => false,
             TimeSpan.FromMilliseconds(10));
-        var viewModel = new MainViewModel(root, null, null, null, null, queue);
+        var viewModel = new MainViewModel(root, downloadQueueOverride: queue);
         var window = new MainWindow { Width = 900, Height = 600, DataContext = viewModel };
         window.Show();
         await queue.InitializeAsync();
@@ -302,7 +298,7 @@ public sealed class DownloadQueueRenderingTests
             new FailingExecutor(),
             static () => false,
             TimeSpan.FromMilliseconds(10));
-        var viewModel = new MainViewModel(root, null, null, null, null, queue);
+        var viewModel = new MainViewModel(root, downloadQueueOverride: queue);
         var window = new MainWindow { Width = 900, Height = 600 };
         window.Show();
         window.DataContext = viewModel;

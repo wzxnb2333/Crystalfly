@@ -858,13 +858,7 @@ public sealed class MainViewModelStateTests : IDisposable
         var tested = false;
         await using var viewModel = new MainViewModel(
             applicationData.CreateDirectory("latency-app-data"),
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            _ =>
+            githubLatencyTestOverride: _ =>
             {
                 tested = true;
                 return Task.FromResult(new GitHubRouteLatencyTestResult(
@@ -1318,6 +1312,124 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Password_sign_in_succeeds_and_remembers_credentials()
+    {
+        string root = applicationData.CreateDirectory("password-sign-in");
+        string? receivedUsername = null;
+        string? receivedPassword = null;
+        await using var viewModel = new MainViewModel(
+            root,
+            passwordSignInOverride: (username, password, _) =>
+            {
+                receivedUsername = username;
+                receivedPassword = password;
+                return Task.FromResult(new RefreshTokenCredential("runner", "token"));
+            })
+        {
+            SteamUsername = "runner",
+            SteamPassword = "hunter2"
+        };
+        viewModel.IsPasswordLoginVisible = true;
+
+        await viewModel.SignInWithPasswordCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsSteamLoggedIn);
+        Assert.Equal("runner", viewModel.SteamStatus);
+        Assert.Equal("runner", receivedUsername);
+        Assert.Equal("hunter2", receivedPassword);
+        Assert.False(viewModel.IsPasswordLoginVisible);
+        Assert.True(File.Exists(Path.Combine(root, "steam-credentials.dat")));
+    }
+
+    [Fact]
+    public async Task Password_sign_in_failure_is_reported_without_faulting_the_command()
+    {
+        var viewModel = new MainViewModel(
+            applicationData.CreateDirectory("password-fail"),
+            passwordSignInOverride: (_, _, _) =>
+                Task.FromException<RefreshTokenCredential>(new Exception("bad password")));
+        viewModel.SteamUsername = "runner";
+        viewModel.SteamPassword = "wrong";
+
+        await viewModel.SignInWithPasswordCommand.ExecuteAsync(null);
+
+        Assert.Equal("Steam: bad password", viewModel.ErrorMessage);
+        Assert.Equal("Not signed in", viewModel.SteamStatus);
+        Assert.False(viewModel.IsSteamLoggedIn);
+    }
+
+    [Fact]
+    public async Task Password_sign_in_requires_username_and_password()
+    {
+        var signInCalled = false;
+        var viewModel = new MainViewModel(
+            applicationData.CreateDirectory("password-required"),
+            passwordSignInOverride: (_, _, _) =>
+            {
+                signInCalled = true;
+                return Task.FromResult(new RefreshTokenCredential("runner", "token"));
+            });
+
+        await viewModel.SignInWithPasswordCommand.ExecuteAsync(null);
+
+        Assert.False(signInCalled);
+        Assert.Equal(viewModel.Loc["SteamCredentialsRequired"], viewModel.ErrorMessage);
+        Assert.False(viewModel.IsSteamLoggedIn);
+    }
+
+    [Fact]
+    public async Task Password_sign_in_cancelled_by_user_is_silent()
+    {
+        var viewModel = new MainViewModel(
+            applicationData.CreateDirectory("password-cancel"),
+            passwordSignInOverride: (_, _, _) =>
+                Task.FromException<RefreshTokenCredential>(new OperationCanceledException()));
+        viewModel.SteamUsername = "runner";
+        viewModel.SteamPassword = "hunter2";
+
+        await viewModel.SignInWithPasswordCommand.ExecuteAsync(null);
+
+        Assert.Null(viewModel.ErrorMessage);
+        Assert.Equal("Not signed in", viewModel.SteamStatus);
+        Assert.False(viewModel.IsSteamLoggedIn);
+    }
+
+    [Fact]
+    public async Task Toggle_password_login_switches_panel_and_clears_password()
+    {
+        var viewModel = new MainViewModel(applicationData.CreateDirectory("toggle-panel"));
+        viewModel.SteamPassword = "hunter2";
+
+        viewModel.TogglePasswordLoginCommand.Execute(null);
+        Assert.True(viewModel.IsPasswordLoginVisible);
+
+        viewModel.TogglePasswordLoginCommand.Execute(null);
+        Assert.False(viewModel.IsPasswordLoginVisible);
+        Assert.Equal(string.Empty, viewModel.SteamPassword);
+    }
+
+    [Fact]
+    public async Task Sign_out_clears_remembered_password_credentials()
+    {
+        string root = applicationData.CreateDirectory("sign-out-credentials");
+        await using var viewModel = new MainViewModel(
+            root,
+            passwordSignInOverride: (_, _, _) =>
+                Task.FromResult(new RefreshTokenCredential("runner", "token")));
+        viewModel.SteamUsername = "runner";
+        viewModel.SteamPassword = "hunter2";
+        await viewModel.SignInWithPasswordCommand.ExecuteAsync(null);
+        Assert.True(File.Exists(Path.Combine(root, "steam-credentials.dat")));
+
+        await viewModel.SignOutSteamCommand.ExecuteAsync(null);
+
+        Assert.False(File.Exists(Path.Combine(root, "steam-credentials.dat")));
+        Assert.Equal(string.Empty, viewModel.SteamUsername);
+        Assert.Equal(string.Empty, viewModel.SteamPassword);
+        Assert.False(viewModel.IsPasswordLoginVisible);
+    }
+
+    [Fact]
     public async Task Steam_sign_in_retries_transient_connection_failures_before_showing_the_QR_code()
     {
         var attempts = 0;
@@ -1760,14 +1872,7 @@ public sealed class MainViewModelStateTests : IDisposable
         InstanceDeletionConditions? evaluated = null;
         await using var viewModel = new MainViewModel(
             applicationData.CreateDirectory("delete-app-data"),
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            async (record, conditionEvaluator, cancellationToken) =>
+            instanceDeletionOverride: async (record, conditionEvaluator, cancellationToken) =>
             {
                 deleted = record;
                 evaluated = await conditionEvaluator(cancellationToken);

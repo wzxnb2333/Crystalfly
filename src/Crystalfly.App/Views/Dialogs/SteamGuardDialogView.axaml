@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Crystalfly.App.ViewModels.Dialogs"
+             xmlns:u="https://irihi.tech/ursa"
+             x:Class="Crystalfly.App.Views.Dialogs.SteamGuardDialogView"
+             x:DataType="vm:SteamGuardDialogViewModel"
+             Width="480"
+             MinWidth="400"
+             MaxWidth="560">
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Enter" Command="{Binding ConfirmCommand}" />
+        <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+    </UserControl.KeyBindings>
+
+    <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="16">
+        <TextBlock Classes="cfp-section-title"
+                   Text="{Binding Title}"
+                   TextWrapping="Wrap" />
+        <StackPanel Grid.Row="1" Spacing="8">
+            <TextBlock Text="{Binding Message}"
+                       TextWrapping="Wrap" />
+            <TextBlock Text="{Binding IncorrectHintText}"
+                       TextWrapping="Wrap"
+                       Foreground="#E5484D"
+                       IsVisible="{Binding ShowIncorrectHint}" />
+        </StackPanel>
+        <TextBox Grid.Row="2"
+                 Text="{Binding Code, Mode=TwoWay}"
+                 PlaceholderText="{Binding Placeholder}"
+                 MinWidth="320"
+                 u:FocusHelper.DialogFocusHint="True"
+                 AutomationProperties.Name="{Binding Placeholder}" />
+        <StackPanel Grid.Row="3"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Classes="cfp-secondary"
+                    Command="{Binding CancelCommand}"
+                    Content="{Binding CancelText}"
+                    MinWidth="96"
+                    AutomationProperties.Name="{Binding CancelText}" />
+            <Button Classes="cfp-primary"
+                    Command="{Binding ConfirmCommand}"
+                    Content="{Binding ConfirmText}"
+                    IsEnabled="{Binding CanConfirm}"
+                    MinWidth="96"
+                    AutomationProperties.Name="{Binding ConfirmText}" />
+        </StackPanel>
+    </Grid>
+</UserControl>

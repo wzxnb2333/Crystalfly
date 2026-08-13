@@ -111,6 +111,7 @@ public partial class MainWindow : Window
         ApplyWin11RoundedCorners();
         if (DataContext is MainViewModel viewModel)
         {
+            viewModel.GuardCodePrompt = PromptForSteamGuardCodeAsync;
             var initialized = false;
             try
             {
@@ -568,6 +569,32 @@ public partial class MainWindow : Window
             ConfirmationDialogView,
             ConfirmationDialogViewModel,
             bool>(
+            dialogViewModel,
+            OverlayHostId,
+            CreateOverlayOptions());
+    }
+
+    internal async Task<string?> PromptForSteamGuardCodeAsync(
+        string title,
+        string message,
+        bool previousCodeWasIncorrect)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return null;
+        }
+        var dialogViewModel = new SteamGuardDialogViewModel(
+            title,
+            message,
+            viewModel.Loc["SteamGuardCodePlaceholder"],
+            viewModel.Loc["SteamLogin"],
+            viewModel.Loc["Cancel"],
+            viewModel.Loc["SteamGuardIncorrect"],
+            previousCodeWasIncorrect);
+        return await OverlayDialog.ShowCustomAsync<
+            SteamGuardDialogView,
+            SteamGuardDialogViewModel,
+            string?>(
             dialogViewModel,
             OverlayHostId,
             CreateOverlayOptions());

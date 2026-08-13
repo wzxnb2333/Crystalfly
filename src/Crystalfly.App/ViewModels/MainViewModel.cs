@@ -53,6 +53,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private ModTranslationCatalog modTranslations;
     private ModActivityCatalog modActivityCatalog;
     private readonly DpapiRefreshTokenStore tokenStore;
+    private readonly DpapiCredentialStore credentialStore;
+    private Func<string, string, bool, Task<string?>>? guardCodePrompt;
     private readonly SemaphoreSlim settingsSaveLock = new(1, 1);
     private readonly SemaphoreSlim steamConnectionGate = new(1, 1);
     private readonly SemaphoreSlim runtimePatchesConfigurationSaveLock = new(1, 1);
@@ -64,6 +66,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly Func<CancellationToken, Task>? downloadOverride;
     private readonly Func<Task>? disposeSteamOverride;
     private readonly Func<CancellationToken, Task<RefreshTokenCredential>>? qrSignInOverride;
+    private readonly Func<string, string, CancellationToken, Task<RefreshTokenCredential>>? passwordSignInOverride;
     private readonly Func<bool>? steamLoggedOnOverride;
     private readonly Func<bool> isGameProcessRunning;
     private readonly Func<CancellationToken, Task<GitHubRouteLatencyTestResult>>? githubLatencyTestOverride;
@@ -143,6 +146,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Func<CancellationToken, Task>? downloadOverride = null,
         Func<Task>? disposeSteamOverride = null,
         Func<CancellationToken, Task<RefreshTokenCredential>>? qrSignInOverride = null,
+        Func<string, string, CancellationToken, Task<RefreshTokenCredential>>? passwordSignInOverride = null,
         DownloadQueueService? downloadQueueOverride = null,
         Func<bool>? steamLoggedOnOverride = null,
         Func<CancellationToken, Task<GitHubRouteLatencyTestResult>>? githubLatencyTestOverride = null,
@@ -166,6 +170,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         this.downloadOverride = downloadOverride;
         this.disposeSteamOverride = disposeSteamOverride;
         this.qrSignInOverride = qrSignInOverride;
+        this.passwordSignInOverride = passwordSignInOverride;
         this.steamLoggedOnOverride = steamLoggedOnOverride;
         isGameProcessRunning = gameProcessRunningOverride
             ?? (static () => new SystemHollowKnightProcessProbe().IsRunning());
@@ -183,6 +188,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             : new CrystalflyPaths(Path.GetFullPath(applicationDataRoot), IsPortable: false);
         settingsPath = Path.Combine(paths.ApplicationDataRoot, "settings.json");
         tokenStore = new DpapiRefreshTokenStore(Path.Combine(paths.ApplicationDataRoot, "steam-token.dat"));
+        credentialStore = new DpapiCredentialStore(Path.Combine(paths.ApplicationDataRoot, "steam-credentials.dat"));
         catalog = EmbeddedCatalog.Load();
         catalogLoader = LoadCatalogAsync;
         steamReconnect = TryReconnectSteamAsync;
@@ -698,6 +704,21 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public partial string SteamNetworkStatus { get; set; } = string.Empty;
 
     [ObservableProperty]
+    public partial string SteamUsername { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string SteamPassword { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool IsPasswordLoginVisible { get; set; }
+
+    public Func<string, string, bool, Task<string?>>? GuardCodePrompt
+    {
+        get => guardCodePrompt;
+        set => guardCodePrompt = value;
+    }
+
+    [ObservableProperty]
     public partial DownloadBuildOption? SelectedDownloadBuild { get; set; }
 
     [ObservableProperty]
@@ -994,6 +1015,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             TimeSpan.FromDays(7));
         settings = await CrystalflySettingsStore.LoadAsync(settingsPath);
         OnPropertyChanged(nameof(EffectiveMotionPreference));
+        SteamUsernameCredential? storedCredential = await credentialStore.LoadAsync(lifetimeCancellation.Token);
+        if (storedCredential is not null)
+        {
+            SteamUsername = storedCredential.Username;
+            SteamPassword = storedCredential.Password;
+        }
         Settings.InitializeBackgroundState(settings.BackgroundImage);
         IsOfflineMode = settings.OfflineMode;
         ApplyLanguage(settings.Language);
@@ -1858,6 +1885,114 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
+    [RelayCommand]
+    private void TogglePasswordLogin()
+    {
+        IsPasswordLoginVisible = !IsPasswordLoginVisible;
+        if (!IsPasswordLoginVisible)
+        {
+            SteamPassword = string.Empty;
+        }
+    }
+
+    [RelayCommand]
+    private async Task SignInWithPasswordAsync()
+    {
+        if (lifetimeCancellation.IsCancellationRequested)
+        {
+            return;
+        }
+        if (IsOfflineMode)
+        {
+            IsSteamLoggedIn = false;
+            SteamStatus = Loc["OfflineMode"];
+            ErrorMessage = Loc["OfflineModeHint"];
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(SteamUsername) || string.IsNullOrEmpty(SteamPassword))
+        {
+            ErrorMessage = Loc["SteamCredentialsRequired"];
+            return;
+        }
+
+        var signInCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+            lifetimeCancellation.Token);
+        if (Interlocked.CompareExchange(ref steamSignInCancellation, signInCancellation, null) is not null)
+        {
+            signInCancellation.Dispose();
+            return;
+        }
+
+        ErrorMessage = null;
+        SteamStatus = Loc["SteamConnecting"];
+        IsSteamLoggedIn = false;
+        var gateTaken = false;
+        try
+        {
+            await steamConnectionGate.WaitAsync(signInCancellation.Token);
+            gateTaken = true;
+            await DisposeCurrentSteamSessionAsync();
+            RefreshTokenCredential credential = await ConnectWithCredentialsCoreAsync(signInCancellation.Token);
+            await credentialStore.SaveAsync(
+                new SteamUsernameCredential(SteamUsername, SteamPassword),
+                signInCancellation.Token);
+            IsSteamLoggedIn = true;
+            SteamStatus = credential.AccountName;
+            QrCodeImage = null;
+            IsPasswordLoginVisible = false;
+            await DownloadCenter.DownloadQueue.InitializeAsync(lifetimeCancellation.Token);
+            await DownloadCenter.DownloadQueue.ResumeSteamDownloadsAsync(lifetimeCancellation.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            SteamStatus = "Not signed in";
+        }
+        catch (Exception exception)
+        {
+            ErrorMessage = IsOfflineMode ? null : $"Steam: {exception.Message}";
+            IsSteamLoggedIn = false;
+            SteamStatus = IsOfflineMode ? Loc["OfflineMode"] : "Not signed in";
+            QrCodeImage = null;
+            if (gateTaken)
+            {
+                try
+                {
+                    await DisposeCurrentSteamSessionAsync();
+                }
+                catch (Exception cleanupException)
+                {
+                    ErrorMessage += $" Cleanup: {cleanupException.Message}";
+                }
+            }
+        }
+        finally
+        {
+            if (gateTaken)
+            {
+                steamConnectionGate.Release();
+            }
+            if (ReferenceEquals(
+                Interlocked.CompareExchange(ref steamSignInCancellation, null, signInCancellation),
+                signInCancellation))
+            {
+                signInCancellation.Dispose();
+            }
+        }
+    }
+
+    private async Task<RefreshTokenCredential> ConnectWithCredentialsCoreAsync(CancellationToken cancellationToken)
+    {
+        if (passwordSignInOverride is not null)
+        {
+            return await passwordSignInOverride(SteamUsername, SteamPassword, cancellationToken);
+        }
+        steamSession = CreateSteamSession(includeQrEvents: false);
+        return await steamSession.ConnectWithCredentialsAsync(
+            SteamUsername,
+            SteamPassword,
+            cancellationToken);
+    }
+
     private async Task TryReconnectSteamAsync()
     {
         if (IsOfflineMode
@@ -2010,6 +2145,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             IsSteamLoggedIn = false;
             SteamStatus = "Not signed in";
             QrCodeImage = null;
+            SteamUsername = string.Empty;
+            SteamPassword = string.Empty;
+            IsPasswordLoginVisible = false;
+            try
+            {
+                credentialStore.Delete();
+            }
+            catch (Exception exception)
+            {
+                ErrorMessage = $"Steam: {exception.Message}";
+            }
         }
     }
 
@@ -4033,13 +4179,33 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private SteamAuthenticationSession CreateSteamSession(bool includeQrEvents)
     {
-        var session = new SteamAuthenticationSession(tokenStore, systemProxy: systemProxy);
+        var session = new SteamAuthenticationSession(
+            tokenStore,
+            guardCallback: CreateGuardCallback(),
+            systemProxy: systemProxy);
         session.ConnectionLost += OnSteamConnectionLost;
         if (includeQrEvents)
         {
             session.QrChallengeChanged += OnQrChallengeChanged;
         }
         return session;
+    }
+
+    private ISteamGuardCallback? CreateGuardCallback()
+    {
+        if (guardCodePrompt is null)
+        {
+            return null;
+        }
+        return new SteamGuardPromptCallback(
+            getDeviceCode: previousIncorrect => guardCodePrompt(
+                Loc["SteamGuardDeviceTitle"],
+                Loc["SteamGuardDeviceMessage"],
+                previousIncorrect),
+            getEmailCode: (email, previousIncorrect) => guardCodePrompt(
+                Loc["SteamGuardEmailTitle"],
+                Loc["SteamGuardEmailMessage"] + " " + email,
+                previousIncorrect));
     }
 
     private HttpClientHandler CreateSystemProxyHandler() => new()

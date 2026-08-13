@@ -117,6 +117,47 @@ public sealed class SteamAuthenticationSession : IAsyncDisposable
         }
     }
 
+    public async Task<RefreshTokenCredential> ConnectWithCredentialsAsync(
+        string username,
+        string password,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(username);
+        ArgumentNullException.ThrowIfNull(password);
+        await _loginGate.WaitAsync(cancellationToken);
+        try
+        {
+            EnsureLoginNotStarted();
+            await ConnectAsync(cancellationToken);
+            CredentialsAuthSession authSession = await _client.Authentication.BeginAuthSessionViaCredentialsAsync(
+                new AuthSessionDetails
+                {
+                    Username = username,
+                    Password = password,
+                    Authenticator = _authenticator,
+                    ClientOSType = EOSType.Windows10,
+                    DeviceFriendlyName = "Crystalfly",
+                    IsPersistentSession = true,
+                    PlatformType = EAuthTokenPlatformType.k_EAuthTokenPlatformType_SteamClient
+                });
+            AuthPollResult result = await authSession.PollingWaitForResultAsync(cancellationToken);
+            var credential = new RefreshTokenCredential(result.AccountName, result.RefreshToken);
+            _user.LogOn(new SteamUser.LogOnDetails
+            {
+                Username = credential.AccountName,
+                AccessToken = credential.RefreshToken,
+                ShouldRememberPassword = true
+            });
+            await _loggedOn.Task.WaitAsync(cancellationToken);
+            await _tokenStore.SaveAsync(credential, cancellationToken);
+            return credential;
+        }
+        finally
+        {
+            _loginGate.Release();
+        }
+    }
+
     public void SignOut()
     {
         Exception? tokenDeleteException = null;
@@ -214,6 +255,16 @@ public sealed class SteamAuthenticationSession : IAsyncDisposable
 
     private void RaiseQrChallenge(string challengeUrl) =>
         QrChallengeChanged?.Invoke(this, new QrChallengeEventArgs(challengeUrl));
+
+    internal Task<string> InvokeGuardDeviceCodeAsync(bool previousCodeWasIncorrect) =>
+        _authenticator is null
+            ? throw new InvalidOperationException("No Steam Guard callback was configured.")
+            : _authenticator.GetDeviceCodeAsync(previousCodeWasIncorrect);
+
+    internal Task<string> InvokeGuardEmailCodeAsync(string email, bool previousCodeWasIncorrect) =>
+        _authenticator is null
+            ? throw new InvalidOperationException("No Steam Guard callback was configured.")
+            : _authenticator.GetEmailCodeAsync(email, previousCodeWasIncorrect);
 
     private sealed class GuardAuthenticator(ISteamGuardCallback callback) : IAuthenticator
     {

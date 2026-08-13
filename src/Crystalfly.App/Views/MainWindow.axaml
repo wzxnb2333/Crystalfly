@@ -1494,10 +1494,12 @@
 
             <!-- Speedrun -->
             <Grid Classes="cfp-page" IsVisible="{Binding IsSpeedrunPage}">
-                <Grid RowDefinitions="*,Auto" RowSpacing="10" Margin="16">
-                    <Border Grid.Row="1"
-                            Classes="cfp-speedrun-tab-switch"
-                            HorizontalAlignment="Center">
+                <Grid RowDefinitions="*" Margin="16">
+                    <Border Classes="cfp-speedrun-tab-switch"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Bottom"
+                            Margin="0,0,0,4"
+                            ZIndex="10">
                         <Grid Width="196" ColumnDefinitions="*,*">
                             <Border x:Name="SpeedrunTabIndicator"
                                     Grid.Column="0"
@@ -1705,7 +1707,7 @@
                                 </StackPanel>
                             </Border>
                         </Grid>
-                        <Grid Classes="cfp-workspace cfp-speedrun-activity cfp-subpage" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="10" IsVisible="{Binding IsSpeedrunActivityTab}">
+                        <Grid Classes="cfp-workspace cfp-speedrun-activity cfp-subpage" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="10" Margin="0,0,0,44" IsVisible="{Binding IsSpeedrunActivityTab}">
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                                 <StackPanel Spacing="3">
                                     <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunActivityTitle]}" />
@@ -1821,18 +1823,26 @@
                                         <TextBlock Classes="cfp-meta" Text="{Binding SteamStatus}" TextWrapping="Wrap" />
                                         <TextBlock Classes="cfp-meta" Text="{Binding SteamNetworkStatus}" TextWrapping="Wrap" />
                                     </StackPanel>
-                                    <Button Grid.Column="2" Classes="cfp-accent" Command="{Binding SignInWithQrCommand}" IsVisible="{Binding IsSteamLoggedIn, Converter={x:Static converters:BoolConverters.Not}}">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <LucideIcon Kind="LogIn" Size="16" />
-                                            <TextBlock Text="{Binding Loc[SignInQr]}" />
-                                        </StackPanel>
-                                    </Button>
-                                    <Button Grid.Column="2" Classes="cfp-secondary" Command="{Binding SignOutSteamCommand}" IsVisible="{Binding IsSteamLoggedIn}">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <LucideIcon Kind="LogOut" Size="16" />
-                                            <TextBlock Text="{Binding Loc[SignOut]}" />
-                                        </StackPanel>
-                                    </Button>
+                                    <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Center">
+                                        <Button Classes="cfp-accent" Command="{Binding SignInWithQrCommand}" IsVisible="{Binding IsSteamLoggedIn, Converter={x:Static converters:BoolConverters.Not}}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <LucideIcon Kind="LogIn" Size="16" />
+                                                <TextBlock Text="{Binding Loc[SignInQr]}" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Classes="cfp-link" Command="{Binding TogglePasswordLoginCommand}" MinHeight="36" IsVisible="{Binding IsSteamLoggedIn, Converter={x:Static converters:BoolConverters.Not}}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <LucideIcon Kind="KeyRound" Size="14" />
+                                                <TextBlock Text="{Binding Loc[SwitchToPasswordLogin]}" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Classes="cfp-secondary" Command="{Binding SignOutSteamCommand}" IsVisible="{Binding IsSteamLoggedIn}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <LucideIcon Kind="LogOut" Size="16" />
+                                                <TextBlock Text="{Binding Loc[SignOut]}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
                                 </Grid>
                             </Border>
                             <Button Classes="cfp-link" Command="{Binding RefreshSteamNetworkCommand}" HorizontalAlignment="Left" MinHeight="36">
@@ -1843,6 +1853,23 @@
                             </Button>
                             <Border Classes="cfp-download-qr" IsVisible="{Binding QrCodeImage, Converter={x:Static converters:ObjectConverters.IsNotNull}}">
                                 <Image Width="180" Height="180" Source="{Binding QrCodeImage}" AutomationProperties.Name="{Binding Loc[SignInQr]}" />
+                            </Border>
+                            <Border Classes="cfp-download-qr" IsVisible="{Binding IsPasswordLoginVisible}">
+                                <StackPanel Spacing="12" MaxWidth="480" HorizontalAlignment="Left">
+                                    <TextBox Classes="cfp-input" Text="{Binding SteamUsername, Mode=TwoWay}" PlaceholderText="{Binding Loc[SteamUsername]}" MinWidth="320" AutomationProperties.Name="{Binding Loc[SteamUsername]}" />
+                                    <TextBox Classes="cfp-input" Text="{Binding SteamPassword, Mode=TwoWay}" PasswordChar="●" PlaceholderText="{Binding Loc[SteamPassword]}" MinWidth="320" AutomationProperties.Name="{Binding Loc[SteamPassword]}" />
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button Classes="cfp-primary" Command="{Binding SignInWithPasswordCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <LucideIcon Kind="LogIn" Size="16" />
+                                                <TextBlock Text="{Binding Loc[SteamLogin]}" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Classes="cfp-link" Command="{Binding TogglePasswordLoginCommand}" MinHeight="36" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Loc[SwitchToQrLogin]}" />
+                                        </Button>
+                                    </StackPanel>
+                                </StackPanel>
                             </Border>
                             <TextBlock Classes="cfp-section-title" Text="{Binding Loc[GameVersions]}" />
                             <StackPanel Spacing="12">
