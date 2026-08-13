@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Crystalfly.App.ViewModels.Dialogs"
+             x:Class="Crystalfly.App.Views.Dialogs.SteamDeviceConfirmationDialogView"
+             x:DataType="vm:SteamDeviceConfirmationDialogViewModel"
+             Width="480"
+             MinWidth="400"
+             MaxWidth="560">
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+    </UserControl.KeyBindings>
+
+    <Grid Margin="24" RowDefinitions="Auto,Auto,Auto" RowSpacing="16">
+        <TextBlock Classes="cfp-section-title"
+                   Text="{Binding Title}"
+                   TextWrapping="Wrap" />
+        <TextBlock Grid.Row="1"
+                   Text="{Binding Message}"
+                   TextWrapping="Wrap" />
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Classes="cfp-secondary"
+                    Command="{Binding SwitchToCodeCommand}"
+                    Content="{Binding SwitchToCodeText}"
+                    MinWidth="120"
+                    AutomationProperties.Name="{Binding SwitchToCodeText}" />
+            <Button Classes="cfp-primary"
+                    Command="{Binding ConfirmCommand}"
+                    Content="{Binding ConfirmText}"
+                    MinWidth="96"
+                    AutomationProperties.Name="{Binding ConfirmText}" />
+        </StackPanel>
+    </Grid>
+</UserControl>

@@ -55,6 +55,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly DpapiRefreshTokenStore tokenStore;
     private readonly DpapiCredentialStore credentialStore;
     private Func<string, string, bool, Task<string?>>? guardCodePrompt;
+    private Func<Task<bool?>>? deviceConfirmationPrompt;
     private readonly SemaphoreSlim settingsSaveLock = new(1, 1);
     private readonly SemaphoreSlim steamConnectionGate = new(1, 1);
     private readonly SemaphoreSlim runtimePatchesConfigurationSaveLock = new(1, 1);
@@ -716,6 +717,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         get => guardCodePrompt;
         set => guardCodePrompt = value;
+    }
+
+    public Func<Task<bool?>>? DeviceConfirmationPrompt
+    {
+        get => deviceConfirmationPrompt;
+        set => deviceConfirmationPrompt = value;
     }
 
     [ObservableProperty]
@@ -4193,19 +4200,26 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private ISteamGuardCallback? CreateGuardCallback()
     {
-        if (guardCodePrompt is null)
+        if (guardCodePrompt is null && deviceConfirmationPrompt is null)
         {
             return null;
         }
         return new SteamGuardPromptCallback(
-            getDeviceCode: previousIncorrect => guardCodePrompt(
-                Loc["SteamGuardDeviceTitle"],
-                Loc["SteamGuardDeviceMessage"],
-                previousIncorrect),
-            getEmailCode: (email, previousIncorrect) => guardCodePrompt(
-                Loc["SteamGuardEmailTitle"],
-                Loc["SteamGuardEmailMessage"] + " " + email,
-                previousIncorrect));
+            getDeviceCode: previousIncorrect => guardCodePrompt is null
+                ? Task.FromResult<string?>(null)
+                : guardCodePrompt(
+                    Loc["SteamGuardDeviceTitle"],
+                    Loc["SteamGuardDeviceMessage"],
+                    previousIncorrect),
+            getEmailCode: (email, previousIncorrect) => guardCodePrompt is null
+                ? Task.FromResult<string?>(null)
+                : guardCodePrompt(
+                    Loc["SteamGuardEmailTitle"],
+                    Loc["SteamGuardEmailMessage"] + " " + email,
+                    previousIncorrect),
+            acceptDeviceConfirmation: () => deviceConfirmationPrompt is null
+                ? Task.FromResult<bool?>(false)
+                : deviceConfirmationPrompt());
     }
 
     private HttpClientHandler CreateSystemProxyHandler() => new()

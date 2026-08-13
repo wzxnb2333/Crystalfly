@@ -6,11 +6,11 @@ namespace Crystalfly.App.Services;
 public sealed class SteamGuardPromptCallback(
     Func<bool, Task<string?>> getDeviceCode,
     Func<string, bool, Task<string?>> getEmailCode,
-    Func<Task<bool>>? acceptDeviceConfirmation = null) : ISteamGuardCallback
+    Func<Task<bool?>>? acceptDeviceConfirmation = null) : ISteamGuardCallback
 {
     private readonly Func<bool, Task<string?>> getDeviceCode = getDeviceCode;
     private readonly Func<string, bool, Task<string?>> getEmailCode = getEmailCode;
-    private readonly Func<Task<bool>>? acceptDeviceConfirmation = acceptDeviceConfirmation;
+    private readonly Func<Task<bool?>>? acceptDeviceConfirmation = acceptDeviceConfirmation;
 
     public Task<string> GetDeviceCodeAsync(bool previousCodeWasIncorrect) =>
         CompleteWithCodeAsync(() => getDeviceCode(previousCodeWasIncorrect));
@@ -22,7 +22,8 @@ public sealed class SteamGuardPromptCallback(
     {
         if (acceptDeviceConfirmation is null)
             return false;
-        return await RunOnUiThreadAsync(() => acceptDeviceConfirmation());
+        bool? confirmed = await RunOnUiThreadAsync(() => acceptDeviceConfirmation());
+        return confirmed ?? throw new OperationCanceledException("Steam device confirmation was cancelled.");
     }
 
     private static async Task<string> CompleteWithCodeAsync(Func<Task<string?>> request)

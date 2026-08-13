@@ -112,6 +112,7 @@ public partial class MainWindow : Window
         if (DataContext is MainViewModel viewModel)
         {
             viewModel.GuardCodePrompt = PromptForSteamGuardCodeAsync;
+            viewModel.DeviceConfirmationPrompt = PromptForSteamDeviceConfirmationAsync;
             var initialized = false;
             try
             {
@@ -595,6 +596,27 @@ public partial class MainWindow : Window
             SteamGuardDialogView,
             SteamGuardDialogViewModel,
             string?>(
+            dialogViewModel,
+            OverlayHostId,
+            CreateOverlayOptions());
+    }
+
+    internal async Task<bool?> PromptForSteamDeviceConfirmationAsync()
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return null;
+        }
+        var dialogViewModel = new SteamDeviceConfirmationDialogViewModel(
+            viewModel.Loc["SteamDeviceConfirmationTitle"],
+            viewModel.Loc["SteamDeviceConfirmationMessage"],
+            viewModel.Loc["SteamDeviceConfirmationAccept"],
+            viewModel.Loc["SteamDeviceConfirmationSwitchToCode"],
+            viewModel.Loc["Cancel"]);
+        return await OverlayDialog.ShowCustomAsync<
+            SteamDeviceConfirmationDialogView,
+            SteamDeviceConfirmationDialogViewModel,
+            bool?>(
             dialogViewModel,
             OverlayHostId,
             CreateOverlayOptions());
