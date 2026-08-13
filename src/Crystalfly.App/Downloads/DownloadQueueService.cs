@@ -373,37 +373,34 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     }
                 }
             }
+            foreach (var source in cancellations)
+            {
+                source.Cancel();
+            }
+            if (activeTasks.Count != 0)
+            {
+                await Task.WhenAll(activeTasks).WaitAsync(cancellationToken);
+                // Keep the state transition and active-task cleanup atomic with
+                // respect to ResumeSteamDownloadsAsync.
+                lock (sync)
+                {
+                    foreach (var task in activeTasks)
+                    {
+                        foreach (var pair in activeGroupTasks
+                            .Where(pair => ReferenceEquals(pair.Value, task))
+                            .ToArray())
+                        {
+                            activeGroupTasks.Remove(pair.Key);
+                        }
+                    }
+                }
+            }
+            await PersistAsync(cancellationToken);
         }
         finally
         {
             mutationGate.Release();
         }
-
-        foreach (var source in cancellations)
-        {
-            source.Cancel();
-        }
-        if (activeTasks.Count != 0)
-        {
-            await Task.WhenAll(activeTasks).WaitAsync(cancellationToken);
-            // DispatchAsync removes finished tasks from activeGroupTasks via a
-            // ContinueWith continuation, which Task.WhenAll does not await. Remove
-            // them here so a quick pause/resume cannot see a stale active task and
-            // skip resuming the group.
-            lock (sync)
-            {
-                foreach (var task in activeTasks)
-                {
-                    foreach (var pair in activeGroupTasks
-                        .Where(pair => ReferenceEquals(pair.Value, task))
-                        .ToArray())
-                    {
-                        activeGroupTasks.Remove(pair.Key);
-                    }
-                }
-            }
-        }
-        await PersistAsync(cancellationToken);
         NotifyChanged();
     }
 

@@ -126,6 +126,41 @@ public sealed class DownloadQueueServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Steam_sign_out_and_immediate_resume_restarts_after_slow_persistence()
+    {
+        var executor = new ControlledExecutor(blockTransfers: true);
+        var persistenceStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releasePersistence = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var queue = CreateQueue(
+            executor,
+            persistOverride: async (_, cancellationToken) =>
+            {
+                if (_.Any(group => group.Stage == "Waiting for Steam login")
+                    && !persistenceStarted.Task.IsCompleted)
+                {
+                    persistenceStarted.TrySetResult();
+                    await releasePersistence.Task.WaitAsync(cancellationToken);
+                }
+            });
+        await queue.InitializeAsync();
+        await queue.EnqueueAsync(SteamDownloadQueueGroupFactory.Create(
+            "public", "Steam public", null, Path.Combine(root, "versions"), "steam-slow-persist"));
+        await executor.WaitForStartedAsync(1);
+
+        var pause = queue.PauseSteamDownloadsAsync();
+        await persistenceStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var resume = queue.ResumeSteamDownloadsAsync();
+        releasePersistence.TrySetResult();
+        await pause.WaitAsync(TimeSpan.FromSeconds(5));
+        await resume.WaitAsync(TimeSpan.FromSeconds(5));
+        executor.ReleaseTransfers();
+        await queue.WaitForIdleAsync().WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(2, executor.StartedTransfers);
+        Assert.Equal(DownloadQueueGroupState.Completed, Assert.Single(queue.Groups).State);
+    }
+
+    [Fact]
     public async Task Items_in_one_group_run_in_dependency_order()
     {
         var executor = new ControlledExecutor();
