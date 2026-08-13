@@ -12,6 +12,7 @@ public partial class MainViewModel
     private readonly SpeedrunComClient speedrunComClient;
     private CancellationTokenSource? speedrunLeaderboardLoadCancellation;
     private Task speedrunLeaderboardLoadTask = Task.CompletedTask;
+    private Task speedrunActivityRefreshLoopTask = Task.CompletedTask;
     private long speedrunLeaderboardLoadGeneration;
     private DateTimeOffset? speedrunActivityLastLoadedAt;
     private DateTimeOffset? speedrunActivityFetchedAt;
@@ -124,7 +125,8 @@ public partial class MainViewModel
         BeginSpeedrunActivityLoad(forceRefresh: true, showLoading: false);
     }
 
-    internal void StartSpeedrunActivityRefreshLoop() => _ = SpeedrunActivityRefreshLoopAsync();
+    internal Task StartSpeedrunActivityRefreshLoop() =>
+        speedrunActivityRefreshLoopTask = SpeedrunActivityRefreshLoopAsync();
 
     private async Task SpeedrunActivityRefreshLoopAsync()
     {

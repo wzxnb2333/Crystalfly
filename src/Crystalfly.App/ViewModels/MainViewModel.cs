@@ -1086,7 +1086,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             StatusMessage = Loc["ChooseRoot"];
         }
         await Task.WhenAll(refreshTask, downloadQueueTask);
-        StartSpeedrunActivityRefreshLoop();
+        _ = StartSpeedrunActivityRefreshLoop();
         await Instances.CompleteGameDirectoryInitializationAsync();
     }
 
@@ -4641,6 +4641,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var speedrunLeaderboardCancellation = Interlocked.Exchange(ref speedrunLeaderboardLoadCancellation, null);
         speedrunLeaderboardCancellation?.Cancel();
         var pendingSpeedrunLeaderboardLoad = speedrunLeaderboardLoadTask;
+        var pendingSpeedrunActivityRefreshLoop = speedrunActivityRefreshLoopTask;
         var signInCancellation = Interlocked.Exchange(ref steamSignInCancellation, null);
         signInCancellation?.Cancel();
         downloadCancellation?.Cancel();
@@ -4663,7 +4664,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     pendingContentLoad);
                 try
                 {
-                    await pendingSpeedrunLeaderboardLoad;
+                    await Task.WhenAll(
+                        pendingSpeedrunLeaderboardLoad,
+                        pendingSpeedrunActivityRefreshLoop);
                 }
                 catch (Exception) when (lifetimeCancellation.IsCancellationRequested)
                 {

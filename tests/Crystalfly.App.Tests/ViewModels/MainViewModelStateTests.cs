@@ -3939,7 +3939,7 @@ public sealed class MainViewModelStateTests : IDisposable
         intervalField.SetValue(null, TimeSpan.FromMilliseconds(150));
         try
         {
-            viewModel.StartSpeedrunActivityRefreshLoop();
+            _ = viewModel.StartSpeedrunActivityRefreshLoop();
             await Task.Delay(500);
 
             Assert.True(handler.RequestCount > callsAfterFirstLoad);
@@ -3979,7 +3979,7 @@ public sealed class MainViewModelStateTests : IDisposable
         intervalField.SetValue(null, TimeSpan.FromMilliseconds(150));
         try
         {
-            viewModel.StartSpeedrunActivityRefreshLoop();
+            _ = viewModel.StartSpeedrunActivityRefreshLoop();
             await Task.Delay(500);
 
             // A non-recoverable load error is surfaced, and the loop keeps
@@ -3992,6 +3992,77 @@ public sealed class MainViewModelStateTests : IDisposable
         finally
         {
             intervalField.SetValue(null, TimeSpan.FromMinutes(15));
+        }
+    }
+
+    [Fact]
+    public async Task Dispose_waits_for_background_speedrun_refresh()
+    {
+        string root = applicationData.CreateDirectory("speedrun-refresh-dispose");
+        using var policy = new NetworkPolicy();
+        var handler = new BlockingSpeedrunResponseHandler();
+        using var httpClient = new HttpClient(handler);
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        var viewModel = new MainViewModel(root, speedrunComClientOverride: speedrunClient)
+        {
+            CurrentPage = "Speedrun",
+            CurrentSpeedrunTab = "Environment"
+        };
+        var intervalField = typeof(MainViewModel).GetField(
+            "SpeedrunActivityRefreshInterval",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.NotNull(intervalField);
+        intervalField.SetValue(null, TimeSpan.FromMilliseconds(20));
+        try
+        {
+            Task refreshLoop = viewModel.StartSpeedrunActivityRefreshLoop();
+            await handler.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            await viewModel.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.True(handler.Canceled.Task.IsCompleted);
+            Assert.True(refreshLoop.IsCompleted);
+        }
+        finally
+        {
+            intervalField.SetValue(null, TimeSpan.FromMinutes(15));
+            await viewModel.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Dispose_waits_for_refresh_loop_started_during_initialization()
+    {
+        string root = applicationData.CreateDirectory("speedrun-refresh-initialize-dispose");
+        using var policy = new NetworkPolicy();
+        var handler = new BlockingSpeedrunResponseHandler();
+        using var httpClient = new HttpClient(handler);
+        var speedrunClient = new SpeedrunComClient(
+            httpClient,
+            Path.Combine(root, "speedrun-cache"),
+            policy);
+        var viewModel = new MainViewModel(root, speedrunComClientOverride: speedrunClient);
+        var intervalField = typeof(MainViewModel).GetField(
+            "SpeedrunActivityRefreshInterval",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.NotNull(intervalField);
+        intervalField.SetValue(null, TimeSpan.FromMilliseconds(20));
+        try
+        {
+            await viewModel.InitializeAsync();
+            await handler.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            await viewModel.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.True(handler.Canceled.Task.IsCompleted);
+        }
+        finally
+        {
+            intervalField.SetValue(null, TimeSpan.FromMinutes(15));
+            await viewModel.DisposeAsync();
         }
     }
 
@@ -4230,6 +4301,32 @@ public sealed class MainViewModelStateTests : IDisposable
             // load task faults and must be contained by the background refresh loop.
             return Task.FromException<HttpResponseMessage>(
                 new ObjectDisposedException(nameof(HttpClient)));
+        }
+    }
+
+    private sealed class BlockingSpeedrunResponseHandler : HttpMessageHandler
+    {
+        public TaskCompletionSource Started { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Canceled { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                Canceled.TrySetResult();
+                throw;
+            }
+            throw new InvalidOperationException();
         }
     }
 
