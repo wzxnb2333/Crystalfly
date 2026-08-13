@@ -144,8 +144,7 @@ public partial class InstalledModItemViewModel : ViewModelBase
 
     public bool CanTakeOver => IsExternal;
 
-    public bool CanMatchToCatalog => Receipt?.Ownership == ModOwnership.LocalTakenOver
-        && CatalogManifest is null;
+    public bool CanMatchToCatalog => Receipt?.Ownership == ModOwnership.LocalTakenOver;
 
     public bool CanPin => Receipt is not null && !IsReadOnly;
 

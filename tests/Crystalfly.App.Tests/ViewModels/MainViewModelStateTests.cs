@@ -987,6 +987,39 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Declined_adoption_prompt_is_shown_again_on_the_next_instance_selection()
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        InstallExternalBepInEx(instanceRoot);
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        var versionRoot = test.CreateDirectory("versions");
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot,
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "BepInEx", 0)
+        };
+        var promptCount = 0;
+        viewModel.ExternalContentConfirmPrompt = (_, _, _) =>
+        {
+            promptCount++;
+            return Task.FromResult(false);
+        };
+
+        // First selection: the user declines the adoption prompt.
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+        Assert.Equal(1, promptCount);
+
+        // Selecting the instance again must re-prompt, because a declined prompt
+        // should not silently suppress adoption forever. Simulate the real
+        // re-selection by advancing the details-load generation.
+        SetPrivateField(viewModel, "detailsLoadGeneration", 2L);
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 2);
+
+        Assert.Equal(2, promptCount);
+    }
+
+    [Fact]
     public async Task Adopt_external_loader_creates_an_unverified_receipt()
     {
         using var test = new TestDirectory();

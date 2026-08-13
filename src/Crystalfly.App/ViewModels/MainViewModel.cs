@@ -3871,7 +3871,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             return;
         }
-        adoptPromptedForInstance = record.Id;
         string message = ExternalModAdoptCount == 0
             ? Loc["AdoptExternalContentMessageNoMods"]
             : string.Format(
@@ -3883,6 +3882,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             Loc["AdoptExternalContent"]);
         if (confirmed)
         {
+            // Only mark the instance as prompted after the user confirms, so a
+            // declined prompt can be reconsidered the next time the instance is
+            // selected instead of being silently skipped forever.
+            adoptPromptedForInstance = record.Id;
             await AdoptExternalContentCoreAsync(record);
         }
     }
