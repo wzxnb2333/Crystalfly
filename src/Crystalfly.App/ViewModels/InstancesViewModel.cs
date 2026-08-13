@@ -440,6 +440,10 @@ public sealed partial class InstancesViewModel : ViewModelBase
                 DisplayName = candidate.DisplayName,
                 Source = GameDirectorySourceKind.Steam
             }));
+
+            var treeScan = await new GameDirectoryTreeScanner().ScanAllDrivesAsync(
+                dependencies.LifetimeCancellation);
+            AddCandidates(treeScan.Candidates);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
         {
