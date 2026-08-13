@@ -86,10 +86,18 @@ public partial class DependencyGraphView : UserControl
         }
 
         var graphPosition = ToGraphPoint(viewportPosition);
-        nodeDragGraph.MoveNode(
-            nodeDragNode.Id,
-            nodeDragNodeStart.X + graphPosition.X - nodeDragGraphStart.X,
-            nodeDragNodeStart.Y + graphPosition.Y - nodeDragGraphStart.Y);
+        var targetX = nodeDragNodeStart.X + graphPosition.X - nodeDragGraphStart.X;
+        var targetY = nodeDragNodeStart.Y + graphPosition.Y - nodeDragGraphStart.Y;
+        var clampedX = Math.Max(DependencyGraphModel.CanvasPadding, targetX);
+        var clampedY = Math.Max(DependencyGraphModel.CanvasPadding, targetY);
+        nodeDragGraph.MoveNode(nodeDragNode.Id, clampedX, clampedY);
+        if (clampedX != targetX || clampedY != targetY)
+        {
+            translation += new Vector(
+                (targetX - clampedX) * scale,
+                (targetY - clampedY) * scale);
+            ApplyTransform();
+        }
         eventArgs.Handled = true;
     }
 

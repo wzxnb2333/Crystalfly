@@ -79,4 +79,41 @@ public sealed class DependencyGraphViewInteractionTests
             window.Close();
         }
     }
+
+    [AvaloniaFact]
+    public void Graph_dragging_a_node_beyond_the_top_left_edge_pans_the_canvas()
+    {
+        var graph = DependencyGraphModel.Create(
+            [new DependencyGraphNodeDefinition("mod", "Mod", string.Empty, "Enabled", DependencyGraphNodeState.Normal)],
+            []);
+        var node = Assert.Single(graph.Nodes);
+        var view = new DependencyGraphView { DataContext = graph };
+        var window = new Window { Width = 640, Height = 480, Content = view };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            var nodeStart = new Point(
+                view.Translation.X + (node.X + 24) * view.Scale,
+                view.Translation.Y + (node.Y + 24) * view.Scale);
+            var initialTranslation = view.Translation;
+
+            window.MouseDown(nodeStart, MouseButton.Left, RawInputModifiers.None);
+            var nodeEnd = nodeStart + new Vector(-600, -600);
+            window.MouseMove(nodeEnd, RawInputModifiers.LeftMouseButton);
+            window.MouseUp(nodeEnd, MouseButton.Left, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal(DependencyGraphModel.CanvasPadding, node.X);
+            Assert.Equal(DependencyGraphModel.CanvasPadding, node.Y);
+            Assert.True(
+                view.Translation.X < initialTranslation.X && view.Translation.Y < initialTranslation.Y,
+                "The canvas should pan instead of blocking the node at the top-left edge.");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
 }
