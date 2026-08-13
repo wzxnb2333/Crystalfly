@@ -2650,6 +2650,24 @@
                                         </Grid>
                                     </StackPanel>
                                 </Border>
+                                <Border Classes="cfp-card">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                        <StackPanel Spacing="3">
+                                            <TextBlock Classes="cfp-row-title" Text="{Binding Loc[OnboardingSection]}" />
+                                            <TextBlock Classes="cfp-caption"
+                                                       Text="{Binding Loc[OnboardingSectionHint]}"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Classes="cfp-secondary" MinHeight="36"
+                                                Command="{Binding ShowOnboardingCommand}"
+                                                AutomationProperties.Name="{Binding Loc[OnboardingReopen]}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <LucideIcon Kind="GraduationCap" Size="15" />
+                                                <TextBlock Text="{Binding Loc[OnboardingReopen]}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                </Border>
                             </StackPanel>
 
                             <StackPanel Spacing="16" Classes="cfp-subpage" IsVisible="{Binding Settings.IsNetworkSettingsSection}">
