@@ -153,6 +153,84 @@ public sealed class LoaderManager
             manifest, null, new Uri(manifest.DownloadUrl), null, "recover-loader", cancellationToken);
     }
 
+    public async Task<InstalledPackageReceipt> AdoptExternalAsync(CancellationToken cancellationToken = default)
+    {
+        if (await GetReceiptAsync(cancellationToken) is not null)
+        {
+            throw new InvalidOperationException("Loader adoption requires a missing receipt.");
+        }
+
+        var inspection = await InspectAsync(cancellationToken);
+        var files = new List<InstalledFileReceipt>();
+        string? packageId = null;
+        var loaderState = inspection.State;
+        if (inspection.Ownership == LoaderOwnership.External
+            && inspection.State == LoaderState.BepInEx
+            && !string.IsNullOrWhiteSpace(inspection.Version))
+        {
+            packageId = $"bepinex-{inspection.Version}";
+            await AddFilesFromDirectoryAsync(
+                Path.Combine(_instanceRoot, "BepInEx", "core"),
+                "BepInEx/core",
+                files,
+                cancellationToken);
+            await AddFileIfExistsAsync(
+                Path.Combine(_instanceRoot, "doorstop_config.ini"),
+                "doorstop_config.ini",
+                files,
+                cancellationToken);
+            await AddFileIfExistsAsync(
+                Path.Combine(_instanceRoot, "winhttp.dll"),
+                "winhttp.dll",
+                files,
+                cancellationToken);
+        }
+        else if (inspection.State == LoaderState.Drifted && HasModdingApiArtifacts())
+        {
+            packageId = "modding-api-external";
+            loaderState = LoaderState.ModdingApi;
+            var managed = Path.Combine(_instanceRoot, "hollow_knight_Data", "Managed");
+            await AddFileIfExistsAsync(
+                Path.Combine(managed, "MMHOOK_Assembly-CSharp.dll"),
+                "hollow_knight_Data/Managed/MMHOOK_Assembly-CSharp.dll",
+                files,
+                cancellationToken);
+            if (Directory.Exists(managed))
+            {
+                foreach (var file in Directory.EnumerateFiles(
+                    managed,
+                    "MMHOOK_TeamCherry*.dll",
+                    SearchOption.TopDirectoryOnly))
+                {
+                    files.Add(new InstalledFileReceipt
+                    {
+                        RelativePath = Normalize(Path.GetRelativePath(_instanceRoot, file)),
+                        Sha256 = await HashFileAsync(file, cancellationToken)
+                    });
+                }
+            }
+        }
+
+        if (packageId is null || files.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Only an external loader that can be identified can be adopted.");
+        }
+
+        var receipt = new InstalledPackageReceipt
+        {
+            PackageId = packageId,
+            LoaderState = loaderState,
+            IsVerified = false,
+            BackupRoot = string.Empty,
+            Files = files
+                .OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+        };
+        await AtomicJsonStore.WriteAsync(_receiptPath, receipt, cancellationToken);
+        return receipt;
+    }
+
     public async Task UninstallAsync(CancellationToken cancellationToken = default)
     {
         var receipt = await RequireVerifiedReceiptAsync(cancellationToken);
@@ -470,6 +548,52 @@ public sealed class LoaderManager
 
     private static bool HasFiles(string path) =>
         Directory.Exists(path) && Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).Any();
+
+    private bool HasModdingApiArtifacts()
+    {
+        var managed = Path.Combine(_instanceRoot, "hollow_knight_Data", "Managed");
+        return File.Exists(Path.Combine(managed, "MMHOOK_Assembly-CSharp.dll"))
+            || (Directory.Exists(managed) && Directory.EnumerateFiles(
+                managed,
+                "MMHOOK_TeamCherry*.dll",
+                SearchOption.TopDirectoryOnly).Any());
+    }
+
+    private async Task AddFileIfExistsAsync(
+        string path,
+        string relativePath,
+        ICollection<InstalledFileReceipt> files,
+        CancellationToken cancellationToken)
+    {
+        if (File.Exists(path))
+        {
+            files.Add(new InstalledFileReceipt
+            {
+                RelativePath = relativePath,
+                Sha256 = await HashFileAsync(path, cancellationToken)
+            });
+        }
+    }
+
+    private async Task AddFilesFromDirectoryAsync(
+        string directory,
+        string relativeRoot,
+        ICollection<InstalledFileReceipt> files,
+        CancellationToken cancellationToken)
+    {
+        if (!Directory.Exists(directory))
+        {
+            return;
+        }
+        foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+        {
+            files.Add(new InstalledFileReceipt
+            {
+                RelativePath = Normalize(Path.Combine(relativeRoot, Path.GetRelativePath(directory, file))),
+                Sha256 = await HashFileAsync(file, cancellationToken)
+            });
+        }
+    }
 
     private string ResolveBackup(InstalledPackageReceipt receipt, string relativePath)
     {

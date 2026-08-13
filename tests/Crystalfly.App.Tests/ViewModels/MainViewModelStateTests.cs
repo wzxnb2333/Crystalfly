@@ -958,6 +958,79 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task External_bepinex_sets_adopt_availability_and_declined_prompt_does_not_create_receipt()
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        InstallExternalBepInEx(instanceRoot);
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        var versionRoot = test.CreateDirectory("versions");
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot,
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "BepInEx", 0)
+        };
+        var prompted = false;
+        viewModel.ExternalContentConfirmPrompt = (_, _, _) =>
+        {
+            prompted = true;
+            return Task.FromResult(false);
+        };
+
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+
+        Assert.True(viewModel.CanAdoptExternalContent);
+        Assert.Equal(0, viewModel.ExternalModAdoptCount);
+        Assert.True(prompted);
+        Assert.False(File.Exists(Path.Combine(
+            versionRoot, ".crystalfly", "instances", record.Id, "loader.json")));
+    }
+
+    [Fact]
+    public async Task Adopt_external_loader_creates_an_unverified_receipt()
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        InstallExternalBepInEx(instanceRoot);
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        var versionRoot = test.CreateDirectory("versions");
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot,
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "BepInEx", 0)
+        };
+        viewModel.ExternalContentConfirmPrompt = (_, _, _) => Task.FromResult(true);
+
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+        await WaitUntilAsync(() => viewModel.LoaderVerificationStatus == viewModel.Loc["UnverifiedLocalLoader"]);
+
+        string receiptPath = Path.Combine(
+            versionRoot, ".crystalfly", "instances", record.Id, "loader.json");
+        Assert.True(File.Exists(receiptPath));
+        Assert.Equal(LoaderState.BepInEx, viewModel.CurrentLoaderState);
+        Assert.Null(viewModel.ErrorMessage);
+        Assert.Equal(viewModel.Loc["UnverifiedLocalLoader"], viewModel.LoaderVerificationStatus);
+    }
+
+    [Fact]
+    public async Task Vanilla_instance_does_not_offer_external_adoption()
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = test.CreateDirectory("versions"),
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Vanilla", 0)
+        };
+
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+
+        Assert.False(viewModel.CanAdoptExternalContent);
+        Assert.Equal(LoaderState.Vanilla, viewModel.CurrentLoaderState);
+    }
+
+    [Fact]
     public async Task External_loader_conflict_without_receipt_shows_conflict_reason()
     {
         using var test = new TestDirectory();

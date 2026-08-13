@@ -600,6 +600,14 @@
                                                Text="{Binding LoaderVerificationStatus}"
                                                TextWrapping="Wrap"
                                                IsVisible="{Binding LoaderVerificationStatus, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+                                    <Button Classes="cfp-link" HorizontalAlignment="Left" MinHeight="36"
+                                            Command="{Binding AdoptExternalContentCommand}"
+                                            IsVisible="{Binding CanAdoptExternalContent}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <LucideIcon Kind="PackagePlus" Size="14" />
+                                            <TextBlock Text="{Binding Loc[AdoptExternalContent]}" />
+                                        </StackPanel>
+                                    </Button>
                                 </StackPanel>
                                 <Border Classes="cfp-card">
                                     <StackPanel Spacing="12">

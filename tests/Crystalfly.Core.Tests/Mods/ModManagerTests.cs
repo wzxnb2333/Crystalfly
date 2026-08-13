@@ -650,4 +650,44 @@ public sealed class ModManagerTests : IDisposable
             Directory.Delete(_root, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task TakeOverAllExternal_adopts_every_external_mod_into_receipts()
+    {
+        var manager = CreateManager();
+        var modsRoot = Path.Combine(InstanceRoot, "hollow_knight_Data", "Managed", "Mods");
+        Directory.CreateDirectory(modsRoot);
+        await File.WriteAllTextAsync(Path.Combine(modsRoot, "Alpha.dll"), "alpha");
+        await File.WriteAllTextAsync(Path.Combine(modsRoot, "Beta.dll"), "beta");
+
+        var discovery = await manager.DiscoverAsync("modding-api-external");
+        var failures = await manager.TakeOverAllExternalAsync(discovery);
+
+        Assert.Empty(failures);
+        var installed = await manager.GetInstalledAsync();
+        Assert.Equal(2, installed.Count);
+        Assert.All(installed, receipt => Assert.Equal(ModOwnership.LocalTakenOver, receipt.Ownership));
+    }
+
+    [Fact]
+    public async Task TakeOverAllExternal_records_failures_without_aborting_the_batch()
+    {
+        var manager = CreateManager();
+        var modsRoot = Path.Combine(InstanceRoot, "hollow_knight_Data", "Managed", "Mods");
+        Directory.CreateDirectory(modsRoot);
+        await File.WriteAllTextAsync(Path.Combine(modsRoot, "Good.dll"), "good");
+        // A second external entry is discovered from the same directory but with a
+        // conflicting install root, so it fails while the first one is adopted.
+        await File.WriteAllTextAsync(Path.Combine(modsRoot, "Also.dll"), "also");
+
+        var discovery = await manager.DiscoverAsync("modding-api-external");
+        // Force one entry to fail by removing its file after discovery.
+        var victim = discovery.ExternalMods[1];
+        File.Delete(Path.Combine(InstanceRoot, victim.Files[0].Replace('/', Path.DirectorySeparatorChar)));
+        var failures = await manager.TakeOverAllExternalAsync(discovery);
+
+        Assert.NotEmpty(failures);
+        var installed = await manager.GetInstalledAsync();
+        Assert.Single(installed);
+    }
 }

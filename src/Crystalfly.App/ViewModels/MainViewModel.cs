@@ -56,6 +56,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly DpapiCredentialStore credentialStore;
     private Func<string, string, bool, Task<string?>>? guardCodePrompt;
     private Func<Task<bool?>>? deviceConfirmationPrompt;
+    private Func<string, string, string, Task<bool>>? externalContentConfirmPrompt;
+    private string? adoptPromptedForInstance;
     private readonly SemaphoreSlim settingsSaveLock = new(1, 1);
     private readonly SemaphoreSlim steamConnectionGate = new(1, 1);
     private readonly SemaphoreSlim runtimePatchesConfigurationSaveLock = new(1, 1);
@@ -725,6 +727,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         set => deviceConfirmationPrompt = value;
     }
 
+    public Func<string, string, string, Task<bool>>? ExternalContentConfirmPrompt
+    {
+        get => externalContentConfirmPrompt;
+        set => externalContentConfirmPrompt = value;
+    }
+
     [ObservableProperty]
     public partial DownloadBuildOption? SelectedDownloadBuild { get; set; }
 
@@ -884,6 +892,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial string LoaderVerificationStatus { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool CanAdoptExternalContent { get; set; }
+
+    [ObservableProperty]
+    public partial int ExternalModAdoptCount { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasInstance))]
@@ -3781,6 +3795,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 : loaderReceipt.IsVerified
                     ? "VerifiedCatalogLoader"
                     : "UnverifiedLocalLoader");
+            CanAdoptExternalContent = loaderReceipt is null
+                && loaderInspection.Ownership == LoaderOwnership.External
+                || discovery.Mods.Any(mod => mod.Ownership == ModOwnership.External);
+            ExternalModAdoptCount = discovery.Mods.Count(mod => mod.Ownership == ModOwnership.External);
             ModManagement.LoadInstalledMods(discovery.Mods, installed, modHealthReports, record);
             UpdateSelectedMarketInstallationState();
             Snapshots.Clear();
@@ -3810,6 +3828,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             SelectedLogFile = InstanceLogs.FirstOrDefault();
             LaunchPreflight = preflight;
+            if (generation == Volatile.Read(ref detailsLoadGeneration))
+            {
+                _ = PromptAdoptExternalContentAsync(record);
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -3833,6 +3855,134 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             or InvalidDataException
             or UnauthorizedAccessException
             or InvalidOperationException;
+
+    private async Task PromptAdoptExternalContentAsync(InstanceRecord record)
+    {
+        if (!CanAdoptExternalContent
+            || string.Equals(adoptPromptedForInstance, record.Id, StringComparison.Ordinal)
+            || externalContentConfirmPrompt is null)
+        {
+            return;
+        }
+        adoptPromptedForInstance = record.Id;
+        string message = ExternalModAdoptCount == 0
+            ? Loc["AdoptExternalContentMessageNoMods"]
+            : string.Format(
+                Loc["AdoptExternalContentMessage"],
+                ExternalModAdoptCount);
+        bool confirmed = await externalContentConfirmPrompt(
+            Loc["AdoptExternalContentTitle"],
+            message,
+            Loc["AdoptExternalContent"]);
+        if (confirmed)
+        {
+            await AdoptExternalContentCoreAsync(record);
+        }
+    }
+
+    [RelayCommand]
+    private async Task AdoptExternalContentAsync()
+    {
+        if (SelectedInstance?.Record is not { } record || !CanAdoptExternalContent)
+        {
+            return;
+        }
+        if (externalContentConfirmPrompt is not null)
+        {
+            string message = ExternalModAdoptCount == 0
+                ? Loc["AdoptExternalContentMessageNoMods"]
+                : string.Format(
+                    Loc["AdoptExternalContentMessage"],
+                    ExternalModAdoptCount);
+            bool confirmed = await externalContentConfirmPrompt(
+                Loc["AdoptExternalContentTitle"],
+                message,
+                Loc["AdoptExternalContent"]);
+            if (!confirmed)
+            {
+                return;
+            }
+        }
+        await AdoptExternalContentCoreAsync(record);
+    }
+
+    private async Task AdoptExternalContentCoreAsync(InstanceRecord record)
+    {
+        var loaderManager = CreateLoaderManager(record);
+        var modManager = CreateModManager(record);
+        var failures = new List<string>();
+        try
+        {
+            if (loaderManager.GetReceiptAsync(lifetimeCancellation.Token).GetAwaiter().GetResult() is null)
+            {
+                var inspection = await loaderManager.InspectAsync(lifetimeCancellation.Token);
+                if (inspection.Ownership == LoaderOwnership.External
+                    && (inspection.State is LoaderState.BepInEx or LoaderState.Drifted))
+                {
+                    try
+                    {
+                        await loaderManager.AdoptExternalAsync(lifetimeCancellation.Token);
+                    }
+                    catch (Exception exception) when (exception is IOException
+                        or InvalidDataException
+                        or InvalidOperationException
+                        or UnauthorizedAccessException)
+                    {
+                        failures.Add($"Loader: {exception.Message}");
+                    }
+                }
+            }
+
+            var discovery = await modManager.DiscoverAsync(
+                await GetLoaderIdForDiscoveryAsync(record, loaderManager),
+                lifetimeCancellation.Token);
+            if (discovery.ExternalMods.Count != 0)
+            {
+                failures.AddRange(await modManager.TakeOverAllExternalAsync(
+                    discovery, lifetimeCancellation.Token));
+            }
+        }
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or InvalidOperationException
+            or UnauthorizedAccessException)
+        {
+            failures.Add(exception.Message);
+        }
+
+        await RefreshAsync();
+        if (SelectedInstance?.Id != record.Id)
+        {
+            SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == record.Id)
+                ?? new InstanceItemViewModel(record, record.BuildId, record.BuildId, 0);
+        }
+        await LoadInstanceDetailsAsync(
+            record,
+            Interlocked.Increment(ref detailsLoadGeneration),
+            lifetimeCancellation.Token);
+        if (failures.Count == 0)
+        {
+            StatusMessage = Loc["AdoptExternalContentDone"];
+        }
+        else
+        {
+            ErrorMessage = Loc["AdoptExternalContentFailed"] + " " + string.Join("; ", failures);
+        }
+    }
+
+    private async Task<string> GetLoaderIdForDiscoveryAsync(
+        InstanceRecord record,
+        LoaderManager loaderManager)
+    {
+        var inspection = await loaderManager.InspectAsync(lifetimeCancellation.Token);
+        return inspection.PackageId
+            ?? inspection.State switch
+            {
+                LoaderState.BepInEx => "bepinex-external",
+                LoaderState.ModdingApi => "modding-api-external",
+                _ => inspection.State.ToString()
+            };
+    }
 
     private async Task RefreshAfterFailedMutationAsync(string instanceId, string operationError)
     {

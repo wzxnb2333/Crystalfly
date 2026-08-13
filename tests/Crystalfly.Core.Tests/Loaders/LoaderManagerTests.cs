@@ -554,4 +554,69 @@ public sealed class LoaderManagerTests : IDisposable
             });
         }
     }
+
+    [Fact]
+    public async Task AdoptExternal_adopts_an_external_bepinex_loader_without_modifying_files()
+    {
+        var manager = CreateManager();
+        var coreDir = Path.Combine(InstanceRoot, "BepInEx", "core");
+        Directory.CreateDirectory(coreDir);
+        File.Copy(typeof(LoaderManager).Assembly.Location, Path.Combine(coreDir, "BepInEx.dll"));
+        await File.WriteAllTextAsync(Path.Combine(InstanceRoot, "doorstop_config.ini"), "config");
+        var plugins = Path.Combine(InstanceRoot, "BepInEx", "plugins");
+        Directory.CreateDirectory(plugins);
+        await File.WriteAllTextAsync(Path.Combine(plugins, "Example.dll"), "mod");
+
+        var receipt = await manager.AdoptExternalAsync();
+
+        Assert.Equal(LoaderState.BepInEx, receipt.LoaderState);
+        Assert.False(receipt.IsVerified);
+        Assert.Contains(receipt.Files, file => file.RelativePath == "BepInEx/core/BepInEx.dll");
+        Assert.Contains(receipt.Files, file => file.RelativePath == "doorstop_config.ini");
+        Assert.Equal(LoaderState.BepInEx, await manager.GetStateAsync());
+        Assert.True(File.Exists(Path.Combine(coreDir, "BepInEx.dll")));
+    }
+
+    [Fact]
+    public async Task AdoptExternal_creates_a_modding_api_receipt_when_drifted_files_are_detected()
+    {
+        var manager = CreateManager();
+        var managed = Path.Combine(InstanceRoot, "hollow_knight_Data", "Managed");
+        Directory.CreateDirectory(managed);
+        await File.WriteAllTextAsync(
+            Path.Combine(managed, "MMHOOK_Assembly-CSharp.dll"),
+            "api");
+
+        var receipt = await manager.AdoptExternalAsync();
+
+        Assert.Equal(LoaderState.ModdingApi, receipt.LoaderState);
+        Assert.False(receipt.IsVerified);
+        Assert.Contains(receipt.Files, file =>
+            file.RelativePath == "hollow_knight_Data/Managed/MMHOOK_Assembly-CSharp.dll");
+        Assert.Equal(LoaderState.ModdingApi, await manager.GetStateAsync());
+    }
+
+    [Fact]
+    public async Task AdoptExternal_throws_when_a_receipt_already_exists()
+    {
+        var manager = CreateManager();
+        var coreDir = Path.Combine(InstanceRoot, "BepInEx", "core");
+        Directory.CreateDirectory(coreDir);
+        File.Copy(typeof(LoaderManager).Assembly.Location, Path.Combine(coreDir, "BepInEx.dll"));
+        await manager.AdoptExternalAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => manager.AdoptExternalAsync());
+    }
+
+    [Fact]
+    public async Task AdoptExternal_throws_when_the_loader_cannot_be_identified()
+    {
+        var manager = CreateManager();
+        var coreDir = Path.Combine(InstanceRoot, "BepInEx", "core");
+        Directory.CreateDirectory(coreDir);
+        // Non-assembly content means no version can be read, so the loader cannot be identified.
+        await File.WriteAllTextAsync(Path.Combine(coreDir, "BepInEx.dll"), "not-an-assembly");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => manager.AdoptExternalAsync());
+    }
 }

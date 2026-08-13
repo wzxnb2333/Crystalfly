@@ -438,6 +438,30 @@ public sealed class ModManager
         return receipt;
     }
 
+    public async Task<IReadOnlyList<string>> TakeOverAllExternalAsync(
+        ModDiscoveryResult discovery,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(discovery);
+        var failures = new List<string>();
+        foreach (var external in discovery.ExternalMods)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                await TakeOverAsync(external.Id, external, cancellationToken);
+            }
+            catch (Exception exception) when (exception is IOException
+                or InvalidDataException
+                or InvalidOperationException
+                or UnauthorizedAccessException)
+            {
+                failures.Add($"{external.Name}: {exception.Message}");
+            }
+        }
+        return failures;
+    }
+
     public async Task<InstalledModReceipt> SetPinnedAsync(
         string id,
         bool pinned,

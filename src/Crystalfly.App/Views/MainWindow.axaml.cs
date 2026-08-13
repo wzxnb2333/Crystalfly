@@ -113,6 +113,8 @@ public partial class MainWindow : Window
         {
             viewModel.GuardCodePrompt = PromptForSteamGuardCodeAsync;
             viewModel.DeviceConfirmationPrompt = PromptForSteamDeviceConfirmationAsync;
+            viewModel.ExternalContentConfirmPrompt = (title, message, confirmText) =>
+                ShowConfirmationAsync(title, message, string.Empty, viewModel, confirmText: confirmText);
             var initialized = false;
             try
             {
