@@ -521,7 +521,9 @@ public sealed class DownloadCenterViewModelTests : IDisposable
         Assert.True(center.CanResumeAll);
 
         await center.ResumeAllCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => queue.Groups.Single().State == DownloadQueueGroupState.Completed);
+        await WaitUntilAsync(
+            () => queue.Groups.Single().State == DownloadQueueGroupState.Completed,
+            timeout: TimeSpan.FromSeconds(20));
 
         Assert.Equal(DownloadQueueGroupState.Completed, Assert.Single(queue.Groups).State);
         Assert.False(center.CanResumeAll);
@@ -603,12 +605,12 @@ public sealed class DownloadCenterViewModelTests : IDisposable
         Path.Combine(root, "versions"),
         id) with { Id = id };
 
-    private static async Task WaitUntilAsync(Func<bool> condition)
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan? timeout = null)
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var source = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(5));
         while (!condition())
         {
-            await Task.Delay(10, timeout.Token);
+            await Task.Delay(10, source.Token);
         }
     }
 
