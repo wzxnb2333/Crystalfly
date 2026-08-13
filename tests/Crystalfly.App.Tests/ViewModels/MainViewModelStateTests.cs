@@ -1031,6 +1031,107 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Adopted_external_mod_auto_matches_a_single_catalog_candidate()
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        var modsRoot = Path.Combine(instanceRoot, "hollow_knight_Data", "Managed", "Mods");
+        Directory.CreateDirectory(modsRoot);
+        await File.WriteAllTextAsync(Path.Combine(modsRoot, "DebugMod.dll"), "debug");
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        var versionRoot = test.CreateDirectory("versions");
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot,
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Vanilla", 1)
+        };
+        SetPrivateField(viewModel, "catalog", CatalogWithDebugMod());
+        viewModel.ExternalContentConfirmPrompt = (_, _, _) => Task.FromResult(true);
+
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+        await WaitUntilAsync(() => LoadedReceiptCount(versionRoot, record) == 1);
+
+        string id = (await LoadedReceiptIdsAsync(versionRoot, record)).Single();
+        Assert.Equal("debugmod-test", id);
+    }
+
+    [Fact]
+    public async Task Adopted_external_mod_prompts_when_multiple_catalog_candidates_match()
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        var modsRoot = Path.Combine(instanceRoot, "hollow_knight_Data", "Managed", "Mods");
+        Directory.CreateDirectory(modsRoot);
+        await File.WriteAllTextAsync(Path.Combine(modsRoot, "DebugMod.dll"), "debug");
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        var versionRoot = test.CreateDirectory("versions");
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot,
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Vanilla", 1)
+        };
+        var catalog = CatalogWithDebugMod();
+        catalog = catalog with { Mods = catalog.Mods.Concat(new[] { DebugModManifest("debugmod-alt") }).ToArray() };
+        SetPrivateField(viewModel, "catalog", catalog);
+        viewModel.ExternalContentConfirmPrompt = (_, _, _) => Task.FromResult(true);
+        var prompted = false;
+        viewModel.CatalogMatchPrompt = (candidates, _) =>
+        {
+            prompted = true;
+            return Task.FromResult(candidates.FirstOrDefault(candidate => candidate.Id == "debugmod-test"));
+        };
+
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+        await WaitUntilAsync(() => prompted);
+
+        string id = (await LoadedReceiptIdsAsync(versionRoot, record)).Single();
+        Assert.Equal("debugmod-test", id);
+    }
+    private static async Task<IReadOnlyList<string>> LoadedReceiptIdsAsync(
+        string versionRoot,
+        InstanceRecord record)
+    {
+        var root = Path.Combine(versionRoot, ".crystalfly", "instances", record.Id, "mods");
+        if (!Directory.Exists(root))
+        {
+            return [];
+        }
+        var ids = new List<string>();
+        foreach (var path in Directory.EnumerateFiles(root, "*.json", SearchOption.TopDirectoryOnly))
+        {
+            var receipt = await AtomicJsonStore.ReadAsync<Crystalfly.Core.Models.InstalledModReceipt>(
+                path, CancellationToken.None);
+            ids.Add(receipt.Id);
+        }
+        return ids;
+    }
+
+    private static int LoadedReceiptCount(string versionRoot, InstanceRecord record)
+    {
+        var root = Path.Combine(versionRoot, ".crystalfly", "instances", record.Id, "mods");
+        return Directory.Exists(root)
+            ? Directory.EnumerateFiles(root, "*.json", SearchOption.TopDirectoryOnly).Count()
+            : 0;
+    }
+
+    private static GameCatalog CatalogWithDebugMod() => new()
+    {
+        Mods = [DebugModManifest("debugmod-test")]
+    };
+
+    private static ModManifest DebugModManifest(string id) => new()
+    {
+        Id = id,
+        Name = "DebugMod",
+        Version = "1.5.78",
+        DownloadUrl = "https://example.invalid/mod.zip",
+        Sha256 = new string('A', 64),
+        LoaderId = "modding-api-77",
+        SupportedBuildIds = ["1.5.78.11833"],
+        FlatFiles = ["DebugMod.dll"]
+    };
+
+    [Fact]
     public async Task External_loader_conflict_without_receipt_shows_conflict_reason()
     {
         using var test = new TestDirectory();

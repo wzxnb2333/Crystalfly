@@ -438,6 +438,48 @@ public sealed class ModManager
         return receipt;
     }
 
+    public async Task<InstalledModReceipt> RelinkReceiptToCatalogAsync(
+        string id,
+        ModManifest manifest,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentNullException.ThrowIfNull(manifest);
+        ArgumentException.ThrowIfNullOrWhiteSpace(manifest.Id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(manifest.Version);
+
+        var installed = await GetInstalledAsync(cancellationToken);
+        var current = Find(installed, id);
+        if (current.Ownership != ModOwnership.LocalTakenOver)
+        {
+            throw new InvalidOperationException("Only a locally taken-over mod can be linked to the catalog.");
+        }
+        if (installed.Any(receipt =>
+                !string.Equals(receipt.Id, id, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(receipt.Id, manifest.Id, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException(
+                $"Catalog mod '{manifest.Id}' already has a receipt in this instance.");
+        }
+
+        var relinked = current with
+        {
+            Id = manifest.Id,
+            Name = manifest.Name,
+            Version = manifest.Version,
+            LoaderId = manifest.LoaderId,
+            Dependencies = manifest.Dependencies
+        };
+        var oldPath = ReceiptPath(id);
+        var newPath = ReceiptPath(relinked.Id);
+        if (!string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
+        {
+            File.Delete(oldPath);
+        }
+        await AtomicJsonStore.WriteAsync(newPath, relinked, cancellationToken);
+        return relinked;
+    }
+
     public async Task<IReadOnlyList<string>> TakeOverAllExternalAsync(
         ModDiscoveryResult discovery,
         CancellationToken cancellationToken = default)

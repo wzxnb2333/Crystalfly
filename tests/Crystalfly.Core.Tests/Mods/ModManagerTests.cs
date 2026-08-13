@@ -690,4 +690,96 @@ public sealed class ModManagerTests : IDisposable
         var installed = await manager.GetInstalledAsync();
         Assert.Single(installed);
     }
+
+    [Fact]
+    public async Task RelinkReceiptToCatalog_updates_id_version_and_dependencies()
+    {
+        var manager = CreateManager();
+        var modsRoot = Path.Combine(InstanceRoot, "hollow_knight_Data", "Managed", "Mods");
+        Directory.CreateDirectory(modsRoot);
+        await File.WriteAllTextAsync(Path.Combine(modsRoot, "DebugMod.dll"), "mod");
+        var discovery = await manager.DiscoverAsync("modding-api-external");
+        await manager.TakeOverAllExternalAsync(discovery);
+        var taken = (await manager.GetInstalledAsync()).Single();
+        var manifest = new ModManifest
+        {
+            Id = "debugmod-1",
+            Name = "DebugMod",
+            Version = "1.4.0",
+            DownloadUrl = "https://example.invalid/mod.zip",
+            Sha256 = new string('A', 64),
+            LoaderId = "modding-api-77",
+            SupportedBuildIds = ["1.5.78.11833"],
+            Dependencies = ["dependency-mod"]
+        };
+
+        var relinked = await manager.RelinkReceiptToCatalogAsync(taken.Id, manifest);
+
+        Assert.Equal("debugmod-1", relinked.Id);
+        Assert.Equal("DebugMod", relinked.Name);
+        Assert.Equal("1.4.0", relinked.Version);
+        Assert.Equal(["dependency-mod"], relinked.Dependencies);
+        Assert.Equal(ModOwnership.LocalTakenOver, relinked.Ownership);
+        Assert.Single(relinked.Files);
+        // The file hash is unchanged by relinking.
+        var stored = (await manager.GetInstalledAsync()).Single();
+        Assert.Equal(taken.Files[0].Sha256, stored.Files[0].Sha256);
+    }
+
+    [Fact]
+    public async Task RelinkReceiptToCatalog_rejects_a_managed_receipt()
+    {
+        var manager = CreateManager();
+        var package = CreateZip(("mod.dll", "mod"));
+        var manifest = Manifest("test-mod", "Test Mod", "modding-api-77", package);
+        await manager.InstallFromFileAsync(manifest, package);
+
+        var installed = (await manager.GetInstalledAsync()).Single();
+        var catalogManifest = new ModManifest
+        {
+            Id = "test-mod",
+            Name = "Test Mod",
+            Version = "1.0.0",
+            DownloadUrl = "https://example.invalid/mod.zip",
+            Sha256 = new string('B', 64),
+            LoaderId = "modding-api-77",
+            SupportedBuildIds = ["1.5.78.11833"]
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            manager.RelinkReceiptToCatalogAsync(installed.Id, catalogManifest));
+    }
+
+    [Fact]
+    public async Task RelinkReceiptToCatalog_rejects_a_conflicting_catalog_id()
+    {
+        var manager = CreateManager();
+        var modsRoot = Path.Combine(InstanceRoot, "hollow_knight_Data", "Managed", "Mods");
+        Directory.CreateDirectory(modsRoot);
+        await File.WriteAllTextAsync(Path.Combine(modsRoot, "Alpha.dll"), "alpha");
+        await File.WriteAllTextAsync(Path.Combine(modsRoot, "Beta.dll"), "beta");
+        var discovery = await manager.DiscoverAsync("modding-api-external");
+        await manager.TakeOverAllExternalAsync(discovery);
+        var installed = await manager.GetInstalledAsync();
+        Assert.Equal(2, installed.Count);
+        var first = installed[0];
+        var second = installed[1];
+
+        // Relink the first mod to a catalog id, then try to relink the second mod to
+        // the same catalog id.
+        var manifest = new ModManifest
+        {
+            Id = "shared-id",
+            Name = "Shared",
+            Version = "1.0.0",
+            DownloadUrl = "https://example.invalid/mod.zip",
+            Sha256 = new string('C', 64),
+            LoaderId = "modding-api-77",
+            SupportedBuildIds = ["1.5.78.11833"]
+        };
+        await manager.RelinkReceiptToCatalogAsync(first.Id, manifest);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            manager.RelinkReceiptToCatalogAsync(second.Id, manifest));
+    }
 }

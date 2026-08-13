@@ -115,6 +115,7 @@ public partial class MainWindow : Window
             viewModel.DeviceConfirmationPrompt = PromptForSteamDeviceConfirmationAsync;
             viewModel.ExternalContentConfirmPrompt = (title, message, confirmText) =>
                 ShowConfirmationAsync(title, message, string.Empty, viewModel, confirmText: confirmText);
+            viewModel.CatalogMatchPrompt = ShowModCatalogMatchDialogAsync;
             var initialized = false;
             try
             {
@@ -619,6 +620,29 @@ public partial class MainWindow : Window
             SteamDeviceConfirmationDialogView,
             SteamDeviceConfirmationDialogViewModel,
             bool?>(
+            dialogViewModel,
+            OverlayHostId,
+            CreateOverlayOptions());
+    }
+
+    internal async Task<ModManifest?> ShowModCatalogMatchDialogAsync(
+        IReadOnlyList<ModManifest> candidates,
+        string modName)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return null;
+        }
+        var dialogViewModel = new ModCatalogMatchDialogViewModel(
+            viewModel.Loc["MatchToCatalogTitle"],
+            string.Format(viewModel.Loc["MatchToCatalogMessage"], modName),
+            candidates,
+            viewModel.Loc["MatchToCatalog"],
+            viewModel.Loc["Cancel"]);
+        return await OverlayDialog.ShowCustomAsync<
+            ModCatalogMatchDialogView,
+            ModCatalogMatchDialogViewModel,
+            ModManifest?>(
             dialogViewModel,
             OverlayHostId,
             CreateOverlayOptions());

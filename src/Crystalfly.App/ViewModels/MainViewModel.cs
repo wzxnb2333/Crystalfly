@@ -57,6 +57,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private Func<string, string, bool, Task<string?>>? guardCodePrompt;
     private Func<Task<bool?>>? deviceConfirmationPrompt;
     private Func<string, string, string, Task<bool>>? externalContentConfirmPrompt;
+    private Func<IReadOnlyList<ModManifest>, string, Task<ModManifest?>>? catalogMatchPrompt;
     private string? adoptPromptedForInstance;
     private readonly SemaphoreSlim settingsSaveLock = new(1, 1);
     private readonly SemaphoreSlim steamConnectionGate = new(1, 1);
@@ -731,6 +732,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         get => externalContentConfirmPrompt;
         set => externalContentConfirmPrompt = value;
+    }
+
+    public Func<IReadOnlyList<ModManifest>, string, Task<ModManifest?>>? CatalogMatchPrompt
+    {
+        get => catalogMatchPrompt;
+        set => catalogMatchPrompt = value;
     }
 
     [ObservableProperty]
@@ -3940,6 +3947,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             {
                 failures.AddRange(await modManager.TakeOverAllExternalAsync(
                     discovery, lifetimeCancellation.Token));
+                failures.AddRange(await MatchTakenOverModsToCatalogAsync(
+                    record, modManager, lifetimeCancellation.Token));
             }
         }
         catch (Exception exception) when (exception is IOException
@@ -3975,13 +3984,128 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         LoaderManager loaderManager)
     {
         var inspection = await loaderManager.InspectAsync(lifetimeCancellation.Token);
-        return inspection.PackageId
-            ?? inspection.State switch
+        return inspection.PackageId ?? inspection.State switch
             {
                 LoaderState.BepInEx => "bepinex-external",
                 LoaderState.ModdingApi => "modding-api-external",
                 _ => inspection.State.ToString()
             };
+    }
+
+    private async Task<IReadOnlyList<string>> MatchTakenOverModsToCatalogAsync(
+        InstanceRecord record,
+        ModManager modManager,
+        CancellationToken cancellationToken)
+    {
+        var failures = new List<string>();
+        var installed = await modManager.GetInstalledAsync(cancellationToken);
+        var projectedCatalog = ModCatalogCompatibility.ProjectForBuild(catalog, record.BuildId);
+        foreach (var receipt in installed.Where(receipt =>
+                     receipt.Ownership == ModOwnership.LocalTakenOver
+                     && receipt.Dependencies.Count == 0))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ModDiscoveryEntry external = new()
+            {
+                Id = receipt.Id,
+                Name = receipt.Name,
+                LoaderId = receipt.LoaderId,
+                InstallRoot = receipt.InstallRoot,
+                Enabled = receipt.Enabled,
+                Ownership = ModOwnership.LocalTakenOver,
+                Files = receipt.Files.Select(file => file.RelativePath).ToArray(),
+                EntryFiles = receipt.EntryFiles
+            };
+            var candidates = ModCatalogMatcher.Match(external, record.BuildId, projectedCatalog.Mods);
+            ModManifest? selected = candidates.Count == 1
+                ? candidates[0]
+                : candidates.Count > 1 && catalogMatchPrompt is not null
+                    ? await catalogMatchPrompt(candidates, receipt.Name)
+                    : null;
+            if (selected is null)
+            {
+                continue;
+            }
+            try
+            {
+                await modManager.RelinkReceiptToCatalogAsync(receipt.Id, selected, lifetimeCancellation.Token);
+            }
+            catch (Exception exception) when (exception is IOException
+                or InvalidDataException
+                or InvalidOperationException
+                or UnauthorizedAccessException)
+            {
+                failures.Add($"{receipt.Name}: {exception.Message}");
+            }
+        }
+        return failures;
+    }
+
+    [RelayCommand]
+    private async Task MatchSelectedModToCatalogAsync()
+    {
+        if (SelectedInstance?.Record is not { } record
+            || ModManagement.SelectedInstalledMod is not { } selected)
+        {
+            return;
+        }
+        var modManager = CreateModManager(record);
+        var installed = await modManager.GetInstalledAsync(lifetimeCancellation.Token);
+        var receipt = installed.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, selected.Receipt?.Id, StringComparison.OrdinalIgnoreCase));
+        if (receipt is null || receipt.Ownership != ModOwnership.LocalTakenOver)
+        {
+            return;
+        }
+        var projectedCatalog = ModCatalogCompatibility.ProjectForBuild(catalog, record.BuildId);
+        ModDiscoveryEntry external = new()
+        {
+            Id = receipt.Id,
+            Name = receipt.Name,
+            LoaderId = receipt.LoaderId,
+            InstallRoot = receipt.InstallRoot,
+            Enabled = receipt.Enabled,
+            Ownership = ModOwnership.LocalTakenOver,
+            Files = receipt.Files.Select(file => file.RelativePath).ToArray(),
+            EntryFiles = receipt.EntryFiles
+        };
+        var candidates = ModCatalogMatcher.Match(external, record.BuildId, projectedCatalog.Mods);
+        if (candidates.Count == 0)
+        {
+            ErrorMessage = Loc["MatchToCatalogNoMatch"];
+            return;
+        }
+        ModManifest? selectedManifest = candidates.Count == 1
+            ? candidates[0]
+            : catalogMatchPrompt is not null
+                ? await catalogMatchPrompt(candidates, receipt.Name)
+                : null;
+        if (selectedManifest is null)
+        {
+            return;
+        }
+        try
+        {
+            await modManager.RelinkReceiptToCatalogAsync(receipt.Id, selectedManifest, lifetimeCancellation.Token);
+            await RefreshAsync();
+            if (SelectedInstance?.Id != record.Id)
+            {
+                SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == record.Id)
+                    ?? new InstanceItemViewModel(record, record.BuildId, record.BuildId, 0);
+            }
+            await LoadInstanceDetailsAsync(
+                record,
+                Interlocked.Increment(ref detailsLoadGeneration),
+                lifetimeCancellation.Token);
+            StatusMessage = Loc["MatchToCatalogDone"];
+        }
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or InvalidOperationException
+            or UnauthorizedAccessException)
+        {
+            ErrorMessage = Loc["MatchToCatalogFailed"] + " " + exception.Message;
+        }
     }
 
     private async Task RefreshAfterFailedMutationAsync(string instanceId, string operationError)
