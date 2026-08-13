@@ -22,3 +22,6 @@ node_modules/
 portable.flag
 .superpowers/
 .qoder/
+.claude/
+.mimosa/
+.zcode/
