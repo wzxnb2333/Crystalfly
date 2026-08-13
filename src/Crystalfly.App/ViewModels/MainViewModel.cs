@@ -740,6 +740,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         set => catalogMatchPrompt = value;
     }
 
+    public event Action? OnboardingRequested;
+
     [ObservableProperty]
     public partial DownloadBuildOption? SelectedDownloadBuild { get; set; }
 
@@ -1095,6 +1097,26 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         await Task.WhenAll(refreshTask, downloadQueueTask);
         _ = StartSpeedrunActivityRefreshLoop();
         await Instances.CompleteGameDirectoryInitializationAsync();
+        if (!settings.OnboardingCompleted)
+        {
+            OnboardingRequested?.Invoke();
+        }
+    }
+
+    public void CompleteOnboarding()
+    {
+        if (settings.OnboardingCompleted)
+        {
+            return;
+        }
+        settings = settings with { OnboardingCompleted = true };
+        _ = QueueSettingsSave();
+    }
+
+    [RelayCommand]
+    private void ShowOnboarding()
+    {
+        OnboardingRequested?.Invoke();
     }
 
     [ObservableProperty]

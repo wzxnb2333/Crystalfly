@@ -51,6 +51,7 @@ public partial class MainWindow : Window
     private Action<string>? toastRequestedHandler;
     private Action? graphModRemovalRequestedHandler;
     private Action? gameDirectoryDiscoveryRequestedHandler;
+    private Action? onboardingRequestedHandler;
     private Action<GameDirectoryCandidateItemViewModel>? steamDirectoryRiskRequestedHandler;
     private MainViewModel? toastViewModel;
     private bool externalCommandReady;
@@ -380,6 +381,10 @@ public partial class MainWindow : Window
             {
                 toastViewModel.Instances.GameDirectoryDiscoveryRequested -= gameDirectoryDiscoveryRequestedHandler;
             }
+            if (onboardingRequestedHandler is not null)
+            {
+                toastViewModel.OnboardingRequested -= onboardingRequestedHandler;
+            }
             if (steamDirectoryRiskRequestedHandler is not null)
             {
                 toastViewModel.Instances.SteamDirectoryRiskRequested -= steamDirectoryRiskRequestedHandler;
@@ -388,6 +393,7 @@ public partial class MainWindow : Window
 
         toastRequestedHandler = null;
         gameDirectoryDiscoveryRequestedHandler = null;
+        onboardingRequestedHandler = null;
         steamDirectoryRiskRequestedHandler = null;
         graphModRemovalRequestedHandler = null;
         toastViewModel = DataContext as MainViewModel;
@@ -397,11 +403,13 @@ public partial class MainWindow : Window
             toastRequestedHandler = message => ShowToast(owner, message, NotificationType.Success);
             graphModRemovalRequestedHandler = () => _ = ConfirmGraphModRemovalAsync(owner);
             gameDirectoryDiscoveryRequestedHandler = () => _ = ShowGameDirectoryDiscoveryAsync(owner);
+            onboardingRequestedHandler = () => _ = ShowOnboardingAsync();
             steamDirectoryRiskRequestedHandler = candidate => _ = ShowSteamDirectoryRiskAsync(owner, candidate);
             toastViewModel.ToastRequested += toastRequestedHandler;
             toastViewModel.PropertyChanged += OnToastViewModelPropertyChanged;
             toastViewModel.GraphModRemovalRequested += graphModRemovalRequestedHandler;
             toastViewModel.Instances.GameDirectoryDiscoveryRequested += gameDirectoryDiscoveryRequestedHandler;
+            toastViewModel.OnboardingRequested += onboardingRequestedHandler;
             toastViewModel.Instances.SteamDirectoryRiskRequested += steamDirectoryRiskRequestedHandler;
         }
     }

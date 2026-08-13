@@ -61,6 +61,25 @@ public partial class MainWindow
         }
     }
 
+    private async Task ShowOnboardingAsync()
+    {
+        // Let the first-run game-directory discovery dialog show first so the
+        // two overlays never stack on startup.
+        await Task.Delay(500);
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+        var dialog = new OnboardingDialogViewModel(key => viewModel.Loc[key]);
+        bool completed = await OverlayDialog.ShowCustomAsync<OnboardingDialogView,
+            OnboardingDialogViewModel, bool>(
+            dialog, OverlayHostId, CreateOverlayOptions());
+        if (completed)
+        {
+            viewModel.CompleteOnboarding();
+        }
+    }
+
     private async Task ShowSteamDirectoryRiskAsync(MainViewModel viewModel, GameDirectoryCandidateItemViewModel candidate)
     {
         var dialog = new ThreeChoiceDialogViewModel(

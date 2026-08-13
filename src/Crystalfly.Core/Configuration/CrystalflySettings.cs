@@ -114,6 +114,8 @@ public sealed record CrystalflySettings
 
     public bool GameDirectoryDiscoveryCompleted { get; init; }
 
+    public bool OnboardingCompleted { get; init; }
+
     public string? CurrentInstanceId { get; init; }
     public IReadOnlyList<string> FavoriteInstanceIds { get; init; } = [];
 

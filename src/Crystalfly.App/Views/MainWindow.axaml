@@ -2737,6 +2737,12 @@
                                 <Border Classes="cfp-card">
                                     <StackPanel Spacing="16">
                                         <StackPanel Spacing="4"><TextBlock Classes="cfp-section-title" Text="{Binding Loc[AboutTitle]}" /><TextBlock Classes="cfp-meta" Text="{Binding Loc[AboutDescription]}" TextWrapping="Wrap" /></StackPanel>
+                                        <Button Classes="cfp-link" HorizontalAlignment="Left" MinHeight="36" Command="{Binding ShowOnboardingCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <LucideIcon Kind="GraduationCap" Size="14" />
+                                                <TextBlock Text="{Binding Loc[OnboardingReopen]}" />
+                                            </StackPanel>
+                                        </Button>
                                         <Grid ColumnDefinitions="160,*" ColumnSpacing="12"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[AboutContributors]}" /><TextBlock Grid.Column="1" Text="{Binding Loc[AboutContributorValue]}" TextWrapping="Wrap" /></Grid>
                                         <Grid ColumnDefinitions="160,*" ColumnSpacing="12"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[ProjectRepository]}" /><Button Grid.Column="1" Classes="cfp-link" Tag="https://github.com/wzxnb2333/Crystalfly" Click="OpenExternalUrl" AutomationProperties.Name="{Binding Loc[ProjectRepository]}"><TextBlock Text="https://github.com/wzxnb2333/Crystalfly" TextWrapping="Wrap" /></Button></Grid>
                                         <Grid ColumnDefinitions="160,*" ColumnSpacing="12"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[OpenSourceLicense]}" /><TextBlock Grid.Column="1" Text="{Binding Loc[LicenseName]}" TextWrapping="Wrap" /></Grid>

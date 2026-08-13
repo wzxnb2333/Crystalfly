@@ -24,6 +24,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         Assert.False(defaults.OfflineMode);
         Assert.Empty(defaults.GameDirectories);
         Assert.False(defaults.GameDirectoryDiscoveryCompleted);
+        Assert.False(defaults.OnboardingCompleted);
         Assert.Empty(defaults.FavoriteInstanceIds);
 
         var expected = defaults with
@@ -51,6 +52,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
                 }
             ],
             GameDirectoryDiscoveryCompleted = true,
+            OnboardingCompleted = true,
             FavoriteInstanceIds = ["practice-1578", "latest"],
             ModHealthAcknowledgements =
             [
@@ -122,6 +124,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         Assert.Equal("HK versions", registration.DisplayName);
         Assert.Equal(GameDirectorySourceKind.Managed, registration.Source);
         Assert.True(settings.GameDirectoryDiscoveryCompleted);
+        Assert.False(settings.OnboardingCompleted);
     }
 
     [Fact]
