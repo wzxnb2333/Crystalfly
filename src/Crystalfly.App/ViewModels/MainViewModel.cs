@@ -3801,6 +3801,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 return;
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             CurrentLoaderState = loaderState;
             currentLoaderInspection = loaderInspection;
             var orphanedLoaderIds = loaderReceipt is null && loaderState == LoaderState.Drifted

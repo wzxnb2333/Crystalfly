@@ -352,7 +352,7 @@ public sealed class MainViewModelStateTests : IDisposable
         viewModel.SelectedTheme = new(UiTheme.Dark, "Dark");
         viewModel.SelectedMotionPreference = new(UiMotionPreference.Off, "Off");
         viewModel.SetAccentColor("#BE185D");
-        viewModel.SelectedGitHubRoute = new(GitHubDownloadRoute.Mirror, "GitHub mirror");
+        viewModel.SelectedGitHubRoute = new(GitHubDownloadRoute.Mirror, "gh-proxy.com");
         viewModel.SelectedInstance = new(
             Instance("practice", instanceRoot),
             "1.5.78.11833",
@@ -871,7 +871,7 @@ public sealed class MainViewModelStateTests : IDisposable
                         GitHubRouteLatencyStatus.Timeout,
                         null)));
             });
-        viewModel.SelectedGitHubRoute = new(GitHubDownloadRoute.Mirror, "GitHub mirror");
+        viewModel.SelectedGitHubRoute = new(GitHubDownloadRoute.Mirror, "gh-proxy.com");
 
         await viewModel.TestGitHubLatencyCommand.ExecuteAsync(null);
 
@@ -1082,7 +1082,8 @@ public sealed class MainViewModelStateTests : IDisposable
         viewModel.ExternalContentConfirmPrompt = (_, _, _) => Task.FromResult(true);
 
         await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
-        await WaitUntilAsync(() => LoadedReceiptCount(versionRoot, record) == 1);
+        await WaitUntilAsync(async () =>
+            (await LoadedReceiptIdsAsync(versionRoot, record)).SingleOrDefault() == "debugmod-test");
 
         string id = (await LoadedReceiptIdsAsync(versionRoot, record)).Single();
         Assert.Equal("debugmod-test", id);
@@ -1115,8 +1116,10 @@ public sealed class MainViewModelStateTests : IDisposable
         };
 
         await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
-        await WaitUntilAsync(() => prompted);
+        await WaitUntilAsync(async () =>
+            (await LoadedReceiptIdsAsync(versionRoot, record)).SingleOrDefault() == "debugmod-test");
 
+        Assert.True(prompted);
         string id = (await LoadedReceiptIdsAsync(versionRoot, record)).Single();
         Assert.Equal("debugmod-test", id);
     }
@@ -3024,7 +3027,7 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Contains(viewModel.LanguageOptions, option => option.Name == "Simplified Chinese");
         Assert.Contains(viewModel.Settings.ThemeOptions, option => option.Name == "Dark");
         Assert.Contains(viewModel.Settings.MotionOptions, option => option.Name == "Follow system");
-        Assert.Contains(viewModel.Settings.GitHubRouteOptions, option => option.Name == "GitHub mirror");
+        Assert.Contains(viewModel.Settings.GitHubRouteOptions, option => option.Name == "gh-proxy.com");
         Assert.Equal(
             [
                 GitHubDownloadRoute.Auto,
@@ -3673,6 +3676,15 @@ public sealed class MainViewModelStateTests : IDisposable
         }
     }
 
+    private static async Task WaitUntilAsync(Func<Task<bool>> predicate)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (!await predicate())
+        {
+            await Task.Delay(10, timeout.Token);
+        }
+    }
+
     private static LoaderManifest LoaderManifestFor(string id, string packagePath) => new()
     {
         Id = id,
@@ -3703,16 +3715,28 @@ public sealed class MainViewModelStateTests : IDisposable
         CreatedAt = DateTimeOffset.UtcNow
     };
 
-    private static Task InvokeLoadInstanceDetailsAsync(
+    private static async Task InvokeLoadInstanceDetailsAsync(
         MainViewModel viewModel,
         InstanceRecord record,
         long generation = 0)
     {
+        // A SelectedInstance assignment starts its own detail load asynchronously.
+        // Await that task first so a manual invocation never races the same
+        // non-thread-safe InstalledMods collection with it.
+        if (typeof(MainViewModel).GetField(
+                "detailsLoadTask",
+                BindingFlags.Instance | BindingFlags.NonPublic) is { } taskField
+            && taskField.GetValue(viewModel) is Task current
+            && !current.IsCompleted)
+        {
+            await current;
+        }
+
         var method = typeof(MainViewModel).GetMethod(
             "LoadInstanceDetailsAsync",
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(method);
-        return Assert.IsAssignableFrom<Task>(method.Invoke(
+        await Assert.IsAssignableFrom<Task>(method.Invoke(
             viewModel,
             [record, generation, CancellationToken.None]));
     }
