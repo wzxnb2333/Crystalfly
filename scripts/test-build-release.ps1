@@ -31,21 +31,28 @@ $root = Split-Path -Parent $PSScriptRoot
 $buildProps = Get-Content -Raw -LiteralPath (Join-Path $root 'Directory.Build.props')
 $installerSource = Get-Content -Raw -LiteralPath (Join-Path $root 'installer\Crystalfly.iss')
 $readme = Get-Content -Raw -LiteralPath (Join-Path $root 'README.md')
+$englishReadme = Get-Content -Raw -LiteralPath (Join-Path $root 'README.en.md')
+$ciWorkflow = Get-Content -Raw -LiteralPath (Join-Path $root '.github\workflows\ci.yml')
 $absoluteIsccPathPattern = '(?i)-IsccPath\s+[''"]?[A-Z]:[\\/]'
 if ($source -notmatch "\[ValidateSet\('win-x64'\)\]") {
     throw 'Runtime must be restricted to win-x64 before release paths are constructed.'
 }
-if ($source -notmatch '(?m)\[string\]\$Version\s*=\s*''0\.9\.1''') {
-    throw 'Release build must default to version 0.9.1.'
+if ($source -notmatch '(?m)\[string\]\$Version\s*=\s*''1\.1\.1''') {
+    throw 'Release build must default to version 1.1.1.'
 }
-if ($buildProps -notmatch '(?m)<Version>0\.9\.1</Version>') {
-    throw 'Project version must be 0.9.1.'
+if ($buildProps -notmatch '(?m)<Version>1\.1\.1</Version>') {
+    throw 'Project version must be 1.1.1.'
 }
 if ($source -notmatch '\[switch\]\$UnsignedLocal' -or $source -notmatch '(?ms)if \(-not \$UnsignedLocal\).*?Signed update manifest') {
     throw 'Unsigned local builds must skip signing only behind an explicit switch.'
 }
 if ($source -notmatch '(?m)-p:CopyOutputSymbolsToPublishDirectory=false') {
     throw 'Release publish must exclude debug symbols from the publish directory.'
+}
+foreach ($testCommand in $source, $ciWorkflow) {
+    if ($testCommand -notmatch '(?ms)dotnet test .*?--blame-hang .*?--blame-hang-timeout 3m') {
+        throw 'Full test runs must collect diagnostics and stop after a three-minute hang.'
+    }
 }
 foreach ($updatePipelinePattern in @(
     'Crystalfly\.Updater\.csproj',
@@ -97,20 +104,24 @@ if ('-IsccPath "Z:/Tools/Inno Setup 6/ISCC.exe"' -notmatch $absoluteIsccPathPatt
 if ($readme -match $absoluteIsccPathPattern) {
     throw 'README must not hard-code a machine-specific Inno Setup path.'
 }
-$releaseCommandPattern = '(?i)build-release\.ps1[''"`\s\\\r\n]+-Version\s+[''"]0\.9\.1[''"]'
+$releaseCommandPattern = '(?i)build-release\.ps1[''"`\s\\\r\n]+-Version\s+[''"]1\.1\.1[''"]'
 if ($readme -notmatch $releaseCommandPattern) {
-    throw 'README must pin local release builds to version 0.9.1.'
+    throw 'README must pin local release builds to version 1.1.1.'
 }
-$englishReadme = [regex]::Match($readme, '(?ms)^## English\s*(?<content>.*)$').Groups['content'].Value
 foreach ($requiredDocumentation in @(
     '永久删除实例',
     '依赖影响树',
-    '测试延迟',
-    'permanently delete an instance',
-    'dependency-impact tree',
-    'test each route latency')) {
+    '测试延迟')) {
     if ($readme -notmatch [regex]::Escape($requiredDocumentation)) {
         throw "README must document: $requiredDocumentation"
+    }
+}
+foreach ($requiredDocumentation in @(
+    'permanently delete an instance',
+    'dependency-impact tree',
+    'testing each route latency')) {
+    if ($englishReadme -notmatch [regex]::Escape($requiredDocumentation)) {
+        throw "English README must document: $requiredDocumentation"
     }
 }
 if (

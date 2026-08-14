@@ -4,7 +4,7 @@ param(
     [ValidateSet('win-x64')]
     [string]$Runtime = 'win-x64',
     [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$')]
-    [string]$Version = '0.9.1',
+    [string]$Version = '1.1.1',
     [string]$IsccPath,
     [string]$SigningKeyPath,
     [string]$ReleaseNotesPath,
@@ -318,7 +318,8 @@ Invoke-Native 'Release build' {
     dotnet build (Join-Path $root 'Crystalfly.slnx') -c $Configuration --no-restore
 }
 Invoke-Native 'Release tests' {
-    dotnet test (Join-Path $root 'Crystalfly.slnx') -c $Configuration --no-build
+    dotnet test (Join-Path $root 'Crystalfly.slnx') -c $Configuration --no-build `
+        --blame-hang --blame-hang-timeout 3m
 }
 Invoke-Native 'Self-contained publish' {
     dotnet publish $appProject -c $Configuration -r $Runtime --self-contained true `
