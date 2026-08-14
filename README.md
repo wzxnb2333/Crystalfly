@@ -1,10 +1,10 @@
 # Crystalfly
 
+**简体中文** | [English](README.en.md)
+
 Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。启动页是实例选择与管理的唯一入口；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
 
-> 当前开发版：`0.9.1`。本轮提供 Windows x64 本地未签名便携包和安装包，不创建公开 GitHub Release；速通页按需检查 Speedrun.com 官方榜单的新世界纪录与前三成绩，并保留离线基线。
-
-[English](#english)
+> 当前版本：`1.1.1`。提供 Windows x64 本地未签名便携包与安装包。速通页按需检查 Speedrun.com 官方榜单的新世界纪录与前三成绩，并保留离线基线。
 
 ![Crystalfly 启动预检](docs/screenshots/crystalfly-1280x720-zh.jpg)
 ![选择实例](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)
@@ -25,6 +25,8 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 
 ## 功能
 
+- **新手引导**：首次启动弹出 8 步向导（导入游戏 → 选择实例 → 安装 Loader → 添加 Mod → 启动 → 更多功能），之后可从“设置 → 常规”随时重新打开。
+- **游戏目录自动发现**：扫描 Steam 库之外，可递归扫描所有本地磁盘自动发现非 Steam 的 Hollow Knight 目录，扫描时实时显示进度。
 - 管理多个游戏目录，并把活动目录自身或其直接子目录识别为独立实例；Steam 安装通过库目录自动发现，确认后才登记或迁移。
 - 启动时在后台扫描实例与版本文件，不等待远程目录或 Steam 自动重连；顶部设置使用文字 Tab，“选择实例”入口与页面、卡片和操作反馈采用快速弹簧动效，并支持跟随系统、减少动效或关闭。
 - 使用自绘标题栏和原生可缩放边框；Windows 11 明确请求系统圆角，Windows 10 保持兼容。
@@ -38,12 +40,12 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 - 设置页可使用绑定精确游戏构建与 Modding API Loader 的 HTTPS 自定义 ModLinks 完整替换官方源；自定义内容始终显示为未验证。
 - 安装前展示 Loader、递归前置与主 Mod；确认后加入后台下载队列，同一依赖链串行，独立安装组最多三路并发。
 - 安装前检查游戏版本、精确 Loader ID 和完整依赖闭包；官方 `1.5.78` ModLinks 包可在当前稳定版的 Modding API v78 环境中安装，其余 Modding API v37/v60/v77/v78、BepInEx 及游戏版本组合仍保持隔离。
-- 主动扫描受管理与外部 Mod，显示文件缺失、修改、额外文件和未接管状态；外部 Mod 可由用户确认接管，本地接管项不提供自动更新。
+- 主动扫描受管理与外部 Mod，显示文件缺失、修改、额外文件和未接管状态；外部 Mod 可由用户一键接管，接管后自动匹配目录条目（名称 + Loader 家族 + 版本）以打通依赖解析，唯一匹配自动改写、歧义时由用户选择；取消接管后下次选中实例会重新提示。
 - 启动页持续用红框显示 Mod 完整性和依赖问题。只有 Mod 文件与依赖问题允许用户确认后强制启动；游戏文件、Loader、事务、LocalLow 和进程冲突始终阻止启动。
 - 支持固定 Mod；批量卸载和无用前置建议会跳过固定项，单独卸载前需先取消固定。
 - 全局离线模式会断开 Steam 登录会话，使目录、翻译、自定义目录、Mod 和 Steam 下载只使用已验证缓存；网络队列等待恢复在线，不影响本地实例管理。
 - 在实例日志页查看 BepInEx、Modding API 和 `Player.log` 的最新内容及来源路径。
-- 通过 SteamKit2 扫码登录下载 public 分支与任意手动输入的 Windows Depot Manifest；自动跟随 Windows 系统代理并使用 WebSocket 登录通道，代理变化或非主动断线会暂停 Steam 队列并重连已保存账号。未验证历史版本仅允许原版启动，目录后续收录相同文件指纹时会自动升级为正式构建。同一文件最多十六路并发下载 Chunk，完成后生成 `steam_appid.txt`，refresh token 仅以当前 Windows 用户的 DPAPI 加密保存。
+- Steam 登录支持**账号密码**与扫码两种方式；Steam Guard 验证码（邮箱码 / 手机码）通过对话框收集，绑定了手机令牌的账号优先走设备确认。通过 SteamKit2 下载 public 分支与任意手动输入的 Windows Depot Manifest；自动跟随 Windows 系统代理并使用 WebSocket 登录通道，代理变化或非主动断线会暂停 Steam 队列并重连已保存账号。加速器环境下无 HTTPS 内容服务器时自动回退 HTTP 服务器。未验证历史版本仅允许原版启动，目录后续收录相同文件指纹时会自动升级为正式构建。同一文件最多十六路并发下载 Chunk，完成后生成 `steam_appid.txt`，refresh token 与记住的凭据仅以当前 Windows 用户的 DPAPI 加密保存。
 - 设置页可在 GitHub 直连、智能选择、`gh-proxy.org`、`gh-proxy.com`、`ghproxy.net` 与 `ghfast.top` 间切换并分别测试延迟；镜像仅代理官方 GitHub 目录和 GitHub 托管安装包，智能选择会按首包延迟优先使用可用线路，请求失败时依次切换并最终回退 GitHub 直连。Steam、自定义目录及其他下载地址保持原线路，包校验规则不变。
 - 设置页支持全局背景图片与当前实例独立覆盖，可调节图片不透明度；实例移除独立背景后自动恢复全局背景。
 - 启动前切换实例 LocalLow，退出后写回，并恢复原共享数据。
@@ -81,8 +83,8 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 
 首次使用：
 
-1. 从启动页进入“选择实例”，扫描 Steam 库或添加自选游戏目录；首次扫描结果需要确认后才登记。
-2. Crystalfly 只检查所选目录自身及其直接子目录，并忽略 `.crystalfly`、重解析点、无权限目录和未完成下载。
+1. 首次启动会弹出新手引导向导；从启动页进入“选择实例”，扫描 Steam 库、全盘扫描或添加自选游戏目录；首次扫描结果需要确认后才登记。
+2. Crystalfly 会递归扫描磁盘上的游戏目录，并忽略 `.crystalfly`、重解析点、无权限目录和未完成下载。
 3. 从启动页打开实例选择，选中实例后可进入设置管理 Loader、游戏配置、“已安装 Mod”、“整合包”和“存档快照”；当前实例及快照的四个存档槽可在“存档快照”中编辑。
 4. 需要下载游戏时进入“下载 → 游戏版本”；需要查找在线 Mod 时进入“下载 → Mod 市场”；进度、速度、取消与重试位于“下载 → 下载队列”。
 5. 启动游戏时不要同时运行其他《空洞骑士》进程。
@@ -152,10 +154,10 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.9.1'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.1'
 
 # 无更新签名的本地构建与固定目录覆盖；不会生成 update-manifest.v1.json。
-pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '0.9.1' -UnsignedLocal
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.1' -UnsignedLocal
 ```
 
 脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。发布构建从已忽略的 `.env.update-signing` 读取 `CRYSTALFLY_UPDATE_SIGNING_KEY`，并使用 `tools/Crystalfly.ReleaseTool` 生成签名更新清单；私钥文件不得提交。仅本地验收时可显式传入 `-UnsignedLocal`，此模式不会生成 `update-manifest.v1.json`，不得将其作为公开 Release 上传。`build-and-install.ps1` 会从 `Directory.Build.props` 读取版本号，执行完整 Release 构建和测试，验证产物后以管理员权限静默更新 `D:\Program Files\Crystalfly`，最后核对已安装版本。运行中的 Crystalfly 会使流程停止，不会强制关闭程序。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、独立更新程序、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包、`update-manifest.v1.json` 和 `SHA256SUMS.txt`。产物尚未使用 Authenticode 签名；客户端仍会验证更新清单的 Ed25519 签名及资产 SHA-256、大小和版本。详细设计见 [架构文档](docs/architecture.md)。
@@ -163,111 +165,3 @@ pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '0.9.1' -Unsign
 ## 许可证
 
 Crystalfly 使用 [GPL-3.0-only](LICENSE)。第三方游戏、Loader 和 Mod 不随仓库分发，仍受各自许可证约束。
-
-## English
-
-Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The Launch page is the only entry point for selecting and managing launchable instances; actual game downloads live under Download → Game Versions.
-
-The current development release is `0.9.1`. This round produces unsigned local Windows x64 portable and installer artifacts without publishing a public GitHub Release. The Speedrun page checks official Speedrun.com boards on demand for new world records and podium results while preserving an offline baseline.
-
-![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
-![Select instance](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)
-
-### UI acceptance screenshots
-
-![Persistent launch issue frame](docs/screenshots/crystalfly-launch-issues-1280x720-zh.jpg)
-![Launch issue confirmation](docs/screenshots/crystalfly-launch-issues-overlay-1280x720-zh.jpg)
-![Installed Mod integrity](docs/screenshots/crystalfly-installed-mod-health-1280x720-zh.jpg)
-![Offline mode and download routes](docs/screenshots/crystalfly-1920x1080-zh.jpg)
-![Mod market list](docs/screenshots/crystalfly-mod-market-list-1280x720-zh.jpg)
-![Mod detail](docs/screenshots/crystalfly-mod-market-detail-1280x720-zh.jpg)
-![Install target dialog](docs/screenshots/crystalfly-mod-install-overlay-1280x720-zh.jpg)
-![Instance details](docs/screenshots/crystalfly-instance-detail-900x600-zh.jpg)
-![Instance configuration editor](docs/screenshots/crystalfly-instance-config-1280x720-zh.jpg)
-![Instance save editor](docs/screenshots/crystalfly-save-editor-1280x720-zh.jpg)
-![Dependency graph](docs/screenshots/crystalfly-dependency-graph-1280x720-zh.jpg)
-
-### Highlights
-
-- Manages multiple game directories while keeping one active root for existing operations. It discovers a selected directory itself or its direct children, and finds verified Hollow Knight installs from Steam libraries without taking ownership until confirmation.
-- Scans instance and build files in the background at startup without waiting for the remote catalog or Steam reconnect. Settings is a top text tab, the instance entry is named Select Instance, and pages, cards, and actions use fast spring motion that can follow the system, reduce motion, or turn off.
-- Uses custom title-bar controls with a native resize border and explicitly requests system-rounded corners on Windows 11 while remaining compatible with Windows 10.
-- Recognizes `1.2.2.1`, `1.4.3.2`, `1.5.78.11833`, and a dynamic stable `latest` channel.
-- Uses the Launch-page instance entry to select, open settings, clone a full copy, or permanently delete an instance. Deletion first checks running games, queued downloads, and file transactions, then removes both game and instance state directories after confirmation.
-- Installs, switches, repairs, and removes mutually exclusive loaders through recoverable file transactions.
-- Discovers online mods under Download → Mod Market, then installs them to a selected compatible instance. Installed Mods provides information, open-folder, enable/disable, and uninstall shortcuts plus multi-select batch actions.
-- Filters the market by recently added or updated activity, and renders sanitized README and latest release notes with ETag-backed offline cache fallback.
-- Reinstalls or repairs managed official Mods without changing their enabled state, and safely locates or transactionally deletes per-instance global settings.
-- Supports an exact-build, exact-Modding-API HTTPS custom ModLinks replacement that remains visibly unverified.
-- Previews the loader, recursive dependencies, and requested mod before enqueueing background work. Dependency chains stay serial while independent install groups use up to three concurrent network transfers.
-- Validates the game build, exact loader package ID, and full dependency closure so Modding API v37/v60/v77/v78, BepInEx, and cross-build mods cannot be mixed.
-- Discovers managed and external Mods, verifies receipt hashes, supports explicit local takeover, exact-version repair, pinning, and unused-dependency suggestions.
-- Keeps a persistent red launch warning frame. Only Mod file and dependency problems can be force-launched; game files, Loader, transactions, LocalLow, and process conflicts remain absolute blockers.
-- Provides a global offline mode that disconnects Steam sessions. Catalogs, custom catalogs, and downloads use verified caches only, while queued network work waits for online mode to return.
-- Displays detected BepInEx, Modding API, and `Player.log` files with their source paths and refreshable tail content.
-- Imports local loaders only through a validated Crystalfly manifest and keeps them marked unverified.
-- Uses SteamKit2 for QR authentication and downloads the public branch plus any user-entered Windows Depot Manifest. It follows the Windows system proxy with a WebSocket login transport, pausing Steam work and reconnecting saved accounts after a proxy change or unexpected disconnect. Unverified historical versions remain vanilla-only and upgrade automatically when a later catalog entry matches their Manifest and file fingerprint. Each file uses up to sixteen concurrent chunk requests; completed instances receive `steam_appid.txt`, and refresh tokens are protected with Windows DPAPI for the current user.
-- Lets users switch between direct GitHub access, smart selection, `gh-proxy.org`, `gh-proxy.com`, `ghproxy.net`, and `ghfast.top` while testing each route latency. Only official GitHub catalogs and GitHub-hosted packages are proxied; smart selection prefers the fastest available route and falls back through the pool to direct GitHub access. Steam, custom catalogs, and other download URLs keep their original route, with the same package verification.
-- Swaps per-instance LocalLow data before launch, captures it after exit, then restores the original shared data.
-- Creates persistent named save snapshots containing only non-log LocalLow data, plus dedicated speedrun copies with template-specific tools and a pre-launch report.
-- Edits the selected instance's isolated `AppConfig.ini` while preserving unknown settings and committing changes through atomic replacement.
-- Edits only `user1.dat` through `user4.dat` from the selected instance or one of its named snapshots. Save decoding and expansion run asynchronously, and empty save sets show an explicit state instead of blocking the window.
-- Creates append or exact Mod presets bound to one build and Loader, with dependency-ordered apply, local JSON import/export, share codes, and restoration of the pre-apply install and enabled state.
-- Accepts strictly validated `crystalfly://` commands through single-instance forwarding. The installer registers the protocol, and every state-changing external request shows a parsed summary before confirmation.
-- Checks a signed stable update manifest once per day. Users can update now, defer, or skip a version; installed mode runs the Inno installer, while portable mode preserves `Data` through same-volume backup and replacement.
-
-The current built-in speedrun templates are intentionally unverified because the catalog does not yet contain a trusted rules revision and complete Steam file allowlist. Unknown new public manifests remain launchable as vanilla, but loader installation stays locked until the catalog verifies the build.
-
-### Launch checks, Mod Market, and instance details
-
-After an instance is selected, the launch page checks the executable, running processes, Loader state, Mod dependencies and file hashes, pending transaction recovery, and per-instance LocalLow readiness. Mod-only problems can be force-launched after a detailed confirmation; absolute blockers cannot. A per-instance issue fingerprint can suppress repeated dialogs while the exact issue and file hash remain unchanged, but the red warning frame stays visible.
-
-Download → Mod Market discovers online mods and filters them by keyword, game build, loader, source, and tag. Its detail view shows description, authors, dependencies, integrations, repository, source, and exact compatibility before the user chooses a target instance. A vanilla target can install the catalog's exact required loader after confirmation, then re-evaluates compatibility before installing the mod. Conflicted, drifted, unknown-build, and official speedrun instances remain unavailable.
-
-The target dialog previews the loader, every recursive dependency, and the requested mod. Confirmation only adds the plan to Download → Download Queue, so the market remains usable. Each dependency chain runs in loader/dependency/mod order; unrelated groups share up to three network slots. Transfers may continue while the game runs, but installation waits for the target game process to exit. Transient network failures retry three times, while deterministic hash, manifest, and compatibility errors fail immediately. Unfinished tasks resume after restart; failed tasks remain available for manual retry.
-
-When the UI is Simplified Chinese, the market also loads Crystalfly's independently maintained HK ModLinks Chinese translation catalog. It searches translated names, descriptions, and labels alongside official English metadata; missing translations fall back to English. The source policy and validation command are documented in [docs/mod-translations.zh-CN.md](docs/mod-translations.zh-CN.md).
-
-The Installed Mods page includes receipt-backed and external Mods and can filter enabled, disabled, local, external, pinned, updateable, or unhealthy entries. External Mods stay read-only until explicit takeover. Managed Mods support health inspection and exact-version repair; local takeovers support re-import or accepting current hashes. Pinning protects entries from batch uninstall and dependency cleanup. Uninstall previews a dependency-impact tree and only suggests unused dependencies instead of deleting them automatically.
-
-Mod Packs store an exact game build, Loader, and managed Mod versions. Local or external entries contain only names and file hashes, never files, download URLs, or local paths. Append mode installs or enables missing entries; exact mode also disables unlisted, unpinned Mods while retaining every transitive dependency of an enabled pinned Mod. Plans run through the existing queue in dependency order, and the restore point is captured when execution is about to modify the instance. The complete Mod Pack group excludes other mutations of that instance, and restore validates pinned entries, receipts, and file health before writing. Mod Pack JSON is limited to 128 KiB and 1,000 entries. Local JSON sharing remains available offline; the hosted service uses 12-character share codes.
-
-Compatibility uses the exact loader package ID rather than treating every Modding API or BepInEx release as interchangeable. Crystalfly-managed loaders can be repaired or removed. A manually installed BepInEx with a verifiable version is detected as externally owned: matching plugins may be installed, but Crystalfly never repairs, removes, overwrites, or takes ownership of the BepInEx installation. Manually installed Modding API remains `Drifted` because no trusted vanilla assembly backup exists.
-
-The Logs page discovers BepInEx, Modding API, and shared `Player.log` files, shows each source path, and reads refreshable tail content. The shared `Player.log` may belong to the most recently launched instance, so instance-local loader logs are the stronger source when diagnosing one instance.
-
-### Speedrun environments
-
-The three built-in RuntimePatches templates create dedicated full copies from a user-selected clean Vanilla instance. Crystalfly pins the AssemblyPatches v1.0.2 Windows release and verifies both the ZIP and inner `Assembly-CSharp.dll` SHA-256.
-
-- `1.2.2.1`, `1.4.3.2`, and `1.5.78` are supported without Modding API, BepInEx, or LoadNormaliser.
-- Every option defaults off. `1.2.2.1` has no `FasterIntroSkip`; `1.5.78` has no `ScreenShakeModifier`.
-- `FasterIntroSkip` and `MiniSaveStates` surface category-rule warnings. Users must still check the current SRC rules.
-
-Pre-launch validation checks the core game fingerprint, RuntimePatches DLL, isolated configuration, Loader/Mod markers, transactions, and LocalLow state. Technical errors block launch; rule warnings do not. PNGs, skins, and ordinary extra files are ignored. Legacy template instances remain on disk but must be recreated.
-
-Verification reports are pre-launch integrity snapshots. They do not attest that files remain unchanged after the report is written. The first release publishes source only; locally built binaries are not Authenticode-signed.
-
-### Develop
-
-```powershell
-dotnet restore '.\Crystalfly.slnx'
-dotnet build '.\Crystalfly.slnx' -c Release --no-restore
-dotnet test '.\Crystalfly.slnx' -c Release --no-build
-dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
-```
-
-### Release build
-
-```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '0.9.1'
-
-# Build and install locally without an update-signing key; no update manifest is emitted.
-pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '0.9.1' -UnsignedLocal
-```
-
-The scripts automatically locate Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. Release builds read `CRYSTALFLY_UPDATE_SIGNING_KEY` from the ignored `.env.update-signing` file and use `tools/Crystalfly.ReleaseTool` to sign the update manifest; never commit the private key file. For local verification only, pass `-UnsignedLocal`; this omits `update-manifest.v1.json` and must not be uploaded as a public Release. `build-and-install.ps1` reads the version from `Directory.Build.props`, runs the full Release build and tests, validates the artifacts, then silently updates `D:\Program Files\Crystalfly` with administrator approval and verifies the installed version. It stops when Crystalfly is running and never terminates the process. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, updater helper, portable ZIP, installer, signed `update-manifest.v1.json`, and `SHA256SUMS.txt`. Assets are not Authenticode-signed yet; the client still verifies the Ed25519 manifest signature plus each asset's SHA-256, size, and version.
-
-Application settings use `%LOCALAPPDATA%\Crystalfly`, or `Data` beside the executable when `portable.flag` exists. Per-instance state stays under the active game directory's `.crystalfly` folder.
-
-Crystalfly is licensed under [GPL-3.0-only](LICENSE). Hollow Knight, loaders, and mods are not redistributed by this repository and retain their own licenses.
