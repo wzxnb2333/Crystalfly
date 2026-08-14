@@ -60,8 +60,8 @@ public sealed class ModMarketRenderingTests
     }
 
     [AvaloniaTheory]
-    [InlineData(UiLanguage.SimplifiedChinese, "下载线路", "GitHub 直连", "GitHub 镜像")]
-    [InlineData(UiLanguage.English, "Download route", "GitHub direct", "GitHub mirror")]
+    [InlineData(UiLanguage.SimplifiedChinese, "下载线路", "GitHub 直连", "gh-proxy.com")]
+    [InlineData(UiLanguage.English, "Download route", "GitHub direct", "gh-proxy.com")]
     public void GitHub_download_routes_are_localized(
         UiLanguage language,
         string title,
