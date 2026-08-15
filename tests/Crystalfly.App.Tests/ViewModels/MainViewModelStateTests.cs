@@ -1789,6 +1789,19 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Settings_changes_after_disposal_do_not_start_background_writes()
+    {
+        var root = applicationData.CreateDirectory("disposed-settings");
+        var viewModel = new MainViewModel(root);
+        await viewModel.DisposeAsync();
+
+        viewModel.CompleteOnboarding();
+        await GetPrivateAssignableField<Task>(viewModel, "settingsSaveQueue");
+
+        Assert.False(File.Exists(Path.Combine(root, "settings.json")));
+    }
+
+    [Fact]
     public async Task Steam_download_failure_is_reported_without_faulting_the_command()
     {
         var viewModel = new MainViewModel(

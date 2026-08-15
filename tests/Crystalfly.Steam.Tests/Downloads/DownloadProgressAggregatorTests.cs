@@ -57,6 +57,24 @@ public sealed class DownloadProgressAggregatorTests
     }
 
     [Fact]
+    public void CachedChunksAdvanceProgressWithoutInflatingNetworkSpeed()
+    {
+        var clock = new ManualTimeProvider();
+        var aggregator = new DownloadProgressAggregator(500, report: null, clock);
+        clock.Advance(TimeSpan.FromSeconds(1));
+
+        SteamDownloadProgress cached = aggregator.CompleteChunk(
+            400,
+            "cached.dat",
+            includeInSpeed: false);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        SteamDownloadProgress downloaded = aggregator.CompleteChunk(100, "network.dat");
+
+        Assert.Equal((400L, 0d), (cached.CompletedBytes, cached.BytesPerSecond));
+        Assert.Equal((500L, 50d), (downloaded.CompletedBytes, downloaded.BytesPerSecond));
+    }
+
+    [Fact]
     public async Task ConcurrentCompletedChunksProduceOrderedCompleteReports()
     {
         const int workerCount = 8;

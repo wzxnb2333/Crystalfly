@@ -65,87 +65,135 @@ public sealed class SteamDepotDownloadService(
             throw new InvalidDataException("Manifest total size exceeds the supported range.", exception);
         }
         var aggregator = new DownloadProgressAggregator(totalBytes, progress);
+        SteamChunkCache? chunkCache = string.IsNullOrWhiteSpace(request.ChunkCacheDirectory)
+            ? null
+            : new SteamChunkCache(request.ChunkCacheDirectory);
 
-        var completedFiles = new List<string>(files.Count);
-        for (int index = 0; index < files.Count; index++)
+        string[] partials = targets.Select(static target => target + ".crystalfly-part").ToArray();
+        Exception? operationFailure = null;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            SteamDepotFile file = files[index];
-            string target = targets[index];
-            string partial = target + ".crystalfly-part";
-            SteamDepotChunk[] chunks = chunksByFile[index];
-            Exception? operationFailure = null;
+            for (int index = 0; index < files.Count; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await using var output = new FileStream(
+                    partials[index],
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None,
+                    131072,
+                    FileOptions.Asynchronous | FileOptions.RandomAccess);
+                output.SetLength(files[index].Size);
+            }
+
+            var work = files
+                .SelectMany((file, fileIndex) => chunksByFile[fileIndex]
+                    .Select(chunk => (file, fileIndex, chunk)))
+                .ToArray();
+            using var failureCancellation = new CancellationTokenSource();
+            using var parallelCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                failureCancellation.Token);
+            Exception? chunkFailure = null;
             try
             {
+                await Parallel.ForEachAsync(
+                    work,
+                    new ParallelOptions
+                    {
+                        MaxDegreeOfParallelism = MaxConcurrentChunks,
+                        CancellationToken = parallelCancellation.Token
+                    },
+                    async (item, _) =>
+                    {
+                        parallelCancellation.Token.ThrowIfCancellationRequested();
+                        try
+                        {
+                            SteamChunkCacheResult cacheResult = chunkCache is null
+                                ? new SteamChunkCacheResult(
+                                    await content.DownloadChunkAsync(item.chunk, CancellationToken.None),
+                                    FromCache: false)
+                                : await chunkCache.GetOrDownloadAsync(
+                                    item.chunk,
+                                    _ => content.DownloadChunkAsync(item.chunk, CancellationToken.None),
+                                    parallelCancellation.Token);
+                            ReadOnlyMemory<byte> bytes = cacheResult.Bytes;
+                            if (bytes.Length != item.chunk.UncompressedLength)
+                            {
+                                throw new InvalidDataException(
+                                    $"Invalid chunk data for {item.file.RelativePath}.");
+                            }
+
+                            using var output = File.OpenHandle(
+                                partials[item.fileIndex],
+                                FileMode.Open,
+                                FileAccess.Write,
+                                FileShare.ReadWrite,
+                                FileOptions.Asynchronous | FileOptions.RandomAccess);
+                            await RandomAccess.WriteAsync(
+                                output,
+                                bytes,
+                                item.chunk.Offset,
+                                CancellationToken.None);
+                            aggregator.CompleteChunk(
+                                bytes.Length,
+                                item.file.RelativePath,
+                                includeInSpeed: !cacheResult.FromCache);
+                        }
+                        catch (Exception exception)
+                        {
+                            if (Interlocked.CompareExchange(ref chunkFailure, exception, null) is null)
+                                failureCancellation.Cancel();
+                            throw;
+                        }
+                    });
+            }
+            catch when (Volatile.Read(ref chunkFailure) is not null)
+            {
+                ExceptionDispatchInfo.Capture(chunkFailure!).Throw();
+                throw;
+            }
+
+            var completedFiles = new List<string>(files.Count);
+            for (int index = 0; index < files.Count; index++)
+            {
                 await using (var output = new FileStream(
-                    partial,
-                    FileMode.CreateNew,
+                    partials[index],
+                    FileMode.Open,
                     FileAccess.Write,
                     FileShare.None,
                     131072,
                     FileOptions.Asynchronous | FileOptions.RandomAccess))
                 {
-                    output.SetLength(file.Size);
-                    using var failureCancellation = new CancellationTokenSource();
-                    using var parallelCancellation = CancellationTokenSource.CreateLinkedTokenSource(
-                        cancellationToken,
-                        failureCancellation.Token);
-                    Exception? chunkFailure = null;
-                    try
-                    {
-                        await Parallel.ForEachAsync(
-                            chunks,
-                            new ParallelOptions
-                            {
-                                MaxDegreeOfParallelism = MaxConcurrentChunks,
-                                CancellationToken = parallelCancellation.Token
-                            },
-                            async (chunk, _) =>
-                            {
-                                parallelCancellation.Token.ThrowIfCancellationRequested();
-                                try
-                                {
-                                    ReadOnlyMemory<byte> bytes = await content.DownloadChunkAsync(
-                                        chunk,
-                                        CancellationToken.None);
-                                    if (bytes.Length != chunk.UncompressedLength)
-                                        throw new InvalidDataException($"Invalid chunk data for {file.RelativePath}.");
-
-                                    await RandomAccess.WriteAsync(
-                                        output.SafeFileHandle,
-                                        bytes,
-                                        chunk.Offset,
-                                        CancellationToken.None);
-                                    aggregator.CompleteChunk(bytes.Length, file.RelativePath);
-                                }
-                                catch (Exception exception)
-                                {
-                                    if (Interlocked.CompareExchange(ref chunkFailure, exception, null) is null)
-                                        failureCancellation.Cancel();
-                                    throw;
-                                }
-                            });
-                    }
-                    catch when (Volatile.Read(ref chunkFailure) is not null)
-                    {
-                        ExceptionDispatchInfo.Capture(chunkFailure!).Throw();
-                        throw;
-                    }
-
                     await output.FlushAsync(CancellationToken.None);
                     output.Flush(flushToDisk: true);
                 }
+                await VerifyFileAsync(partials[index], files[index].Sha1, cancellationToken);
+                File.Move(partials[index], targets[index], overwrite: true);
+                completedFiles.Add(files[index].RelativePath);
+            }
 
-                await VerifyFileAsync(partial, file.Sha1, cancellationToken);
-                File.Move(partial, target, overwrite: true);
-                completedFiles.Add(file.RelativePath);
-            }
-            catch (Exception exception)
-            {
-                operationFailure = exception;
-                throw;
-            }
-            finally
+            if (!manifestProvidesAppId
+                && (request.RepairSourceDirectory is null
+                    || !File.Exists(Path.Combine(request.RepairSourceDirectory, "steam_appid.txt"))))
+                await WriteSteamAppIdAsync(appIdTarget, cancellationToken);
+
+            return new SteamDownloadResult(
+                SteamProduct.HollowKnightAppId,
+                SteamProduct.HollowKnightWindowsDepotId,
+                manifest.Id,
+                staging,
+                completedFiles,
+                totalBytes);
+        }
+        catch (Exception exception)
+        {
+            operationFailure = exception;
+            throw;
+        }
+        finally
+        {
+            foreach (string partial in partials)
             {
                 try
                 {
@@ -156,20 +204,21 @@ public sealed class SteamDepotDownloadService(
                     operationFailure.Data["Crystalfly.PartialCleanupError"] = cleanupException;
                 }
             }
+            if (chunkCache is not null)
+            {
+                try
+                {
+                    await chunkCache.PruneAsync(CancellationToken.None);
+                }
+                catch (Exception cleanupException) when (cleanupException is IOException
+                    or UnauthorizedAccessException
+                    or OverflowException)
+                {
+                    if (operationFailure is not null)
+                        operationFailure.Data["Crystalfly.ChunkCacheCleanupError"] = cleanupException;
+                }
+            }
         }
-
-        if (!manifestProvidesAppId
-            && (request.RepairSourceDirectory is null
-                || !File.Exists(Path.Combine(request.RepairSourceDirectory, "steam_appid.txt"))))
-            await WriteSteamAppIdAsync(appIdTarget, cancellationToken);
-
-        return new SteamDownloadResult(
-            SteamProduct.HollowKnightAppId,
-            SteamProduct.HollowKnightWindowsDepotId,
-            manifest.Id,
-            staging,
-            completedFiles,
-            totalBytes);
     }
 
     private static async Task<IReadOnlyList<SteamDepotFile>> SelectRepairFilesAsync(

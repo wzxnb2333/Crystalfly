@@ -40,6 +40,9 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
         Assert.Equal("steam:1.5.78.11833", item.PackageId);
         Assert.Equal("257781644874438846", item.PackagePath);
         Assert.Equal("1.5.78.11833", item.Version);
+        Assert.Equal(
+            Path.Combine(root, ".crystalfly", "steam-chunks"),
+            SteamDownloadQueueGroupFactory.GetChunkCacheDirectory(group));
     }
 
     [Fact]
@@ -123,6 +126,9 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
         Assert.Equal(DownloadQueueGroupKind.InstanceRepair, group.Kind);
         Assert.Equal("steam-repair:known-build", item.PackageId);
         Assert.Equal(instanceRoot, captured?.RepairSourceDirectory);
+        Assert.Equal(
+            Path.Combine(root, ".crystalfly", "steam-chunks"),
+            captured?.ChunkCacheDirectory);
         Assert.Equal("repaired", await File.ReadAllTextAsync(Path.Combine(instanceRoot, "hollow_knight.exe")));
         Assert.Equal("keep", await File.ReadAllTextAsync(Path.Combine(instanceRoot, "keep.png")));
         Assert.Equal(instance, await InstanceSidecar.LoadAsync(instanceRoot));

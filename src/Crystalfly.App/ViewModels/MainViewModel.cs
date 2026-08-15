@@ -100,6 +100,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private PresetApplyPlan? lastPresetApplyPlan;
     private CrystalflySettings settings = new();
     private Task settingsSaveQueue = Task.CompletedTask;
+    private bool settingsSavesClosed;
     private Task steamOfflineTransitionTask = Task.CompletedTask;
     private Task? initializationTask;
     private Task? disposeTask;
@@ -3844,6 +3845,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         lock (settingsSaveQueueLock)
         {
+            if (settingsSavesClosed)
+            {
+                return settingsSaveQueue;
+            }
             return settingsSaveQueue = SaveSettingsAfterAsync(settingsSaveQueue);
         }
     }
@@ -4947,6 +4952,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private async Task DisposeCoreAsync()
     {
+        lock (settingsSaveQueueLock)
+        {
+            settingsSavesClosed = true;
+        }
         lifetimeCancellation.Cancel();
         var pendingExternalProtocolCommand = protocolService.PendingExecution;
         var detailsCancellation = Interlocked.Exchange(ref detailsLoadCancellation, null);
@@ -4975,6 +4984,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     PrepareMarketInstallTargetsCommand.ExecutionTask ?? Task.CompletedTask,
                     InstallMarketModCommand.ExecutionTask ?? Task.CompletedTask,
                     TestGitHubLatencyCommand.ExecutionTask ?? Task.CompletedTask,
+                    DownloadCenter.RefreshSteamChunkCacheStatusCommand.ExecutionTask ?? Task.CompletedTask,
+                    DownloadCenter.ClearSteamChunkCacheCommand.ExecutionTask ?? Task.CompletedTask,
                     pendingExternalProtocolCommand,
                     steamOfflineTransitionTask,
                     pendingDetailsLoad,

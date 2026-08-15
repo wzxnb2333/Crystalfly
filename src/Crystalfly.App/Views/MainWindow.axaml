@@ -1864,10 +1864,32 @@
                                     Spacing="16"
                                     MaxWidth="1920"
                                     HorizontalAlignment="Stretch">
-                            <StackPanel Spacing="4">
-                                <TextBlock Classes="cfp-page-title" Text="{Binding Loc[GameVersions]}" />
-                                <TextBlock Classes="cfp-meta" Text="{Binding Loc[DownloadsHint]}" TextWrapping="Wrap" />
-                            </StackPanel>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Classes="cfp-page-title" Text="{Binding Loc[GameVersions]}" />
+                                    <TextBlock Classes="cfp-meta" Text="{Binding Loc[DownloadsHint]}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Border x:Name="SteamChunkCacheCard"
+                                        Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        ToolTip.Tip="{Binding Loc[SteamChunkCacheHint]}">
+                                    <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="10">
+                                        <LucideIcon Kind="Database" Size="17" VerticalAlignment="Center" />
+                                        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                            <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SteamChunkCacheTitle]}" />
+                                            <TextBlock Classes="cfp-meta" Text="{Binding DownloadCenter.SteamChunkCacheUsageText}" />
+                                        </StackPanel>
+                                        <Button x:Name="SteamChunkCacheClearButton"
+                                                Grid.Column="2"
+                                                Classes="cfp-icon"
+                                                Click="ConfirmClearSteamChunkCache"
+                                                IsEnabled="{Binding DownloadCenter.CanClearSteamChunkCache}"
+                                                ToolTip.Tip="{Binding Loc[ClearSteamChunkCache]}"
+                                                AutomationProperties.Name="{Binding Loc[ClearSteamChunkCache]}"
+                                                Content="{LucideIconContent Trash2, 16}" />
+                                    </Grid>
+                                </Border>
+                            </Grid>
                             <Border Classes="cfp-download-account">
                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                     <LucideIcon Kind="UserRound" Size="18" VerticalAlignment="Center" />

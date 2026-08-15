@@ -150,6 +150,15 @@ public static class SteamDownloadQueueGroupFactory
 
     public static string GetStagingDirectory(DownloadQueueGroup group)
     {
+        string versionRoot = GetVersionRoot(group);
+        return Path.Combine(versionRoot, ".crystalfly", "downloads", $"steam-{group.Id}");
+    }
+
+    public static string GetChunkCacheDirectory(DownloadQueueGroup group) =>
+        Path.Combine(GetVersionRoot(group), ".crystalfly", "steam-chunks");
+
+    private static string GetVersionRoot(DownloadQueueGroup group)
+    {
         ArgumentNullException.ThrowIfNull(group);
         if (!Guid.TryParseExact(group.Id, "N", out _))
         {
@@ -165,7 +174,7 @@ public static class SteamDownloadQueueGroupFactory
         {
             throw new InvalidDataException("Steam download target does not match its instance name.");
         }
-        return Path.Combine(versionRoot, ".crystalfly", "downloads", $"steam-{group.Id}");
+        return versionRoot;
     }
 
     internal static bool IsSteamItem(DownloadQueueItem item) =>

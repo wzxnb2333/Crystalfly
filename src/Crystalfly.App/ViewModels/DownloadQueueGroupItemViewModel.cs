@@ -255,6 +255,8 @@ internal static class QueueDisplayText
         ? $"{FormatBytes(bytesPerSecond)}/s"
         : string.Empty;
 
+    public static string Size(double bytes) => FormatBytes(bytes);
+
     public static string Eta(double bytesPerSecond, long completed, long total)
         => bytesPerSecond > 0 && total > completed
             ? TimeSpan.FromSeconds((total - completed) / bytesPerSecond)

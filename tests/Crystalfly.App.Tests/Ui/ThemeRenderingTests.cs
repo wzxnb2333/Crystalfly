@@ -396,6 +396,37 @@ public sealed class ThemeRenderingTests
     }
 
     [AvaloniaFact]
+    public async Task Game_versions_page_exposes_compact_steam_chunk_cache_management()
+    {
+        string applicationDataRoot = Path.Combine(
+            Path.GetTempPath(),
+            "crystalfly-ui",
+            Guid.NewGuid().ToString("N"));
+        var viewModel = new MainViewModel(applicationDataRoot)
+        {
+            CurrentPage = "Downloads",
+            CurrentDownloadSection = "GameVersions"
+        };
+        var window = new MainWindow { Width = 900, Height = 600, DataContext = viewModel };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            Assert.NotNull(window.FindControl<Border>("SteamChunkCacheCard"));
+            Button clear = Assert.IsType<Button>(window.FindControl<Button>("SteamChunkCacheClearButton"));
+            Assert.Equal(viewModel.Loc["ClearSteamChunkCache"], AutomationProperties.GetName(clear));
+        }
+        finally
+        {
+            await CloseWindowAsync(window);
+            await viewModel.DisposeAsync();
+            if (Directory.Exists(applicationDataRoot))
+                Directory.Delete(applicationDataRoot, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Main_window_shows_each_new_non_empty_error_and_keeps_inline_state()
     {
         var applicationDataRoot = Path.Combine(

@@ -740,12 +740,14 @@ public sealed class DownloadQueueService : IAsyncDisposable
         {
             await foreach (var group in channel.Reader.ReadAllAsync(cancellationToken))
             {
-                var task = RunGroupAsync(group, cancellationToken);
+                var registered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                var task = RunGroupAfterRegistrationAsync(group, registered.Task, cancellationToken);
                 lock (sync)
                 {
                     groupTasks.Add(task);
                     activeGroupTasks[group.Id] = task;
                 }
+                registered.SetResult();
                 _ = task.ContinueWith(
                     completed =>
                     {
@@ -767,6 +769,15 @@ public sealed class DownloadQueueService : IAsyncDisposable
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
         }
+    }
+
+    private async Task RunGroupAfterRegistrationAsync(
+        DownloadQueueGroup group,
+        Task registration,
+        CancellationToken cancellationToken)
+    {
+        await registration;
+        await RunGroupAsync(group, cancellationToken);
     }
 
     private async Task RunGroupAsync(DownloadQueueGroup group, CancellationToken cancellationToken)

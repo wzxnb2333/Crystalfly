@@ -9,6 +9,7 @@ public sealed class DownloadProgressAggregator
     private readonly List<(long Timestamp, long Bytes)> _samples = [];
     private readonly object _sync = new();
     private long _completedBytes;
+    private long _networkBytes;
 
     public DownloadProgressAggregator(long totalBytes, Action<SteamDownloadProgress>? report = null)
         : this(totalBytes, report, TimeProvider.System)
@@ -28,7 +29,10 @@ public sealed class DownloadProgressAggregator
         _samples.Add((_timeProvider.GetTimestamp(), 0));
     }
 
-    public SteamDownloadProgress CompleteChunk(int byteCount, string currentFile)
+    public SteamDownloadProgress CompleteChunk(
+        int byteCount,
+        string currentFile,
+        bool includeInSpeed = true)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(byteCount);
         lock (_sync)
@@ -38,8 +42,10 @@ public sealed class DownloadProgressAggregator
                 throw new InvalidDataException("Downloaded bytes exceed the manifest size.");
 
             _completedBytes = completed;
+            if (includeInSpeed)
+                _networkBytes = checked(_networkBytes + byteCount);
             long now = _timeProvider.GetTimestamp();
-            _samples.Add((now, completed));
+            _samples.Add((now, _networkBytes));
             long cutoff = now - checked((long)(SpeedWindow.TotalSeconds * _timeProvider.TimestampFrequency));
             int removeCount = 0;
             while (removeCount + 1 < _samples.Count && _samples[removeCount + 1].Timestamp <= cutoff)
@@ -50,7 +56,7 @@ public sealed class DownloadProgressAggregator
             (long timestamp, long bytes) = _samples[0];
             double elapsedSeconds = _timeProvider.GetElapsedTime(timestamp, now).TotalSeconds;
             double bytesPerSecond = elapsedSeconds > 0
-                ? (completed - bytes) / elapsedSeconds
+                ? (_networkBytes - bytes) / elapsedSeconds
                 : 0;
             var progress = new SteamDownloadProgress(
                 completed,
