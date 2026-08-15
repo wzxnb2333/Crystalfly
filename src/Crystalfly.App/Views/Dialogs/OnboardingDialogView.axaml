@@ -3,40 +3,78 @@
              xmlns:vm="using:Crystalfly.App.ViewModels.Dialogs"
              x:Class="Crystalfly.App.Views.Dialogs.OnboardingDialogView"
              x:DataType="vm:OnboardingDialogViewModel"
-             Width="560"
-             MinWidth="480"
-             MaxWidth="680">
+             Width="760"
+             MinWidth="620"
+             MaxWidth="900">
     <UserControl.KeyBindings>
-        <KeyBinding Gesture="Escape" Command="{Binding SkipCommand}" />
+        <KeyBinding Gesture="Escape" Command="{Binding DismissCommand}" />
     </UserControl.KeyBindings>
 
-    <Grid Margin="28" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="18">
+    <Grid Margin="24" RowDefinitions="Auto,*,Auto" RowSpacing="16">
         <StackPanel Spacing="4">
             <TextBlock Classes="cfp-section-title" Text="{Binding CurrentTitle}" TextWrapping="Wrap" />
-            <TextBlock Classes="cfp-caption" Text="{Binding StepPosition}" />
+            <TextBlock Classes="cfp-caption" Text="{Binding CurrentStatusText}" />
         </StackPanel>
-        <TextBlock Grid.Row="1"
-                   Text="{Binding CurrentDescription}"
-                   TextWrapping="Wrap"
-                   MinHeight="96" />
-        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Classes="cfp-secondary"
-                        Command="{Binding BackCommand}"
-                        Content="{Binding BackText}"
-                        IsEnabled="{Binding CanGoBack}"
-                        MinWidth="96"
-                        AutomationProperties.Name="{Binding BackText}" />
-                <Button Classes="cfp-secondary"
-                        Command="{Binding SkipCommand}"
-                        Content="{Binding SkipText}"
-                        MinWidth="96"
-                        AutomationProperties.Name="{Binding SkipText}" />
-            </StackPanel>
-            <Button Grid.Column="1" Classes="cfp-primary" MinWidth="120"
-                    Command="{Binding NextCommand}"
-                    Content="{Binding NextText}"
-                    AutomationProperties.Name="{Binding NextText}" />
+
+        <Grid Grid.Row="1" ColumnDefinitions="220,*" ColumnSpacing="16" MinHeight="300">
+            <Border Classes="cfp-card" Padding="8">
+                <ListBox ItemsSource="{Binding Tasks}"
+                         SelectedItem="{Binding SelectedTask, Mode=TwoWay}"
+                         Classes="cfp-list"
+                         AutomationProperties.Name="{Binding CurrentTitle}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:OnboardingTaskItemViewModel">
+                            <Border Padding="10,8" Margin="0,0,0,4">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                    <Border Classes="cfp-badge" Padding="5,2" VerticalAlignment="Top">
+                                        <TextBlock Text="{Binding StatusText}" Classes="cfp-meta" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <TextBlock Classes="cfp-row-title" Text="{Binding Title}" TextWrapping="Wrap" />
+                                        <TextBlock Classes="cfp-caption" Text="{Binding Description}" TextWrapping="Wrap" MaxLines="2" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+
+            <Border Grid.Column="1" Classes="cfp-card" Padding="20">
+                <Grid RowDefinitions="Auto,*,Auto" RowSpacing="14">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="cfp-section-title" Text="{Binding CurrentTitle}" TextWrapping="Wrap" />
+                        <TextBlock Classes="cfp-caption" Text="{Binding CurrentStatusText}" />
+                    </StackPanel>
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding CurrentDescription}"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Top" />
+                    <Button Grid.Row="2"
+                            Classes="cfp-primary"
+                            HorizontalAlignment="Left"
+                            MinWidth="132"
+                            Command="{Binding RunSelectedActionCommand}"
+                            IsVisible="{Binding HasAction}"
+                            Content="{Binding CurrentActionText}"
+                            AutomationProperties.Name="{Binding CurrentActionText}" />
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <Button Grid.Column="1"
+                    Classes="cfp-secondary"
+                    MinWidth="96"
+                    Command="{Binding DismissCommand}"
+                    Content="{Binding CloseText}"
+                    AutomationProperties.Name="{Binding CloseText}" />
+            <Button Grid.Column="2"
+                    Classes="cfp-primary"
+                    MinWidth="120"
+                    Command="{Binding CompleteCommand}"
+                    Content="{Binding CompleteText}"
+                    AutomationProperties.Name="{Binding CompleteText}" />
         </Grid>
     </Grid>
 </UserControl>

@@ -70,7 +70,14 @@ public partial class MainWindow
         {
             return;
         }
-        var dialog = new OnboardingDialogViewModel(key => viewModel.Loc[key]);
+        var dialog = new OnboardingDialogViewModel(
+            key => viewModel.Loc[key],
+            viewModel.OnboardingTasks,
+            action =>
+            {
+                viewModel.RunOnboardingAction(action);
+                return Task.CompletedTask;
+            });
         bool completed = await OverlayDialog.ShowCustomAsync<OnboardingDialogView,
             OnboardingDialogViewModel, bool>(
             dialog, OverlayHostId, CreateOverlayOptions());

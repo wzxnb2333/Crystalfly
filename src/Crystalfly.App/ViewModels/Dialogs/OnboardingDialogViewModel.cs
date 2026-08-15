@@ -1,89 +1,99 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Irihi.Avalonia.Shared.Contracts;
 
 namespace Crystalfly.App.ViewModels.Dialogs;
 
+public enum OnboardingTaskState
+{
+    Done,
+    Current,
+    Attention,
+    Locked
+}
+
+public sealed record OnboardingTaskItemViewModel(
+    string Id,
+    string Title,
+    string Description,
+    string StatusText,
+    string ActionText,
+    string ActionKey,
+    OnboardingTaskState State)
+{
+    public bool IsDone => State == OnboardingTaskState.Done;
+
+    public bool IsCurrent => State == OnboardingTaskState.Current;
+
+    public bool IsAttention => State == OnboardingTaskState.Attention;
+
+    public bool IsLocked => State == OnboardingTaskState.Locked;
+
+    public bool HasAction => !string.IsNullOrWhiteSpace(ActionKey);
+}
+
 public sealed partial class OnboardingDialogViewModel : ViewModelBase, IDialogContext
 {
-    private sealed record OnboardingStep(string TitleKey, string DescriptionKey);
-
-    private static readonly OnboardingStep[] Steps =
-    [
-        new("OnboardingStepWelcomeTitle", "OnboardingStepWelcomeDescription"),
-        new("OnboardingStepImportTitle", "OnboardingStepImportDescription"),
-        new("OnboardingStepSelectInstanceTitle", "OnboardingStepSelectInstanceDescription"),
-        new("OnboardingStepLoaderTitle", "OnboardingStepLoaderDescription"),
-        new("OnboardingStepModsTitle", "OnboardingStepModsDescription"),
-        new("OnboardingStepLaunchTitle", "OnboardingStepLaunchDescription"),
-        new("OnboardingStepExtraTitle", "OnboardingStepExtraDescription"),
-        new("OnboardingStepFinishTitle", "OnboardingStepFinishDescription")
-    ];
+    private static readonly IReadOnlyList<OnboardingTaskItemViewModel> EmptyTasks = [];
 
     private readonly Func<string, string> translate;
-    private int currentIndex;
+    private readonly Func<string, Task>? runAction;
 
-    public OnboardingDialogViewModel(Func<string, string> translate)
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CurrentTitle))]
+    [NotifyPropertyChangedFor(nameof(CurrentDescription))]
+    [NotifyPropertyChangedFor(nameof(CurrentStatusText))]
+    [NotifyPropertyChangedFor(nameof(CurrentActionText))]
+    [NotifyPropertyChangedFor(nameof(HasAction))]
+    public partial OnboardingTaskItemViewModel? SelectedTask { get; set; }
+
+    public OnboardingDialogViewModel(
+        Func<string, string> translate,
+        IReadOnlyList<OnboardingTaskItemViewModel>? tasks = null,
+        Func<string, Task>? runAction = null)
     {
         this.translate = translate;
+        this.runAction = runAction;
+        Tasks = new ObservableCollection<OnboardingTaskItemViewModel>(
+            tasks is { Count: > 0 } ? tasks : EmptyTasks);
+        SelectedTask = Tasks.FirstOrDefault(task => !task.IsDone) ?? Tasks.FirstOrDefault();
     }
 
-    public int StepCount => Steps.Length;
+    public ObservableCollection<OnboardingTaskItemViewModel> Tasks { get; }
 
-    public string CurrentTitle => translate(Steps[currentIndex].TitleKey);
+    public string CurrentTitle => SelectedTask?.Title ?? translate("OnboardingSection");
 
-    public string CurrentDescription => translate(Steps[currentIndex].DescriptionKey);
+    public string CurrentDescription => SelectedTask?.Description ?? translate("OnboardingSectionHint");
 
-    public string StepPosition => string.Format(translate("OnboardingStepPosition"), currentIndex + 1, Steps.Length);
+    public string CurrentStatusText => SelectedTask?.StatusText ?? string.Empty;
 
-    public string NextText => translate(IsLastStep ? "OnboardingFinish" : "OnboardingNext");
+    public string CurrentActionText => SelectedTask?.ActionText ?? translate("OnboardingReopen");
 
-    public string BackText => translate("OnboardingBack");
+    public bool HasAction => SelectedTask?.HasAction == true;
 
-    public string SkipText => translate("OnboardingSkip");
+    public string CompleteText => translate("OnboardingFinish");
 
-    public bool CanGoBack => currentIndex > 0;
-
-    public bool CanGoNext => currentIndex < Steps.Length - 1;
-
-    public bool IsLastStep => currentIndex == Steps.Length - 1;
+    public string CloseText => translate("WindowClose");
 
     public event EventHandler<object?>? RequestClose;
 
-    public void Close() => Skip();
-
-    private void AdvanceTo(int index)
-    {
-        currentIndex = Math.Clamp(index, 0, Steps.Length - 1);
-        OnPropertyChanged(nameof(CurrentTitle));
-        OnPropertyChanged(nameof(CurrentDescription));
-        OnPropertyChanged(nameof(StepPosition));
-        OnPropertyChanged(nameof(NextText));
-        OnPropertyChanged(nameof(CanGoBack));
-        OnPropertyChanged(nameof(CanGoNext));
-        OnPropertyChanged(nameof(IsLastStep));
-    }
+    public void Close() => RequestClose?.Invoke(this, false);
 
     [RelayCommand]
-    private void Back()
-    {
-        if (CanGoBack)
-        {
-            AdvanceTo(currentIndex - 1);
-        }
-    }
+    private void Dismiss() => Close();
 
     [RelayCommand]
-    private void Next()
+    private async Task RunSelectedActionAsync()
     {
-        if (CanGoNext)
+        if (SelectedTask?.ActionKey is not { Length: > 0 } actionKey || runAction is null)
         {
-            AdvanceTo(currentIndex + 1);
             return;
         }
-        RequestClose?.Invoke(this, true);
+        await runAction(actionKey);
+        RequestClose?.Invoke(this, false);
     }
 
     [RelayCommand]
-    private void Skip() => RequestClose?.Invoke(this, false);
+    private void Complete() => RequestClose?.Invoke(this, true);
 }

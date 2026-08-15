@@ -274,7 +274,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             NotifyOperationCompleted: NotifyOperationCompleted,
             AutoRequestGameDirectoryDiscovery: autoRequestGameDirectoryDiscovery,
             LifetimeCancellation: lifetimeCancellation.Token));
-        Instances.PropertyChanged += (_, eventArgs) => OnPropertyChanged(eventArgs.PropertyName);
+        Instances.PropertyChanged += (_, eventArgs) =>
+        {
+            OnPropertyChanged(eventArgs.PropertyName);
+            NotifyOnboardingStateChanged();
+        };
         Instances.ToastRequested += message => NotifyToast(message);
         Settings = new SettingsViewModel(new SettingsDependencies(
             Loc: () => Loc,
@@ -381,6 +385,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private void OnModManagementPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
+        NotifyOnboardingStateChanged();
         if (eventArgs.PropertyName == nameof(ModManagementViewModel.SelectedInstalledMod)
             && ModManagement.IsInstalledModGraphVisible)
         {
@@ -456,6 +461,38 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public ObservableCollection<DownloadBuildOption> VisibleDownloadBuilds { get; } = [];
 
     public bool HasInstance => SelectedInstance is not null;
+
+    public bool IsOnboardingCompleted => settings.OnboardingCompleted;
+
+    public bool ShouldShowLaunchOnboarding => !IsOnboardingCompleted;
+
+    public IReadOnlyList<OnboardingTaskItemViewModel> OnboardingTasks => BuildOnboardingTasks();
+
+    public OnboardingTaskItemViewModel? OnboardingNextTask =>
+        OnboardingTasks.FirstOrDefault(task => !task.IsDone) ?? OnboardingTasks.LastOrDefault();
+
+    public string OnboardingNextTaskTitle => OnboardingNextTask?.Title ?? Loc["OnboardingSection"];
+
+    public string OnboardingNextTaskDescription =>
+        OnboardingNextTask?.Description ?? Loc["OnboardingSectionHint"];
+
+    public string OnboardingProgressText
+    {
+        get
+        {
+            var tasks = OnboardingTasks;
+            return string.Format(
+                CultureInfo.CurrentUICulture,
+                Loc["OnboardingProgressFormat"],
+                tasks.Count(task => task.IsDone),
+                tasks.Count);
+        }
+    }
+
+    public bool HasOnboardingAction => OnboardingNextTask?.HasAction == true;
+
+    public string OnboardingNextActionText =>
+        OnboardingNextTask?.ActionText ?? Loc["OnboardingReopen"];
 
     public bool CanNavigate => !IsBusy && !IsGameRunning && !IsExternalCommandRunning;
 
@@ -764,6 +801,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanOpenModFolder))]
+    [NotifyPropertyChangedFor(nameof(OnboardingTasks))]
+    [NotifyPropertyChangedFor(nameof(OnboardingNextTask))]
+    [NotifyPropertyChangedFor(nameof(OnboardingNextTaskTitle))]
+    [NotifyPropertyChangedFor(nameof(OnboardingNextTaskDescription))]
+    [NotifyPropertyChangedFor(nameof(OnboardingProgressText))]
+    [NotifyPropertyChangedFor(nameof(HasOnboardingAction))]
+    [NotifyPropertyChangedFor(nameof(OnboardingNextActionText))]
     public partial LoaderState CurrentLoaderState { get; set; }
 
     public bool CanOpenModFolder => CurrentLoaderState is LoaderState.ModdingApi or LoaderState.BepInEx;
@@ -827,6 +871,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(SaveIsolationStatus))]
     [NotifyPropertyChangedFor(nameof(LaunchReadinessTitle))]
     [NotifyPropertyChangedFor(nameof(LaunchReadinessHint))]
+    [NotifyPropertyChangedFor(nameof(OnboardingTasks))]
+    [NotifyPropertyChangedFor(nameof(OnboardingNextTask))]
+    [NotifyPropertyChangedFor(nameof(OnboardingNextTaskTitle))]
+    [NotifyPropertyChangedFor(nameof(OnboardingNextTaskDescription))]
+    [NotifyPropertyChangedFor(nameof(OnboardingProgressText))]
+    [NotifyPropertyChangedFor(nameof(HasOnboardingAction))]
+    [NotifyPropertyChangedFor(nameof(OnboardingNextActionText))]
     public partial LaunchPreflightResult LaunchPreflight { get; set; } = new(false, false, false, false);
 
     [ObservableProperty]
@@ -915,6 +966,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(LaunchReadinessTitle))]
     [NotifyPropertyChangedFor(nameof(LaunchReadinessHint))]
     [NotifyPropertyChangedFor(nameof(SupportsAccessibility))]
+    [NotifyPropertyChangedFor(nameof(OnboardingTasks))]
+    [NotifyPropertyChangedFor(nameof(OnboardingNextTask))]
+    [NotifyPropertyChangedFor(nameof(OnboardingNextTaskTitle))]
+    [NotifyPropertyChangedFor(nameof(OnboardingNextTaskDescription))]
+    [NotifyPropertyChangedFor(nameof(OnboardingProgressText))]
+    [NotifyPropertyChangedFor(nameof(HasOnboardingAction))]
+    [NotifyPropertyChangedFor(nameof(OnboardingNextActionText))]
     public partial InstanceItemViewModel? SelectedInstance { get; set; }
 
     public bool SupportsAccessibility =>
@@ -1111,6 +1169,115 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         settings = settings with { OnboardingCompleted = true };
         _ = QueueSettingsSave();
+        NotifyOnboardingStateChanged();
+    }
+
+    [RelayCommand]
+    private void CompleteOnboardingFromUi() => CompleteOnboarding();
+
+    [RelayCommand]
+    private void RunOnboardingNextAction()
+    {
+        if (OnboardingNextTask is { ActionKey: { Length: > 0 } actionKey })
+        {
+            RunOnboardingAction(actionKey);
+        }
+    }
+
+    public void RunOnboardingAction(string action)
+    {
+        switch (action)
+        {
+            case "Versions":
+                CurrentPage = "Versions";
+                break;
+            case "ManageOverview":
+                CurrentManageTab = "Overview";
+                CurrentPage = "Manage";
+                break;
+            case "ManageLoader":
+                CurrentManageTab = "Loader";
+                CurrentPage = "Manage";
+                break;
+            case "ModMarket":
+                OpenModMarketForSelectedInstance();
+                break;
+            case "ManageMods":
+                CurrentManageTab = "Mods";
+                CurrentPage = "Manage";
+                break;
+            case "SettingsNetwork":
+                CurrentSettingsSection = "Network";
+                CurrentPage = "Settings";
+                break;
+            case "Speedrun":
+                CurrentPage = "Speedrun";
+                break;
+            case "Launch":
+                CurrentPage = "Launch";
+                break;
+        }
+    }
+
+    private IReadOnlyList<OnboardingTaskItemViewModel> BuildOnboardingTasks()
+    {
+        var hasDirectory = Instances.GameDirectories.Count > 0 || Directory.Exists(VersionRoot);
+        var hasInstance = SelectedInstance is not null;
+        var hasLoader = hasInstance && CurrentLoaderState is not LoaderState.Vanilla;
+        var hasMods = ModManagement.InstalledMods.Count > 0;
+        var hasModIssue = CanAdoptExternalContent || HasModDependencyProblems;
+        var launchCheckComplete = hasInstance && LaunchPreflight.IsReady;
+        var canLaunch = hasInstance && LaunchPreflight.CanLaunchNormally;
+
+        return
+        [
+            CreateOnboardingTask("GameDirectory", "Versions", hasDirectory, false),
+            CreateOnboardingTask("SelectInstance", "Versions", hasInstance, hasDirectory),
+            CreateOnboardingTask("InstanceIsolation", "ManageOverview", hasInstance, hasInstance),
+            CreateOnboardingTask("Loader", "ManageLoader", hasLoader, hasInstance),
+            CreateOnboardingTask("LaunchIssues", "Launch", launchCheckComplete, hasInstance, HasLaunchIssues),
+            CreateOnboardingTask("ModMarket", "ModMarket", hasMods, hasLoader),
+            CreateOnboardingTask("InstalledMods", "ManageMods", hasMods && !hasModIssue, hasMods, hasModIssue),
+            CreateOnboardingTask("LaunchGame", "Launch", canLaunch, hasMods || hasLoader),
+            CreateOnboardingTask("Explore", "Speedrun", IsSpeedrunPage, canLaunch)
+        ];
+    }
+
+    private OnboardingTaskItemViewModel CreateOnboardingTask(
+        string id,
+        string action,
+        bool isDone,
+        bool isUnlocked,
+        bool attention = false)
+    {
+        var state = isDone
+            ? OnboardingTaskState.Done
+            : attention
+                ? OnboardingTaskState.Attention
+                : isUnlocked
+                    ? OnboardingTaskState.Current
+                    : OnboardingTaskState.Locked;
+        return new OnboardingTaskItemViewModel(
+            id,
+            Loc[$"OnboardingTask{id}Title"],
+            Loc[$"OnboardingTask{id}Description"],
+            Loc[$"OnboardingTaskState{state}"],
+            Loc[$"OnboardingTask{id}Action"],
+            action,
+            state);
+    }
+
+    private void NotifyOnboardingStateChanged()
+    {
+        OnPropertyChanged(nameof(IsOnboardingCompleted));
+        OnPropertyChanged(nameof(ShouldShowLaunchOnboarding));
+        OnPropertyChanged(nameof(OnboardingTasks));
+        OnPropertyChanged(nameof(OnboardingNextTask));
+        OnPropertyChanged(nameof(OnboardingNextTaskTitle));
+        OnPropertyChanged(nameof(OnboardingNextTaskDescription));
+        OnPropertyChanged(nameof(OnboardingProgressText));
+        OnPropertyChanged(nameof(HasOnboardingAction));
+        OnPropertyChanged(nameof(OnboardingNextActionText));
     }
 
     [RelayCommand]

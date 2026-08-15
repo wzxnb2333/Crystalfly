@@ -290,6 +290,37 @@
                             </StackPanel>
                         </Grid>
 
+                        <Border Classes="cfp-card cfp-accent-frame"
+                                IsVisible="{Binding ShouldShowLaunchOnboarding}"
+                                Padding="14,12">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                                <StackPanel Spacing="4">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                        <LucideIcon Kind="GraduationCap" Size="16" Foreground="{DynamicResource CfAccentBrush}" />
+                                        <TextBlock Grid.Column="1" Classes="cfp-row-title" Text="{Binding Loc[OnboardingLaunchCardTitle]}" />
+                                    </Grid>
+                                    <TextBlock Classes="cfp-caption" Text="{Binding OnboardingProgressText}" />
+                                    <TextBlock Classes="cfp-meta" Text="{Binding OnboardingNextTaskTitle}" TextWrapping="Wrap" />
+                                    <TextBlock Classes="cfp-caption" Text="{Binding OnboardingNextTaskDescription}" TextWrapping="Wrap" MaxLines="2" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+                                    <Button Classes="cfp-primary"
+                                            Command="{Binding RunOnboardingNextActionCommand}"
+                                            IsVisible="{Binding HasOnboardingAction}"
+                                            Content="{Binding OnboardingNextActionText}"
+                                            AutomationProperties.Name="{Binding OnboardingNextActionText}" />
+                                    <Button Classes="cfp-secondary"
+                                            Command="{Binding ShowOnboardingCommand}"
+                                            Content="{Binding Loc[OnboardingContinue]}"
+                                            AutomationProperties.Name="{Binding Loc[OnboardingContinue]}" />
+                                    <Button Classes="cfp-link"
+                                            Command="{Binding CompleteOnboardingFromUiCommand}"
+                                            Content="{Binding Loc[OnboardingDismiss]}"
+                                            AutomationProperties.Name="{Binding Loc[OnboardingDismiss]}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
                         <ProgressBar Name="InstanceDetailsLoading"
                                      Height="2"
                                      IsIndeterminate="True"

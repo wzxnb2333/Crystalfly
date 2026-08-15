@@ -4,7 +4,7 @@
 
 Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The Launch page is the only entry point for selecting and managing launchable instances; actual game downloads live under Download → Game Versions.
 
-> Current version: `1.1.1`. This release provides unsigned local Windows x64 portable and installer artifacts. The Speedrun page checks official Speedrun.com boards on demand for new world records and podium results while preserving an offline baseline.
+> Current version: `1.1.2`. This release provides unsigned local Windows x64 portable and installer artifacts. The Speedrun page checks official Speedrun.com boards on demand for new world records and podium results while preserving an offline baseline.
 
 ![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
 ![Select instance](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)
@@ -113,10 +113,10 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.1'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.2'
 
 # Build and install locally without an update-signing key; no update manifest is emitted.
-pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.1' -UnsignedLocal
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.2' -UnsignedLocal
 ```
 
 The scripts automatically locate Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. Release builds read `CRYSTALFLY_UPDATE_SIGNING_KEY` from the ignored `.env.update-signing` file and use `tools/Crystalfly.ReleaseTool` to sign the update manifest; never commit the private key file. For local verification only, pass `-UnsignedLocal`; this omits `update-manifest.v1.json` and must not be uploaded as a public Release. `build-and-install.ps1` reads the version from `Directory.Build.props`, runs the full Release build and tests, validates the artifacts, then silently updates `D:\Program Files\Crystalfly` with administrator approval and verifies the installed version. It stops when Crystalfly is running and never terminates the process. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, updater helper, portable ZIP, installer, signed `update-manifest.v1.json`, and `SHA256SUMS.txt`. Assets are not Authenticode-signed yet; the client still verifies the Ed25519 manifest signature plus each asset's SHA-256, size, and version.
