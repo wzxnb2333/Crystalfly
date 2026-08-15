@@ -161,6 +161,56 @@ public sealed class DownloadQueueServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Steam_pause_from_running_notification_resumes_the_group()
+    {
+        var executor = new ControlledExecutor(blockTransfers: true);
+        var pauseStarted = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pausedPersistenceStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releasePausedPersistence = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pauseRequested = 0;
+        await using var queue = CreateQueue(
+            executor,
+            persistOverride: async (groups, _) =>
+            {
+                if (groups.Any(group => group.Stage == "Waiting for Steam login")
+                    && !pausedPersistenceStarted.Task.IsCompleted)
+                {
+                    pausedPersistenceStarted.TrySetResult();
+                    await releasePausedPersistence.Task;
+                }
+            });
+        queue.QueueChanged += groups =>
+        {
+            if (groups.SingleOrDefault()?.State == DownloadQueueGroupState.Running
+                && Interlocked.Exchange(ref pauseRequested, 1) == 0)
+            {
+                pauseStarted.TrySetResult(queue.PauseSteamDownloadsAsync());
+            }
+        };
+        await queue.InitializeAsync();
+        await queue.EnqueueAsync(SteamDownloadQueueGroupFactory.Create(
+            "public", "Steam public", null, Path.Combine(root, "versions"), "steam-dispatch-race"));
+
+        var pause = await pauseStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await pausedPersistenceStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            Assert.False(pause.IsCompleted);
+        }
+        finally
+        {
+            releasePausedPersistence.TrySetResult();
+        }
+        await pause.WaitAsync(TimeSpan.FromSeconds(5));
+        await queue.ResumeSteamDownloadsAsync();
+        executor.ReleaseTransfers();
+        await queue.WaitForIdleAsync().WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(1, executor.StartedTransfers);
+        Assert.Equal(DownloadQueueGroupState.Completed, Assert.Single(queue.Groups).State);
+    }
+
+    [Fact]
     public async Task Items_in_one_group_run_in_dependency_order()
     {
         var executor = new ControlledExecutor();
