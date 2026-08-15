@@ -69,6 +69,10 @@ public partial class MainViewModel
         {
             EnsureSpeedrunActivityLoaded();
         }
+        else if (value == "Downloads" && IsGameVersionsDownloadSection)
+        {
+            _ = DownloadCenter.RefreshSteamChunkCacheStatusCommand.ExecuteAsync(null);
+        }
     }
 
     partial void OnCurrentSpeedrunTabChanged(string value)

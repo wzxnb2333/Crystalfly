@@ -13,6 +13,15 @@ public partial class MainViewModel
 {
     private readonly InstanceOperationCoordinator instanceOperationCoordinator = new();
 
+    partial void OnVersionRootChanged(string value) =>
+        _ = DownloadCenter?.RefreshSteamChunkCacheStatusCommand.ExecuteAsync(null);
+
+    partial void OnCurrentDownloadSectionChanged(string value)
+    {
+        if (value == "GameVersions")
+            _ = DownloadCenter.RefreshSteamChunkCacheStatusCommand.ExecuteAsync(null);
+    }
+
     private DownloadQueueService CreateDownloadQueue()
     {
         var packageExecutor = new CatalogPackageQueueExecutor(

@@ -529,6 +529,49 @@ public sealed class DownloadCenterViewModelTests : IDisposable
         Assert.False(center.CanResumeAll);
     }
 
+    [Fact]
+    public async Task Steam_chunk_cache_status_and_clear_follow_current_version_root()
+    {
+        string versionRoot = Path.Combine(root, "versions");
+        string cacheRoot = Path.Combine(versionRoot, ".crystalfly", "steam-chunks", "AA");
+        Directory.CreateDirectory(cacheRoot);
+        await File.WriteAllBytesAsync(Path.Combine(cacheRoot, $"{new string('A', 40)}.chunk"), new byte[128]);
+        string instanceRoot = Directory.CreateDirectory(Path.Combine(versionRoot, "instance")).FullName;
+        string gameFile = Path.Combine(instanceRoot, "hollow_knight.exe");
+        await File.WriteAllTextAsync(gameFile, "game");
+        await using var queue = CreateQueue(new FakeQueueExecutor());
+        var center = CreateCenter(queue, versionRoot: versionRoot);
+
+        await center.RefreshSteamChunkCacheStatusCommand.ExecuteAsync(null);
+
+        Assert.Equal((128L, 1), (center.SteamChunkCacheSizeBytes, center.SteamChunkCacheEntryCount));
+        Assert.True(center.CanClearSteamChunkCache);
+
+        await center.ClearSteamChunkCacheCommand.ExecuteAsync(null);
+
+        Assert.Equal((0L, 0), (center.SteamChunkCacheSizeBytes, center.SteamChunkCacheEntryCount));
+        Assert.False(center.CanClearSteamChunkCache);
+        Assert.Equal("game", await File.ReadAllTextAsync(gameFile));
+    }
+
+    [Fact]
+    public async Task Steam_chunk_cache_cannot_be_cleared_while_a_steam_group_is_active()
+    {
+        var executor = new FakeQueueExecutor();
+        executor.Block("steam-active");
+        await using var queue = CreateQueue(executor);
+        var center = CreateCenter(queue, versionRoot: Path.Combine(root, "versions"));
+        await queue.InitializeAsync();
+        await center.EnqueueAsync(SteamGroup("steam-active"));
+        await WaitUntilAsync(() => queue.Groups.Single().State == DownloadQueueGroupState.Running);
+
+        Assert.False(center.CanClearSteamChunkCache);
+        Assert.False(center.ClearSteamChunkCacheCommand.CanExecute(null));
+
+        await center.CancelAllCommand.ExecuteAsync(null);
+        executor.Unblock("steam-active");
+    }
+
     private DownloadQueueService CreateQueue(IDownloadQueueExecutor executor, string? storeRoot = null) => new(
         Path.Combine(storeRoot ?? root, "download-queue.json"),
         executor,
@@ -537,7 +580,8 @@ public sealed class DownloadCenterViewModelTests : IDisposable
 
     private DownloadCenterViewModel CreateCenter(
         DownloadQueueService queue,
-        List<string>? toasts = null)
+        List<string>? toasts = null,
+        string? versionRoot = null)
     {
         var localization = new LocalizationViewModel();
         localization.Apply(UiLanguage.English);
@@ -547,7 +591,7 @@ public sealed class DownloadCenterViewModelTests : IDisposable
             toasts is null ? null : toasts.Add,
             ErrorReported: null,
             IsBusy: static () => false,
-            GetVersionRoot: static () => Path.GetTempPath(),
+            GetVersionRoot: () => versionRoot ?? Path.GetTempPath(),
             GetSelectedInstanceId: static () => null,
             RestoreSelectedInstance: static _ => { },
             RefreshAsync: static () => Task.CompletedTask,

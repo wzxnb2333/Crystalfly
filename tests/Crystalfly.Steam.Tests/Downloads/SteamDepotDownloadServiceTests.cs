@@ -39,6 +39,36 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ChunkDownloadsAreScheduledAcrossFilesBeforeEitherFileCompletes()
+    {
+        byte[] first = "first"u8.ToArray();
+        byte[] second = "second"u8.ToArray();
+        var manifest = new SteamDepotManifest(
+            123,
+            [
+                DepotFile("first.dat", "chunk-0", first),
+                DepotFile("second.dat", "chunk-1", second)
+            ]);
+        var source = new ControlledContentClient(manifest, first, second);
+        var downloader = new SteamDepotDownloadService(source);
+        Task<SteamDownloadResult> download = downloader.DownloadAsync(new SteamDownloadRequest(_staging, 123));
+
+        try
+        {
+            await source.WaitForStartedAsync(2).WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.Equal(["chunk-0", "chunk-1"], source.StartedChunkIds.Order().ToArray());
+            source.ReleaseAll();
+            await download;
+        }
+        finally
+        {
+            source.ReleaseAll();
+            await IgnoreFailureAsync(download);
+        }
+    }
+
+    [Fact]
     public async Task ConcurrentChunksWriteAtTheirManifestOffsetsWhenTheyFinishOutOfOrder()
     {
         byte[] first = "abc"u8.ToArray();
@@ -152,6 +182,88 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
         Assert.Equal(123UL, source.RequestedManifestId);
         Assert.Equal("abcdef", await File.ReadAllTextAsync(Path.Combine(_staging, "game.dat")));
         Assert.Equal((123UL, 6L, 1), (result.ManifestId, result.TotalBytes, result.Files.Count));
+    }
+
+    [Fact]
+    public async Task VerifiedChunkCacheIsSharedAcrossSeparateDownloads()
+    {
+        byte[] content = "shared steam chunk"u8.ToArray();
+        string chunkId = Convert.ToHexString(SHA1.HashData(content));
+        var manifest = new SteamDepotManifest(
+            123,
+            [DepotFile("game.dat", chunkId, content)]);
+        string firstStaging = _staging + "-first";
+        string secondStaging = _staging + "-second";
+        string cacheRoot = _staging + "-cache";
+        try
+        {
+            var firstSource = new MemoryContentClient(manifest, content);
+            await new SteamDepotDownloadService(firstSource).DownloadAsync(
+                new SteamDownloadRequest(firstStaging, 123, ChunkCacheDirectory: cacheRoot));
+            var secondSource = new MemoryContentClient(manifest, content);
+
+            await new SteamDepotDownloadService(secondSource).DownloadAsync(
+                new SteamDownloadRequest(secondStaging, 123, ChunkCacheDirectory: cacheRoot));
+
+            Assert.Equal(1, firstSource.DownloadedChunkCount);
+            Assert.Equal(0, secondSource.DownloadedChunkCount);
+            Assert.Equal(content, await File.ReadAllBytesAsync(Path.Combine(secondStaging, "game.dat")));
+        }
+        finally
+        {
+            foreach (string path in new[] { firstStaging, secondStaging, cacheRoot })
+            {
+                if (Directory.Exists(path))
+                    Directory.Delete(path, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task FailedDownloadKeepsVerifiedChunksForRetry()
+    {
+        byte[] first = "completed before failure"u8.ToArray();
+        byte[] second = "failed chunk"u8.ToArray();
+        string firstId = Convert.ToHexString(SHA1.HashData(first));
+        string secondId = Convert.ToHexString(SHA1.HashData(second));
+        var manifest = new SteamDepotManifest(
+            123,
+            [
+                DepotFile("first.dat", firstId, first),
+                DepotFile("second.dat", secondId, second)
+            ]);
+        string failedStaging = _staging + "-failed";
+        string retryStaging = _staging + "-retry";
+        string cacheRoot = _staging + "-retry-cache";
+        var source = new ControlledContentClient(manifest, first, second);
+        Task<SteamDownloadResult> failed = new SteamDepotDownloadService(source).DownloadAsync(
+            new SteamDownloadRequest(failedStaging, 123, ChunkCacheDirectory: cacheRoot));
+        try
+        {
+            await source.WaitForStartedAsync(2).WaitAsync(TimeSpan.FromSeconds(5));
+            source.ReleaseChunk(firstId);
+            await source.WaitForFinishedAsync(firstId).WaitAsync(TimeSpan.FromSeconds(5));
+            source.FailChunk(secondId, new IOException("failed"));
+            await Assert.ThrowsAsync<IOException>(() => failed);
+
+            var retrySource = new MemoryContentClient(manifest, first, second);
+            await new SteamDepotDownloadService(retrySource).DownloadAsync(
+                new SteamDownloadRequest(retryStaging, 123, ChunkCacheDirectory: cacheRoot));
+
+            Assert.Equal(1, retrySource.DownloadedChunkCount);
+            Assert.Equal(first, await File.ReadAllBytesAsync(Path.Combine(retryStaging, "first.dat")));
+            Assert.Equal(second, await File.ReadAllBytesAsync(Path.Combine(retryStaging, "second.dat")));
+        }
+        finally
+        {
+            source.ReleaseAll();
+            await IgnoreFailureAsync(failed);
+            foreach (string path in new[] { failedStaging, retryStaging, cacheRoot })
+            {
+                if (Directory.Exists(path))
+                    Directory.Delete(path, recursive: true);
+            }
+        }
     }
 
     [Fact]
@@ -407,8 +519,9 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
     private class MemoryContentClient(SteamDepotManifest manifest, params byte[][] chunks) : ISteamContentDeliveryClient
     {
         private int _downloadedChunkCount;
-        private readonly Dictionary<string, byte[]> _chunks = chunks
-            .Select((chunk, index) => KeyValuePair.Create($"chunk-{index}", chunk))
+        private readonly Dictionary<string, byte[]> _chunks = manifest.Files
+            .SelectMany(static file => file.Chunks)
+            .Zip(chunks, static (chunk, bytes) => KeyValuePair.Create(chunk.Id, bytes))
             .ToDictionary();
 
         public uint AppId { get; private set; }
@@ -453,8 +566,9 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
         public ControlledContentClient(SteamDepotManifest manifest, params byte[][] chunks)
         {
             _manifest = manifest;
-            _chunks = chunks
-                .Select((chunk, index) => KeyValuePair.Create($"chunk-{index}", new ChunkControl(chunk)))
+            _chunks = manifest.Files
+                .SelectMany(static file => file.Chunks)
+                .Zip(chunks, static (chunk, bytes) => KeyValuePair.Create(chunk.Id, new ChunkControl(bytes)))
                 .ToDictionary();
             _startedCounts = Enumerable.Range(0, chunks.Length + 1)
                 .Select(_ => new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously))

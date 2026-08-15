@@ -3,6 +3,7 @@ using System.Globalization;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using Crystalfly.App.Downloads;
+using Crystalfly.Steam.Downloads;
 
 namespace Crystalfly.App.ViewModels;
 
@@ -27,6 +28,10 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
     private int downloadQueueProjectionScheduled;
     private int queueRefreshRequested;
     private int queueRefreshScheduled;
+    private readonly SemaphoreSlim steamChunkCacheGate = new(1, 1);
+    private long steamChunkCacheSizeBytes;
+    private int steamChunkCacheEntryCount;
+    private bool isSteamChunkCacheBusy;
     private LocalizationViewModel loc;
 
     public DownloadCenterViewModel(DownloadCenterDependencies dependencies)
@@ -78,6 +83,56 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
         CultureInfo.CurrentCulture,
         loc["ActiveDownloads"],
         ActiveQueueGroups.Count());
+
+    public long SteamChunkCacheSizeBytes
+    {
+        get => steamChunkCacheSizeBytes;
+        private set
+        {
+            if (SetProperty(ref steamChunkCacheSizeBytes, value))
+                OnPropertyChanged(nameof(SteamChunkCacheUsageText));
+        }
+    }
+
+    public int SteamChunkCacheEntryCount
+    {
+        get => steamChunkCacheEntryCount;
+        private set
+        {
+            if (SetProperty(ref steamChunkCacheEntryCount, value))
+            {
+                OnPropertyChanged(nameof(CanClearSteamChunkCache));
+                ClearSteamChunkCacheCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool IsSteamChunkCacheBusy
+    {
+        get => isSteamChunkCacheBusy;
+        private set
+        {
+            if (SetProperty(ref isSteamChunkCacheBusy, value))
+            {
+                OnPropertyChanged(nameof(CanClearSteamChunkCache));
+                ClearSteamChunkCacheCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public string SteamChunkCacheUsageText => string.Format(
+        CultureInfo.CurrentCulture,
+        loc["SteamChunkCacheUsageFormat"],
+        QueueDisplayText.Size(SteamChunkCacheSizeBytes),
+        QueueDisplayText.Size(SteamChunkCache.DefaultMaximumBytes));
+
+    public bool CanClearSteamChunkCache => SteamChunkCacheEntryCount > 0
+        && !IsSteamChunkCacheBusy
+        && !downloadQueue.Groups.Any(group =>
+            group.State is DownloadQueueGroupState.Pending
+                or DownloadQueueGroupState.Running
+                or DownloadQueueGroupState.WaitingForNetwork
+            && group.Items.Any(SteamDownloadQueueGroupFactory.IsSteamItem));
 
     internal DownloadQueueService DownloadQueue => downloadQueue;
 
@@ -135,6 +190,7 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
             // change must force the projection to re-render existing groups.
             projectionEpoch++;
         }
+        OnPropertyChanged(nameof(SteamChunkCacheUsageText));
     }
 
     internal async Task<DownloadQueueEnqueueResult> EnqueueAsync(
@@ -150,7 +206,11 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
         return result;
     }
 
-    internal void Dispose() => downloadQueue.QueueChanged -= OnDownloadQueueChanged;
+    internal void Dispose()
+    {
+        downloadQueue.QueueChanged -= OnDownloadQueueChanged;
+        steamChunkCacheGate.Dispose();
+    }
 
     private void OnDownloadQueueChanged(IReadOnlyList<DownloadQueueGroup> groups) =>
         QueueDownloadQueueProjection(groups);
@@ -193,6 +253,7 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
         if (scheduleRefresh)
         {
             ScheduleRefreshAfterQueueMutation();
+            Dispatcher.UIThread.Post(() => _ = RefreshSteamChunkCacheStatusCommand.ExecuteAsync(null));
         }
     }
 
@@ -464,6 +525,8 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
         OnPropertyChanged(nameof(TotalSpeedText));
         OnPropertyChanged(nameof(OverallEtaText));
         OnPropertyChanged(nameof(ActiveCountText));
+        OnPropertyChanged(nameof(CanClearSteamChunkCache));
+        ClearSteamChunkCacheCommand.NotifyCanExecuteChanged();
     }
 
     public bool CanRetryAll => downloadQueue.Groups.Any(group =>
@@ -483,6 +546,81 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
 
     public bool CanClearCompleted => downloadQueue.Groups.Any(group =>
         group.State == DownloadQueueGroupState.Completed);
+
+    [RelayCommand]
+    private async Task RefreshSteamChunkCacheStatusAsync()
+    {
+        await steamChunkCacheGate.WaitAsync(lifetimeCancellation);
+        try
+        {
+            SteamChunkCache? cache = CreateSteamChunkCache();
+            SteamChunkCacheSnapshot snapshot = cache is null
+                ? new SteamChunkCacheSnapshot(0, 0, SteamChunkCache.DefaultMaximumBytes)
+                : await cache.GetSnapshotAsync(lifetimeCancellation);
+            SteamChunkCacheSizeBytes = snapshot.SizeBytes;
+            SteamChunkCacheEntryCount = snapshot.EntryCount;
+        }
+        catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception) when (exception is IOException
+            or UnauthorizedAccessException
+            or ArgumentException
+            or OverflowException)
+        {
+            errorReported?.Invoke(loc.ErrorMessageFor(exception));
+        }
+        finally
+        {
+            steamChunkCacheGate.Release();
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanClearSteamChunkCache))]
+    private async Task ClearSteamChunkCacheAsync()
+    {
+        if (!CanClearSteamChunkCache)
+            return;
+
+        await steamChunkCacheGate.WaitAsync(lifetimeCancellation);
+        try
+        {
+            if (!CanClearSteamChunkCache)
+                return;
+            IsSteamChunkCacheBusy = true;
+            SteamChunkCache? cache = CreateSteamChunkCache();
+            if (cache is not null)
+                await cache.ClearAsync(lifetimeCancellation);
+            SteamChunkCacheSizeBytes = 0;
+            SteamChunkCacheEntryCount = 0;
+            toastRequested?.Invoke(loc["SteamChunkCacheCleared"]);
+        }
+        catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception) when (exception is IOException
+            or UnauthorizedAccessException
+            or ArgumentException)
+        {
+            errorReported?.Invoke(loc.ErrorMessageFor(exception));
+        }
+        finally
+        {
+            IsSteamChunkCacheBusy = false;
+            steamChunkCacheGate.Release();
+        }
+    }
+
+    private SteamChunkCache? CreateSteamChunkCache()
+    {
+        string versionRoot = getVersionRoot();
+        return string.IsNullOrWhiteSpace(versionRoot)
+            ? null
+            : new SteamChunkCache(Path.Combine(
+                Path.GetFullPath(versionRoot),
+                ".crystalfly",
+                "steam-chunks"));
+    }
 
     [RelayCommand(CanExecute = nameof(CanRetryAll))]
     private async Task RetryAllAsync()

@@ -4,7 +4,7 @@
 
 Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The Launch page is the only entry point for selecting and managing launchable instances; actual game downloads live under Download → Game Versions.
 
-> Current version: `1.1.2`. This release provides unsigned local Windows x64 portable and installer artifacts. The Speedrun page checks official Speedrun.com boards on demand for new world records and podium results while preserving an offline baseline.
+> Current version: `1.1.3`. This release provides unsigned local Windows x64 portable and installer artifacts. Steam game downloads use depot-wide chunk scheduling and a reusable cross-version cache.
 
 ![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
 ![Select instance](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)
@@ -44,7 +44,7 @@ Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, S
 - Provides a global offline mode that disconnects Steam sessions. Catalogs, custom catalogs, and downloads use verified caches only, while queued network work waits for online mode to return.
 - Displays detected BepInEx, Modding API, and `Player.log` files with their source paths and refreshable tail content.
 - Imports local loaders only through a validated Crystalfly manifest and keeps them marked unverified.
-- Steam sign-in supports **username/password** and QR code. Steam Guard codes (email / mobile) are collected through dialogs; accounts with the mobile authenticator prefer device confirmation. SteamKit2 downloads the public branch plus any user-entered Windows Depot Manifest; it follows the Windows system proxy with a WebSocket login transport, pausing Steam work and reconnecting saved accounts after a proxy change or unexpected disconnect. Under accelerators that return no HTTPS content server, downloads fall back to HTTP servers. Unverified historical versions remain vanilla-only and upgrade automatically when a later catalog entry matches their Manifest and file fingerprint. Each file uses up to sixteen concurrent chunk requests; completed instances receive `steam_appid.txt`, and refresh tokens and remembered credentials are protected with Windows DPAPI for the current user.
+- Steam sign-in supports **username/password** and QR code. Steam Guard codes (email / mobile) are collected through dialogs; accounts with the mobile authenticator prefer device confirmation. SteamKit2 downloads the public branch plus any user-entered Windows Depot Manifest; it follows the Windows system proxy with a WebSocket login transport, pausing Steam work and reconnecting saved accounts after a proxy change or unexpected disconnect. Under accelerators that return no HTTPS content server, downloads fall back to HTTP servers. Unverified historical versions remain vanilla-only and upgrade automatically when a later catalog entry matches their Manifest and file fingerprint. The whole depot shares up to sixteen concurrent chunk requests, while verified chunks are reused across versions and instances through a 20 GiB per-directory cache. Completed instances receive `steam_appid.txt`, and refresh tokens and remembered credentials are protected with Windows DPAPI for the current user.
 - Lets users switch between direct GitHub access, smart selection, `gh-proxy.org`, `gh-proxy.com`, `ghproxy.net`, and `ghfast.top` while testing each route latency. Only official GitHub catalogs and GitHub-hosted packages are proxied; smart selection prefers the fastest available route and falls back through the pool to direct GitHub access. Steam, custom catalogs, and other download URLs keep their original route, with the same package verification.
 - Swaps per-instance LocalLow data before launch, captures it after exit, then restores the original shared data.
 - Creates persistent named save snapshots containing only non-log LocalLow data, plus dedicated speedrun copies with template-specific tools and a pre-launch report.
@@ -113,10 +113,10 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.2'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.3'
 
 # Build and install locally without an update-signing key; no update manifest is emitted.
-pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.2' -UnsignedLocal
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.3' -UnsignedLocal
 ```
 
 The scripts automatically locate Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. Release builds read `CRYSTALFLY_UPDATE_SIGNING_KEY` from the ignored `.env.update-signing` file and use `tools/Crystalfly.ReleaseTool` to sign the update manifest; never commit the private key file. For local verification only, pass `-UnsignedLocal`; this omits `update-manifest.v1.json` and must not be uploaded as a public Release. `build-and-install.ps1` reads the version from `Directory.Build.props`, runs the full Release build and tests, validates the artifacts, then silently updates `D:\Program Files\Crystalfly` with administrator approval and verifies the installed version. It stops when Crystalfly is running and never terminates the process. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, updater helper, portable ZIP, installer, signed `update-manifest.v1.json`, and `SHA256SUMS.txt`. Assets are not Authenticode-signed yet; the client still verifies the Ed25519 manifest signature plus each asset's SHA-256, size, and version.

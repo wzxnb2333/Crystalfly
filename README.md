@@ -4,7 +4,7 @@
 
 Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。启动页是实例选择与管理的唯一入口；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
 
-> 当前版本：`1.1.2`。提供 Windows x64 本地未签名便携包与安装包。速通页按需检查 Speedrun.com 官方榜单的新世界纪录与前三成绩，并保留离线基线。
+> 当前版本：`1.1.3`。提供 Windows x64 本地未签名便携包与安装包。Steam 游戏下载支持跨文件 Chunk 调度和跨版本复用缓存。
 
 ![Crystalfly 启动预检](docs/screenshots/crystalfly-1280x720-zh.jpg)
 ![选择实例](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)
@@ -45,7 +45,7 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 - 支持固定 Mod；批量卸载和无用前置建议会跳过固定项，单独卸载前需先取消固定。
 - 全局离线模式会断开 Steam 登录会话，使目录、翻译、自定义目录、Mod 和 Steam 下载只使用已验证缓存；网络队列等待恢复在线，不影响本地实例管理。
 - 在实例日志页查看 BepInEx、Modding API 和 `Player.log` 的最新内容及来源路径。
-- Steam 登录支持**账号密码**与扫码两种方式；Steam Guard 验证码（邮箱码 / 手机码）通过对话框收集，绑定了手机令牌的账号优先走设备确认。通过 SteamKit2 下载 public 分支与任意手动输入的 Windows Depot Manifest；自动跟随 Windows 系统代理并使用 WebSocket 登录通道，代理变化或非主动断线会暂停 Steam 队列并重连已保存账号。加速器环境下无 HTTPS 内容服务器时自动回退 HTTP 服务器。未验证历史版本仅允许原版启动，目录后续收录相同文件指纹时会自动升级为正式构建。同一文件最多十六路并发下载 Chunk，完成后生成 `steam_appid.txt`，refresh token 与记住的凭据仅以当前 Windows 用户的 DPAPI 加密保存。
+- Steam 登录支持**账号密码**与扫码两种方式；Steam Guard 验证码（邮箱码 / 手机码）通过对话框收集，绑定了手机令牌的账号优先走设备确认。通过 SteamKit2 下载 public 分支与任意手动输入的 Windows Depot Manifest；自动跟随 Windows 系统代理并使用 WebSocket 登录通道，代理变化或非主动断线会暂停 Steam 队列并重连已保存账号。加速器环境下无 HTTPS 内容服务器时自动回退 HTTP 服务器。未验证历史版本仅允许原版启动，目录后续收录相同文件指纹时会自动升级为正式构建。整个 Depot 最多十六路并发下载 Chunk，已验证 Chunk 在当前游戏目录中以 20 GiB 上限跨版本、跨实例复用，完成后生成 `steam_appid.txt`；refresh token 与记住的凭据仅以当前 Windows 用户的 DPAPI 加密保存。
 - 设置页可在 GitHub 直连、智能选择、`gh-proxy.org`、`gh-proxy.com`、`ghproxy.net` 与 `ghfast.top` 间切换并分别测试延迟；镜像仅代理官方 GitHub 目录和 GitHub 托管安装包，智能选择会按首包延迟优先使用可用线路，请求失败时依次切换并最终回退 GitHub 直连。Steam、自定义目录及其他下载地址保持原线路，包校验规则不变。
 - 设置页支持全局背景图片与当前实例独立覆盖，可调节图片不透明度；实例移除独立背景后自动恢复全局背景。
 - 启动前切换实例 LocalLow，退出后写回，并恢复原共享数据。
@@ -154,10 +154,10 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.2'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.3'
 
 # 无更新签名的本地构建与固定目录覆盖；不会生成 update-manifest.v1.json。
-pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.2' -UnsignedLocal
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.3' -UnsignedLocal
 ```
 
 脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。发布构建从已忽略的 `.env.update-signing` 读取 `CRYSTALFLY_UPDATE_SIGNING_KEY`，并使用 `tools/Crystalfly.ReleaseTool` 生成签名更新清单；私钥文件不得提交。仅本地验收时可显式传入 `-UnsignedLocal`，此模式不会生成 `update-manifest.v1.json`，不得将其作为公开 Release 上传。`build-and-install.ps1` 会从 `Directory.Build.props` 读取版本号，执行完整 Release 构建和测试，验证产物后以管理员权限静默更新 `D:\Program Files\Crystalfly`，最后核对已安装版本。运行中的 Crystalfly 会使流程停止，不会强制关闭程序。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、独立更新程序、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包、`update-manifest.v1.json` 和 `SHA256SUMS.txt`。产物尚未使用 Authenticode 签名；客户端仍会验证更新清单的 Ed25519 签名及资产 SHA-256、大小和版本。详细设计见 [架构文档](docs/architecture.md)。

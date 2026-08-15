@@ -106,7 +106,8 @@ public sealed class SteamDownloadQueueExecutor(
                         staging,
                         requestedManifest,
                         RepairSourceDirectory: repair ? group.TargetInstanceRoot : null,
-                        RepairSha256: repairHashes),
+                        RepairSha256: repairHashes,
+                        ChunkCacheDirectory: SteamDownloadQueueGroupFactory.GetChunkCacheDirectory(group)),
                     value => progress.Report(new PackageTransferProgress(
                         value.CompletedBytes,
                         value.TotalBytes,

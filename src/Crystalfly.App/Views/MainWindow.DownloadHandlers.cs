@@ -9,6 +9,24 @@ namespace Crystalfly.App.Views;
 
 public partial class MainWindow
 {
+    private async void ConfirmClearSteamChunkCache(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || !viewModel.DownloadCenter.CanClearSteamChunkCache)
+        {
+            return;
+        }
+
+        bool confirmed = await ShowConfirmationAsync(
+            viewModel.Loc["ConfirmClearSteamChunkCacheTitle"],
+            viewModel.Loc["ConfirmClearSteamChunkCacheMessage"],
+            string.Empty,
+            viewModel,
+            confirmText: viewModel.Loc["ClearSteamChunkCache"]);
+        if (confirmed)
+            await viewModel.DownloadCenter.ClearSteamChunkCacheCommand.ExecuteAsync(null);
+    }
+
     private async void ShowHistoricalManifestDownloadDialog(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is not MainViewModel viewModel)

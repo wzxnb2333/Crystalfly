@@ -4975,6 +4975,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     PrepareMarketInstallTargetsCommand.ExecutionTask ?? Task.CompletedTask,
                     InstallMarketModCommand.ExecutionTask ?? Task.CompletedTask,
                     TestGitHubLatencyCommand.ExecutionTask ?? Task.CompletedTask,
+                    DownloadCenter.RefreshSteamChunkCacheStatusCommand.ExecutionTask ?? Task.CompletedTask,
+                    DownloadCenter.ClearSteamChunkCacheCommand.ExecutionTask ?? Task.CompletedTask,
                     pendingExternalProtocolCommand,
                     steamOfflineTransitionTask,
                     pendingDetailsLoad,
