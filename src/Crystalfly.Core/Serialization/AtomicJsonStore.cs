@@ -64,7 +64,7 @@ public static class AtomicJsonStore
             path,
             FileMode.Open,
             FileAccess.Read,
-            FileShare.Read,
+            FileShare.ReadWrite | FileShare.Delete,
             4096,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
         return await JsonSerializer.DeserializeAsync<T>(stream, CrystalflyJson.Options, cancellationToken)

@@ -317,9 +317,17 @@ Invoke-Native 'Updater runtime restore' {
 Invoke-Native 'Release build' {
     dotnet build (Join-Path $root 'Crystalfly.slnx') -c $Configuration --no-restore
 }
-Invoke-Native 'Release tests' {
-    dotnet test (Join-Path $root 'Crystalfly.slnx') -c $Configuration --no-build `
-        --blame-hang --blame-hang-timeout 3m
+$testProjects = @(
+    (Join-Path $root 'tests\Crystalfly.Updater.Tests\Crystalfly.Updater.Tests.csproj'),
+    (Join-Path $root 'tests\Crystalfly.Steam.Tests\Crystalfly.Steam.Tests.csproj'),
+    (Join-Path $root 'tests\Crystalfly.Core.Tests\Crystalfly.Core.Tests.csproj'),
+    (Join-Path $root 'tests\Crystalfly.App.Tests\Crystalfly.App.Tests.csproj')
+)
+foreach ($testProject in $testProjects) {
+    Invoke-Native "Release tests: $(Split-Path -Leaf (Split-Path -Parent $testProject))" {
+        dotnet test $testProject -c $Configuration --no-build `
+            --blame-hang --blame-hang-timeout 3m
+    }
 }
 Invoke-Native 'Self-contained publish' {
     dotnet publish $appProject -c $Configuration -r $Runtime --self-contained true `

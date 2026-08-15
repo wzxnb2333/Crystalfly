@@ -1,4 +1,6 @@
+using Avalonia;
 using Avalonia.Threading;
+using Avalonia.Controls.ApplicationLifetimes;
 using Crystalfly.Steam.Authentication;
 
 namespace Crystalfly.App.Services;
@@ -34,7 +36,9 @@ public sealed class SteamGuardPromptCallback(
 
     private static async Task<T> RunOnUiThreadAsync<T>(Func<Task<T>> action)
     {
-        if (Dispatcher.UIThread.CheckAccess())
+        if (!HasActiveUiWindow()
+            || !Dispatcher.UIThread.SupportsRunLoops
+            || Dispatcher.UIThread.CheckAccess())
         {
             return await action();
         }
@@ -42,4 +46,10 @@ public sealed class SteamGuardPromptCallback(
         Task<T> inner = await Dispatcher.UIThread.InvokeAsync<Task<T>>(action);
         return await inner;
     }
+
+    private static bool HasActiveUiWindow() =>
+        Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime
+        {
+            MainWindow: not null
+        };
 }
