@@ -69,7 +69,7 @@ public sealed class DownloadCenterViewModelTests : IDisposable
     public async Task Cancel_all_cancels_every_unfinished_group()
     {
         var executor = new FakeQueueExecutor();
-        executor.Blocked.Add("cancel-me");
+        executor.Block("cancel-me");
         await using var queue = CreateQueue(executor);
         var center = CreateCenter(queue);
         await queue.InitializeAsync();
@@ -130,8 +130,8 @@ public sealed class DownloadCenterViewModelTests : IDisposable
     public async Task Overview_totals_sum_active_speed_eta_and_count()
     {
         var executor = new FakeQueueExecutor();
-        executor.Blocked.Add("active-a");
-        executor.Blocked.Add("active-b");
+        executor.Block("active-a");
+        executor.Block("active-b");
         executor.ProgressFor = id => id switch
         {
             "active-a" => new PackageTransferProgress(0, 3000, 100, "Downloading"),
@@ -502,7 +502,7 @@ public sealed class DownloadCenterViewModelTests : IDisposable
     public async Task Pause_all_and_resume_all_toggle_steam_groups()
     {
         var executor = new FakeQueueExecutor();
-        executor.Blocked.Add("steam-one");
+        executor.Block("steam-one");
         await using var queue = CreateQueue(executor);
         var center = CreateCenter(queue);
         await queue.InitializeAsync();
@@ -512,7 +512,7 @@ public sealed class DownloadCenterViewModelTests : IDisposable
         Assert.False(center.CanResumeAll);
 
         await center.PauseAllCommand.ExecuteAsync(null);
-        executor.Blocked.Remove("steam-one");
+        executor.Unblock("steam-one");
 
         var paused = Assert.Single(queue.Groups);
         Assert.Equal(DownloadQueueGroupState.Pending, paused.State);
@@ -627,7 +627,8 @@ public sealed class DownloadCenterViewModelTests : IDisposable
         private readonly ConcurrentDictionary<string, int> attempts = new(StringComparer.Ordinal);
         private readonly TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public HashSet<string> Blocked { get; } = new(StringComparer.Ordinal);
+        private readonly object blockedGate = new();
+        private readonly HashSet<string> blocked = new(StringComparer.Ordinal);
 
         public Func<string, PackageTransferProgress>? ProgressFor { get; set; }
 
@@ -652,7 +653,7 @@ public sealed class DownloadCenterViewModelTests : IDisposable
                 {
                     progress.Report(reported);
                 }
-                if (Blocked.Contains(group.Id))
+                if (IsBlocked(group.Id))
                 {
                     await release.Task.WaitAsync(cancellationToken);
                 }
@@ -671,5 +672,29 @@ public sealed class DownloadCenterViewModelTests : IDisposable
             DownloadQueueGroup group,
             DownloadQueueItem item,
             CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public void Block(string groupId)
+        {
+            lock (blockedGate)
+            {
+                blocked.Add(groupId);
+            }
+        }
+
+        public void Unblock(string groupId)
+        {
+            lock (blockedGate)
+            {
+                blocked.Remove(groupId);
+            }
+        }
+
+        private bool IsBlocked(string groupId)
+        {
+            lock (blockedGate)
+            {
+                return blocked.Contains(groupId);
+            }
+        }
     }
 }
