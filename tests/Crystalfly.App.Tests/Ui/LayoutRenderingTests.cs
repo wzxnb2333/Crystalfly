@@ -10,14 +10,75 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels;
+using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views;
+using Crystalfly.App.Views.Dialogs;
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Models;
+using Ursa.Controls;
 
 namespace Crystalfly.App.Tests.Ui;
 
 public sealed class LayoutRenderingTests
 {
+    [AvaloniaFact]
+    public async Task Onboarding_dialog_keeps_actions_visible_at_minimum_window_size()
+    {
+        var tasks = Enumerable.Range(1, 9)
+            .Select(index => new OnboardingTaskItemViewModel(
+                index.ToString(),
+                $"Task {index}",
+                "A long localized description that must wrap without pushing the dialog actions outside the window.",
+                index < 4 ? "Done" : "Next",
+                "Open",
+                "Open",
+                index < 4 ? OnboardingTaskState.Done : OnboardingTaskState.Current))
+            .ToArray();
+        var dialogViewModel = new OnboardingDialogViewModel(key => key, tasks);
+        var window = new MainWindow { Width = 900, Height = 600 };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            _ = OverlayDialog.ShowCustomAsync<OnboardingDialogView, OnboardingDialogViewModel, bool>(
+                dialogViewModel,
+                MainWindow.OverlayHostId,
+                new OverlayDialogOptions
+                {
+                    TopLevelHashCode = window.GetHashCode(),
+                    CanLightDismiss = false,
+                    CanDragMove = false,
+                    IsCloseButtonVisible = true,
+                    CanResize = false
+                });
+
+            CustomDialogControl[] dialogs = [];
+            for (var attempt = 0; attempt < 50 && dialogs.Length == 0; attempt++)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Delay(10);
+                dialogs = window.GetVisualDescendants().OfType<CustomDialogControl>().ToArray();
+            }
+
+            var dialog = Assert.Single(dialogs);
+            var view = Assert.Single(dialog.GetVisualDescendants().OfType<OnboardingDialogView>());
+            var complete = dialog.GetVisualDescendants()
+                .OfType<Button>()
+                .Single(button => Equals(button.Content, "OnboardingFinish"));
+            var completeOrigin = Assert.IsType<Point>(complete.TranslatePoint(default, window));
+
+            Assert.True(view.Bounds.Height <= 520.5, $"Dialog content was {view.Bounds.Height:F1}px tall.");
+            Assert.True(completeOrigin.Y + complete.Bounds.Height <= window.ClientSize.Height,
+                $"Complete action ended at {completeOrigin.Y + complete.Bounds.Height:F1}px in a {window.ClientSize.Height:F1}px window.");
+            dialog.Close();
+        }
+        finally
+        {
+            CloseImmediately(window);
+        }
+    }
+
     public static TheoryData<int, int, bool, bool, string, string?> LayoutCases
     {
         get
