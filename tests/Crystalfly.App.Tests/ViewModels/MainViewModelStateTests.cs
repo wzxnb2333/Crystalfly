@@ -246,6 +246,86 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.False(viewModel.HasSpeedrunReminder);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Create_speedrun_environment_contains_network_failures_and_removes_clone(bool canceled)
+    {
+        using var test = new TestDirectory();
+        string applicationDataRoot = test.CreateDirectory("app-data");
+        string versionRoot = test.CreateDirectory("versions");
+        string sourceRoot = test.CreateDirectory("versions", "source");
+        var source = Instance("source", sourceRoot);
+        await InstanceSidecar.SaveAsync(source);
+
+        using var httpClient = new HttpClient(new FailingPackageHandler(canceled));
+        await using var viewModel = new MainViewModel(
+            applicationDataRoot,
+            packageHttpClientOverride: httpClient)
+        {
+            VersionRoot = versionRoot,
+            SpeedrunEnvironmentName = "network-failure"
+        };
+        var template = new SpeedrunTemplate
+        {
+            Id = "runtime-patches-test",
+            Name = "RuntimePatches",
+            BuildId = source.BuildId,
+            RulesRevision = "test",
+            FileManifestId = "runtime-patches-files",
+            RequiredAssetIds = ["runtime-patches-asset"]
+        };
+        SetCatalog(viewModel, new GameCatalog
+        {
+            SpeedrunTemplates = [template],
+            SpeedrunAssets =
+            [
+                new SpeedrunAsset
+                {
+                    Id = "runtime-patches-asset",
+                    Name = "RuntimePatches",
+                    Version = "1",
+                    DownloadUrl = "https://example.invalid/runtime-patches.zip",
+                    SizeBytes = 1,
+                    Sha256 = new string('0', 64),
+                    SupportedBuildIds = [source.BuildId]
+                }
+            ],
+            SpeedrunFileManifests =
+            [
+                new SpeedrunFileManifest
+                {
+                    Id = template.FileManifestId,
+                    BuildId = source.BuildId,
+                    RulesRevision = template.RulesRevision,
+                    Files =
+                    [
+                        new SpeedrunFileRule
+                        {
+                            RelativePath = "hollow_knight_Data/Managed/Assembly-CSharp.dll",
+                            Sha256 = new string('0', 64),
+                            AssetId = "runtime-patches-asset",
+                            AssetVersion = "1"
+                        }
+                    ]
+                }
+            ]
+        });
+        viewModel.SelectedSpeedrunTemplate = template;
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(
+            source,
+            source.BuildId,
+            "Vanilla",
+            0));
+
+        await viewModel.CreateSpeedrunEnvironmentCommand.ExecuteAsync(null);
+
+        Assert.False(viewModel.IsBusy);
+        Assert.False(string.IsNullOrWhiteSpace(viewModel.ErrorMessage));
+        Assert.False(Directory.Exists(Path.Combine(versionRoot, "network-failure")));
+        Assert.Empty(viewModel.Instances.SpeedrunInstances);
+    }
+
     [Fact]
     public async Task Selecting_market_mod_loads_content_without_blocking_and_ignores_stale_result()
     {
@@ -4473,6 +4553,16 @@ public sealed class MainViewModelStateTests : IDisposable
             return Task.FromException<HttpResponseMessage>(
                 new ObjectDisposedException(nameof(HttpClient)));
         }
+    }
+
+    private sealed class FailingPackageHandler(bool canceled) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken) => Task.FromException<HttpResponseMessage>(
+                canceled
+                    ? new TaskCanceledException("network timed out")
+                    : new HttpRequestException("network unavailable", null, HttpStatusCode.BadGateway));
     }
 
     private sealed class BlockingSpeedrunResponseHandler : HttpMessageHandler
