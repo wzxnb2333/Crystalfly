@@ -343,6 +343,10 @@ public sealed class LayoutRenderingTests
             Assert.Contains(window.GetVisualDescendants().OfType<ListBox>(), list => list.IsEffectivelyVisible);
             Assert.Contains(window.GetVisualDescendants().OfType<Button>(), button =>
                 button.IsEffectivelyVisible && Equals(button.Content, viewModel.Loc["SpeedrunCreate"]));
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(), button =>
+                button.IsEffectivelyVisible
+                && button.Classes.Contains("cfp-icon")
+                && AutomationProperties.GetName(button) == viewModel.Loc["SpeedrunCreate"]);
 
             var config = window.GetVisualDescendants()
                 .OfType<Border>()

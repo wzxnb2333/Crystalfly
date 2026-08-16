@@ -1580,15 +1580,7 @@
                     <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
                     <Border Grid.Column="0" Classes="cfp-rail" Width="216" Padding="12,16" Margin="0,0,12,0" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
                         <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTitle]}" />
-                                <Button Grid.Column="1"
-                                        Classes="cfp-icon"
-                                        Click="ShowCreateSpeedrunEnvironmentDialog"
-                                        ToolTip.Tip="{Binding Loc[SpeedrunCreate]}"
-                                        AutomationProperties.Name="{Binding Loc[SpeedrunCreate]}"
-                                        Content="{LucideIconContent Plus, 16}" />
-                            </Grid>
+                            <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTitle]}" />
                             <TextBlock Grid.Row="1" Classes="cfp-meta" Text="{Binding Loc[SpeedrunInstancesHint]}" TextWrapping="Wrap" />
                             <ListBox Grid.Row="2"
                                      ItemsSource="{Binding Instances.SpeedrunInstances}"
