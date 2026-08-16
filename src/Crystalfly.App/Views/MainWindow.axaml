@@ -226,7 +226,7 @@
                             <Button Classes="cfp-primary"
                                      HorizontalAlignment="Stretch"
                                      HorizontalContentAlignment="Center"
-                                     Click="ConfirmLaunch"
+                                     Click="ConfirmLaunch" MinHeight="44" FontSize="14" FontWeight="SemiBold"
                                      IsEnabled="{Binding CanAttemptLaunch}">
                                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                                     <LucideIcon Kind="Play" Size="16" />
@@ -356,7 +356,7 @@
                                                 <LucideIcon Kind="TriangleAlert" Size="16" Foreground="{DynamicResource CfErrorBrush}"
                                                             IsVisible="{Binding LaunchPreflight.GameFilesReady, Converter={x:Static converters:BoolConverters.Not}}" />
                                             </Grid>
-                                            <TextBlock Grid.Column="1" Text="{Binding Loc[GameFiles]}" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Loc[GameFiles]}" FontWeight="Medium" />
                                             <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding GameFilesStatus}" />
                                         </Grid>
                                     </Border>
@@ -367,7 +367,7 @@
                                                 <LucideIcon Kind="TriangleAlert" Size="16" Foreground="{DynamicResource CfErrorBrush}"
                                                             IsVisible="{Binding LaunchPreflight.LoaderReady, Converter={x:Static converters:BoolConverters.Not}}" />
                                             </Grid>
-                                            <TextBlock Grid.Column="1" Text="{Binding Loc[LoaderStatus]}" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Loc[LoaderStatus]}" FontWeight="Medium" />
                                             <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding LoaderPreflightStatus}" />
                                         </Grid>
                                     </Border>
@@ -378,7 +378,7 @@
                                                 <LucideIcon Kind="TriangleAlert" Size="16" Foreground="{DynamicResource CfErrorBrush}"
                                                             IsVisible="{Binding LaunchPreflight.DependenciesReady, Converter={x:Static converters:BoolConverters.Not}}" />
                                             </Grid>
-                                            <TextBlock Grid.Column="1" Text="{Binding Loc[ModDependencies]}" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Loc[ModDependencies]}" FontWeight="Medium" />
                                             <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding ModDependencyStatus}" />
                                         </Grid>
                                     </Border>
@@ -389,7 +389,7 @@
                                                 <LucideIcon Kind="TriangleAlert" Size="16" Foreground="{DynamicResource CfErrorBrush}"
                                                             IsVisible="{Binding LaunchPreflight.SaveIsolationReady, Converter={x:Static converters:BoolConverters.Not}}" />
                                             </Grid>
-                                            <TextBlock Grid.Column="1" Text="{Binding Loc[SaveIsolation]}" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Loc[SaveIsolation]}" FontWeight="Medium" />
                                             <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding SaveIsolationStatus}" />
                                         </Grid>
                                     </Border>
@@ -1580,15 +1580,7 @@
                     <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
                     <Border Grid.Column="0" Classes="cfp-rail" Width="216" Padding="12,16" Margin="0,0,12,0" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
                         <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTitle]}" />
-                                <Button Grid.Column="1"
-                                        Classes="cfp-icon"
-                                        Click="ShowCreateSpeedrunEnvironmentDialog"
-                                        ToolTip.Tip="{Binding Loc[SpeedrunCreate]}"
-                                        AutomationProperties.Name="{Binding Loc[SpeedrunCreate]}"
-                                        Content="{LucideIconContent Plus, 16}" />
-                            </Grid>
+                            <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTitle]}" />
                             <TextBlock Grid.Row="1" Classes="cfp-meta" Text="{Binding Loc[SpeedrunInstancesHint]}" TextWrapping="Wrap" />
                             <ListBox Grid.Row="2"
                                      ItemsSource="{Binding Instances.SpeedrunInstances}"
@@ -2044,6 +2036,13 @@
                                          Text="{Binding MarketSearchText, Mode=TwoWay}"
                                          PlaceholderText="{Binding Loc[MarketSearch]}"
                                          AutomationProperties.Name="{Binding Loc[MarketSearch]}" />
+                                <Grid ColumnDefinitions="*,*,*,*,*" ColumnSpacing="8" Margin="0,4,0,-4">
+                                    <TextBlock Grid.Column="0" Classes="cfp-caption" Text="{Binding Loc[MarketBuild]}" />
+                                    <TextBlock Grid.Column="1" Classes="cfp-caption" Text="{Binding Loc[MarketLoader]}" />
+                                    <TextBlock Grid.Column="2" Classes="cfp-caption" Text="{Binding Loc[MarketSource]}" />
+                                    <TextBlock Grid.Column="3" Classes="cfp-caption" Text="{Binding Loc[MarketTag]}" />
+                                    <TextBlock Grid.Column="4" Classes="cfp-caption" Text="{Binding Loc[MarketActivity]}" />
+                                </Grid>
                                 <Grid ColumnDefinitions="*,*,*,*,*" ColumnSpacing="8">
                                     <ComboBox Grid.Column="0" Classes="cfp-input" HorizontalAlignment="Stretch"
                                               ItemsSource="{Binding MarketBuildOptions}"

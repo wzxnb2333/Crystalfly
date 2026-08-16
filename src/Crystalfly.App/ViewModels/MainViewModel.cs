@@ -42,6 +42,7 @@ namespace Crystalfly.App.ViewModels;
 
 public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 {
+    private static readonly TimeSpan SpeedrunProvisioningTimeout = TimeSpan.FromSeconds(90);
     private readonly HttpClient metadataHttpClient;
     private readonly HttpClient directMetadataHttpClient;
     private readonly HttpClient packageHttpClient;
@@ -169,7 +170,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         IProtocolRegistrationService? protocolRegistrationService = null,
         Func<bool>? gameProcessRunningOverride = null,
         SpeedrunComClient? speedrunComClientOverride = null,
-        SystemProxyService? systemProxyOverride = null)
+        SystemProxyService? systemProxyOverride = null,
+        HttpClient? packageHttpClientOverride = null)
     {
         this.launchOverride = launchOverride;
         this.downloadOverride = downloadOverride;
@@ -215,7 +217,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             directMetadataHttpClient,
             Path.Combine(paths.ApplicationDataRoot, "speedrun-cache"),
             networkPolicy);
-        packageHttpClient = new HttpClient(new GitHubDownloadRouteHandler(
+        packageHttpClient = packageHttpClientOverride ?? new HttpClient(new GitHubDownloadRouteHandler(
             () => settings.GitHubDownloadRoute,
             networkPolicy,
             CreateSystemProxyHandler(),
@@ -2856,7 +2858,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     createdRoot = clone.RootPath;
                     if (SelectedSpeedrunTemplate.RequiredAssetIds.Count > 0)
                     {
-                        await new SpeedrunEnvironmentProvisioner().ProvisionAsync(new SpeedrunProvisioningRequest
+                        await ProvisionSpeedrunEnvironmentAsync(new SpeedrunProvisioningRequest
                         {
                             Catalog = catalog,
                             TemplateId = SelectedSpeedrunTemplate.Id,
@@ -2907,7 +2909,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             or InvalidDataException
             or InvalidOperationException
             or UnauthorizedAccessException
-            or ArgumentException)
+            or ArgumentException
+            or HttpRequestException
+            or TimeoutException
+            or OperationCanceledException)
         {
             bool preserveForRecovery = exception is SpeedrunRecoveryRequiredException;
             if (!preserveForRecovery && createdRoot is not null)
@@ -2942,12 +2947,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     ErrorMessage = Loc.ErrorMessageFor(cleanupException);
                 }
             }
-            ErrorMessage = string.IsNullOrWhiteSpace(ErrorMessage)
-                ? Loc.ErrorMessageFor(exception)
-                : $"{Loc.ErrorMessageFor(exception)} {ErrorMessage}";
-            if (preserveForRecovery)
+            if (!lifetimeCancellation.IsCancellationRequested)
             {
-                ErrorMessage += $" {Loc["RecoveryNeedsAttention"]}";
+                ErrorMessage = string.IsNullOrWhiteSpace(ErrorMessage)
+                    ? Loc.ErrorMessageFor(exception)
+                    : $"{Loc.ErrorMessageFor(exception)} {ErrorMessage}";
+                if (preserveForRecovery)
+                {
+                    ErrorMessage += $" {Loc["RecoveryNeedsAttention"]}";
+                }
             }
         }
         finally
@@ -3114,7 +3122,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     {
                         throw new InvalidOperationException(Loc["CloseGameFirst"]);
                     }
-                    await new SpeedrunEnvironmentProvisioner().ProvisionAsync(new SpeedrunProvisioningRequest
+                    await ProvisionSpeedrunEnvironmentAsync(new SpeedrunProvisioningRequest
                     {
                         Catalog = catalog,
                         TemplateId = SelectedSpeedrunTemplate.Id,
@@ -3145,13 +3153,33 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         catch (Exception exception) when (exception is IOException
             or InvalidDataException
             or InvalidOperationException
-            or UnauthorizedAccessException)
+            or UnauthorizedAccessException
+            or HttpRequestException
+            or TimeoutException
+            or OperationCanceledException)
         {
-            ErrorMessage = Loc.ErrorMessageFor(exception);
+            if (!lifetimeCancellation.IsCancellationRequested)
+            {
+                ErrorMessage = Loc.ErrorMessageFor(exception);
+            }
         }
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    private async Task ProvisionSpeedrunEnvironmentAsync(SpeedrunProvisioningRequest request)
+    {
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation.Token);
+        cancellation.CancelAfter(SpeedrunProvisioningTimeout);
+        try
+        {
+            await new SpeedrunEnvironmentProvisioner().ProvisionAsync(request, cancellation.Token);
+        }
+        catch (OperationCanceledException exception) when (!lifetimeCancellation.IsCancellationRequested)
+        {
+            throw new TimeoutException(Loc["ErrorNetworkTimeout"], exception);
         }
     }
 

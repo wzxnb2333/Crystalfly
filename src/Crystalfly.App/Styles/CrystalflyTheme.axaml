@@ -4,17 +4,17 @@
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="CfWindowBrush" Color="#FBFBFC" />
-                    <SolidColorBrush x:Key="CfChromeBrush" Color="#F3F4F6" />
-                    <SolidColorBrush x:Key="CfChromeTranslucentBrush" Color="#D1F3F4F6" />
-                    <SolidColorBrush x:Key="CfRailBrush" Color="#F7F7F8" />
-                    <SolidColorBrush x:Key="CfRailTranslucentBrush" Color="#D1F7F7F8" />
-                    <SolidColorBrush x:Key="CfSurfaceBrush" Color="#F1F1F3" />
-                    <SolidColorBrush x:Key="CfSurfaceTranslucentBrush" Color="#E0F1F1F3" />
-                    <SolidColorBrush x:Key="CfSurfaceHoverBrush" Color="#E7E8EB" />
+                    <SolidColorBrush x:Key="CfWindowBrush" Color="#EFF0F3" />
+                    <SolidColorBrush x:Key="CfChromeBrush" Color="#F7F8FA" />
+                    <SolidColorBrush x:Key="CfChromeTranslucentBrush" Color="#D1F7F8FA" />
+                    <SolidColorBrush x:Key="CfRailBrush" Color="#F3F4F6" />
+                    <SolidColorBrush x:Key="CfRailTranslucentBrush" Color="#D1F3F4F6" />
+                    <SolidColorBrush x:Key="CfSurfaceBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="CfSurfaceTranslucentBrush" Color="#E0FFFFFF" />
+                    <SolidColorBrush x:Key="CfSurfaceHoverBrush" Color="#ECEEF2" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedBrush" Color="#DDEEFF" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedHoverBrush" Color="#CDE5FA" />
-                    <SolidColorBrush x:Key="CfBorderBrush" Color="#DADCE0" />
+                    <SolidColorBrush x:Key="CfBorderBrush" Color="#DFE2E7" />
                     <SolidColorBrush x:Key="CfEdgeBrush" Color="#9AA2AC" />
                     <SolidColorBrush x:Key="CfTextBrush" Color="#14171B" />
                     <SolidColorBrush x:Key="CfMutedTextBrush" Color="#5F6670" />
@@ -43,20 +43,20 @@
                     <SolidColorBrush x:Key="CfErrorSurfaceBrush" Color="#FEF3F2" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="CfWindowBrush" Color="#151617" />
-                    <SolidColorBrush x:Key="CfChromeBrush" Color="#202123" />
-                    <SolidColorBrush x:Key="CfChromeTranslucentBrush" Color="#D1202123" />
-                    <SolidColorBrush x:Key="CfRailBrush" Color="#1B1C1E" />
-                    <SolidColorBrush x:Key="CfRailTranslucentBrush" Color="#D11B1C1E" />
-                    <SolidColorBrush x:Key="CfSurfaceBrush" Color="#242628" />
-                    <SolidColorBrush x:Key="CfSurfaceTranslucentBrush" Color="#E0242628" />
-                    <SolidColorBrush x:Key="CfSurfaceHoverBrush" Color="#303337" />
+                    <SolidColorBrush x:Key="CfWindowBrush" Color="#121418" />
+                    <SolidColorBrush x:Key="CfChromeBrush" Color="#1A1D23" />
+                    <SolidColorBrush x:Key="CfChromeTranslucentBrush" Color="#D11A1D23" />
+                    <SolidColorBrush x:Key="CfRailBrush" Color="#161920" />
+                    <SolidColorBrush x:Key="CfRailTranslucentBrush" Color="#D1161920" />
+                    <SolidColorBrush x:Key="CfSurfaceBrush" Color="#1E2129" />
+                    <SolidColorBrush x:Key="CfSurfaceTranslucentBrush" Color="#E01E2129" />
+                    <SolidColorBrush x:Key="CfSurfaceHoverBrush" Color="#272B35" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedBrush" Color="#173D5E" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedHoverBrush" Color="#1E4C73" />
-                    <SolidColorBrush x:Key="CfBorderBrush" Color="#36393D" />
-                    <SolidColorBrush x:Key="CfEdgeBrush" Color="#565C66" />
+                    <SolidColorBrush x:Key="CfBorderBrush" Color="#2C303A" />
+                    <SolidColorBrush x:Key="CfEdgeBrush" Color="#49505C" />
                     <SolidColorBrush x:Key="CfTextBrush" Color="#F5F6F7" />
-                    <SolidColorBrush x:Key="CfMutedTextBrush" Color="#A1A7AF" />
+                    <SolidColorBrush x:Key="CfMutedTextBrush" Color="#9BA3AE" />
                     <SolidColorBrush x:Key="CfAccentBrush" Color="#5AAEFA" />
                     <SolidColorBrush x:Key="CfAccentHoverBrush" Color="#78BCFA" />
                     <SolidColorBrush x:Key="CfAccentSoftBrush" Color="#183D5D" />
@@ -130,7 +130,7 @@
     </Style>
 
     <Style Selector="TextBlock.cfp-row-title">
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontWeight" Value="Medium" />
         <Setter Property="LineHeight" Value="17" />
     </Style>
 
@@ -161,6 +161,8 @@
 
     <Style Selector="Border.cfp-card">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Padding" Value="12" />
     </Style>
@@ -354,14 +356,15 @@
     </Style>
 
     <Style Selector="Button.cfp-nav.active">
-        <Setter Property="Background" Value="{DynamicResource CfAccentBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource CfOnAccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
     <Style Selector="Button.cfp-nav.active:pointerover,
                      Button.cfp-nav.active:pressed">
-        <Setter Property="Background" Value="{DynamicResource CfAccentHoverBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource CfOnAccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}" />
     </Style>
 
     <Style Selector="Button.cfp-icon">

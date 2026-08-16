@@ -52,10 +52,10 @@ public sealed class BackgroundAppearanceUiTests
         Assert.Contains("Window.background-active Border.cfp-topbar", theme, StringComparison.Ordinal);
         Assert.Contains("Window.background-active Border.cfp-rail", theme, StringComparison.Ordinal);
         Assert.Contains("Window.background-active Border.cfp-card", theme, StringComparison.Ordinal);
-        Assert.Contains("#D1F3F4F6", theme, StringComparison.Ordinal);
-        Assert.Contains("#E0F1F1F3", theme, StringComparison.Ordinal);
-        Assert.Contains("#D1202123", theme, StringComparison.Ordinal);
-        Assert.Contains("#E0242628", theme, StringComparison.Ordinal);
+        Assert.Contains("#D1F7F8FA", theme, StringComparison.Ordinal);
+        Assert.Contains("#E0FFFFFF", theme, StringComparison.Ordinal);
+        Assert.Contains("#D11A1D23", theme, StringComparison.Ordinal);
+        Assert.Contains("#E01E2129", theme, StringComparison.Ordinal);
     }
 
     private static int Count(string value, string search)

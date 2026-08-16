@@ -5,7 +5,8 @@
              x:DataType="vm:OnboardingDialogViewModel"
              Width="760"
              MinWidth="620"
-             MaxWidth="900">
+             MaxWidth="900"
+             MaxHeight="520">
     <UserControl.KeyBindings>
         <KeyBinding Gesture="Escape" Command="{Binding DismissCommand}" />
     </UserControl.KeyBindings>
