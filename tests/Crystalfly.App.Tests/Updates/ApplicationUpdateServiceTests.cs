@@ -253,6 +253,26 @@ public sealed class ApplicationUpdateServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task DownloadAssetAsync_reports_download_and_verification_progress()
+    {
+        byte[] content = [1, 2, 3, 4, 5];
+        var asset = CreateAsset(content);
+        using var client = new HttpClient(new StubHandler(_ => BinaryResponse(content)));
+        using var policy = new NetworkPolicy();
+        var service = CreateService(client, policy, CreateManifest("0.6.1", asset));
+        var progress = new ProgressRecorder();
+
+        string path = await service.DownloadAssetAsync(asset, tempDirectory, progress);
+
+        Assert.Contains(progress.Values, value =>
+            value.Stage == ApplicationUpdateProgressStage.Downloading
+            && value.BytesReceived == content.Length
+            && value.TotalBytes == content.Length);
+        Assert.Equal(ApplicationUpdateProgressStage.Verifying, progress.Values[^1].Stage);
+        File.Delete(path);
+    }
+
+    [Fact]
     public async Task Manifest_and_asset_requests_use_their_separate_clients()
     {
         byte[] content = [7, 8, 9];
@@ -356,6 +376,13 @@ public sealed class ApplicationUpdateServiceTests : IDisposable
         Size = content.LongLength,
         Sha256 = Convert.ToHexString(SHA256.HashData(content))
     };
+
+    private sealed class ProgressRecorder : IProgress<ApplicationUpdateProgress>
+    {
+        public List<ApplicationUpdateProgress> Values { get; } = [];
+
+        public void Report(ApplicationUpdateProgress value) => Values.Add(value);
+    }
 
     private static HttpResponseMessage JsonResponse(string content) => new(HttpStatusCode.OK)
     {

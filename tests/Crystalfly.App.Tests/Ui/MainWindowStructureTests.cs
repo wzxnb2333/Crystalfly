@@ -547,10 +547,13 @@ public sealed class MainWindowStructureTests
         var document = LoadMainWindow();
         var viewers = document.Descendants().Where(element =>
             string.Equals(element.Name.LocalName, "MarkdownViewer", StringComparison.Ordinal)).ToArray();
+        var modViewers = viewers.Where(viewer =>
+            HasBinding(viewer, "Markdown", "SelectedModReadmeMarkdown")
+            || HasBinding(viewer, "Markdown", "SelectedModReleaseNotesMarkdown")).ToArray();
 
-        Assert.Equal(2, viewers.Length);
-        Assert.Contains(viewers, viewer => HasBinding(viewer, "Markdown", "SelectedModReadmeMarkdown"));
-        Assert.Contains(viewers, viewer => HasBinding(viewer, "Markdown", "SelectedModReleaseNotesMarkdown"));
+        Assert.Equal(2, modViewers.Length);
+        Assert.Contains(modViewers, viewer => HasBinding(viewer, "Markdown", "SelectedModReadmeMarkdown"));
+        Assert.Contains(modViewers, viewer => HasBinding(viewer, "Markdown", "SelectedModReleaseNotesMarkdown"));
         Assert.Contains(document.Descendants(Avalonia + "TextBlock"), text =>
             HasBinding(text, "Text", "SelectedModContentError"));
         Assert.Contains(document.Descendants(Avalonia + "Button"), button =>

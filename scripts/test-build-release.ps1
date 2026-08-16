@@ -37,11 +37,11 @@ $absoluteIsccPathPattern = '(?i)-IsccPath\s+[''"]?[A-Z]:[\\/]'
 if ($source -notmatch "\[ValidateSet\('win-x64'\)\]") {
     throw 'Runtime must be restricted to win-x64 before release paths are constructed.'
 }
-if ($source -notmatch '(?m)\[string\]\$Version\s*=\s*''1\.1\.3''') {
-    throw 'Release build must default to version 1.1.3.'
+if ($source -notmatch '(?m)\[string\]\$Version\s*=\s*''1\.1\.4''') {
+    throw 'Release build must default to version 1.1.4.'
 }
-if ($buildProps -notmatch '(?m)<Version>1\.1\.3</Version>') {
-    throw 'Project version must be 1.1.3.'
+if ($buildProps -notmatch '(?m)<Version>1\.1\.4</Version>') {
+    throw 'Project version must be 1.1.4.'
 }
 if ($source -notmatch '\[switch\]\$UnsignedLocal' -or $source -notmatch '(?ms)if \(-not \$UnsignedLocal\).*?Signed update manifest') {
     throw 'Unsigned local builds must skip signing only behind an explicit switch.'
@@ -104,9 +104,9 @@ if ('-IsccPath "Z:/Tools/Inno Setup 6/ISCC.exe"' -notmatch $absoluteIsccPathPatt
 if ($readme -match $absoluteIsccPathPattern) {
     throw 'README must not hard-code a machine-specific Inno Setup path.'
 }
-$releaseCommandPattern = '(?i)build-release\.ps1[''"`\s\\\r\n]+-Version\s+[''"]1\.1\.3[''"]'
+$releaseCommandPattern = '(?i)build-release\.ps1[''"`\s\\\r\n]+-Version\s+[''"]1\.1\.4[''"]'
 if ($readme -notmatch $releaseCommandPattern) {
-    throw 'README must pin local release builds to version 1.1.3.'
+    throw 'README must pin local release builds to version 1.1.4.'
 }
 foreach ($requiredDocumentation in @(
     '永久删除实例',

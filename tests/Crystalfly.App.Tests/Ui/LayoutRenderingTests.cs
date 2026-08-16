@@ -22,6 +22,57 @@ namespace Crystalfly.App.Tests.Ui;
 public sealed class LayoutRenderingTests
 {
     [AvaloniaFact]
+    public async Task Application_update_dialog_fits_the_minimum_window()
+    {
+        var localization = new LocalizationViewModel();
+        var dialogViewModel = new ApplicationUpdateDialogViewModel(
+            localization,
+            "1.1.4",
+            "# Release notes\n\nA concise summary of the available update.",
+            (_, _) => Task.FromResult(false));
+        var window = new MainWindow { Width = 900, Height = 600 };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            _ = OverlayDialog.ShowCustomAsync<
+                ApplicationUpdateDialogView,
+                ApplicationUpdateDialogViewModel,
+                ApplicationUpdateDialogResult>(
+                dialogViewModel,
+                MainWindow.OverlayHostId,
+                new OverlayDialogOptions
+                {
+                    TopLevelHashCode = window.GetHashCode(),
+                    CanLightDismiss = false,
+                    CanDragMove = false,
+                    IsCloseButtonVisible = true,
+                    CanResize = false
+                });
+
+            CustomDialogControl[] dialogs = [];
+            for (var attempt = 0; attempt < 50 && dialogs.Length == 0; attempt++)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Delay(10);
+                dialogs = window.GetVisualDescendants().OfType<CustomDialogControl>().ToArray();
+            }
+
+            var dialog = Assert.Single(dialogs);
+            var view = Assert.Single(dialog.GetVisualDescendants().OfType<ApplicationUpdateDialogView>());
+            Assert.True(view.Bounds.Height <= 520.5, $"Dialog content was {view.Bounds.Height:F1}px tall.");
+            Assert.Contains(dialog.GetVisualDescendants().OfType<Button>(), button =>
+                Equals(button.Content, localization["UpdateNow"]));
+            dialog.Close();
+        }
+        finally
+        {
+            CloseImmediately(window);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Onboarding_dialog_keeps_actions_visible_at_minimum_window_size()
     {
         var tasks = Enumerable.Range(1, 9)
