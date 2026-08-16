@@ -12,14 +12,22 @@ public partial class MainViewModel
     private ApplicationUpdateService? applicationUpdateService;
     private ApplicationUpdateCheckStatus? lastApplicationUpdateStatus;
     private string? lastAvailableApplicationVersion;
+    private string? currentApplicationReleaseNotesMarkdown;
 
     public string ApplicationVersion =>
         typeof(MainViewModel).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
     public bool HasAvailableApplicationUpdate => AvailableApplicationUpdate is not null;
 
+    public string CurrentApplicationReleaseNotesMarkdown =>
+        currentApplicationReleaseNotesMarkdown ??= EmbeddedApplicationReleaseNotes.Load(ApplicationVersion);
+
+    public string AvailableApplicationReleaseNotesMarkdown =>
+        AvailableApplicationUpdate?.NotesMarkdown ?? string.Empty;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasAvailableApplicationUpdate))]
+    [NotifyPropertyChangedFor(nameof(AvailableApplicationReleaseNotesMarkdown))]
     public partial UpdateManifest? AvailableApplicationUpdate { get; private set; }
 
     [ObservableProperty]
@@ -114,6 +122,7 @@ public partial class MainViewModel
     }
 
     internal async Task<bool> StartAvailableApplicationUpdateAsync(
+        IProgress<ApplicationUpdateProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         if (AvailableApplicationUpdate is not { } update)
@@ -133,6 +142,7 @@ public partial class MainViewModel
             string assetPath = await GetApplicationUpdateService().DownloadAssetAsync(
                 asset,
                 Path.Combine(paths.ApplicationDataRoot, "updates"),
+                progress,
                 cancellationToken);
             string target = Path.TrimEndingDirectorySeparator(Path.GetFullPath(AppContext.BaseDirectory));
             string restart = Path.Combine(target, "Crystalfly.App.exe");
@@ -149,6 +159,10 @@ public partial class MainViewModel
                 bundledUpdater,
                 Path.Combine(Path.GetTempPath(), "Crystalfly"),
                 request);
+            progress?.Report(new(
+                ApplicationUpdateProgressStage.StartingUpdater,
+                asset.Size,
+                asset.Size));
             ApplicationUpdateStatus = Loc["ApplicationUpdateStarting"];
             return true;
         }

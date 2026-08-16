@@ -8,38 +8,63 @@
              MinWidth="520"
              MaxWidth="680">
     <UserControl.KeyBindings>
-        <KeyBinding Gesture="Escape" Command="{Binding LaterCommand}" />
+        <KeyBinding Gesture="Escape" Command="{Binding CloseDialogCommand}" />
     </UserControl.KeyBindings>
 
-    <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="16">
+    <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="16">
         <TextBlock Classes="cfp-section-title"
-                   Text="{Binding Title}"
+                   Text="{Binding Loc[ApplicationUpdateTitle]}"
                    TextWrapping="Wrap" />
         <TextBlock Grid.Row="1"
                    Classes="cfp-meta"
-                   Text="{Binding Version}" />
+                   Text="{Binding Version, StringFormat='v{0}'}" />
         <ScrollViewer Grid.Row="2"
                       MinHeight="120"
                       MaxHeight="320"
                       VerticalScrollBarVisibility="Auto">
             <mv:MarkdownViewer Markdown="{Binding NotesMarkdown}" />
         </ScrollViewer>
-        <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+        <StackPanel Grid.Row="3" Spacing="8">
+            <StackPanel Spacing="6" IsVisible="{Binding IsProgressVisible}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <TextBlock Classes="cfp-row-title" Text="{Binding StatusText}" />
+                    <TextBlock Grid.Column="1" Classes="cfp-meta" Text="{Binding ProgressText}" />
+                </Grid>
+                <ProgressBar Minimum="0"
+                             Maximum="100"
+                             Value="{Binding ProgressValue}"
+                             AutomationProperties.Name="{Binding StatusText}" />
+            </StackPanel>
+            <Border Classes="cfp-error" IsVisible="{Binding HasError}">
+                <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" />
+            </Border>
+        </StackPanel>
+        <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
             <Button Classes="cfp-secondary"
                     Command="{Binding SkipCommand}"
-                    Content="{Binding SkipText}"
-                    AutomationProperties.Name="{Binding SkipText}" />
+                    Content="{Binding Loc[SkipThisVersion]}"
+                    IsVisible="{Binding CanStartUpdate}"
+                    AutomationProperties.Name="{Binding Loc[SkipThisVersion]}" />
+            <Button Grid.Column="2"
+                    Classes="cfp-secondary"
+                    Command="{Binding CancelCommand}"
+                    Content="{Binding Loc[Cancel]}"
+                    IsVisible="{Binding CanCancel}"
+                    MinWidth="96"
+                    AutomationProperties.Name="{Binding Loc[Cancel]}" />
             <Button Grid.Column="2"
                     Classes="cfp-secondary"
                     Command="{Binding LaterCommand}"
-                    Content="{Binding LaterText}"
+                    Content="{Binding Loc[Later]}"
+                    IsVisible="{Binding CanStartUpdate}"
                     MinWidth="96"
                     u:FocusHelper.DialogFocusHint="True"
-                    AutomationProperties.Name="{Binding LaterText}" />
+                    AutomationProperties.Name="{Binding Loc[Later]}" />
             <Button Grid.Column="3"
                     Classes="cfp-primary"
                     Command="{Binding UpdateCommand}"
                     Content="{Binding UpdateText}"
+                    IsVisible="{Binding CanStartUpdate}"
                     MinWidth="96"
                     AutomationProperties.Name="{Binding UpdateText}" />
         </Grid>

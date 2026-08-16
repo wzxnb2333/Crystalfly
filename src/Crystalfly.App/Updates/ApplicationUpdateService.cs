@@ -220,9 +220,16 @@ public sealed class ApplicationUpdateService
         }
     }
 
+    public Task<string> DownloadAssetAsync(
+        UpdateAsset asset,
+        string tempDirectory,
+        CancellationToken cancellationToken) =>
+        DownloadAssetAsync(asset, tempDirectory, progress: null, cancellationToken);
+
     public async Task<string> DownloadAssetAsync(
         UpdateAsset asset,
         string tempDirectory,
+        IProgress<ApplicationUpdateProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(asset);
@@ -305,6 +312,10 @@ public sealed class ApplicationUpdateService
                     await destination.WriteAsync(
                         buffer.AsMemory(0, bytesRead),
                         linkedCancellation.Token).ConfigureAwait(false);
+                    progress?.Report(new(
+                        ApplicationUpdateProgressStage.Downloading,
+                        totalBytes,
+                        asset.Size));
                 }
 
                 linkedCancellation.Token.ThrowIfCancellationRequested();
@@ -315,6 +326,11 @@ public sealed class ApplicationUpdateService
                 ArrayPool<byte>.Shared.Return(buffer);
             }
 
+            progress?.Report(new(
+                ApplicationUpdateProgressStage.Verifying,
+                totalBytes,
+                asset.Size));
+            linkedCancellation.Token.ThrowIfCancellationRequested();
             byte[] actualHash = hash.GetHashAndReset();
             if (totalBytes != asset.Size
                 || !CryptographicOperations.FixedTimeEquals(actualHash, expectedHash))

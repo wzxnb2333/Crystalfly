@@ -4,7 +4,7 @@
 
 Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The Launch page is the only entry point for selecting and managing launchable instances; actual game downloads live under Download → Game Versions.
 
-> Current version: `1.1.3`. This release provides unsigned local Windows x64 portable and installer artifacts. Steam game downloads use depot-wide chunk scheduling and a reusable cross-version cache.
+> Current version: `1.1.4`. This release provides Windows x64 portable and installer artifacts. Release notes are available in Settings, and the signed update dialog supports progress, cancellation, and retry.
 
 ![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
 ![Select instance](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)
@@ -52,7 +52,7 @@ Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, S
 - Edits only `user1.dat` through `user4.dat` from the selected instance or one of its named snapshots. Save decoding and expansion run asynchronously, and empty save sets show an explicit state instead of blocking the window.
 - Creates append or exact Mod presets bound to one build and Loader, with dependency-ordered apply, local JSON import/export, share codes, and restoration of the pre-apply install and enabled state.
 - Accepts strictly validated `crystalfly://` commands through single-instance forwarding. The installer registers the protocol, and every state-changing external request shows a parsed summary before confirmation.
-- Checks a signed stable update manifest once per day. Users can update now, defer, or skip a version; installed mode runs the Inno installer, while portable mode preserves `Data` through same-volume backup and replacement.
+- Checks a signed stable update manifest once per day. Settings shows the current and available release notes; the update dialog reports download and verification progress and supports cancellation and retry. Installed mode runs the Inno installer, while portable mode preserves `Data` through same-volume backup and replacement.
 
 The current built-in speedrun templates are intentionally unverified because the catalog does not yet contain a trusted rules revision and complete Steam file allowlist. Unknown new public manifests remain launchable as vanilla, but loader installation stays locked until the catalog verifies the build.
 
@@ -113,7 +113,7 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.3'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.4'
 
 # Build and install locally without an update-signing key; no update manifest is emitted.
 pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.3' -UnsignedLocal

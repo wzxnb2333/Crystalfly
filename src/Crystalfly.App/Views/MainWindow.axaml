@@ -2795,6 +2795,34 @@
                                         </Grid>
                                     </StackPanel>
                                 </Border>
+                                <Border Classes="cfp-card" IsVisible="{Binding HasAvailableApplicationUpdate}">
+                                    <StackPanel Spacing="12">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Classes="cfp-section-title" Text="{Binding Loc[LatestApplicationReleaseNotes]}" />
+                                                <TextBlock Classes="cfp-row-title" Text="{Binding AvailableApplicationUpdate.Version, StringFormat='v{0}'}" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1"
+                                                       Classes="cfp-meta"
+                                                       Text="{Binding AvailableApplicationUpdate.PublishedAt, StringFormat='{}{0:g}'}"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                        <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto">
+                                            <mv:MarkdownViewer Markdown="{Binding AvailableApplicationReleaseNotesMarkdown}" />
+                                        </ScrollViewer>
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="cfp-card">
+                                    <StackPanel Spacing="12">
+                                        <StackPanel Spacing="3">
+                                            <TextBlock Classes="cfp-section-title" Text="{Binding Loc[CurrentReleaseNotes]}" />
+                                            <TextBlock Classes="cfp-row-title" Text="{Binding ApplicationVersion, StringFormat='v{0}'}" />
+                                        </StackPanel>
+                                        <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto">
+                                            <mv:MarkdownViewer Markdown="{Binding CurrentApplicationReleaseNotesMarkdown}" />
+                                        </ScrollViewer>
+                                    </StackPanel>
+                                </Border>
                                 <Border Classes="cfp-card">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                         <StackPanel Spacing="3"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[ProtocolRegistration]}" /><TextBlock Classes="cfp-caption" Text="{Binding Loc[ProtocolRegistrationHint]}" TextWrapping="Wrap" /></StackPanel>

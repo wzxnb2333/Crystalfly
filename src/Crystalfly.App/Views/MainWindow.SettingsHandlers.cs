@@ -1,4 +1,3 @@
-using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -30,15 +29,13 @@ public partial class MainWindow
             }
 
             var dialogViewModel = new ApplicationUpdateDialogViewModel(
-                viewModel.Loc["ApplicationUpdateTitle"],
-                string.Format(
-                    System.Globalization.CultureInfo.CurrentUICulture,
-                    viewModel.Loc["ApplicationUpdateVersionFormat"],
-                    manifest.Version),
+                viewModel.Loc,
+                manifest.Version,
                 manifest.NotesMarkdown,
-                viewModel.Loc["UpdateNow"],
-                viewModel.Loc["Later"],
-                viewModel.Loc["SkipThisVersion"]);
+                (progress, cancellationToken) => StartApplicationUpdateAsync(
+                    viewModel,
+                    token => viewModel.StartAvailableApplicationUpdateAsync(progress, token),
+                    cancellationToken));
             var choice = await OverlayDialog.ShowCustomAsync<
                 ApplicationUpdateDialogView,
                 ApplicationUpdateDialogViewModel,
@@ -48,11 +45,6 @@ public partial class MainWindow
                 CreateOverlayOptions());
             switch (choice)
             {
-                case ApplicationUpdateDialogResult.Update:
-                    await StartApplicationUpdateAsync(
-                        viewModel,
-                        viewModel.StartAvailableApplicationUpdateAsync);
-                    break;
                 case ApplicationUpdateDialogResult.SkipVersion:
                     await viewModel.SkipApplicationUpdateAsync();
                     break;

@@ -34,6 +34,8 @@ public sealed class ApplicationUpdateViewModelTests : IDisposable
 
         Assert.Equal(ApplicationUpdateCheckStatus.UpdateAvailable, result.Status);
         Assert.Same(manifest, viewModel.AvailableApplicationUpdate);
+        Assert.Equal("notes", viewModel.AvailableApplicationReleaseNotesMarkdown);
+        Assert.Contains("Crystalfly", viewModel.CurrentApplicationReleaseNotesMarkdown, StringComparison.Ordinal);
         Assert.Equal(checkedAt, saved.LastUpdateCheckAt);
     }
 

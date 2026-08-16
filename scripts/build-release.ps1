@@ -4,7 +4,7 @@ param(
     [ValidateSet('win-x64')]
     [string]$Runtime = 'win-x64',
     [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$')]
-    [string]$Version = '1.1.3',
+    [string]$Version = '1.1.4',
     [string]$IsccPath,
     [string]$SigningKeyPath,
     [string]$ReleaseNotesPath,

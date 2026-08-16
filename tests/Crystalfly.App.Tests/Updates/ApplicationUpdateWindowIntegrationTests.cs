@@ -3,7 +3,7 @@ namespace Crystalfly.App.Tests.Updates;
 public sealed class ApplicationUpdateWindowIntegrationTests
 {
     [Fact]
-    public void MainWindow_checks_then_handles_update_later_and_skip_choices()
+    public void MainWindow_checks_then_hosts_the_stateful_update_dialog()
     {
         string code = File.ReadAllText(Path.Combine(
             FindRepositoryRoot(),
@@ -20,10 +20,10 @@ public sealed class ApplicationUpdateWindowIntegrationTests
             "Views",
             "MainWindow.SettingsHandlers.cs"));
         Assert.Contains("CheckForApplicationUpdateAsync(viewModel, force: true", updateHandlers, StringComparison.Ordinal);
-        Assert.Contains("ApplicationUpdateDialogResult.Update", updateHandlers, StringComparison.Ordinal);
         Assert.Contains("ApplicationUpdateDialogResult.SkipVersion", updateHandlers, StringComparison.Ordinal);
         Assert.Contains("SkipApplicationUpdateAsync", updateHandlers, StringComparison.Ordinal);
         Assert.Contains("StartAvailableApplicationUpdateAsync", updateHandlers, StringComparison.Ordinal);
+        Assert.Contains("StartApplicationUpdateAsync", updateHandlers, StringComparison.Ordinal);
     }
 
     private static string FindRepositoryRoot()
