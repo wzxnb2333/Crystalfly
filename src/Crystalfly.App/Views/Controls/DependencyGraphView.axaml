@@ -5,6 +5,7 @@
              x:Class="Crystalfly.App.Views.Controls.DependencyGraphView"
              x:Name="GraphRoot"
              x:DataType="graph:DependencyGraphModel"
+             x:CompileBindings="False"
              MinHeight="260"
              Focusable="True"
              ClipToBounds="True">
