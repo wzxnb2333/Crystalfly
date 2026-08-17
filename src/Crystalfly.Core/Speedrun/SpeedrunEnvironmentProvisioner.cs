@@ -204,32 +204,52 @@ public sealed class SpeedrunEnvironmentProvisioner
             throw new InvalidDataException($"Unsupported speedrun asset: '{asset.Id}'.");
         }
 
-        using var archive = ZipFile.OpenRead(packagePath);
-        string? expectedEntryPath = asset.ArchiveEntryPath?.Replace('\\', '/');
-        var entries = archive.Entries.Where(entry =>
-            string.Equals(Path.GetFileName(entry.FullName), "Assembly-CSharp.dll", StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        if (entries.Length != 1 || entries[0].Length <= 0)
+        if (asset.DownloadUrl.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidDataException(
-                "RuntimePatches package must contain exactly one Assembly-CSharp.dll entry.");
+            await using Stream source = new FileStream(
+                packagePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                81920,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            await using var destination = new FileStream(
+                targetPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                81920,
+                FileOptions.Asynchronous | FileOptions.WriteThrough);
+            await source.CopyToAsync(destination, cancellationToken);
+            await destination.FlushAsync(cancellationToken);
         }
-        if (expectedEntryPath is not null
-            ? !string.Equals(entries[0].FullName.Replace('\\', '/'), expectedEntryPath, StringComparison.Ordinal)
-            : !string.Equals(entries[0].FullName.Replace('\\', '/'), "Assembly-CSharp.dll", StringComparison.Ordinal))
+        else
         {
-            throw new InvalidDataException("RuntimePatches Assembly-CSharp.dll must be at the archive root.");
-        }
+            using var archive = ZipFile.OpenRead(packagePath);
+            string? expectedEntryPath = asset.ArchiveEntryPath?.Replace('\\', '/');
+            var entries = archive.Entries.Where(entry =>
+                string.Equals(Path.GetFileName(entry.FullName), "Assembly-CSharp.dll", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (entries.Length != 1 || entries[0].Length <= 0)
+            {
+                throw new InvalidDataException(
+                    "RuntimePatches package must contain exactly one Assembly-CSharp.dll entry.");
+            }
+            if (expectedEntryPath is not null
+                ? !string.Equals(entries[0].FullName.Replace('\\', '/'), expectedEntryPath, StringComparison.Ordinal)
+                : !string.Equals(entries[0].FullName.Replace('\\', '/'), "Assembly-CSharp.dll", StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("RuntimePatches Assembly-CSharp.dll must be at the archive root.");
+            }
 
-        await using (Stream source = entries[0].Open())
-        await using (var destination = new FileStream(
-            targetPath,
-            FileMode.CreateNew,
-            FileAccess.Write,
-            FileShare.None,
-            81920,
-            FileOptions.Asynchronous | FileOptions.WriteThrough))
-        {
+            await using Stream source = entries[0].Open();
+            await using var destination = new FileStream(
+                targetPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                81920,
+                FileOptions.Asynchronous | FileOptions.WriteThrough);
             await source.CopyToAsync(destination, cancellationToken);
             await destination.FlushAsync(cancellationToken);
         }

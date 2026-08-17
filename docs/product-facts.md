@@ -53,3 +53,4 @@ fingerprints and loader manifests.
 - Hollow Knight resources: <https://github.com/hk-speedrunning/HK-Resources>
 - Hollow Knight rules: <https://github.com/hk-speedrunning/HK-Rules>
 - AssemblyPatches v1.0.2: <https://github.com/olvior/AssemblyPatches/releases/tag/v1.0.2>
+- MiniSaveStates: <https://github.com/Shichien/MiniSavestates>

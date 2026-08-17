@@ -113,6 +113,7 @@ Loader 兼容按精确包 ID 判断，不会把所有 Modding API 或 BepInEx �
 - 所有开关默认关闭。`1.2.2.1` 不提供 `FasterIntroSkip`；`1.5.78` 不提供 `ScreenShakeModifier`。
 - `FasterIntroSkip` 与 `MiniSaveStates` 会显示规则警告，但具体分类是否合法仍以 SRC 公告为准。
 - 1.5.78 速通环境可在 MiniSaveStates 单槽与 MultiSaveStates 十槽之间切换；切换会重新安装对应的 Assembly-CSharp，两个程序集不会叠加。
+- MiniSaveStates 原作者仓库：<https://github.com/Shichien/MiniSavestates>。
 
 启动前会检查核心游戏指纹、RuntimePatches DLL、实例隔离配置、Loader/Mod 标记、事务和 LocalLow 状态。技术错误会阻止启动，规则警告不会。PNG、贴图和普通额外文件不参与阻断。旧模板实例保留文件并标记为已过期，需要重新创建。
 
