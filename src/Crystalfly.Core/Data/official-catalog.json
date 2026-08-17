@@ -188,6 +188,19 @@
       "loadNormaliserAvailable": false,
       "requiresLoadNormaliserSelection": false,
       "allowedLoadNormaliserSeconds": []
+    },
+    {
+      "schemaVersion": 1,
+      "id": "runtime-patches-1578-multi",
+      "name": "MultiSaveStates 1.5.78",
+      "buildId": "1.5.78.11833",
+      "isOfficial": true,
+      "rulesRevision": "runtime-patches-v1.0.2",
+      "fileManifestId": "files-runtime-patches-1578-multi",
+      "requiredAssetIds": ["multisavestates-1578"],
+      "loadNormaliserAvailable": false,
+      "requiresLoadNormaliserSelection": false,
+      "allowedLoadNormaliserSeconds": []
     }
   ],
   "speedrunAssets": [
@@ -219,6 +232,17 @@
       "downloadUrl": "https://github.com/olvior/AssemblyPatches/releases/download/v1.0.2/Assembly-CSharp-1578-windows.zip",
       "sizeBytes": 1129878,
       "sha256": "5E4380B70C27DA8E512E0C177A9A6C4742A615216330D343535AF8D48BA8AA3D",
+      "supportedBuildIds": ["1.5.78.11833"]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "multisavestates-1578",
+      "name": "MultiSaveStates",
+      "version": "1.0.0",
+      "downloadUrl": "https://github.com/wzxnb2333/Crystalfly/releases/download/v1.1.5/MultiSaveStates-1578.zip",
+      "sizeBytes": 1128823,
+      "sha256": "7B5484A98EC552C55734CEAB54A4663699F0A85D786BD2881246BDDBDCA733E5",
+      "archiveEntryPath": "Multisavestates/Assembly-CSharp.dll",
       "supportedBuildIds": ["1.5.78.11833"]
     }
   ],
@@ -265,6 +289,21 @@
           "kind": "tool",
           "assetId": "runtime-patches-1578-v1.0.2",
           "assetVersion": "1.0.2"
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "files-runtime-patches-1578-multi",
+      "buildId": "1.5.78.11833",
+      "rulesRevision": "runtime-patches-v1.0.2",
+      "files": [
+        {
+          "relativePath": "hollow_knight_Data/Managed/Assembly-CSharp.dll",
+          "sha256": "932B969A84EB55955E221D2EF9455237E6D8C5A005DC01DAF293FB272BBEFBB8",
+          "kind": "tool",
+          "assetId": "multisavestates-1578",
+          "assetVersion": "1.0.0"
         }
       ]
     }

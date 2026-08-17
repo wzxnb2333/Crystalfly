@@ -601,7 +601,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         SelectedSpeedrunSupportedFeatures.HasFlag(RuntimePatchesFeature.ScreenShakeModifier);
 
     public bool IsMiniSaveStatesAvailable =>
-        SelectedSpeedrunSupportedFeatures.HasFlag(RuntimePatchesFeature.MiniSaveStates);
+        !IsSelectedSpeedrunMultiSaveStates
+        && SelectedSpeedrunSupportedFeatures.HasFlag(RuntimePatchesFeature.MiniSaveStates);
+
+    public bool IsSelectedSpeedrunMultiSaveStates =>
+        SelectedSpeedrunInstance?.Record.SpeedrunTemplateId is { } templateId
+        && RuntimePatchesPolicy.IsMultiSaveStatesTemplate(templateId);
+
+    public bool IsMultiSaveStatesAvailable =>
+        IsSelectedSpeedrunCurrent
+        && string.Equals(SelectedSpeedrunInstance?.Record.BuildId, "1.5.78.11833", StringComparison.Ordinal);
 
     public bool IsFasterIntroSkipAvailable =>
         SelectedSpeedrunSupportedFeatures.HasFlag(RuntimePatchesFeature.FasterIntroSkip);
@@ -742,7 +751,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public partial bool IsSteamLoggedIn { get; set; }
 
     [ObservableProperty]
-    public partial string SteamStatus { get; set; } = "Not signed in";
+    public partial string SteamStatus { get; set; } = "";
 
     [ObservableProperty]
     public partial string SteamNetworkStatus { get; set; } = string.Empty;
@@ -906,10 +915,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(SelectedSpeedrunSupportedFeatures))]
     [NotifyPropertyChangedFor(nameof(IsScreenShakeModifierAvailable))]
     [NotifyPropertyChangedFor(nameof(IsMiniSaveStatesAvailable))]
+    [NotifyPropertyChangedFor(nameof(IsSelectedSpeedrunMultiSaveStates))]
+    [NotifyPropertyChangedFor(nameof(IsMultiSaveStatesAvailable))]
     [NotifyPropertyChangedFor(nameof(IsFasterIntroSkipAvailable))]
     [NotifyPropertyChangedFor(nameof(IsTextMasherAvailable))]
     [NotifyPropertyChangedFor(nameof(IsRuntimePatchesConfigurationEditable))]
     public partial InstanceItemViewModel? SelectedSpeedrunInstance { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsMiniSaveStatesAvailable))]
+    public partial bool RuntimePatchesMultiSaveStates { get; set; }
 
     [ObservableProperty]
     public partial bool RuntimePatchesScreenShakeModifier { get; set; }
@@ -1930,7 +1945,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         if (Process.GetProcessesByName("hollow_knight").Length > 0)
         {
-            ErrorMessage = "Hollow Knight is already running.";
+            ErrorMessage = Loc["SteamAlreadyRunning"];
             return;
         }
 
@@ -1955,7 +1970,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 {
                     if (new SystemHollowKnightProcessProbe().IsRunning())
                     {
-                        throw new InvalidOperationException("Hollow Knight is already running.");
+                        throw new InvalidOperationException(Loc["SteamAlreadyRunning"]);
                     }
                     if (record.SpeedrunTemplateId is not null)
                     {
@@ -2074,9 +2089,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception exception)
         {
-            ErrorMessage = IsOfflineMode ? null : $"Steam: {exception.Message}";
+            ErrorMessage = IsOfflineMode
+                ? null
+                : string.Format(CultureInfo.CurrentUICulture, Loc["SteamErrorPrefix"], exception.Message);
             IsSteamLoggedIn = false;
-            SteamStatus = IsOfflineMode ? Loc["OfflineMode"] : "Not signed in";
+            SteamStatus = IsOfflineMode ? Loc["OfflineMode"] : Loc["SteamNotSignedIn"];
             QrCodeImage = null;
             if (gateTaken)
             {
@@ -2165,13 +2182,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
-            SteamStatus = "Not signed in";
+            SteamStatus = Loc["SteamNotSignedIn"];
         }
         catch (Exception exception)
         {
-            ErrorMessage = IsOfflineMode ? null : $"Steam: {exception.Message}";
+            ErrorMessage = IsOfflineMode
+                ? null
+                : string.Format(CultureInfo.CurrentUICulture, Loc["SteamErrorPrefix"], exception.Message);
             IsSteamLoggedIn = false;
-            SteamStatus = IsOfflineMode ? Loc["OfflineMode"] : "Not signed in";
+            SteamStatus = IsOfflineMode ? Loc["OfflineMode"] : Loc["SteamNotSignedIn"];
             QrCodeImage = null;
             if (gateTaken)
             {
@@ -2264,7 +2283,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 {
                 }
             }
-            SteamStatus = "Not signed in";
+            SteamStatus = Loc["SteamNotSignedIn"];
             SteamNetworkStatus = FormatSteamNetworkFailure(exception);
         }
         finally
@@ -2350,7 +2369,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException)
         {
-            ErrorMessage = $"Steam: {exception.Message}";
+            ErrorMessage = string.Format(CultureInfo.CurrentUICulture, Loc["SteamErrorPrefix"], exception.Message);
         }
         finally
         {
@@ -2360,10 +2379,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             catch (Exception exception)
             {
-                ErrorMessage = $"Steam: {exception.Message}";
+                ErrorMessage = string.Format(CultureInfo.CurrentUICulture, Loc["SteamErrorPrefix"], exception.Message);
             }
             IsSteamLoggedIn = false;
-            SteamStatus = "Not signed in";
+            SteamStatus = Loc["SteamNotSignedIn"];
             QrCodeImage = null;
             SteamUsername = string.Empty;
             SteamPassword = string.Empty;
@@ -2374,7 +2393,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             catch (Exception exception)
             {
-                ErrorMessage = $"Steam: {exception.Message}";
+                ErrorMessage = string.Format(CultureInfo.CurrentUICulture, Loc["SteamErrorPrefix"], exception.Message);
             }
         }
     }
@@ -2391,12 +2410,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             catch (OperationCanceledException)
             {
-                DownloadStatus = "Cancelled";
+                DownloadStatus = Loc["DownloadCancelled"];
             }
             catch (Exception exception)
             {
-                ErrorMessage = $"Steam: {exception.Message}";
-                DownloadStatus = "Failed";
+                ErrorMessage = string.Format(CultureInfo.CurrentUICulture, Loc["SteamErrorPrefix"], exception.Message);
+                DownloadStatus = Loc["DownloadFailed"];
             }
             finally
             {
@@ -2413,7 +2432,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception exception)
         {
-            ErrorMessage = $"Steam: {exception.Message}";
+            ErrorMessage = string.Format(CultureInfo.CurrentUICulture, Loc["SteamErrorPrefix"], exception.Message);
             DownloadStatus = Loc["QueueStateFailed"];
         }
     }
@@ -3012,7 +3031,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception exception)
         {
-            ErrorMessage = $"Steam: {exception.Message}";
+            ErrorMessage = string.Format(CultureInfo.CurrentUICulture, Loc["SteamErrorPrefix"], exception.Message);
         }
         finally
         {
@@ -3196,6 +3215,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             RuntimePatchesScreenShakeModifier = false;
             RuntimePatchesMiniSaveStates = false;
+            RuntimePatchesMultiSaveStates = false;
             RuntimePatchesFasterIntroSkip = false;
             RuntimePatchesTextMasher = false;
             return;
@@ -3207,7 +3227,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ?? catalog.SpeedrunTemplates.SingleOrDefault(template =>
                 RuntimePatchesPolicy.IsLegacyTemplate(value.Record.SpeedrunTemplateId)
                 && string.Equals(template.BuildId, value.Record.BuildId, StringComparison.Ordinal)
-                && RuntimePatchesPolicy.IsCurrentTemplate(template.Id));
+                && string.Equals(
+                    template.Id,
+                    RuntimePatchesPolicy.GetTemplateId(value.Record.BuildId),
+                    StringComparison.Ordinal));
+        loadingRuntimePatchesConfiguration = true;
+        RuntimePatchesMultiSaveStates = RuntimePatchesPolicy.IsMultiSaveStatesTemplate(
+            value.Record.SpeedrunTemplateId);
+        loadingRuntimePatchesConfiguration = false;
         _ = LoadRuntimePatchesConfigurationAsync(value.Record);
     }
 
@@ -3218,7 +3245,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             RuntimePatchesConfiguration configuration = await RuntimePatchesConfiguration.ReadAsync(
                 GetRuntimePatchesConfigurationPath(instance));
-            configuration = RuntimePatchesPolicy.Normalize(instance.BuildId, configuration);
+            configuration = RuntimePatchesPolicy.Normalize(
+                instance.BuildId,
+                instance.SpeedrunTemplateId,
+                configuration);
             RuntimePatchesScreenShakeModifier = configuration.ScreenShakeModifier;
             RuntimePatchesMiniSaveStates = configuration.MiniSaveStates;
             RuntimePatchesFasterIntroSkip = configuration.FasterIntroSkip;
@@ -3259,6 +3289,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         RuntimePatchesConfiguration configuration = RuntimePatchesPolicy.Normalize(
             selected.Record.BuildId,
+            selected.Record.SpeedrunTemplateId,
             new RuntimePatchesConfiguration
             {
                 ScreenShakeModifier = RuntimePatchesScreenShakeModifier,
@@ -3297,6 +3328,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     partial void OnRuntimePatchesFasterIntroSkipChanged(bool value) => _ = SaveRuntimePatchesConfigurationAsync();
 
     partial void OnRuntimePatchesTextMasherChanged(bool value) => _ = SaveRuntimePatchesConfigurationAsync();
+
+    partial void OnRuntimePatchesMultiSaveStatesChanged(bool value)
+    {
+        if (loadingRuntimePatchesConfiguration || SelectedSpeedrunInstance is not { } selected
+            || !IsMultiSaveStatesAvailable || IsGameRunning || IsBusy)
+        {
+            return;
+        }
+
+        string templateId = value ? "runtime-patches-1578-multi" : "runtime-patches-1578";
+        SelectedSpeedrunTemplate = catalog.SpeedrunTemplates.SingleOrDefault(template => template.Id == templateId);
+        _ = ReinstallSpeedrunEnvironmentAsync();
+    }
 
     partial void OnCurrentManageTabChanged(string value)
     {
@@ -4540,7 +4584,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     && Volatile.Read(ref steamSignInCancellation) is not null
                     && !IsSteamLoggedIn)
                 {
-                    ErrorMessage = $"Steam QR: {exception.Message}";
+                    ErrorMessage = string.Format(CultureInfo.CurrentUICulture, Loc["SteamQrErrorPrefix"], exception.Message);
                 }
             });
             return;
@@ -4567,7 +4611,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             catch (Exception exception)
             {
                 image?.Dispose();
-                ErrorMessage = $"Steam QR: {exception.Message}";
+                ErrorMessage = string.Format(CultureInfo.CurrentUICulture, Loc["SteamQrErrorPrefix"], exception.Message);
             }
         });
     }

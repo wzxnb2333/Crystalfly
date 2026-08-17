@@ -1596,8 +1596,8 @@ public sealed class MainViewModelStateTests : IDisposable
 
         await viewModel.SignInWithQrCommand.ExecuteAsync(null);
 
-        Assert.Equal("Steam: poll failed", viewModel.ErrorMessage);
-        Assert.Equal("Not signed in", viewModel.SteamStatus);
+        Assert.Equal(string.Format(viewModel.Loc.Culture, viewModel.Loc["SteamErrorPrefix"], "poll failed"), viewModel.ErrorMessage);
+        Assert.Equal(viewModel.Loc["SteamNotSignedIn"], viewModel.SteamStatus);
         Assert.False(viewModel.IsSteamLoggedIn);
     }
 
@@ -1643,8 +1643,8 @@ public sealed class MainViewModelStateTests : IDisposable
 
         await viewModel.SignInWithPasswordCommand.ExecuteAsync(null);
 
-        Assert.Equal("Steam: bad password", viewModel.ErrorMessage);
-        Assert.Equal("Not signed in", viewModel.SteamStatus);
+        Assert.Equal(string.Format(viewModel.Loc.Culture, viewModel.Loc["SteamErrorPrefix"], "bad password"), viewModel.ErrorMessage);
+        Assert.Equal(viewModel.Loc["SteamNotSignedIn"], viewModel.SteamStatus);
         Assert.False(viewModel.IsSteamLoggedIn);
     }
 
@@ -1680,7 +1680,7 @@ public sealed class MainViewModelStateTests : IDisposable
         await viewModel.SignInWithPasswordCommand.ExecuteAsync(null);
 
         Assert.Null(viewModel.ErrorMessage);
-        Assert.Equal("Not signed in", viewModel.SteamStatus);
+        Assert.Equal(viewModel.Loc["SteamNotSignedIn"], viewModel.SteamStatus);
         Assert.False(viewModel.IsSteamLoggedIn);
     }
 
@@ -1844,7 +1844,7 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.False(dispose.IsCompleted);
         releaseSignInCleanup.SetResult();
         await Task.WhenAll(signIn, dispose).WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.Equal("Not signed in", viewModel.SteamStatus);
+        Assert.Equal(viewModel.Loc["SteamNotSignedIn"], viewModel.SteamStatus);
     }
 
     [Fact]
@@ -1892,8 +1892,8 @@ public sealed class MainViewModelStateTests : IDisposable
 
         await viewModel.DownloadBuildCommand.ExecuteAsync(null);
 
-        Assert.Equal("Steam: CDN unavailable", viewModel.ErrorMessage);
-        Assert.Equal("Failed", viewModel.DownloadStatus);
+        Assert.Equal(string.Format(viewModel.Loc.Culture, viewModel.Loc["SteamErrorPrefix"], "CDN unavailable"), viewModel.ErrorMessage);
+        Assert.Equal(viewModel.Loc["DownloadFailed"], viewModel.DownloadStatus);
     }
 
     [Fact]

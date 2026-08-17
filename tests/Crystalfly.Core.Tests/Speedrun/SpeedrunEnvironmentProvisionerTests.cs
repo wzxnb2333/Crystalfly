@@ -27,6 +27,22 @@ public sealed class SpeedrunEnvironmentProvisionerTests : IDisposable
     }
 
     [Fact]
+    public async Task Provision_verifies_and_installs_a_direct_dll_asset()
+    {
+        string target = CreateInstanceFile("vanilla");
+        string package = CreateDll("patched-direct");
+        SpeedrunProvisioningRequest request = Request(
+            package,
+            ContentSha256("patched-direct"),
+            "https://github.com/Shichien/MiniSavestates/releases/download/1.5.12459/Assembly-CSharp.dll");
+
+        TransactionJournal journal = await new SpeedrunEnvironmentProvisioner().ProvisionAsync(request);
+
+        Assert.Equal(TransactionState.Committed, journal.State);
+        Assert.Equal("patched-direct", await File.ReadAllTextAsync(target));
+    }
+
+    [Fact]
     public async Task Provision_rejects_an_inner_dll_hash_mismatch_without_changing_the_instance()
     {
         string target = CreateInstanceFile("vanilla");
@@ -75,7 +91,10 @@ public sealed class SpeedrunEnvironmentProvisionerTests : IDisposable
         Assert.Equal("vanilla", await File.ReadAllTextAsync(target));
     }
 
-    private SpeedrunProvisioningRequest Request(string package, string dllSha256)
+    private SpeedrunProvisioningRequest Request(
+        string package,
+        string dllSha256,
+        string downloadUrl = "https://example.invalid/Assembly-CSharp-1432-windows.zip")
     {
         const string buildId = "1.4.3.2";
         const string templateId = "runtime-patches-1432";
@@ -85,7 +104,7 @@ public sealed class SpeedrunEnvironmentProvisionerTests : IDisposable
             Id = assetId,
             Name = "AssemblyPatches",
             Version = "1.0.2",
-            DownloadUrl = "https://example.invalid/Assembly-CSharp-1432-windows.zip",
+            DownloadUrl = downloadUrl,
             SizeBytes = new FileInfo(package).Length,
             Sha256 = FileSha256(package),
             SupportedBuildIds = [buildId]
@@ -155,6 +174,14 @@ public sealed class SpeedrunEnvironmentProvisionerTests : IDisposable
             byte[] bytes = Encoding.UTF8.GetBytes(content);
             stream.Write(bytes);
         }
+        return path;
+    }
+
+    private string CreateDll(string content)
+    {
+        Directory.CreateDirectory(root);
+        string path = Path.Combine(root, $"{Guid.NewGuid():N}.dll");
+        File.WriteAllText(path, content);
         return path;
     }
 
