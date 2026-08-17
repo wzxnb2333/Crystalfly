@@ -89,4 +89,12 @@ public static class RuntimePatchesPolicy
                 && features.HasFlag(RuntimePatchesFeature.TextMasher)
         };
     }
+
+    public static RuntimePatchesConfiguration Normalize(
+        string buildId,
+        string? templateId,
+        RuntimePatchesConfiguration configuration) =>
+        IsMultiSaveStatesTemplate(templateId)
+            ? new RuntimePatchesConfiguration()
+            : Normalize(buildId, configuration);
 }
