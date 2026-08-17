@@ -651,7 +651,10 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.NotNull(populate);
         populate.Invoke(viewModel, null);
 
-        Assert.Equal(7, viewModel.DownloadBuilds.Count);
+        Assert.Equal(8, viewModel.DownloadBuilds.Count);
+        var historical = viewModel.DownloadBuilds.Single(build =>
+            build.ManifestId == SteamProduct.HollowKnight12459ManifestId);
+        Assert.Equal(SteamDownloadQueueGroupFactory.CustomManifestBuildId, historical.BuildId);
         viewModel.DownloadBuildSearchText = "1005";
 
         var match = Assert.Single(viewModel.VisibleDownloadBuilds);

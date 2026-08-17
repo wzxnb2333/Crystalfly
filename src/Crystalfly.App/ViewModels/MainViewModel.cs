@@ -1312,6 +1312,21 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var previousBuildId = SelectedDownloadBuild?.BuildId;
         DownloadBuilds.Clear();
         DownloadBuilds.Add(new DownloadBuildOption("public", Loc["LatestBuild"], null));
+
+        // 1.5.12459 is not in the verified catalog yet, but its Steam Manifest
+        // remains downloadable as an explicitly unverified Vanilla build.
+        if (!catalog.Builds.Any(build =>
+                string.Equals(
+                    build.ManifestId,
+                    SteamProduct.HollowKnight12459ManifestId.ToString(CultureInfo.InvariantCulture),
+                    StringComparison.Ordinal)))
+        {
+            DownloadBuilds.Add(new DownloadBuildOption(
+                SteamDownloadQueueGroupFactory.CustomManifestBuildId,
+                Loc["HistoricalBuild12459"],
+                SteamProduct.HollowKnight12459ManifestId));
+        }
+
         var publicBuildId = catalog.Channels
             .FirstOrDefault(channel => channel.Name == "public")?.BuildId;
         foreach (var build in catalog.Builds
