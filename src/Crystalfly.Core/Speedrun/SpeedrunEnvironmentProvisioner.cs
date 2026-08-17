@@ -112,6 +112,7 @@ public sealed class SpeedrunEnvironmentProvisioner
                     await CopyAssetAsync(
                         asset,
                         template.BuildId,
+                        template.Id,
                         rule.Sha256,
                         packagePath,
                         target,
@@ -192,17 +193,19 @@ public sealed class SpeedrunEnvironmentProvisioner
     private static async Task CopyAssetAsync(
         SpeedrunAsset asset,
         string buildId,
+        string templateId,
         string expectedSha256,
         string packagePath,
         string targetPath,
         CancellationToken cancellationToken)
     {
-        if (!string.Equals(asset.Id, RuntimePatchesPolicy.GetAssetId(buildId), StringComparison.Ordinal))
+        if (!string.Equals(asset.Id, RuntimePatchesPolicy.GetAssetId(buildId, templateId), StringComparison.Ordinal))
         {
             throw new InvalidDataException($"Unsupported speedrun asset: '{asset.Id}'.");
         }
 
         using var archive = ZipFile.OpenRead(packagePath);
+        string? expectedEntryPath = asset.ArchiveEntryPath?.Replace('\\', '/');
         var entries = archive.Entries.Where(entry =>
             string.Equals(Path.GetFileName(entry.FullName), "Assembly-CSharp.dll", StringComparison.OrdinalIgnoreCase))
             .ToArray();
@@ -211,7 +214,9 @@ public sealed class SpeedrunEnvironmentProvisioner
             throw new InvalidDataException(
                 "RuntimePatches package must contain exactly one Assembly-CSharp.dll entry.");
         }
-        if (!string.Equals(entries[0].FullName.Replace('\\', '/'), "Assembly-CSharp.dll", StringComparison.Ordinal))
+        if (expectedEntryPath is not null
+            ? !string.Equals(entries[0].FullName.Replace('\\', '/'), expectedEntryPath, StringComparison.Ordinal)
+            : !string.Equals(entries[0].FullName.Replace('\\', '/'), "Assembly-CSharp.dll", StringComparison.Ordinal))
         {
             throw new InvalidDataException("RuntimePatches Assembly-CSharp.dll must be at the archive root.");
         }

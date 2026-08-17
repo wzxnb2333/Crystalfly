@@ -601,7 +601,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         SelectedSpeedrunSupportedFeatures.HasFlag(RuntimePatchesFeature.ScreenShakeModifier);
 
     public bool IsMiniSaveStatesAvailable =>
-        SelectedSpeedrunSupportedFeatures.HasFlag(RuntimePatchesFeature.MiniSaveStates);
+        !IsSelectedSpeedrunMultiSaveStates
+        && SelectedSpeedrunSupportedFeatures.HasFlag(RuntimePatchesFeature.MiniSaveStates);
+
+    public bool IsSelectedSpeedrunMultiSaveStates =>
+        SelectedSpeedrunInstance?.Record.SpeedrunTemplateId is { } templateId
+        && RuntimePatchesPolicy.IsMultiSaveStatesTemplate(templateId);
+
+    public bool IsMultiSaveStatesAvailable =>
+        IsSelectedSpeedrunCurrent
+        && string.Equals(SelectedSpeedrunInstance?.Record.BuildId, "1.5.78.11833", StringComparison.Ordinal);
 
     public bool IsFasterIntroSkipAvailable =>
         SelectedSpeedrunSupportedFeatures.HasFlag(RuntimePatchesFeature.FasterIntroSkip);
@@ -906,10 +915,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(SelectedSpeedrunSupportedFeatures))]
     [NotifyPropertyChangedFor(nameof(IsScreenShakeModifierAvailable))]
     [NotifyPropertyChangedFor(nameof(IsMiniSaveStatesAvailable))]
+    [NotifyPropertyChangedFor(nameof(IsSelectedSpeedrunMultiSaveStates))]
+    [NotifyPropertyChangedFor(nameof(IsMultiSaveStatesAvailable))]
     [NotifyPropertyChangedFor(nameof(IsFasterIntroSkipAvailable))]
     [NotifyPropertyChangedFor(nameof(IsTextMasherAvailable))]
     [NotifyPropertyChangedFor(nameof(IsRuntimePatchesConfigurationEditable))]
     public partial InstanceItemViewModel? SelectedSpeedrunInstance { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsMiniSaveStatesAvailable))]
+    public partial bool RuntimePatchesMultiSaveStates { get; set; }
 
     [ObservableProperty]
     public partial bool RuntimePatchesScreenShakeModifier { get; set; }
@@ -3196,6 +3211,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             RuntimePatchesScreenShakeModifier = false;
             RuntimePatchesMiniSaveStates = false;
+            RuntimePatchesMultiSaveStates = false;
             RuntimePatchesFasterIntroSkip = false;
             RuntimePatchesTextMasher = false;
             return;
@@ -3207,7 +3223,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ?? catalog.SpeedrunTemplates.SingleOrDefault(template =>
                 RuntimePatchesPolicy.IsLegacyTemplate(value.Record.SpeedrunTemplateId)
                 && string.Equals(template.BuildId, value.Record.BuildId, StringComparison.Ordinal)
-                && RuntimePatchesPolicy.IsCurrentTemplate(template.Id));
+                && string.Equals(
+                    template.Id,
+                    RuntimePatchesPolicy.GetTemplateId(value.Record.BuildId),
+                    StringComparison.Ordinal));
+        loadingRuntimePatchesConfiguration = true;
+        RuntimePatchesMultiSaveStates = RuntimePatchesPolicy.IsMultiSaveStatesTemplate(
+            value.Record.SpeedrunTemplateId);
+        loadingRuntimePatchesConfiguration = false;
         _ = LoadRuntimePatchesConfigurationAsync(value.Record);
     }
 
@@ -3297,6 +3320,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     partial void OnRuntimePatchesFasterIntroSkipChanged(bool value) => _ = SaveRuntimePatchesConfigurationAsync();
 
     partial void OnRuntimePatchesTextMasherChanged(bool value) => _ = SaveRuntimePatchesConfigurationAsync();
+
+    partial void OnRuntimePatchesMultiSaveStatesChanged(bool value)
+    {
+        if (loadingRuntimePatchesConfiguration || SelectedSpeedrunInstance is not { } selected
+            || !IsMultiSaveStatesAvailable || IsGameRunning || IsBusy)
+        {
+            return;
+        }
+
+        string templateId = value ? "runtime-patches-1578-multi" : "runtime-patches-1578";
+        SelectedSpeedrunTemplate = catalog.SpeedrunTemplates.SingleOrDefault(template => template.Id == templateId);
+        _ = ReinstallSpeedrunEnvironmentAsync();
+    }
 
     partial void OnCurrentManageTabChanged(string value)
     {

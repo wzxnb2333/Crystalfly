@@ -4,7 +4,7 @@
 
 Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。启动页是实例选择与管理的唯一入口；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
 
-> 当前版本：`1.1.4`。提供 Windows x64 便携包与安装包；设置页可查看发行说明，签名更新弹窗支持下载进度、取消和失败重试。
+> 当前版本：`1.1.5`。提供 Windows x64 便携包与安装包；设置页可查看发行说明，签名更新弹窗支持下载进度、取消和失败重试。
 
 ![Crystalfly 启动预检](docs/screenshots/crystalfly-1280x720-zh.jpg)
 ![选择实例](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)
@@ -112,6 +112,7 @@ Loader 兼容按精确包 ID 判断，不会把所有 Modding API 或 BepInEx �
 - 支持 `1.2.2.1`、`1.4.3.2` 与 `1.5.78`；不安装 Modding API、BepInEx 或 LoadNormaliser。
 - 所有开关默认关闭。`1.2.2.1` 不提供 `FasterIntroSkip`；`1.5.78` 不提供 `ScreenShakeModifier`。
 - `FasterIntroSkip` 与 `MiniSaveStates` 会显示规则警告，但具体分类是否合法仍以 SRC 公告为准。
+- 1.5.78 速通环境可在 MiniSaveStates 单槽与 MultiSaveStates 十槽之间切换；切换会重新安装对应的 Assembly-CSharp，两个程序集不会叠加。
 
 启动前会检查核心游戏指纹、RuntimePatches DLL、实例隔离配置、Loader/Mod 标记、事务和 LocalLow 状态。技术错误会阻止启动，规则警告不会。PNG、贴图和普通额外文件不参与阻断。旧模板实例保留文件并标记为已过期，需要重新创建。
 
@@ -154,10 +155,10 @@ dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.4'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.5'
 
 # 无更新签名的本地构建与固定目录覆盖；不会生成 update-manifest.v1.json。
-pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.4' -UnsignedLocal
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.5' -UnsignedLocal
 ```
 
 脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。发布构建从已忽略的 `.env.update-signing` 读取 `CRYSTALFLY_UPDATE_SIGNING_KEY`，并使用 `tools/Crystalfly.ReleaseTool` 生成签名更新清单；私钥文件不得提交。仅本地验收时可显式传入 `-UnsignedLocal`，此模式不会生成 `update-manifest.v1.json`，不得将其作为公开 Release 上传。`build-and-install.ps1` 会从 `Directory.Build.props` 读取版本号，执行完整 Release 构建和测试，验证产物后以管理员权限静默更新 `D:\Program Files\Crystalfly`，最后核对已安装版本。运行中的 Crystalfly 会使流程停止，不会强制关闭程序。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、独立更新程序、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包、`update-manifest.v1.json` 和 `SHA256SUMS.txt`。产物尚未使用 Authenticode 签名；客户端仍会验证更新清单的 Ed25519 签名及资产 SHA-256、大小和版本。详细设计见 [架构文档](docs/architecture.md)。

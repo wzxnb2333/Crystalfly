@@ -1711,7 +1711,18 @@
                                                 </StackPanel>
                                             </Grid>
                                         </Border>
-                                        <Border Grid.Row="1" Classes="cfp-speedrun-option">
+                                        <Border Grid.Row="1" Classes="cfp-speedrun-option" IsVisible="{Binding IsMultiSaveStatesAvailable}">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Text="Save states" VerticalAlignment="Center" />
+                                                    <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunSaveStatesSwitchHint]}" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <ToggleSwitch IsChecked="{Binding RuntimePatchesMultiSaveStates}" AutomationProperties.Name="MultiSaveStates" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                        <Border Grid.Row="1" Classes="cfp-speedrun-option" IsVisible="{Binding IsMultiSaveStatesAvailable, Converter={x:Static converters:BoolConverters.Not}}">
                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                                                 <TextBlock Text="MiniSaveStates" VerticalAlignment="Center" />
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">

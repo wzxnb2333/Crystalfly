@@ -6,8 +6,10 @@ public static class OfficialSpeedrunTemplatePolicy
 {
     public static SpeedrunIssueCode? GetViolation(SpeedrunTemplate template)
     {
-        string? templateId = RuntimePatchesPolicy.GetTemplateId(template.BuildId);
-        string? assetId = RuntimePatchesPolicy.GetAssetId(template.BuildId);
+        string? templateId = RuntimePatchesPolicy.IsMultiSaveStatesTemplate(template.Id)
+            ? template.Id
+            : RuntimePatchesPolicy.GetTemplateId(template.BuildId);
+        string? assetId = RuntimePatchesPolicy.GetAssetId(template.BuildId, template.Id);
         bool valid = templateId is not null
             && assetId is not null
             && string.Equals(template.Id, templateId, StringComparison.Ordinal)

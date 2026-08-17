@@ -133,6 +133,13 @@ public sealed class EmbeddedCatalogTests
 
         Assert.Collection(
             catalog.SpeedrunAssets.OrderBy(asset => asset.Id, StringComparer.Ordinal),
+            asset =>
+            {
+                Assert.Equal("multisavestates-1578", asset.Id);
+                Assert.Equal(1128823, asset.SizeBytes);
+                Assert.Equal("7B5484A98EC552C55734CEAB54A4663699F0A85D786BD2881246BDDBDCA733E5", asset.Sha256);
+                Assert.Equal("Multisavestates/Assembly-CSharp.dll", asset.ArchiveEntryPath);
+            },
             asset => AssertRuntimePatchesAsset(
                 asset,
                 "runtime-patches-1221-v1.0.2",
@@ -160,15 +167,16 @@ public sealed class EmbeddedCatalogTests
             Assert.Empty(template.AllowedLoadNormaliserSeconds);
         });
         Assert.Equal(
-            ["runtime-patches-1221", "runtime-patches-1432", "runtime-patches-1578"],
+            ["runtime-patches-1221", "runtime-patches-1432", "runtime-patches-1578", "runtime-patches-1578-multi"],
             catalog.SpeedrunTemplates.Select(template => template.Id).Order(StringComparer.Ordinal));
-        Assert.Equal(3, catalog.SpeedrunFileManifests.Count);
+        Assert.Equal(4, catalog.SpeedrunFileManifests.Count);
         Assert.Equal(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["files-runtime-patches-1221"] = "A47DA658E488127B58AEF4469BB8205E90038D0E24ACE12E873B493510DA071F",
                 ["files-runtime-patches-1432"] = "F9EEE63FD3AB9531BF91BDD1EB77B49E873114443C7D85C3124CDF871317BFFD",
-                ["files-runtime-patches-1578"] = "18F7DF2F2DBF3E3E3646F70A74A3360EC294FE9BDDFE2554ECFEB80AD68905CA"
+                ["files-runtime-patches-1578"] = "18F7DF2F2DBF3E3E3646F70A74A3360EC294FE9BDDFE2554ECFEB80AD68905CA",
+                ["files-runtime-patches-1578-multi"] = "932B969A84EB55955E221D2EF9455237E6D8C5A005DC01DAF293FB272BBEFBB8"
             },
             catalog.SpeedrunFileManifests.ToDictionary(
                 manifest => manifest.Id,

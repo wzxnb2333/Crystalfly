@@ -291,6 +291,7 @@
           ]
         },
         "sha256": { "$ref": "#/$defs/sha256" },
+        "archiveEntryPath": { "type": "string", "minLength": 1 },
         "supportedBuildIds": { "$ref": "#/$defs/identifierArray" }
       }
     },

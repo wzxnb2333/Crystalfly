@@ -45,6 +45,7 @@ public sealed class OfficialSpeedrunTemplatePolicyTests
     [InlineData("runtime-patches-1221", "1.2.2.1", "runtime-patches-1221-v1.0.2")]
     [InlineData("runtime-patches-1432", "1.4.3.2", "runtime-patches-1432-v1.0.2")]
     [InlineData("runtime-patches-1578", "1.5.78.11833", "runtime-patches-1578-v1.0.2")]
+    [InlineData("runtime-patches-1578-multi", "1.5.78.11833", "multisavestates-1578")]
     public void Accepts_the_three_fixed_RuntimePatches_templates(
         string templateId,
         string buildId,

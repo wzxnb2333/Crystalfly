@@ -18,5 +18,8 @@ public sealed record SpeedrunAsset
 
     public required string Sha256 { get; init; }
 
+    /// <summary>Optional archive entry when a publisher keeps the DLL in a named folder.</summary>
+    public string? ArchiveEntryPath { get; init; }
+
     public IReadOnlyList<string> SupportedBuildIds { get; init; } = [];
 }
