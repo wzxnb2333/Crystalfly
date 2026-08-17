@@ -595,7 +595,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public RuntimePatchesFeature SelectedSpeedrunSupportedFeatures =>
         SelectedSpeedrunInstance is null
             ? RuntimePatchesFeature.None
-            : RuntimePatchesPolicy.GetSupportedFeatures(SelectedSpeedrunInstance.Record.BuildId);
+            : RuntimePatchesPolicy.GetSupportedFeatures(
+                SelectedSpeedrunInstance.Record.BuildId,
+                RuntimePatchesMultiSaveStates
+                    ? SpeedrunSaveStatesMode.Multi
+                    : SpeedrunSaveStatesMode.Mini);
 
     public bool IsScreenShakeModifierAvailable =>
         SelectedSpeedrunSupportedFeatures.HasFlag(RuntimePatchesFeature.ScreenShakeModifier);
@@ -605,8 +609,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         && SelectedSpeedrunSupportedFeatures.HasFlag(RuntimePatchesFeature.MiniSaveStates);
 
     public bool IsSelectedSpeedrunMultiSaveStates =>
-        SelectedSpeedrunInstance?.Record.SpeedrunTemplateId is { } templateId
-        && RuntimePatchesPolicy.IsMultiSaveStatesTemplate(templateId);
+        RuntimePatchesMultiSaveStates;
 
     public bool IsMultiSaveStatesAvailable =>
         IsSelectedSpeedrunCurrent
@@ -924,6 +927,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsMiniSaveStatesAvailable))]
+    [NotifyPropertyChangedFor(nameof(IsSelectedSpeedrunMultiSaveStates))]
+    [NotifyPropertyChangedFor(nameof(SelectedSpeedrunSupportedFeatures))]
+    [NotifyPropertyChangedFor(nameof(IsScreenShakeModifierAvailable))]
+    [NotifyPropertyChangedFor(nameof(IsFasterIntroSkipAvailable))]
+    [NotifyPropertyChangedFor(nameof(IsTextMasherAvailable))]
     public partial bool RuntimePatchesMultiSaveStates { get; set; }
 
     [ObservableProperty]
@@ -1373,7 +1381,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         var previousTemplateId = SelectedSpeedrunTemplate?.Id;
         SpeedrunTemplates.Clear();
-        foreach (var template in catalog.SpeedrunTemplates)
+        foreach (var template in catalog.SpeedrunTemplates.Where(template =>
+                     !RuntimePatchesPolicy.IsMultiSaveStatesTemplate(template.Id)))
         {
             SpeedrunTemplates.Add(template);
         }
@@ -2896,6 +2905,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                         {
                             Catalog = catalog,
                             TemplateId = SelectedSpeedrunTemplate.Id,
+                            SaveStatesMode = RuntimePatchesMultiSaveStates
+                                ? SpeedrunSaveStatesMode.Multi
+                                : SpeedrunSaveStatesMode.Mini,
                             InstanceRoot = clone.RootPath,
                             TransactionRoot = Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
                             PackageCacheRoot = Path.Combine(paths.GetVersionDataRoot(VersionRoot), "packages"),
@@ -2911,6 +2923,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                         LoaderId = null,
                         SpeedrunTemplateId = SelectedSpeedrunTemplate.Id,
                         SpeedrunRulesRevision = SelectedSpeedrunTemplate.RulesRevision,
+                        SpeedrunSaveStatesMode = RuntimePatchesMultiSaveStates
+                            ? SpeedrunSaveStatesMode.Multi
+                            : SpeedrunSaveStatesMode.Mini,
                         LoadNormaliserSeconds = null
                     };
                     var isolation = new LocalLowIsolationService(
@@ -3160,6 +3175,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     {
                         Catalog = catalog,
                         TemplateId = SelectedSpeedrunTemplate.Id,
+                        SaveStatesMode = RuntimePatchesMultiSaveStates
+                            ? SpeedrunSaveStatesMode.Multi
+                            : SpeedrunSaveStatesMode.Mini,
                         InstanceRoot = selected.RootPath,
                         TransactionRoot = Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
                         PackageCacheRoot = Path.Combine(paths.GetVersionDataRoot(VersionRoot), "packages"),
@@ -3169,6 +3187,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                         GetRuntimePatchesConfigurationPath(selected.Record),
                         RuntimePatchesPolicy.Normalize(
                             selected.Record.BuildId,
+                            RuntimePatchesMultiSaveStates
+                                ? SpeedrunSaveStatesMode.Multi
+                                : SpeedrunSaveStatesMode.Mini,
                             new RuntimePatchesConfiguration
                             {
                                 ScreenShakeModifier = RuntimePatchesScreenShakeModifier,
@@ -3176,6 +3197,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                                 FasterIntroSkip = RuntimePatchesFasterIntroSkip,
                                 TextMasher = RuntimePatchesTextMasher
                             }));
+                    await InstanceSidecar.SaveAsync(selected.Record with
+                    {
+                        SpeedrunTemplateId = SelectedSpeedrunTemplate.Id,
+                        SpeedrunRulesRevision = SelectedSpeedrunTemplate.RulesRevision,
+                        SpeedrunSaveStatesMode = RuntimePatchesMultiSaveStates
+                            ? SpeedrunSaveStatesMode.Multi
+                            : SpeedrunSaveStatesMode.Mini
+                    });
                 },
                 lifetimeCancellation.Token);
             SetSpeedrunReminder("SpeedrunNeedsVerification");
@@ -3237,8 +3266,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
 
         SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == value.Id) ?? value;
+        string selectedTemplateId = RuntimePatchesPolicy.GetTemplateId(value.Record.BuildId)
+            ?? value.Record.SpeedrunTemplateId
+            ?? string.Empty;
         SelectedSpeedrunTemplate = catalog.SpeedrunTemplates.SingleOrDefault(template =>
-            string.Equals(template.Id, value.Record.SpeedrunTemplateId, StringComparison.Ordinal))
+            string.Equals(template.Id, selectedTemplateId, StringComparison.Ordinal))
             ?? catalog.SpeedrunTemplates.SingleOrDefault(template =>
                 RuntimePatchesPolicy.IsLegacyTemplate(value.Record.SpeedrunTemplateId)
                 && string.Equals(template.BuildId, value.Record.BuildId, StringComparison.Ordinal)
@@ -3247,8 +3279,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     RuntimePatchesPolicy.GetTemplateId(value.Record.BuildId),
                     StringComparison.Ordinal));
         loadingRuntimePatchesConfiguration = true;
-        RuntimePatchesMultiSaveStates = RuntimePatchesPolicy.IsMultiSaveStatesTemplate(
-            value.Record.SpeedrunTemplateId);
+        RuntimePatchesMultiSaveStates = value.Record.SpeedrunSaveStatesMode == SpeedrunSaveStatesMode.Multi
+            || RuntimePatchesPolicy.IsMultiSaveStatesTemplate(value.Record.SpeedrunTemplateId);
         loadingRuntimePatchesConfiguration = false;
         _ = LoadRuntimePatchesConfigurationAsync(value.Record);
     }
@@ -3262,7 +3294,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 GetRuntimePatchesConfigurationPath(instance));
             configuration = RuntimePatchesPolicy.Normalize(
                 instance.BuildId,
-                instance.SpeedrunTemplateId,
+                instance.SpeedrunSaveStatesMode == SpeedrunSaveStatesMode.Multi
+                    || RuntimePatchesPolicy.IsMultiSaveStatesTemplate(instance.SpeedrunTemplateId)
+                    ? SpeedrunSaveStatesMode.Multi
+                    : SpeedrunSaveStatesMode.Mini,
                 configuration);
             RuntimePatchesScreenShakeModifier = configuration.ScreenShakeModifier;
             RuntimePatchesMiniSaveStates = configuration.MiniSaveStates;
@@ -3304,7 +3339,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         RuntimePatchesConfiguration configuration = RuntimePatchesPolicy.Normalize(
             selected.Record.BuildId,
-            selected.Record.SpeedrunTemplateId,
+            RuntimePatchesMultiSaveStates
+                ? SpeedrunSaveStatesMode.Multi
+                : SpeedrunSaveStatesMode.Mini,
             new RuntimePatchesConfiguration
             {
                 ScreenShakeModifier = RuntimePatchesScreenShakeModifier,
@@ -3352,8 +3389,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             return;
         }
 
-        string templateId = value ? "runtime-patches-1578-multi" : "runtime-patches-1578";
-        SelectedSpeedrunTemplate = catalog.SpeedrunTemplates.SingleOrDefault(template => template.Id == templateId);
         _ = ReinstallSpeedrunEnvironmentAsync();
     }
 
@@ -4502,13 +4537,26 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         SpeedrunReportPath = null;
         var template = catalog.SpeedrunTemplates.SingleOrDefault(candidate =>
-            string.Equals(candidate.Id, instance.SpeedrunTemplateId, StringComparison.Ordinal))
+            string.Equals(
+                candidate.Id,
+                RuntimePatchesPolicy.GetTemplateId(instance.BuildId) ?? instance.SpeedrunTemplateId,
+                StringComparison.Ordinal))
             ?? throw new InvalidOperationException(Loc["SpeedrunTemplateMissing"]);
         var build = catalog.Builds.SingleOrDefault(candidate =>
             string.Equals(candidate.Id, instance.BuildId, StringComparison.Ordinal))
             ?? throw new InvalidOperationException(Loc["SpeedrunBuildMissing"]);
+        SpeedrunSaveStatesMode saveStatesMode = instance.SpeedrunSaveStatesMode == SpeedrunSaveStatesMode.Multi
+            || RuntimePatchesPolicy.IsMultiSaveStatesTemplate(instance.SpeedrunTemplateId)
+            ? SpeedrunSaveStatesMode.Multi
+            : SpeedrunSaveStatesMode.Mini;
         var fileManifest = catalog.SpeedrunFileManifests.SingleOrDefault(candidate =>
-            string.Equals(candidate.Id, template.FileManifestId, StringComparison.Ordinal))
+            string.Equals(
+                candidate.Id,
+                RuntimePatchesPolicy.GetFileManifestId(
+                    template.BuildId,
+                    saveStatesMode,
+                    template.FileManifestId),
+                StringComparison.Ordinal))
             ?? throw new InvalidOperationException(Loc["SpeedrunManifestMissing"]);
         bool hasTransactionIssue;
         try
@@ -4542,9 +4590,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var result = await new SpeedrunEnvironmentVerifier().VerifyAndWriteReportAsync(
             new SpeedrunVerificationRequest
             {
-                Instance = instance,
+                Instance = instance with
+                {
+                    SpeedrunTemplateId = template.Id,
+                    SpeedrunSaveStatesMode = saveStatesMode
+                },
                 Template = template,
                 TemplateSource = SpeedrunTemplateSource.OfficialCatalog,
+                SaveStatesMode = saveStatesMode,
                 ExpectedBuild = build,
                 CurrentRulesRevision = template.RulesRevision,
                 FileManifest = fileManifest,

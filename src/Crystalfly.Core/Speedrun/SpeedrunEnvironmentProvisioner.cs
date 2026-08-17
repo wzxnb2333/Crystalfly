@@ -17,6 +17,8 @@ public sealed record SpeedrunProvisioningRequest
 
     public required string PackageCacheRoot { get; init; }
 
+    public SpeedrunSaveStatesMode SaveStatesMode { get; init; }
+
     public IReadOnlyDictionary<string, string> LocalPackagePaths { get; init; } =
         new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -57,7 +59,10 @@ public sealed class SpeedrunEnvironmentProvisioner
         var template = SingleById(request.Catalog.SpeedrunTemplates, request.TemplateId, "speedrun template");
         var manifest = SingleById(
             request.Catalog.SpeedrunFileManifests,
-            template.FileManifestId,
+            RuntimePatchesPolicy.GetFileManifestId(
+                template.BuildId,
+                request.SaveStatesMode,
+                template.FileManifestId),
             "speedrun file manifest");
         ValidateTemplate(template, manifest, request.LoadNormaliserSeconds);
 
@@ -72,7 +77,10 @@ public sealed class SpeedrunEnvironmentProvisioner
         try
         {
             var targets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (string assetId in template.RequiredAssetIds.Distinct(StringComparer.Ordinal))
+            foreach (string assetId in RuntimePatchesPolicy.GetRequiredAssetIds(
+                         template.BuildId,
+                         template.RequiredAssetIds,
+                         request.SaveStatesMode))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var asset = SingleById(request.Catalog.SpeedrunAssets, assetId, "speedrun asset");
@@ -112,7 +120,7 @@ public sealed class SpeedrunEnvironmentProvisioner
                     await CopyAssetAsync(
                         asset,
                         template.BuildId,
-                        template.Id,
+                        request.SaveStatesMode,
                         rule.Sha256,
                         packagePath,
                         target,
@@ -193,13 +201,16 @@ public sealed class SpeedrunEnvironmentProvisioner
     private static async Task CopyAssetAsync(
         SpeedrunAsset asset,
         string buildId,
-        string templateId,
+        SpeedrunSaveStatesMode saveStatesMode,
         string expectedSha256,
         string packagePath,
         string targetPath,
         CancellationToken cancellationToken)
     {
-        if (!string.Equals(asset.Id, RuntimePatchesPolicy.GetAssetId(buildId, templateId), StringComparison.Ordinal))
+        if (!string.Equals(
+                asset.Id,
+                RuntimePatchesPolicy.GetAssetId(buildId, saveStatesMode),
+                StringComparison.Ordinal))
         {
             throw new InvalidDataException($"Unsupported speedrun asset: '{asset.Id}'.");
         }

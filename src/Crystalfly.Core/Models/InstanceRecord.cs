@@ -22,6 +22,8 @@ public sealed record InstanceRecord
 
     public string? SpeedrunTemplateId { get; init; }
 
+    public SpeedrunSaveStatesMode SpeedrunSaveStatesMode { get; init; }
+
     public string? SpeedrunRulesRevision { get; init; }
 
     public int? LoadNormaliserSeconds { get; init; }
@@ -41,4 +43,10 @@ public enum InstanceProvisioningMode
     Imported,
     FullCopy,
     Downloaded
+}
+
+public enum SpeedrunSaveStatesMode
+{
+    Mini,
+    Multi
 }

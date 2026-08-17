@@ -84,4 +84,31 @@ public sealed class OfficialSpeedrunTemplatePolicyTests
             SpeedrunIssueCode.UnsupportedOfficialTemplate,
             OfficialSpeedrunTemplatePolicy.GetViolation(template));
     }
+
+    [Fact]
+    public void One_1578_template_supports_switching_between_mini_and_multi_save_states()
+    {
+        var template = new SpeedrunTemplate
+        {
+            Id = "runtime-patches-1578",
+            Name = "RuntimePatches 1.5.78",
+            BuildId = "1.5.78.11833",
+            IsOfficial = true,
+            RulesRevision = RuntimePatchesPolicy.RulesRevision,
+            FileManifestId = "files-runtime-patches-1578",
+            RequiredAssetIds = ["runtime-patches-1578-v1.0.2", "multisavestates-1578"]
+        };
+
+        Assert.Null(OfficialSpeedrunTemplatePolicy.GetViolation(template, SpeedrunSaveStatesMode.Mini));
+        Assert.Null(OfficialSpeedrunTemplatePolicy.GetViolation(template, SpeedrunSaveStatesMode.Multi));
+        Assert.Equal(
+            "runtime-patches-1578-v1.0.2",
+            RuntimePatchesPolicy.GetAssetId("1.5.78.11833", SpeedrunSaveStatesMode.Mini));
+        Assert.Equal(
+            "multisavestates-1578",
+            RuntimePatchesPolicy.GetAssetId("1.5.78.11833", SpeedrunSaveStatesMode.Multi));
+        Assert.Equal(
+            RuntimePatchesFeature.None,
+            RuntimePatchesPolicy.GetSupportedFeatures("1.5.78.11833", SpeedrunSaveStatesMode.Multi));
+    }
 }

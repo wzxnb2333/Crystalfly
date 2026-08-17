@@ -184,20 +184,7 @@
       "isOfficial": true,
       "rulesRevision": "runtime-patches-v1.0.2",
       "fileManifestId": "files-runtime-patches-1578",
-      "requiredAssetIds": ["runtime-patches-1578-v1.0.2"],
-      "loadNormaliserAvailable": false,
-      "requiresLoadNormaliserSelection": false,
-      "allowedLoadNormaliserSeconds": []
-    },
-    {
-      "schemaVersion": 1,
-      "id": "runtime-patches-1578-multi",
-      "name": "MultiSaveStates 1.5.78",
-      "buildId": "1.5.78.11833",
-      "isOfficial": true,
-      "rulesRevision": "runtime-patches-v1.0.2",
-      "fileManifestId": "files-runtime-patches-1578-multi",
-      "requiredAssetIds": ["multisavestates-1578"],
+      "requiredAssetIds": ["runtime-patches-1578-v1.0.2", "multisavestates-1578"],
       "loadNormaliserAvailable": false,
       "requiresLoadNormaliserSelection": false,
       "allowedLoadNormaliserSeconds": []

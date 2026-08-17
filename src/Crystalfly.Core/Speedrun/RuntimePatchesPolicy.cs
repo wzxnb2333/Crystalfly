@@ -1,3 +1,5 @@
+using Crystalfly.Core.Models;
+
 namespace Crystalfly.Core.Speedrun;
 
 [Flags]
@@ -32,6 +34,13 @@ public static class RuntimePatchesPolicy
         _ => RuntimePatchesFeature.None
     };
 
+    public static RuntimePatchesFeature GetSupportedFeatures(
+        string buildId,
+        SpeedrunSaveStatesMode saveStatesMode) =>
+        saveStatesMode == SpeedrunSaveStatesMode.Multi
+            ? RuntimePatchesFeature.None
+            : GetSupportedFeatures(buildId);
+
     public static bool IsSupportedBuild(string buildId) => GetTemplateId(buildId) is not null;
 
     public static string? GetTemplateId(string buildId) => buildId switch
@@ -51,6 +60,35 @@ public static class RuntimePatchesPolicy
         "1.5.12459" => "multisavestates-12459",
         _ => null
     };
+
+    public static string? GetAssetId(
+        string buildId,
+        SpeedrunSaveStatesMode saveStatesMode) =>
+        buildId == "1.5.78.11833" && saveStatesMode == SpeedrunSaveStatesMode.Multi
+            ? "multisavestates-1578"
+            : GetAssetId(buildId);
+
+    public static string GetFileManifestId(
+        string buildId,
+        SpeedrunSaveStatesMode saveStatesMode,
+        string defaultManifestId) =>
+        buildId == "1.5.78.11833" && saveStatesMode == SpeedrunSaveStatesMode.Multi
+            ? "files-runtime-patches-1578-multi"
+            : defaultManifestId;
+
+    public static IReadOnlyList<string> GetRequiredAssetIds(
+        string buildId,
+        IReadOnlyList<string> templateAssetIds,
+        SpeedrunSaveStatesMode saveStatesMode)
+    {
+        if (buildId != "1.5.78.11833")
+        {
+            return templateAssetIds.Distinct(StringComparer.Ordinal).ToArray();
+        }
+
+        string? assetId = GetAssetId(buildId, saveStatesMode);
+        return assetId is null ? [] : [assetId];
+    }
 
     public static string? GetAssetId(string buildId, string? templateId) =>
         IsMultiSaveStatesTemplate(templateId)
@@ -75,8 +113,14 @@ public static class RuntimePatchesPolicy
     public static RuntimePatchesConfiguration Normalize(
         string buildId,
         RuntimePatchesConfiguration configuration)
+        => Normalize(buildId, SpeedrunSaveStatesMode.Mini, configuration);
+
+    public static RuntimePatchesConfiguration Normalize(
+        string buildId,
+        SpeedrunSaveStatesMode saveStatesMode,
+        RuntimePatchesConfiguration configuration)
     {
-        RuntimePatchesFeature features = GetSupportedFeatures(buildId);
+        RuntimePatchesFeature features = GetSupportedFeatures(buildId, saveStatesMode);
         return configuration with
         {
             ScreenShakeModifier = configuration.ScreenShakeModifier
@@ -95,6 +139,6 @@ public static class RuntimePatchesPolicy
         string? templateId,
         RuntimePatchesConfiguration configuration) =>
         IsMultiSaveStatesTemplate(templateId)
-            ? new RuntimePatchesConfiguration()
-            : Normalize(buildId, configuration);
+            ? Normalize(buildId, SpeedrunSaveStatesMode.Multi, configuration)
+            : Normalize(buildId, SpeedrunSaveStatesMode.Mini, configuration);
 }

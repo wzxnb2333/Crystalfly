@@ -128,7 +128,10 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
             RuntimePatchesConfiguration configuration = await RuntimePatchesConfiguration.ReadAsync(
                 request.RuntimePatchesConfigurationPath,
                 cancellationToken);
-            if (RuntimePatchesPolicy.Normalize(request.ExpectedBuild.Id, configuration) != configuration)
+            if (RuntimePatchesPolicy.Normalize(
+                    request.ExpectedBuild.Id,
+                    request.SaveStatesMode,
+                    configuration) != configuration)
             {
                 throw new InvalidDataException("Configuration enables an unsupported RuntimePatches feature.");
             }
@@ -230,7 +233,9 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
         {
             AddIssue(issues, SpeedrunIssueCode.TemplateNotTrusted, "Catalog template is not marked as official.");
         }
-        if (official && OfficialSpeedrunTemplatePolicy.GetViolation(request.Template) is { } violation)
+        if (official && OfficialSpeedrunTemplatePolicy.GetViolation(
+                request.Template,
+                request.SaveStatesMode) is { } violation)
         {
             AddIssue(issues, violation, "Official template is not a supported RuntimePatches template.");
         }
@@ -250,7 +255,11 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
         {
             AddIssue(issues, SpeedrunIssueCode.TemplateMismatch, "Instance was not created for the selected template.");
         }
-        if (official && (!string.Equals(request.Template.FileManifestId, request.FileManifest.Id, StringComparison.Ordinal)
+        string expectedManifestId = RuntimePatchesPolicy.GetFileManifestId(
+            request.Template.BuildId,
+            request.SaveStatesMode,
+            request.Template.FileManifestId);
+        if (official && (!string.Equals(expectedManifestId, request.FileManifest.Id, StringComparison.Ordinal)
             || !string.Equals(request.Template.BuildId, request.FileManifest.BuildId, StringComparison.Ordinal)
             || !string.Equals(request.Template.RulesRevision, request.FileManifest.RulesRevision, StringComparison.Ordinal)))
         {
@@ -278,7 +287,10 @@ public sealed class SpeedrunEnvironmentVerifier(TimeProvider? timeProvider = nul
             .Distinct(StringComparer.Ordinal)
             .Select(static id => id!)
             .ToArray();
-        foreach (string requiredAsset in request.Template.RequiredAssetIds)
+        foreach (string requiredAsset in RuntimePatchesPolicy.GetRequiredAssetIds(
+                     request.ExpectedBuild.Id,
+                     request.Template.RequiredAssetIds,
+                     request.SaveStatesMode))
         {
             if (!providedAssets.Contains(requiredAsset, StringComparer.Ordinal))
             {
