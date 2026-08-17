@@ -1727,7 +1727,7 @@
                                                 <TextBlock Text="MiniSaveStates" VerticalAlignment="Center" />
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                                     <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunFeatureUnavailable]}" IsVisible="{Binding IsMiniSaveStatesAvailable, Converter={x:Static converters:BoolConverters.Not}}" />
-                                                    <ToggleSwitch IsChecked="{Binding RuntimePatchesMiniSaveStates}" IsVisible="{Binding IsMiniSaveStatesAvailable}" AutomationProperties.Name="MiniSaveStates" />
+                                                    <ToggleSwitch IsChecked="{Binding RuntimePatchesMiniSaveStates}" IsVisible="{Binding IsMiniSaveStatesAvailable}" IsEnabled="{Binding IsMiniSaveStatesToggleEnabled}" AutomationProperties.Name="{Binding Loc[SpeedrunMiniSaveStates]}" />
                                                 </StackPanel>
                                             </Grid>
                                         </Border>

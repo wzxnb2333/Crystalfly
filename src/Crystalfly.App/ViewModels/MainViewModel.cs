@@ -608,6 +608,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         !IsSelectedSpeedrunMultiSaveStates
         && SelectedSpeedrunSupportedFeatures.HasFlag(RuntimePatchesFeature.MiniSaveStates);
 
+    public bool IsMiniSaveStatesToggleEnabled =>
+        IsMiniSaveStatesAvailable
+        && !string.Equals(
+            SelectedSpeedrunInstance?.Record.BuildId,
+            "1.5.78.11833",
+            StringComparison.Ordinal);
+
     public bool IsSelectedSpeedrunMultiSaveStates =>
         RuntimePatchesMultiSaveStates;
 
@@ -918,6 +925,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(SelectedSpeedrunSupportedFeatures))]
     [NotifyPropertyChangedFor(nameof(IsScreenShakeModifierAvailable))]
     [NotifyPropertyChangedFor(nameof(IsMiniSaveStatesAvailable))]
+    [NotifyPropertyChangedFor(nameof(IsMiniSaveStatesToggleEnabled))]
     [NotifyPropertyChangedFor(nameof(IsSelectedSpeedrunMultiSaveStates))]
     [NotifyPropertyChangedFor(nameof(IsMultiSaveStatesAvailable))]
     [NotifyPropertyChangedFor(nameof(IsFasterIntroSkipAvailable))]
@@ -927,6 +935,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsMiniSaveStatesAvailable))]
+    [NotifyPropertyChangedFor(nameof(IsMiniSaveStatesToggleEnabled))]
     [NotifyPropertyChangedFor(nameof(IsSelectedSpeedrunMultiSaveStates))]
     [NotifyPropertyChangedFor(nameof(SelectedSpeedrunSupportedFeatures))]
     [NotifyPropertyChangedFor(nameof(IsScreenShakeModifierAvailable))]
@@ -2933,9 +2942,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                         paths.GetVersionDataRoot(VersionRoot));
                     createdRuntimePatchesConfigurationPath = GetRuntimePatchesConfigurationPath(clone);
                     await isolation.InitializeBaselinesAsync([clone.Id]);
+                    SpeedrunSaveStatesMode saveStatesMode = RuntimePatchesMultiSaveStates
+                        ? SpeedrunSaveStatesMode.Multi
+                        : SpeedrunSaveStatesMode.Mini;
                     await RuntimePatchesConfiguration.WriteAsync(
                         createdRuntimePatchesConfigurationPath,
-                        new RuntimePatchesConfiguration());
+                        RuntimePatchesPolicy.Normalize(
+                            SelectedSpeedrunTemplate.BuildId,
+                            saveStatesMode,
+                            new RuntimePatchesConfiguration()));
                     await InstanceSidecar.SaveAsync(clone);
                     createdInstance = clone;
                     createdRoot = null;
@@ -3281,6 +3296,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         loadingRuntimePatchesConfiguration = true;
         RuntimePatchesMultiSaveStates = value.Record.SpeedrunSaveStatesMode == SpeedrunSaveStatesMode.Multi
             || RuntimePatchesPolicy.IsMultiSaveStatesTemplate(value.Record.SpeedrunTemplateId);
+        RuntimePatchesMiniSaveStates = !RuntimePatchesMultiSaveStates
+            && string.Equals(value.Record.BuildId, "1.5.78.11833", StringComparison.Ordinal);
         loadingRuntimePatchesConfiguration = false;
         _ = LoadRuntimePatchesConfigurationAsync(value.Record);
     }
@@ -3292,13 +3309,28 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             RuntimePatchesConfiguration configuration = await RuntimePatchesConfiguration.ReadAsync(
                 GetRuntimePatchesConfigurationPath(instance));
-            configuration = RuntimePatchesPolicy.Normalize(
+            RuntimePatchesConfiguration normalized = RuntimePatchesPolicy.Normalize(
                 instance.BuildId,
                 instance.SpeedrunSaveStatesMode == SpeedrunSaveStatesMode.Multi
                     || RuntimePatchesPolicy.IsMultiSaveStatesTemplate(instance.SpeedrunTemplateId)
                     ? SpeedrunSaveStatesMode.Multi
                     : SpeedrunSaveStatesMode.Mini,
                 configuration);
+            if (normalized != configuration)
+            {
+                await runtimePatchesConfigurationSaveLock.WaitAsync();
+                try
+                {
+                    await RuntimePatchesConfiguration.WriteAsync(
+                        GetRuntimePatchesConfigurationPath(instance),
+                        normalized);
+                }
+                finally
+                {
+                    runtimePatchesConfigurationSaveLock.Release();
+                }
+            }
+            configuration = normalized;
             RuntimePatchesScreenShakeModifier = configuration.ScreenShakeModifier;
             RuntimePatchesMiniSaveStates = configuration.MiniSaveStates;
             RuntimePatchesFasterIntroSkip = configuration.FasterIntroSkip;

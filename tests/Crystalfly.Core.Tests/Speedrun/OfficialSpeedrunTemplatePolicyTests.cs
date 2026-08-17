@@ -31,6 +31,39 @@ public sealed class OfficialSpeedrunTemplatePolicyTests
         Assert.False(RuntimePatchesPolicy.Normalize("1.5.78.11833", enabled).ScreenShakeModifier);
     }
 
+    [Fact]
+    public void The_1578_mini_mode_always_enables_mini_save_states()
+    {
+        var configuration = new RuntimePatchesConfiguration
+        {
+            MiniSaveStates = false
+        };
+
+        Assert.True(RuntimePatchesPolicy.Normalize(
+            "1.5.78.11833",
+            SpeedrunSaveStatesMode.Mini,
+            configuration).MiniSaveStates);
+    }
+
+    [Fact]
+    public void The_1578_multi_mode_disables_all_runtime_patches_switches()
+    {
+        var configuration = new RuntimePatchesConfiguration
+        {
+            ScreenShakeModifier = true,
+            MiniSaveStates = true,
+            FasterIntroSkip = true,
+            TextMasher = true
+        };
+
+        RuntimePatchesConfiguration normalized = RuntimePatchesPolicy.Normalize(
+            "1.5.78.11833",
+            SpeedrunSaveStatesMode.Multi,
+            configuration);
+
+        Assert.Equal(new RuntimePatchesConfiguration(), normalized);
+    }
+
     [Theory]
     [InlineData("race-1221")]
     [InlineData("single-run-1221")]

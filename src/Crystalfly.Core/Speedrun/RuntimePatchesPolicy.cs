@@ -125,8 +125,10 @@ public static class RuntimePatchesPolicy
         {
             ScreenShakeModifier = configuration.ScreenShakeModifier
                 && features.HasFlag(RuntimePatchesFeature.ScreenShakeModifier),
-            MiniSaveStates = configuration.MiniSaveStates
-                && features.HasFlag(RuntimePatchesFeature.MiniSaveStates),
+            MiniSaveStates = (buildId == "1.5.78.11833"
+                && saveStatesMode == SpeedrunSaveStatesMode.Mini)
+                || (configuration.MiniSaveStates
+                    && features.HasFlag(RuntimePatchesFeature.MiniSaveStates)),
             FasterIntroSkip = configuration.FasterIntroSkip
                 && features.HasFlag(RuntimePatchesFeature.FasterIntroSkip),
             TextMasher = configuration.TextMasher
