@@ -247,6 +247,26 @@ public sealed class MainWindowStructureTests
     }
 
     [Fact]
+    public void The_1578_save_state_selector_is_an_explicit_binary_choice()
+    {
+        var document = LoadMainWindow();
+        var selectors = document.Descendants(Avalonia + "RadioButton")
+            .Where(radio => (string?)radio.Attribute("GroupName") == "speedrun-save-states-mode")
+            .ToArray();
+
+        Assert.Equal(2, selectors.Length);
+        Assert.Contains(selectors, radio =>
+            (string?)radio.Attribute("Content") == "MiniSaveStates"
+            && HasBinding(radio, "IsChecked", "RuntimePatchesMultiSaveStates")
+            && ((string?)radio.Attribute("IsChecked"))!.Contains("BoolConverters.Not", StringComparison.Ordinal));
+        Assert.Contains(selectors, radio =>
+            (string?)radio.Attribute("Content") == "MultiSaveStates"
+            && HasBinding(radio, "IsChecked", "RuntimePatchesMultiSaveStates"));
+        Assert.DoesNotContain(document.Descendants(Avalonia + "ToggleSwitch"), toggle =>
+            HasBinding(toggle, "IsChecked", "RuntimePatchesMultiSaveStates"));
+    }
+
+    [Fact]
     public void Main_window_requests_Windows_11_rounded_corners_after_opening()
     {
         var code = File.ReadAllText(Path.Combine(
