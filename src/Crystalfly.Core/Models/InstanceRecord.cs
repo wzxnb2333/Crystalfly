@@ -48,5 +48,6 @@ public enum InstanceProvisioningMode
 public enum SpeedrunSaveStatesMode
 {
     Mini,
-    Multi
+    Multi,
+    None
 }

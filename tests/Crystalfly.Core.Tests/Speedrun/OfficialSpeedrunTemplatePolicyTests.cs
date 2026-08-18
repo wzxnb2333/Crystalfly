@@ -64,6 +64,36 @@ public sealed class OfficialSpeedrunTemplatePolicyTests
         Assert.Equal(new RuntimePatchesConfiguration(), normalized);
     }
 
+    [Fact]
+    public void The_1578_no_save_states_mode_keeps_other_runtime_patches_available()
+    {
+        var configuration = new RuntimePatchesConfiguration
+        {
+            ScreenShakeModifier = true,
+            MiniSaveStates = true,
+            FasterIntroSkip = true,
+            TextMasher = true
+        };
+
+        RuntimePatchesConfiguration normalized = RuntimePatchesPolicy.Normalize(
+            "1.5.78.11833",
+            SpeedrunSaveStatesMode.None,
+            configuration);
+
+        Assert.False(normalized.ScreenShakeModifier);
+        Assert.False(normalized.MiniSaveStates);
+        Assert.True(normalized.FasterIntroSkip);
+        Assert.True(normalized.TextMasher);
+        Assert.Equal(
+            RuntimePatchesFeature.MiniSaveStates
+                | RuntimePatchesFeature.FasterIntroSkip
+                | RuntimePatchesFeature.TextMasher,
+            RuntimePatchesPolicy.GetSupportedFeatures("1.5.78.11833", SpeedrunSaveStatesMode.None));
+        Assert.Equal(
+            "runtime-patches-1578-v1.0.2",
+            RuntimePatchesPolicy.GetAssetId("1.5.78.11833", SpeedrunSaveStatesMode.None));
+    }
+
     [Theory]
     [InlineData("race-1221")]
     [InlineData("single-run-1221")]

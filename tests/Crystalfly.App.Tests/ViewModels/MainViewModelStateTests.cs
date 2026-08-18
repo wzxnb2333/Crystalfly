@@ -118,6 +118,19 @@ public sealed class MainViewModelStateTests : IDisposable
 
         viewModel.SelectedSpeedrunInstance = current with
         {
+            Record = current.Record with { SpeedrunSaveStatesMode = SpeedrunSaveStatesMode.None }
+        };
+
+        Assert.Equal(SpeedrunSaveStatesMode.None, viewModel.RuntimePatchesSaveStatesMode);
+        Assert.True(viewModel.IsNoSaveStatesModeSelected);
+        Assert.False(viewModel.IsMiniSaveStatesModeSelected);
+        Assert.False(viewModel.IsMultiSaveStatesModeSelected);
+        Assert.False(viewModel.RuntimePatchesMiniSaveStates);
+        Assert.True(viewModel.IsFasterIntroSkipAvailable);
+        Assert.True(viewModel.IsTextMasherAvailable);
+
+        viewModel.SelectedSpeedrunInstance = current with
+        {
             Record = current.Record with { SpeedrunTemplateId = "race-1578" }
         };
 

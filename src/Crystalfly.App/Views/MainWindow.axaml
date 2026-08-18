@@ -1719,12 +1719,16 @@
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                                                     <RadioButton GroupName="speedrun-save-states-mode"
+                                                                 Content="{Binding Loc[MotionOff]}"
+                                                                 IsChecked="{Binding IsNoSaveStatesModeSelected, Mode=TwoWay}"
+                                                                 AutomationProperties.Name="{Binding Loc[MotionOff]}" />
+                                                    <RadioButton GroupName="speedrun-save-states-mode"
                                                                  Content="MiniSaveStates"
-                                                                 IsChecked="{Binding RuntimePatchesMultiSaveStates, Converter={x:Static converters:BoolConverters.Not}, Mode=TwoWay}"
+                                                                 IsChecked="{Binding IsMiniSaveStatesModeSelected, Mode=TwoWay}"
                                                                  AutomationProperties.Name="MiniSaveStates" />
                                                     <RadioButton GroupName="speedrun-save-states-mode"
                                                                  Content="MultiSaveStates"
-                                                                 IsChecked="{Binding RuntimePatchesMultiSaveStates, Mode=TwoWay}"
+                                                                 IsChecked="{Binding IsMultiSaveStatesModeSelected, Mode=TwoWay}"
                                                                  AutomationProperties.Name="MultiSaveStates" />
                                                 </StackPanel>
                                             </Grid>

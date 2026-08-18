@@ -247,23 +247,25 @@ public sealed class MainWindowStructureTests
     }
 
     [Fact]
-    public void The_1578_save_state_selector_is_an_explicit_binary_choice()
+    public void The_1578_save_state_selector_includes_an_explicit_disabled_choice()
     {
         var document = LoadMainWindow();
         var selectors = document.Descendants(Avalonia + "RadioButton")
             .Where(radio => (string?)radio.Attribute("GroupName") == "speedrun-save-states-mode")
             .ToArray();
 
-        Assert.Equal(2, selectors.Length);
+        Assert.Equal(3, selectors.Length);
+        Assert.Contains(selectors, radio =>
+            HasBinding(radio, "Content", "Loc[MotionOff]")
+            && HasBinding(radio, "IsChecked", "IsNoSaveStatesModeSelected"));
         Assert.Contains(selectors, radio =>
             (string?)radio.Attribute("Content") == "MiniSaveStates"
-            && HasBinding(radio, "IsChecked", "RuntimePatchesMultiSaveStates")
-            && ((string?)radio.Attribute("IsChecked"))!.Contains("BoolConverters.Not", StringComparison.Ordinal));
+            && HasBinding(radio, "IsChecked", "IsMiniSaveStatesModeSelected"));
         Assert.Contains(selectors, radio =>
             (string?)radio.Attribute("Content") == "MultiSaveStates"
-            && HasBinding(radio, "IsChecked", "RuntimePatchesMultiSaveStates"));
+            && HasBinding(radio, "IsChecked", "IsMultiSaveStatesModeSelected"));
         Assert.DoesNotContain(document.Descendants(Avalonia + "ToggleSwitch"), toggle =>
-            HasBinding(toggle, "IsChecked", "RuntimePatchesMultiSaveStates"));
+            HasBinding(toggle, "IsChecked", "RuntimePatchesSaveStatesMode"));
     }
 
     [Fact]
