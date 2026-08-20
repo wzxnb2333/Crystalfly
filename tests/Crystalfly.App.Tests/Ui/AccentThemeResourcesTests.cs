@@ -43,7 +43,7 @@ public sealed class AccentThemeResourcesTests
         Assert.Equal(Blend(Color.Parse("#0F6CBD"), Colors.Black, 0.12), light.Hover);
         Assert.Equal(Blend(Color.Parse("#0F6CBD"), Colors.White, 0.12), dark.Hover);
         Assert.Equal(Blend(Color.Parse("#0F6CBD"), Colors.White, 0.88), light.Soft);
-        Assert.Equal(Blend(Color.Parse("#0F6CBD"), Color.Parse("#151617"), 0.76), dark.Soft);
+        Assert.Equal(Blend(Color.Parse("#0F6CBD"), Color.Parse("#0F1115"), 0.76), dark.Soft);
     }
 
     [AvaloniaFact]

@@ -50,12 +50,12 @@
             <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="24">
                 <TextBlock Grid.Column="0" Classes="cfp-brand" Text="Crystalfly" />
 
-                <StackPanel Grid.Column="1"
-                            Orientation="Horizontal"
-                            Spacing="4"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            IsEnabled="{Binding CanNavigate}">
+                <Border Grid.Column="1" Classes="cfp-nav-group" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="2"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                IsEnabled="{Binding CanNavigate}">
                     <Button Classes="cfp-nav"
                             Classes.active="{Binding IsLaunchPage}"
                             Command="{Binding SelectPageCommand}"
@@ -92,7 +92,8 @@
                             <TextBlock Text="{Binding Loc[NavSettings]}" />
                         </StackPanel>
                     </Button>
-                </StackPanel>
+                    </StackPanel>
+                </Border>
 
                 <StackPanel Grid.Column="2"
                             Orientation="Horizontal"
@@ -345,7 +346,7 @@
                                     <TextBlock Text="{Binding SelectedInstance.LoaderDisplay}" TextWrapping="Wrap" />
                                     <TextBlock Margin="8,0" Text="·" />
                                     <TextBlock Margin="0,0,8,0" Text="{Binding SelectedInstance.ModCount}" />
-                                    <TextBlock Text="Mods" />
+                                    <TextBlock Text="{Binding Loc[ModsUnit]}" />
                                 </WrapPanel>
 
                                 <StackPanel>
@@ -464,7 +465,7 @@
                                                 <Grid Classes="cfp-instance-row" ColumnDefinitions="*,Auto" ColumnSpacing="8" HorizontalAlignment="Stretch">
                                                     <Button Grid.ColumnSpan="2" Classes="cfp-instance-main" Command="{Binding #Root.DataContext.Instances.SelectInstanceForLaunchCommand}" CommandParameter="{Binding}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
                                                     <Grid Grid.Column="0" Classes="cfp-instance-summary" ColumnDefinitions="44,*" ColumnSpacing="12" HorizontalAlignment="Left" IsHitTestVisible="False">
-                                                        <Border Width="40" Height="40" CornerRadius="6" Background="{DynamicResource CfSurfaceHoverBrush}">
+                                                        <Border Width="40" Height="40" CornerRadius="10" Classes="cfp-icon-tile">
                                                             <LucideIcon Kind="Box" Size="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Border>
                                                         <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
@@ -476,7 +477,7 @@
                                                                 <TextBlock Classes="cfp-meta" Text="{Binding DisplayVersion}" />
                                                                 <TextBlock Classes="cfp-meta" Margin="8,0" Text="{Binding LoaderDisplay}" TextTrimming="CharacterEllipsis" />
                                                                 <TextBlock Classes="cfp-meta" Margin="0,0,4,0" Text="{Binding ModCount}" />
-                                                                <TextBlock Classes="cfp-meta" Text="Mods" />
+                                                                <TextBlock Classes="cfp-meta" Text="{Binding #Root.DataContext.Loc[ModsUnit]}" />
                                                             </WrapPanel>
                                                         </StackPanel>
                                                     </Grid>
@@ -1433,6 +1434,7 @@
                                 IsVisible="{Binding ModManagement.IsInstalledModGraphVisible}">
                             <controls:DependencyGraphView Margin="8"
                                                           MinHeight="340"
+                                                          Localization="{Binding #Root.DataContext.Loc}"
                                                           DataContext="{Binding DependencyGraph.Graph}" />
                         </Border>
                         <Border Grid.Row="3" Classes="cfp-list-frame"
@@ -1704,17 +1706,17 @@
                                     <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6">
                                         <Border Classes="cfp-speedrun-option">
                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                                <TextBlock Text="ScreenShakeModifier" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Loc[SpeedrunScreenShakeModifier]}" VerticalAlignment="Center" />
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                                     <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunFeatureUnavailable]}" IsVisible="{Binding IsScreenShakeModifierAvailable, Converter={x:Static converters:BoolConverters.Not}}" />
-                                                    <ToggleSwitch IsChecked="{Binding RuntimePatchesScreenShakeModifier}" IsVisible="{Binding IsScreenShakeModifierAvailable}" AutomationProperties.Name="ScreenShakeModifier" />
+                                                    <ToggleSwitch IsChecked="{Binding RuntimePatchesScreenShakeModifier}" IsVisible="{Binding IsScreenShakeModifierAvailable}" AutomationProperties.Name="{Binding Loc[SpeedrunScreenShakeModifier]}" />
                                                 </StackPanel>
                                             </Grid>
                                         </Border>
                                         <Border Grid.Row="1" Classes="cfp-speedrun-option" IsVisible="{Binding IsMultiSaveStatesAvailable}">
                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                                                 <StackPanel Spacing="2">
-                                                    <TextBlock Text="Save states" VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding Loc[SpeedrunSaveStates]}" VerticalAlignment="Center" />
                                                     <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunSaveStatesSwitchHint]}" TextWrapping="Wrap" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
@@ -1735,7 +1737,7 @@
                                         </Border>
                                         <Border Grid.Row="1" Classes="cfp-speedrun-option" IsVisible="{Binding IsMultiSaveStatesAvailable, Converter={x:Static converters:BoolConverters.Not}}">
                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                                <TextBlock Text="MiniSaveStates" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Loc[SpeedrunMiniSaveStates]}" VerticalAlignment="Center" />
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                                     <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunFeatureUnavailable]}" IsVisible="{Binding IsMiniSaveStatesAvailable, Converter={x:Static converters:BoolConverters.Not}}" />
                                                     <ToggleSwitch IsChecked="{Binding RuntimePatchesMiniSaveStates}" IsVisible="{Binding IsMiniSaveStatesAvailable}" IsEnabled="{Binding IsMiniSaveStatesToggleEnabled}" AutomationProperties.Name="{Binding Loc[SpeedrunMiniSaveStates]}" />
@@ -1744,19 +1746,19 @@
                                         </Border>
                                         <Border Grid.Row="2" Classes="cfp-speedrun-option">
                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                                <TextBlock Text="FasterIntroSkip" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Loc[SpeedrunFasterIntroSkip]}" VerticalAlignment="Center" />
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                                     <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunFeatureUnavailable]}" IsVisible="{Binding IsFasterIntroSkipAvailable, Converter={x:Static converters:BoolConverters.Not}}" />
-                                                    <ToggleSwitch IsChecked="{Binding RuntimePatchesFasterIntroSkip}" IsVisible="{Binding IsFasterIntroSkipAvailable}" AutomationProperties.Name="FasterIntroSkip" />
+                                                    <ToggleSwitch IsChecked="{Binding RuntimePatchesFasterIntroSkip}" IsVisible="{Binding IsFasterIntroSkipAvailable}" AutomationProperties.Name="{Binding Loc[SpeedrunFasterIntroSkip]}" />
                                                 </StackPanel>
                                             </Grid>
                                         </Border>
                                         <Border Grid.Row="3" Classes="cfp-speedrun-option">
                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                                <TextBlock Text="TextMasher" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Loc[SpeedrunTextMasher]}" VerticalAlignment="Center" />
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                                     <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunFeatureUnavailable]}" IsVisible="{Binding IsTextMasherAvailable, Converter={x:Static converters:BoolConverters.Not}}" />
-                                                    <ToggleSwitch IsChecked="{Binding RuntimePatchesTextMasher}" IsVisible="{Binding IsTextMasherAvailable}" AutomationProperties.Name="TextMasher" />
+                                                    <ToggleSwitch IsChecked="{Binding RuntimePatchesTextMasher}" IsVisible="{Binding IsTextMasherAvailable}" AutomationProperties.Name="{Binding Loc[SpeedrunTextMasher]}" />
                                                 </StackPanel>
                                             </Grid>
                                         </Border>
@@ -2117,8 +2119,8 @@
                                                     CommandParameter="{Binding Manifest}"
                                                     AutomationProperties.Name="{Binding PrimaryName}">
                                                 <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="10">
-                                                    <Border Width="32" Height="32" CornerRadius="6"
-                                                            Background="{DynamicResource CfSurfaceHoverBrush}">
+                                                    <Border Width="32" Height="32" CornerRadius="8"
+                                                            Classes="cfp-icon-tile">
                                                         <LucideIcon Kind="Package" Size="16"
                                                                     HorizontalAlignment="Center"
                                                                     VerticalAlignment="Center" />
@@ -2901,6 +2903,7 @@
                                             <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/hk-speedrunning" Click="OpenExternalUrl"><TextBlock Text="HK Speedrunning" /></Button>
                                             <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/hk-speedrunning/HK-Resources" Click="OpenExternalUrl"><TextBlock Text="HK-Resources" /></Button>
                                             <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/olvior/AssemblyPatches/releases/tag/v1.0.2" Click="OpenExternalUrl"><TextBlock Text="AssemblyPatches v1.0.2" /></Button>
+                                            <Button Classes="cfp-link" Margin="0,0,12,0" Tag="https://github.com/Shichien/MiniSavestates" Click="OpenExternalUrl"><TextBlock Text="MiniSaveStates" /></Button>
                                             <Button Classes="cfp-link" Tag="https://www.speedrun.com" Click="OpenExternalUrl"><TextBlock Text="Speedrun.com" /></Button>
                                         </WrapPanel>
                                         <TextBlock Classes="cfp-row-title" Text="{Binding Loc[AboutSpeedrunComData]}" />

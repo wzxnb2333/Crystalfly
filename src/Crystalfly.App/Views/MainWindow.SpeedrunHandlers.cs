@@ -27,7 +27,10 @@ public partial class MainWindow
             viewModel.Loc["SpeedrunCreate"],
             viewModel.Loc["SpeedrunHint"],
             string.IsNullOrWhiteSpace(viewModel.SpeedrunEnvironmentName)
-                ? $"{template.Name} Speedrun"
+                ? string.Format(
+                    System.Globalization.CultureInfo.CurrentUICulture,
+                    viewModel.Loc["SpeedrunDefaultNameFormat"],
+                    template.Name)
                 : viewModel.SpeedrunEnvironmentName,
             viewModel.Loc["SpeedrunEnvironmentName"],
             viewModel.Loc["Confirm"],

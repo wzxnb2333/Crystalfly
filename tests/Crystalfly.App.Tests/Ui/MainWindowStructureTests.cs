@@ -14,8 +14,9 @@ public sealed class MainWindowStructureTests
         var topbarGrid = topbar.Elements(Avalonia + "Grid").Single();
 
         Assert.Equal("*,Auto,*", (string?)topbarGrid.Attribute("ColumnDefinitions"));
-        var primaryNavigation = topbarGrid.Elements(Avalonia + "StackPanel")
-            .Single(panel => (string?)panel.Attribute("Grid.Column") == "1");
+        var primaryNavigation = topbarGrid.Elements(Avalonia + "Border")
+            .Single(element => (string?)element.Attribute("Grid.Column") == "1")
+            .Elements(Avalonia + "StackPanel").Single();
         var chromeActions = topbarGrid.Elements(Avalonia + "StackPanel")
             .Single(panel => (string?)panel.Attribute("Grid.Column") == "2");
         Assert.Equal("Right", (string?)chromeActions.Attribute("HorizontalAlignment"));

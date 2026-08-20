@@ -37,7 +37,7 @@ public partial class MainViewModel
                 var session = steamSession;
                 if (!IsSteamSessionLoggedOn() || session is null)
                 {
-                    throw new InvalidOperationException("Sign in to Steam before this queued download can continue.");
+                    throw new InvalidOperationException(Loc["QueuedDownloadSteamSignInRequired"]);
                 }
                 using var content = new SteamKitContentDeliveryClient(session.Client);
                 return await new SteamDepotDownloadService(content, report)
@@ -166,7 +166,7 @@ public partial class MainViewModel
     {
         if (!IsSteamSessionLoggedOn() || SelectedDownloadBuild is null)
         {
-            ErrorMessage = "Sign in to Steam and select a build first.";
+            ErrorMessage = Loc["SteamSelectBuildRequired"];
             return;
         }
         if (!Directory.Exists(VersionRoot))

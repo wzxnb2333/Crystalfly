@@ -21,7 +21,7 @@
                        TextWrapping="Wrap" />
             <TextBlock Text="{Binding IncorrectHintText}"
                        TextWrapping="Wrap"
-                       Foreground="#E5484D"
+                       Foreground="{DynamicResource CfErrorBrush}"
                        IsVisible="{Binding ShowIncorrectHint}" />
         </StackPanel>
         <TextBox Grid.Row="2"
