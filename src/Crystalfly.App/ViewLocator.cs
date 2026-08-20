@@ -27,7 +27,16 @@ public class ViewLocator : IDataTemplate
             return (Control)Activator.CreateInstance(type)!;
         }
 
-        return new TextBlock { Text = "Not Found: " + name };
+        var localization = (App.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)
+            ?.MainWindow?.DataContext is MainViewModel viewModel
+            ? viewModel.Loc
+            : null;
+        return new TextBlock
+        {
+            Text = localization is null
+                ? $"Not Found: {name}"
+                : string.Format(System.Globalization.CultureInfo.CurrentUICulture, localization["ViewNotFound"], name),
+        };
     }
 
     public bool Match(object? data)

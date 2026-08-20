@@ -93,11 +93,11 @@
                 VerticalAlignment="Top"
                 Margin="10">
             <StackPanel Orientation="Horizontal" Spacing="2">
-                <Button Classes="cfp-icon" Click="OnZoomOut" ToolTip.Tip="缩小 / Zoom out" AutomationProperties.Name="缩小 / Zoom out" Content="{LucideIconContent Minus, 15}" />
-                <Button Classes="cfp-icon" Click="OnZoomIn" ToolTip.Tip="放大 / Zoom in" AutomationProperties.Name="放大 / Zoom in" Content="{LucideIconContent Plus, 15}" />
-                <Button Classes="cfp-icon" Click="OnFit" ToolTip.Tip="适应视图 / Fit view" AutomationProperties.Name="适应视图 / Fit view" Content="{LucideIconContent Scan, 15}" />
-                <Button Classes="cfp-icon" Click="OnReset" ToolTip.Tip="重置视图 / Reset view" AutomationProperties.Name="重置视图 / Reset view" Content="{LucideIconContent RotateCcw, 15}" />
-                <Button Classes="cfp-icon" Click="OnRestoreAutomaticLayout" ToolTip.Tip="恢复自动布局 / Restore automatic layout" AutomationProperties.Name="恢复自动布局 / Restore automatic layout" Content="{LucideIconContent WandSparkles, 15}" />
+                <Button Classes="cfp-icon" Click="OnZoomOut" ToolTip.Tip="{Binding #GraphRoot.Localization[DependencyZoomOut]}" AutomationProperties.Name="{Binding #GraphRoot.Localization[DependencyZoomOut]}" Content="{LucideIconContent Minus, 15}" />
+                <Button Classes="cfp-icon" Click="OnZoomIn" ToolTip.Tip="{Binding #GraphRoot.Localization[DependencyZoomIn]}" AutomationProperties.Name="{Binding #GraphRoot.Localization[DependencyZoomIn]}" Content="{LucideIconContent Plus, 15}" />
+                <Button Classes="cfp-icon" Click="OnFit" ToolTip.Tip="{Binding #GraphRoot.Localization[DependencyFitView]}" AutomationProperties.Name="{Binding #GraphRoot.Localization[DependencyFitView]}" Content="{LucideIconContent Scan, 15}" />
+                <Button Classes="cfp-icon" Click="OnReset" ToolTip.Tip="{Binding #GraphRoot.Localization[DependencyResetView]}" AutomationProperties.Name="{Binding #GraphRoot.Localization[DependencyResetView]}" Content="{LucideIconContent RotateCcw, 15}" />
+                <Button Classes="cfp-icon" Click="OnRestoreAutomaticLayout" ToolTip.Tip="{Binding #GraphRoot.Localization[DependencyRestoreLayout]}" AutomationProperties.Name="{Binding #GraphRoot.Localization[DependencyRestoreLayout]}" Content="{LucideIconContent WandSparkles, 15}" />
             </StackPanel>
         </Border>
 
@@ -106,7 +106,7 @@
                     Spacing="8"
                     IsVisible="{Binding HasNodes, Converter={x:Static BoolConverters.Not}}">
             <LucideIcon Kind="Network" Size="24" Foreground="{DynamicResource CfMutedTextBrush}" />
-            <TextBlock Classes="cfp-meta" Text="暂无依赖关系 / No dependency relationships" />
+            <TextBlock Classes="cfp-meta" Text="{Binding #GraphRoot.Localization[DependencyNoRelationships]}" />
         </StackPanel>
     </Grid>
 </UserControl>

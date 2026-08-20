@@ -10,6 +10,8 @@ public sealed record SpeedrunVerificationRequest
 
     public SpeedrunTemplateSource TemplateSource { get; init; }
 
+    public SpeedrunSaveStatesMode SaveStatesMode { get; init; }
+
     public required GameBuild ExpectedBuild { get; init; }
 
     public required string CurrentRulesRevision { get; init; }

@@ -454,7 +454,7 @@ public sealed class DocumentationScreenshotTests
             case ScreenshotState.Speedrun:
                 Assert.Contains(fixture.ViewModel.Loc["SpeedrunTitle"], visibleText);
                 Assert.Contains("1.5.78 RuntimePatches", visibleText);
-                Assert.Contains("FasterIntroSkip", visibleText);
+                Assert.Contains(fixture.ViewModel.Loc["SpeedrunFasterIntroSkip"], visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["SpeedrunFeatureUnavailable"], visibleText);
                 Assert.Contains(fixture.ViewModel.Loc["SpeedrunVerified"], visibleText);
                 Assert.DoesNotContain(fixture.ViewModel.Loc["SpeedrunComingSoon"], visibleText);

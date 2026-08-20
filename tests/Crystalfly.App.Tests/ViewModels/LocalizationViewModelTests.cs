@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Text.RegularExpressions;
 using Crystalfly.App.ViewModels;
 using Crystalfly.Core.Configuration;
 
@@ -48,6 +50,32 @@ public sealed class LocalizationViewModelTests
         { "ErrorDataInvalid", "The data is invalid or malformed", "数据无效或格式损坏" },
         { "ErrorVerificationFailed", "File verification failed", "文件校验失败" }
     };
+
+    [Fact]
+    public void English_and_chinese_dictionaries_have_matching_keys_and_placeholders()
+    {
+        var type = typeof(LocalizationViewModel);
+        var english = (IReadOnlyDictionary<string, string>)type
+            .GetField("English", BindingFlags.NonPublic | BindingFlags.Static)!
+            .GetValue(null)!;
+        var chinese = (IReadOnlyDictionary<string, string>)type
+            .GetField("Chinese", BindingFlags.NonPublic | BindingFlags.Static)!
+            .GetValue(null)!;
+
+        Assert.Equal(english.Keys.OrderBy(value => value), chinese.Keys.OrderBy(value => value));
+        Assert.All(english, pair =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(pair.Value), pair.Key);
+            Assert.False(string.IsNullOrWhiteSpace(chinese[pair.Key]), pair.Key);
+            Assert.Equal(Placeholders(pair.Value), Placeholders(chinese[pair.Key]));
+        });
+    }
+
+    private static IReadOnlyList<string> Placeholders(string value) =>
+        Regex.Matches(value, @"\\{\\d+(?:[^}]*)\\}")
+            .Select(match => match.Value)
+            .OrderBy(value => value)
+            .ToArray();
 
     [Theory]
     [MemberData(nameof(ManagementStrings))]

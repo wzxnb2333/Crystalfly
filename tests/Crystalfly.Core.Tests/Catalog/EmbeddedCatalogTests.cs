@@ -161,13 +161,15 @@ public sealed class EmbeddedCatalogTests
             Assert.True(template.IsOfficial);
             Assert.Equal(RuntimePatchesPolicy.RulesRevision, template.RulesRevision);
             Assert.Equal($"files-{template.Id}", template.FileManifestId);
-            Assert.Single(template.RequiredAssetIds);
             Assert.False(template.LoadNormaliserAvailable);
             Assert.False(template.RequiresLoadNormaliserSelection);
             Assert.Empty(template.AllowedLoadNormaliserSeconds);
         });
         Assert.Equal(
-            ["runtime-patches-1221", "runtime-patches-1432", "runtime-patches-1578", "runtime-patches-1578-multi"],
+            ["runtime-patches-1578-v1.0.2", "multisavestates-1578"],
+            catalog.SpeedrunTemplates.Single(template => template.Id == "runtime-patches-1578").RequiredAssetIds);
+        Assert.Equal(
+            ["runtime-patches-1221", "runtime-patches-1432", "runtime-patches-1578"],
             catalog.SpeedrunTemplates.Select(template => template.Id).Order(StringComparer.Ordinal));
         Assert.Equal(4, catalog.SpeedrunFileManifests.Count);
         Assert.Equal(

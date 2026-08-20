@@ -182,6 +182,121 @@ public sealed class ThemeRenderingTests
         }
     }
 
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Dependency_graph_states_use_semantic_theme_resources(bool darkTheme)
+    {
+        Application.Current!.RequestedThemeVariant = darkTheme ? ThemeVariant.Dark : ThemeVariant.Light;
+        var selected = DependencyNode("selected");
+        var warning = DependencyNode("warning");
+        var problem = DependencyNode("problem");
+        var unknown = DependencyNode("unknown");
+        var dimmed = DependencyNode("dimmed");
+        var window = ShowInWindow(new StackPanel
+        {
+            Children = { selected, warning, problem, unknown, dimmed }
+        });
+
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var variant = darkTheme ? ThemeVariant.Dark : ThemeVariant.Light;
+            Assert.Equal(ResourceColor("CfSurfaceSelectedBrush", variant), ColorOf(selected.Background));
+            Assert.Equal(ResourceColor("CfAccentBrush", variant), ColorOf(selected.BorderBrush));
+            Assert.Equal(ResourceColor("CfWarningBrush", variant), ColorOf(warning.BorderBrush));
+            Assert.Equal(ResourceColor("CfErrorSurfaceBrush", variant), ColorOf(problem.Background));
+            Assert.Equal(ResourceColor("CfErrorBrush", variant), ColorOf(problem.BorderBrush));
+            Assert.Equal(ResourceColor("CfMutedTextBrush", variant), ColorOf(unknown.Foreground));
+            Assert.Equal(ResourceColor("CfEdgeBrush", variant), ColorOf(unknown.BorderBrush));
+            Assert.Equal(0.45, dimmed.Opacity);
+
+            selected.Focus(NavigationMethod.Tab, KeyModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(ResourceColor("CfAccentTextBrush", variant), ColorOf(selected.BorderBrush));
+            Assert.True(selected.BorderThickness.Left >= 2);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Icon_actions_expose_active_danger_disabled_and_focus_states(bool darkTheme)
+    {
+        Application.Current!.RequestedThemeVariant = darkTheme ? ThemeVariant.Dark : ThemeVariant.Light;
+        var active = new Button { Content = "Active" };
+        active.Classes.Add("cfp-icon");
+        active.Classes.Add("cfp-quick-action");
+        active.Classes.Add("active");
+        var danger = new Button { Content = "Delete" };
+        danger.Classes.Add("cfp-icon");
+        danger.Classes.Add("danger");
+        var disabled = new Button { Content = "Disabled" };
+        disabled.Classes.Add("cfp-icon");
+        disabled.IsEnabled = false;
+        var window = ShowInWindow(new StackPanel
+        {
+            Children = { active, danger, disabled }
+        });
+
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var variant = darkTheme ? ThemeVariant.Dark : ThemeVariant.Light;
+            Assert.Equal(ResourceColor("CfAccentSoftBrush", variant), ColorOf(active.Background));
+            Assert.Equal(ResourceColor("CfAccentTextBrush", variant), ColorOf(active.Foreground));
+            Assert.Equal(ResourceColor("CfDangerBrush", variant), ColorOf(danger.Foreground));
+            Assert.Equal(ResourceColor("CfMutedTextBrush", variant), ColorOf(disabled.Foreground));
+            Assert.Equal(0.6, disabled.Opacity);
+
+            active.Focus(NavigationMethod.Tab, KeyModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(active.IsFocused);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Error_text_and_download_build_selection_follow_theme(bool darkTheme)
+    {
+        Application.Current!.RequestedThemeVariant = darkTheme ? ThemeVariant.Dark : ThemeVariant.Light;
+        var errorText = new TextBlock { Text = "Invalid code" };
+        errorText.Classes.Add("cfp-error-text");
+        var buildList = new ListBox
+        {
+            ItemsSource = new[] { "Latest", "Historical" },
+            SelectedIndex = 0
+        };
+        buildList.Classes.Add("cfp-download-build-list");
+        var window = ShowInWindow(new StackPanel
+        {
+            Children = { errorText, buildList }
+        });
+
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var variant = darkTheme ? ThemeVariant.Dark : ThemeVariant.Light;
+            Assert.Equal(ResourceColor("CfErrorBrush", variant), ColorOf(errorText.Foreground));
+            var selectedItem = Assert.IsType<ListBoxItem>(buildList.ContainerFromIndex(0));
+            Assert.Equal(ResourceColor("CfSurfaceSelectedBrush", variant), ColorOf(selectedItem.Background));
+            Assert.Equal(ResourceColor("CfAccentBrush", variant), ColorOf(selectedItem.BorderBrush));
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
     [AvaloniaFact]
     public void Mod_market_list_item_keeps_its_outer_background_transparent()
     {
@@ -745,7 +860,7 @@ public sealed class ThemeRenderingTests
         try
         {
             Assert.Equal(13, body.FontSize);
-            Assert.Equal(20, pageTitle.FontSize);
+            Assert.Equal(22, pageTitle.FontSize);
             Assert.Equal(16, sectionTitle.FontSize);
             Assert.Equal(12, meta.FontSize);
             Assert.Equal(11, caption.FontSize);
@@ -850,8 +965,22 @@ public sealed class ThemeRenderingTests
         field.SetValue(viewModel, result);
     }
 
+    private static Button DependencyNode(string state)
+    {
+        var node = new Button { Content = state };
+        node.Classes.Add("cfp-dependency-node");
+        node.Classes.Add(state);
+        return node;
+    }
+
+    private static Color ResourceColor(string key, ThemeVariant variant)
+    {
+        Assert.True(Application.Current!.TryGetResource(key, variant, out var value));
+        return ColorOf((IBrush)value!);
+    }
+
     private static Color ColorOf(IBrush? brush)
-        => Assert.IsType<SolidColorBrush>(brush).Color;
+        => Assert.IsAssignableFrom<ISolidColorBrush>(brush).Color;
 
     private static double ContrastRatio(Color foreground, Color background)
     {

@@ -5,6 +5,8 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Avalonia.Controls.ApplicationLifetimes;
+using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.DependencyGraph;
 using System.Diagnostics.CodeAnalysis;
 
@@ -31,12 +33,30 @@ public partial class DependencyGraphView : UserControl
     public DependencyGraphView()
     {
         InitializeComponent();
+        AttachedToVisualTree += (_, _) =>
+        {
+            if (Localization is null
+                && (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)
+                    ?.MainWindow?.DataContext is MainViewModel mainViewModel)
+            {
+                Localization = mainViewModel.Loc;
+            }
+        };
         DataContextChanged += (_, _) => Dispatcher.UIThread.Post(FitToView, DispatcherPriority.Loaded);
         SizeChanged += (_, _) => Dispatcher.UIThread.Post(FitToView, DispatcherPriority.Render);
         AddHandler(PointerPressedEvent, OnGraphPointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerMovedEvent, OnGraphPointerMoved, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerReleasedEvent, OnGraphPointerReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(ContextRequestedEvent, OnGraphContextRequested, RoutingStrategies.Tunnel, handledEventsToo: true);
+    }
+
+    public static readonly StyledProperty<LocalizationViewModel?> LocalizationProperty =
+        AvaloniaProperty.Register<DependencyGraphView, LocalizationViewModel?>(nameof(Localization));
+
+    public LocalizationViewModel? Localization
+    {
+        get => GetValue(LocalizationProperty);
+        set => SetValue(LocalizationProperty, value);
     }
 
     internal double Scale => scale;
@@ -142,7 +162,7 @@ public partial class DependencyGraphView : UserControl
         }
         if (node.CanDelete)
         {
-            var delete = new MenuItem { Header = "删除 / Delete" };
+            var delete = new MenuItem { Header = Localization?["DependencyDelete"] ?? "Delete" };
             delete.Click += (_, _) => graph.RequestNodeDelete(node);
             menu.Items.Add(delete);
         }

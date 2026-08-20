@@ -17,9 +17,9 @@ internal sealed record AccentThemePalette(
 
 internal static class AccentThemeResources
 {
-    private static readonly Color LightSurface = Color.Parse("#F1F1F3");
-    private static readonly Color DarkSurface = Color.Parse("#242628");
-    private static readonly Color DarkBase = Color.Parse("#151617");
+    private static readonly Color LightSurface = Color.Parse("#FFFFFF");
+    private static readonly Color DarkSurface = Color.Parse("#171A21");
+    private static readonly Color DarkBase = Color.Parse("#0F1115");
 
     public static AccentThemePalette Build(string accentColor, bool dark)
     {

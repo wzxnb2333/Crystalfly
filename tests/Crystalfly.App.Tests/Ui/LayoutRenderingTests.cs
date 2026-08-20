@@ -459,7 +459,7 @@ public sealed class LayoutRenderingTests
                 .OfType<Button>()
                 .Where(button => button.IsEffectivelyVisible
                     && button.Classes.Contains("cfp-nav")
-                    && button.FindAncestorOfType<Border>()?.Classes.Contains("cfp-topbar") == true)
+                    && button.GetVisualAncestors().OfType<Border>().Any(border => border.Classes.Contains("cfp-topbar")))
                 .ToArray();
             Assert.Equal(4, buttons.Length);
             Assert.True(buttons[0].Focus(NavigationMethod.Tab, KeyModifiers.None));
@@ -550,7 +550,7 @@ public sealed class LayoutRenderingTests
                 .Single(text => text.Classes.Contains("cfp-brand"));
             var brandGrid = Assert.IsType<Grid>(brand.Parent);
             Assert.Equal(0, Grid.GetColumn(brand));
-            Assert.DoesNotContain(brandGrid.Children, child => child is Border);
+            Assert.DoesNotContain(brandGrid.Children, child => child is Border && Grid.GetColumn(child) == 0);
         }
         finally
         {

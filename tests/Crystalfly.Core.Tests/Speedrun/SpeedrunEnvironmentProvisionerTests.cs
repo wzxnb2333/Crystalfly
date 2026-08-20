@@ -91,6 +91,73 @@ public sealed class SpeedrunEnvironmentProvisionerTests : IDisposable
         Assert.Equal("vanilla", await File.ReadAllTextAsync(target));
     }
 
+    [Fact]
+    public async Task Multi_save_states_switch_uses_the_shared_1578_template_and_variant_manifest()
+    {
+        string target = CreateInstanceFile("vanilla");
+        string package = CreateZip(("Multisavestates/Assembly-CSharp.dll", "multi"));
+        const string templateId = "runtime-patches-1578";
+        const string buildId = "1.5.78.11833";
+        const string assetId = "multisavestates-1578";
+        var asset = new SpeedrunAsset
+        {
+            Id = assetId,
+            Name = "MultiSaveStates",
+            Version = "1.0.0",
+            DownloadUrl = "https://example.invalid/MultiSaveStates.zip",
+            SizeBytes = new FileInfo(package).Length,
+            Sha256 = FileSha256(package),
+            ArchiveEntryPath = "Multisavestates/Assembly-CSharp.dll",
+            SupportedBuildIds = [buildId]
+        };
+        var template = new SpeedrunTemplate
+        {
+            Id = templateId,
+            Name = "RuntimePatches 1.5.78",
+            BuildId = buildId,
+            IsOfficial = true,
+            RulesRevision = RuntimePatchesPolicy.RulesRevision,
+            FileManifestId = "files-runtime-patches-1578",
+            RequiredAssetIds = ["runtime-patches-1578-v1.0.2", assetId]
+        };
+        SpeedrunFileManifest manifest = new()
+        {
+            Id = "files-runtime-patches-1578-multi",
+            BuildId = buildId,
+            RulesRevision = template.RulesRevision,
+            Files =
+            [
+                new SpeedrunFileRule
+                {
+                    RelativePath = "hollow_knight_Data/Managed/Assembly-CSharp.dll",
+                    Sha256 = ContentSha256("multi"),
+                    Kind = SpeedrunFileKind.Tool,
+                    AssetId = assetId,
+                    AssetVersion = asset.Version
+                }
+            ]
+        };
+        var request = new SpeedrunProvisioningRequest
+        {
+            Catalog = new GameCatalog
+            {
+                SpeedrunTemplates = [template],
+                SpeedrunAssets = [asset],
+                SpeedrunFileManifests = [manifest]
+            },
+            TemplateId = templateId,
+            SaveStatesMode = SpeedrunSaveStatesMode.Multi,
+            InstanceRoot = Path.Combine(root, "instance"),
+            TransactionRoot = Path.Combine(root, "transactions"),
+            PackageCacheRoot = Path.Combine(root, "cache"),
+            LocalPackagePaths = new Dictionary<string, string> { [assetId] = package }
+        };
+
+        await new SpeedrunEnvironmentProvisioner().ProvisionAsync(request);
+
+        Assert.Equal("multi", await File.ReadAllTextAsync(target));
+    }
+
     private SpeedrunProvisioningRequest Request(
         string package,
         string dllSha256,

@@ -31,6 +31,69 @@ public sealed class OfficialSpeedrunTemplatePolicyTests
         Assert.False(RuntimePatchesPolicy.Normalize("1.5.78.11833", enabled).ScreenShakeModifier);
     }
 
+    [Fact]
+    public void The_1578_mini_mode_always_enables_mini_save_states()
+    {
+        var configuration = new RuntimePatchesConfiguration
+        {
+            MiniSaveStates = false
+        };
+
+        Assert.True(RuntimePatchesPolicy.Normalize(
+            "1.5.78.11833",
+            SpeedrunSaveStatesMode.Mini,
+            configuration).MiniSaveStates);
+    }
+
+    [Fact]
+    public void The_1578_multi_mode_disables_all_runtime_patches_switches()
+    {
+        var configuration = new RuntimePatchesConfiguration
+        {
+            ScreenShakeModifier = true,
+            MiniSaveStates = true,
+            FasterIntroSkip = true,
+            TextMasher = true
+        };
+
+        RuntimePatchesConfiguration normalized = RuntimePatchesPolicy.Normalize(
+            "1.5.78.11833",
+            SpeedrunSaveStatesMode.Multi,
+            configuration);
+
+        Assert.Equal(new RuntimePatchesConfiguration(), normalized);
+    }
+
+    [Fact]
+    public void The_1578_no_save_states_mode_keeps_other_runtime_patches_available()
+    {
+        var configuration = new RuntimePatchesConfiguration
+        {
+            ScreenShakeModifier = true,
+            MiniSaveStates = true,
+            FasterIntroSkip = true,
+            TextMasher = true
+        };
+
+        RuntimePatchesConfiguration normalized = RuntimePatchesPolicy.Normalize(
+            "1.5.78.11833",
+            SpeedrunSaveStatesMode.None,
+            configuration);
+
+        Assert.False(normalized.ScreenShakeModifier);
+        Assert.False(normalized.MiniSaveStates);
+        Assert.True(normalized.FasterIntroSkip);
+        Assert.True(normalized.TextMasher);
+        Assert.Equal(
+            RuntimePatchesFeature.MiniSaveStates
+                | RuntimePatchesFeature.FasterIntroSkip
+                | RuntimePatchesFeature.TextMasher,
+            RuntimePatchesPolicy.GetSupportedFeatures("1.5.78.11833", SpeedrunSaveStatesMode.None));
+        Assert.Equal(
+            "runtime-patches-1578-v1.0.2",
+            RuntimePatchesPolicy.GetAssetId("1.5.78.11833", SpeedrunSaveStatesMode.None));
+    }
+
     [Theory]
     [InlineData("race-1221")]
     [InlineData("single-run-1221")]
@@ -83,5 +146,32 @@ public sealed class OfficialSpeedrunTemplatePolicyTests
         Assert.Equal(
             SpeedrunIssueCode.UnsupportedOfficialTemplate,
             OfficialSpeedrunTemplatePolicy.GetViolation(template));
+    }
+
+    [Fact]
+    public void One_1578_template_supports_switching_between_mini_and_multi_save_states()
+    {
+        var template = new SpeedrunTemplate
+        {
+            Id = "runtime-patches-1578",
+            Name = "RuntimePatches 1.5.78",
+            BuildId = "1.5.78.11833",
+            IsOfficial = true,
+            RulesRevision = RuntimePatchesPolicy.RulesRevision,
+            FileManifestId = "files-runtime-patches-1578",
+            RequiredAssetIds = ["runtime-patches-1578-v1.0.2", "multisavestates-1578"]
+        };
+
+        Assert.Null(OfficialSpeedrunTemplatePolicy.GetViolation(template, SpeedrunSaveStatesMode.Mini));
+        Assert.Null(OfficialSpeedrunTemplatePolicy.GetViolation(template, SpeedrunSaveStatesMode.Multi));
+        Assert.Equal(
+            "runtime-patches-1578-v1.0.2",
+            RuntimePatchesPolicy.GetAssetId("1.5.78.11833", SpeedrunSaveStatesMode.Mini));
+        Assert.Equal(
+            "multisavestates-1578",
+            RuntimePatchesPolicy.GetAssetId("1.5.78.11833", SpeedrunSaveStatesMode.Multi));
+        Assert.Equal(
+            RuntimePatchesFeature.None,
+            RuntimePatchesPolicy.GetSupportedFeatures("1.5.78.11833", SpeedrunSaveStatesMode.Multi));
     }
 }
