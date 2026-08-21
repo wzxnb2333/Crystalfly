@@ -1548,7 +1548,7 @@
 
             <!-- Speedrun -->
             <Grid Classes="cfp-page" IsVisible="{Binding IsSpeedrunPage}">
-                <Grid RowDefinitions="*" Margin="16">
+                <Grid RowDefinitions="*" Margin="0,16">
                     <Border Classes="cfp-speedrun-tab-switch"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Bottom"

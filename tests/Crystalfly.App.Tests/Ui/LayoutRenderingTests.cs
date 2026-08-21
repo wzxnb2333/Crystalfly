@@ -438,8 +438,8 @@ public sealed class LayoutRenderingTests
             var workspaceOrigin = workspaceScroll.TranslatePoint(default, window);
             Assert.NotNull(railOrigin);
             Assert.NotNull(workspaceOrigin);
-            Assert.InRange(Math.Abs(railOrigin.Value.X - 16), 0, 1.5);
-            Assert.InRange(Math.Abs(window.Width - 16 - workspaceOrigin.Value.X - workspaceScroll.Bounds.Width), 0, 1.5);
+            Assert.InRange(Math.Abs(railOrigin.Value.X), 0, 1.5);
+            Assert.InRange(Math.Abs(window.Width - workspaceOrigin.Value.X - workspaceScroll.Bounds.Width), 0, 1.5);
             Assert.Equal(12, rail.CornerRadius.TopLeft);
             Assert.Equal(1, rail.BorderThickness.Left);
             var scrollBottom = workspaceScroll.TranslatePoint(new Point(0, workspaceScroll.Bounds.Height), window);
