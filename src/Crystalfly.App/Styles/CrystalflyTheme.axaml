@@ -342,17 +342,6 @@
         <Setter Property="Padding" Value="10,12,10,0" />
     </Style>
 
-    <Style Selector="Border.cfp-speedrun-rail">
-        <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="12" />
-        <Setter Property="BoxShadow" Value="{DynamicResource CfCardShadow}" />
-    </Style>
-
-    <Style Selector="Window.background-active Border.cfp-speedrun-rail">
-        <Setter Property="Background" Value="{DynamicResource CfSurfaceTranslucentBrush}" />
-    </Style>
 
     <Style Selector="Border.cfp-speedrun-status">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
