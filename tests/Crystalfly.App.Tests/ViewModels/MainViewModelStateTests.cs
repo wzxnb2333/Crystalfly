@@ -143,6 +143,60 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Selecting_a_current_speedrun_environment_does_not_show_the_verification_banner()
+    {
+        string root = applicationData.CreateDirectory("speedrun-banner");
+        await using var viewModel = new MainViewModel(root)
+        {
+            VersionRoot = root
+        };
+        var current = new InstanceItemViewModel(
+            Instance("runtime", root) with
+            {
+                Name = "运行补丁 1.5.78",
+                BuildId = "1.5.78.11833",
+                Purpose = InstancePurpose.OfficialSpeedrun,
+                SpeedrunTemplateId = "runtime-patches-1578"
+            },
+            "1.5.78",
+            "Vanilla",
+            0);
+
+        viewModel.Instances.Instances.Add(current);
+
+        // Give the environment a valid RuntimePatches configuration so the
+        // async config load succeeds and cannot replace the banner text with a
+        // "config invalid" error while the selection callback runs.
+        string configPath = Path.Combine(
+            root,
+            ".crystalfly",
+            "instances",
+            current.Record.Id,
+            "local-low",
+            RuntimePatchesConfiguration.FileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
+        await File.WriteAllTextAsync(
+            configPath,
+            """{"ScreenShakeModifier":false,"MiniSaveStates":false,"FasterIntroSkip":false,"TextMasher":false}""");
+
+        viewModel.SelectedSpeedrunInstance = current;
+
+        // A fresh or unverified environment keeps its status on the speedrun
+        // page but must not push the "专用副本已创建" reminder banner.
+        Assert.False(viewModel.HasSpeedrunReminder);
+        Assert.Equal(viewModel.Loc["SpeedrunNeedsVerification"], viewModel.SpeedrunStatus);
+
+        viewModel.SelectedSpeedrunInstance = current with
+        {
+            Record = current.Record with { SpeedrunTemplateId = "race-1578" }
+        };
+
+        // The expired-template warning is still worth the banner.
+        Assert.True(viewModel.HasSpeedrunReminder);
+        Assert.Equal(viewModel.Loc["SpeedrunTemplateExpired"], viewModel.SpeedrunReminderText);
+    }
+
+    [Fact]
     public async Task Speedrun_verification_keeps_report_path_out_of_global_status()
     {
         using var test = new TestDirectory();

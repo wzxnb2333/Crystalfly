@@ -3003,10 +3003,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 lifetimeCancellation.Token);
             var clone = createdInstance
                 ?? throw new InvalidOperationException(Loc["ErrorSpeedrunNotCreated"]);
-            SetSpeedrunReminder(SelectedSpeedrunTemplate.IsOfficial
-                && catalog.SpeedrunFileManifests.Any(manifest => manifest.Id == SelectedSpeedrunTemplate.FileManifestId)
-                    ? "SpeedrunNeedsVerification"
-                    : "SpeedrunUnverified");
+            SetSpeedrunReminder(
+                SelectedSpeedrunTemplate.IsOfficial
+                    && catalog.SpeedrunFileManifests.Any(manifest => manifest.Id == SelectedSpeedrunTemplate.FileManifestId)
+                        ? "SpeedrunNeedsVerification"
+                        : "SpeedrunUnverified",
+                visible: false);
             SpeedrunReportPath = null;
             SpeedrunReminderIsError = false;
             SpeedrunEnvironmentName = string.Empty;
@@ -3261,7 +3263,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     });
                 },
                 lifetimeCancellation.Token);
-            SetSpeedrunReminder("SpeedrunNeedsVerification");
+            SetSpeedrunReminder("SpeedrunNeedsVerification", visible: false);
             SpeedrunReportPath = null;
             SpeedrunReminderIsError = false;
             await RefreshAsync();
@@ -3304,11 +3306,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         SpeedrunReportPath = null;
         SpeedrunReminderIsError = false;
-        SetSpeedrunReminder(value is null
-            ? null
-            : RuntimePatchesPolicy.IsLegacyTemplate(value.Record.SpeedrunTemplateId)
-                ? "SpeedrunTemplateExpired"
-                : "SpeedrunNeedsVerification");
+        var isLegacyTemplate = value is not null
+            && RuntimePatchesPolicy.IsLegacyTemplate(value.Record.SpeedrunTemplateId);
+        // Only the expired-template warning deserves the banner; a freshly created
+        // or unverified environment keeps its status on the speedrun page instead
+        // of showing a top-level reminder on every launch.
+        SetSpeedrunReminder(
+            value is null
+                ? null
+                : isLegacyTemplate ? "SpeedrunTemplateExpired" : "SpeedrunNeedsVerification",
+            visible: isLegacyTemplate);
         if (value is null)
         {
             RuntimePatchesScreenShakeModifier = false;
