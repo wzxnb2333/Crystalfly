@@ -431,6 +431,15 @@ public sealed class LayoutRenderingTests
                 .Single(grid => grid.Classes.Contains("cfp-workspace") && grid.IsEffectivelyVisible)
                 .FindAncestorOfType<ScrollViewer>();
             Assert.NotNull(workspaceScroll);
+            var rail = window.GetVisualDescendants()
+                .OfType<Border>()
+                .Single(border => border.IsEffectivelyVisible && border.Classes.Contains("cfp-rail"));
+            var railOrigin = rail.TranslatePoint(default, window);
+            var workspaceOrigin = workspaceScroll.TranslatePoint(default, window);
+            Assert.NotNull(railOrigin);
+            Assert.NotNull(workspaceOrigin);
+            Assert.InRange(Math.Abs(railOrigin.Value.X), 0, 1.5);
+            Assert.InRange(Math.Abs(window.Width - workspaceOrigin.Value.X - workspaceScroll.Bounds.Width), 0, 1.5);
             var scrollBottom = workspaceScroll.TranslatePoint(new Point(0, workspaceScroll.Bounds.Height), window);
             Assert.NotNull(scrollBottom);
             // 内容区延伸至页面底部（不再是「切换条 + 上方内容」的两行结构）
