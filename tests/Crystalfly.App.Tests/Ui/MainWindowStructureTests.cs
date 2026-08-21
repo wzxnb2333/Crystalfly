@@ -218,6 +218,7 @@ public sealed class MainWindowStructureTests
             && border.Attribute("Width") is null);
         Assert.Contains(speedrun.Descendants(Avalonia + "Border"), border =>
             HasClass(border, "cfp-rail")
+            && HasClass(border, "cfp-speedrun-rail")
             && HasBinding(border, "IsVisible", "IsSpeedrunEnvironmentTab"));
         var reminder = document.Descendants(Avalonia + "Border")
             .Single(border => HasClass(border, "cfp-speedrun-reminder"));
