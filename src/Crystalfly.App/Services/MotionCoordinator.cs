@@ -291,7 +291,8 @@ public sealed class MotionCoordinator
         public EntranceMotion? Motion { get; init; }
         public required CancellationTokenSource Cancellation { get; init; }
         public required bool OpacityOnly { get; init; }
-        public required long StartedTimestamp { get; init; }
+        public long StartedTimestamp { get; set; }
+        public bool HasStarted { get; set; }
         public required TimeSpan Delay { get; init; }
         public required TimeSpan Duration { get; init; }
     }
@@ -641,7 +642,6 @@ public sealed class MotionCoordinator
             Motion = motion,
             Cancellation = cancellation,
             OpacityOnly = opacityOnly,
-            StartedTimestamp = Stopwatch.GetTimestamp(),
             Delay = EntranceDelayFor(control),
             Duration = opacityOnly ? ReducedEntranceDuration : EntranceDurationFor(control)
         };
@@ -689,6 +689,18 @@ public sealed class MotionCoordinator
             {
                 completedEntranceAnimations.Add(animation);
                 continue;
+            }
+
+            // Anchor the animation timeline to the first rendered frame instead
+            // of the registration instant. When a page switch triggers a slow
+            // first layout, the frame callback can arrive hundreds of
+            // milliseconds after the page became visible; measuring from the
+            // registration would mark the whole entrance as already complete
+            // and the page would appear to jump instead of animating.
+            if (!animation.HasStarted)
+            {
+                animation.StartedTimestamp = Stopwatch.GetTimestamp();
+                animation.HasStarted = true;
             }
 
             var elapsed = Stopwatch.GetElapsedTime(animation.StartedTimestamp) - animation.Delay;
