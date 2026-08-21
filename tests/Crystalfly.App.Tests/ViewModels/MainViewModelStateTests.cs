@@ -294,8 +294,10 @@ public sealed class MainViewModelStateTests : IDisposable
         await Assert.IsAssignableFrom<Task>(method.Invoke(viewModel, [instance]));
 
         Assert.Equal(viewModel.Loc["SpeedrunVerifiedWithWarnings"], viewModel.SpeedrunStatus);
-        Assert.Equal(viewModel.SpeedrunStatus, viewModel.SpeedrunReminderText);
-        Assert.True(viewModel.HasSpeedrunReminder);
+        // A passing verification updates the page status but no longer shows a
+        // top-level banner, even when the report carries rule warnings.
+        Assert.False(viewModel.HasSpeedrunReminder);
+        Assert.Equal(string.Empty, viewModel.SpeedrunReminderText);
         Assert.True(viewModel.HasSpeedrunReport);
         Assert.Equal("ready", viewModel.StatusMessage);
     }

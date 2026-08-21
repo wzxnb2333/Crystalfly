@@ -4688,9 +4688,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     : "SpeedrunVerified"
                 : "SpeedrunVerificationFailed"
             : "SpeedrunUnverifiedReport";
-        var reminderVisible = !(template.IsOfficial
-            && result.Report.IsOfficiallyVerified
-            && !result.Report.Issues.Any(issue => issue.Severity == SpeedrunIssueSeverity.RuleWarning));
+        // A passing verification (with or without rule warnings) only updates the
+        // speedrun-page status; the banner is reserved for failures and the
+        // unverified report so a successful check does not nag on every launch.
+        var reminderVisible = verificationStatusKey is not ("SpeedrunVerified" or "SpeedrunVerifiedWithWarnings");
         SetSpeedrunReminder(verificationStatusKey, visible: reminderVisible);
         SpeedrunReportPath = result.ReportPath;
         SpeedrunReminderIsError = !result.Report.IsOfficiallyVerified;
