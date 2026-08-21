@@ -113,7 +113,7 @@ public sealed class LaunchPreflightEvaluatorTests
     }
 
     [Fact]
-    public void Blocking_conditions_are_structured_and_cannot_be_forced()
+    public void Base_conditions_are_structured_and_forceable()
     {
         var result = LaunchPreflightEvaluator.Evaluate(
             isKnownBuild: false,
@@ -124,7 +124,7 @@ public sealed class LaunchPreflightEvaluatorTests
             localLowReady: false,
             gameProcessRunning: true);
 
-        Assert.All(result.Issues, issue => Assert.Equal(LaunchIssueSeverity.Blocking, issue.Severity));
+        Assert.All(result.Issues, issue => Assert.Equal(LaunchIssueSeverity.Forceable, issue.Severity));
         Assert.Contains(result.Issues, issue => issue.Code == LaunchIssueCode.ExecutableMissing);
         Assert.Contains(result.Issues, issue => issue.Code == LaunchIssueCode.GameAlreadyRunning);
         Assert.Contains(result.Issues, issue => issue.Code == LaunchIssueCode.LoaderConflict);
@@ -132,9 +132,10 @@ public sealed class LaunchPreflightEvaluatorTests
         Assert.Contains(result.Issues, issue => issue.Code == LaunchIssueCode.TransactionUnhealthy);
         Assert.Contains(result.Issues, issue => issue.Code == LaunchIssueCode.LocalLowNotReady);
         Assert.False(result.IsClean);
-        Assert.False(result.CanAttemptLaunch);
+        // Every base condition is forceable: none of them may block launch anymore.
+        Assert.True(result.CanAttemptLaunch);
         Assert.False(result.CanLaunchNormally);
-        Assert.False(result.CanForceLaunch);
+        Assert.True(result.CanForceLaunch);
     }
 
     [Fact]
@@ -469,7 +470,7 @@ public sealed class LaunchPreflightEvaluatorTests
 
         Assert.Equal(3, result.Issues.Count);
         Assert.DoesNotContain(result.Issues, issue => issue.IsAcknowledged);
-        Assert.False(result.CanForceLaunch);
+        Assert.True(result.CanForceLaunch);
     }
 
     private static LaunchPreflightResult EvaluateWithHealth(

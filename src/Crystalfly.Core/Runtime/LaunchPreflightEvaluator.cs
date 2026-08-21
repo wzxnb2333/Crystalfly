@@ -20,9 +20,7 @@ public sealed record LaunchPreflightResult(
 
     public bool IsClean => Issues.Count == 0;
 
-    public bool CanAttemptLaunch => HasStructuredIssues
-        ? Issues.All(issue => issue.Severity != LaunchIssueSeverity.Blocking)
-        : SummaryReady;
+    public bool CanAttemptLaunch => HasStructuredIssues || SummaryReady;
 
     public bool CanLaunchNormally => SummaryReady
         && Issues.All(issue => issue.Severity switch
@@ -132,15 +130,15 @@ public static class LaunchPreflightEvaluator
     {
         if (!executableExists)
         {
-            issues.Add(Blocking(LaunchIssueCode.ExecutableMissing));
+            issues.Add(Forceable(LaunchIssueCode.ExecutableMissing));
         }
         if (gameProcessRunning)
         {
-            issues.Add(Blocking(LaunchIssueCode.GameAlreadyRunning));
+            issues.Add(Forceable(LaunchIssueCode.GameAlreadyRunning));
         }
         if (loaderState == LoaderState.Conflict)
         {
-            issues.Add(Blocking(LaunchIssueCode.LoaderConflict));
+            issues.Add(Forceable(LaunchIssueCode.LoaderConflict));
         }
         if (loaderState == LoaderState.Drifted)
         {
@@ -157,17 +155,17 @@ public static class LaunchPreflightEvaluator
             issues.Add(new LaunchPreflightIssue
             {
                 Code = LaunchIssueCode.UnsupportedBuildLoaderCombination,
-                Severity = LaunchIssueSeverity.Blocking,
+                Severity = LaunchIssueSeverity.Forceable,
                 Arguments = [loaderState.ToString()]
             });
         }
         if (!transactionsHealthy)
         {
-            issues.Add(Blocking(LaunchIssueCode.TransactionUnhealthy));
+            issues.Add(Forceable(LaunchIssueCode.TransactionUnhealthy));
         }
         if (!localLowReady)
         {
-            issues.Add(Blocking(LaunchIssueCode.LocalLowNotReady));
+            issues.Add(Forceable(LaunchIssueCode.LocalLowNotReady));
         }
     }
 
@@ -297,10 +295,10 @@ public static class LaunchPreflightEvaluator
         return null;
     }
 
-    private static LaunchPreflightIssue Blocking(LaunchIssueCode code) => new()
+    private static LaunchPreflightIssue Forceable(LaunchIssueCode code) => new()
     {
         Code = code,
-        Severity = LaunchIssueSeverity.Blocking
+        Severity = LaunchIssueSeverity.Forceable
     };
 
     private static LaunchPreflightIssue ModIssue(

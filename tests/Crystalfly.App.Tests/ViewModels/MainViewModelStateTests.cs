@@ -166,7 +166,8 @@ public sealed class MainViewModelStateTests : IDisposable
 
         // Give the environment a valid RuntimePatches configuration so the
         // async config load succeeds and cannot replace the banner text with a
-        // "config invalid" error while the selection callback runs.
+        // "config invalid" error while the selection callback runs. The values
+        // match what Normalize produces for this build, so no rewrite happens.
         string configPath = Path.Combine(
             root,
             ".crystalfly",
@@ -177,7 +178,7 @@ public sealed class MainViewModelStateTests : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
         await File.WriteAllTextAsync(
             configPath,
-            """{"ScreenShakeModifier":false,"MiniSaveStates":false,"FasterIntroSkip":false,"TextMasher":false}""");
+            """{"ScreenShakeModifier":false,"MiniSaveStates":true,"FasterIntroSkip":false,"TextMasher":false}""");
 
         viewModel.SelectedSpeedrunInstance = current;
 
@@ -3612,7 +3613,7 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
-    public async Task Absolute_launch_blocker_disables_attempt_and_force_paths()
+    public async Task Loader_conflict_stays_forceable_instead_of_blocking_launch()
     {
         await using var viewModel = CreateViewModel();
         SetPrivateField(
@@ -3632,13 +3633,14 @@ public sealed class MainViewModelStateTests : IDisposable
                 new LaunchPreflightIssue
                 {
                     Code = LaunchIssueCode.LoaderConflict,
-                    Severity = LaunchIssueSeverity.Blocking
+                    Severity = LaunchIssueSeverity.Forceable
                 }
             ]);
 
-        Assert.False(viewModel.CanAttemptLaunch);
+        // A loader conflict is surfaced for review but never blocks launch.
+        Assert.True(viewModel.CanAttemptLaunch);
         Assert.False(viewModel.CanLaunch);
-        Assert.False(viewModel.LaunchPreflight.CanForceLaunch);
+        Assert.True(viewModel.LaunchPreflight.CanForceLaunch);
     }
 
     [Fact]

@@ -533,7 +533,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public string LaunchReadinessHint => !HasInstance
         ? Loc["ChooseRoot"]
-        : LaunchPreflight.IsReady ? Loc["ReadyHint"] : Loc["LaunchBlocked"];
+        : LaunchPreflight.IsReady ? Loc["ReadyHint"] : Loc["LaunchForceable"];
 
     public string OfficialModCatalogStatus => settings.CustomModLinks is not null
         ? customModLinksResult?.Status switch
