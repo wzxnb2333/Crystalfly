@@ -260,10 +260,10 @@ public sealed class MainWindowStructureTests
             HasBinding(radio, "Content", "Loc[MotionOff]")
             && HasBinding(radio, "IsChecked", "IsNoSaveStatesModeSelected"));
         Assert.Contains(selectors, radio =>
-            (string?)radio.Attribute("Content") == "MiniSaveStates"
+            HasBinding(radio, "Content", "SpeedrunMiniSaveStates")
             && HasBinding(radio, "IsChecked", "IsMiniSaveStatesModeSelected"));
         Assert.Contains(selectors, radio =>
-            (string?)radio.Attribute("Content") == "MultiSaveStates"
+            HasBinding(radio, "Content", "SpeedrunMultiSaveStates")
             && HasBinding(radio, "IsChecked", "IsMultiSaveStatesModeSelected"));
         Assert.DoesNotContain(document.Descendants(Avalonia + "ToggleSwitch"), toggle =>
             HasBinding(toggle, "IsChecked", "RuntimePatchesSaveStatesMode"));

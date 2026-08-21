@@ -112,7 +112,7 @@ public sealed class MarketInstallDialogViewModelTests
         await dialog.LoadPlanAsync();
 
         Assert.Equal(3, dialog.PlanItems.Count);
-        Assert.Equal("Loader", dialog.PlanItems[0].KindText);
+        Assert.Equal(main.Loc["Loader"], dialog.PlanItems[0].KindText);
         Assert.Equal("Library", dialog.PlanItems[1].PrimaryName);
         Assert.Equal("Feature", dialog.PlanItems[2].PrimaryName);
         Assert.True(dialog.PlanItems[0].IsSatisfied);

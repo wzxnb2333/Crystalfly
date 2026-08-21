@@ -552,10 +552,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public string OfficialModCatalogSummary => settings.CustomModLinks is not null
         ? customModLinksResult is null
             ? Loc["UnverifiedSource"]
-            : $"{settings.CustomModLinks.LoaderId} · {customModLinksResult.Catalog.Mods.Count} Mods · {Loc["UnverifiedSource"]}"
+            : string.Format(
+                Loc["CustomCatalogSummaryFormat"],
+                settings.CustomModLinks.LoaderId,
+                customModLinksResult.Catalog.Mods.Count,
+                Loc["UnverifiedSource"])
         : officialCatalogResult is null
             ? string.Empty
-            : $"API v{officialCatalogResult.ApiVersion ?? "?"} · {officialCatalogResult.ModCount} Mods";
+            : string.Format(
+                Loc["OfficialCatalogSummaryFormat"],
+                officialCatalogResult.ApiVersion ?? "?",
+                officialCatalogResult.ModCount);
 
     public string OfficialModCatalogError => settings.CustomModLinks is not null
         ? customModLinksError ?? customModLinksResult?.Reason ?? string.Empty
@@ -1427,10 +1434,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         var previousTemplateId = SelectedSpeedrunTemplate?.Id;
         SpeedrunTemplates.Clear();
+        // The catalog stores official template names verbatim (for example
+        // "RuntimePatches 1.5.78"); localize the product prefix so the picker
+        // reads naturally in the active language instead of showing a long
+        // English token.
+        var templatePrefix = Loc["SpeedrunTemplatePrefix"];
         foreach (var template in catalog.SpeedrunTemplates.Where(template =>
                      !RuntimePatchesPolicy.IsMultiSaveStatesTemplate(template.Id)))
         {
-            SpeedrunTemplates.Add(template);
+            SpeedrunTemplates.Add(template with
+            {
+                Name = template.Name.Replace("RuntimePatches", templatePrefix, StringComparison.Ordinal)
+            });
         }
         SelectedSpeedrunTemplate = SpeedrunTemplates.FirstOrDefault(template => string.Equals(
                                        template.Id,
@@ -2070,7 +2085,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 await Task.Delay(500);
             }
             var completedSession = runtimeSession
-                ?? throw new InvalidOperationException("The instance runtime session was not created.");
+                ?? throw new InvalidOperationException(Loc["ErrorRuntimeSessionNotCreated"]);
             await completedSession.CompleteAsync();
             runtimeSession = null;
         }
@@ -2938,7 +2953,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                             SelectedSpeedrunSourceInstance?.Id)
                         ?? throw new InvalidOperationException(Loc["NoVanillaSource"]);
                     var name = string.IsNullOrWhiteSpace(SpeedrunEnvironmentName)
-                        ? UniqueInstanceName($"{SelectedSpeedrunTemplate.Name} Speedrun")
+                        ? UniqueInstanceName(string.Format(Loc["SpeedrunDefaultNameFormat"], SelectedSpeedrunTemplate.Name))
                         : SpeedrunEnvironmentName.Trim();
                     var clone = await InstanceCloneService.CloneAsync(
                         source.RootPath,
@@ -2987,7 +3002,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 },
                 lifetimeCancellation.Token);
             var clone = createdInstance
-                ?? throw new InvalidOperationException("The speedrun instance was not created.");
+                ?? throw new InvalidOperationException(Loc["ErrorSpeedrunNotCreated"]);
             SetSpeedrunReminder(SelectedSpeedrunTemplate.IsOfficial
                 && catalog.SpeedrunFileManifests.Any(manifest => manifest.Id == SelectedSpeedrunTemplate.FileManifestId)
                     ? "SpeedrunNeedsVerification"
@@ -3677,6 +3692,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         RefreshPresetApplySteps();
         RebuildMarketCatalog();
         PopulateDownloadBuilds();
+        PopulateSpeedrunTemplates();
         ReprojectInstances();
         Settings.RefreshLocalization();
         ModManagement.RefreshLocalization();
@@ -4310,7 +4326,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                         or InvalidOperationException
                         or UnauthorizedAccessException)
                     {
-                        failures.Add($"Loader: {exception.Message}");
+                        failures.Add(string.Format(Loc["LoaderErrorPrefix"], exception.Message));
                     }
                 }
             }

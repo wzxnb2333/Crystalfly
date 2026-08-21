@@ -1031,7 +1031,7 @@ public sealed class MainViewModelStateTests : IDisposable
 
         await viewModel.InstallOrSwitchLoaderCommand.ExecuteAsync(null);
 
-        Assert.Contains("未由 Crystalfly 管理", viewModel.ErrorMessage);
+        Assert.Contains("未由水晶虫管理", viewModel.ErrorMessage);
     }
 
     [Fact]

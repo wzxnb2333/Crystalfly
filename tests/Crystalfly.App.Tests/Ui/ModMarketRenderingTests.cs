@@ -24,7 +24,7 @@ namespace Crystalfly.App.Tests.Ui;
 public sealed class ModMarketRenderingTests
 {
     [AvaloniaTheory]
-    [InlineData(UiLanguage.SimplifiedChinese, "实例", "Mod 市场", "已安装 Mod", "存档快照")]
+    [InlineData(UiLanguage.SimplifiedChinese, "实例", "模组市场", "已安装模组", "存档快照")]
     [InlineData(UiLanguage.English, "Instances", "Mod Market", "Installed Mods", "Save Snapshots")]
     public void Navigation_and_new_surfaces_are_localized(
         UiLanguage language,

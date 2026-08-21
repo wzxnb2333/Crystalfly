@@ -78,7 +78,7 @@ public partial class MainViewModel
         var instance = SelectProtocolInstance(command.InstanceId!);
         if (!catalog.Mods.Any(mod => string.Equals(mod.Id, command.ModId, StringComparison.OrdinalIgnoreCase)))
         {
-            throw new KeyNotFoundException($"Mod '{command.ModId}' was not found in the active catalog.");
+            throw new KeyNotFoundException(string.Format(Loc["ProtocolModNotFound"], command.ModId));
         }
         await DownloadCenter.DownloadQueue.InitializeAsync(lifetimeCancellation.Token);
         var plan = await CreateModInstallService(instance.Record)
@@ -187,7 +187,7 @@ public partial class MainViewModel
                 && string.Equals(manifest.Id, command.ModId, StringComparison.OrdinalIgnoreCase)).ToArray();
         if (manifests.Length == 0)
         {
-            throw new KeyNotFoundException($"Mod '{command.ModId}' was not found in HK ModLinks.");
+            throw new KeyNotFoundException(string.Format(Loc["ProtocolModNotFoundInLinks"], command.ModId));
         }
         await instanceOperationCoordinator.RunAsync(instance.Id, async cancellationToken =>
         {
@@ -212,7 +212,7 @@ public partial class MainViewModel
                     .GetInstalledAsync(cancellationToken))
                 .SingleOrDefault(candidate =>
                     string.Equals(candidate.Id, command.ModId, StringComparison.OrdinalIgnoreCase))
-                ?? throw new KeyNotFoundException($"Mod '{command.ModId}' is not installed.");
+                ?? throw new KeyNotFoundException(string.Format(Loc["ProtocolModNotInstalled"], command.ModId));
             var root = Path.GetFullPath(instance.RootPath)
                 .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             if (Path.IsPathRooted(receipt.InstallRoot))
@@ -232,7 +232,7 @@ public partial class MainViewModel
             {
                 if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
                 {
-                    throw new IOException($"Mod directory traverses a reparse point: '{current}'.");
+                    throw new IOException(string.Format(Loc["ProtocolReparsePointBlocked"], current));
                 }
                 if (string.Equals(current, root, StringComparison.OrdinalIgnoreCase))
                 {

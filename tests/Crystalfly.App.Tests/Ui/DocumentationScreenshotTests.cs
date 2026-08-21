@@ -331,7 +331,7 @@ public sealed class DocumentationScreenshotTests
             .Select(text => text.Text)
             .Where(text => !string.IsNullOrWhiteSpace(text))
             .ToArray();
-        Assert.Contains("Crystalfly", visibleText);
+        Assert.Contains(fixture.ViewModel.Loc["AppName"], visibleText);
 
         switch (state)
         {

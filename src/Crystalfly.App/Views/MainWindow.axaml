@@ -25,7 +25,7 @@
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="-1"
         Icon="/Assets/crystalfly-icon.png"
-        Title="Crystalfly"
+        Title="{Binding Loc[AppName]}"
         Background="{DynamicResource CfWindowBrush}">
 
     <Window.Resources>
@@ -48,7 +48,7 @@
                 Classes="cfp-topbar"
                 PointerPressed="OnWindowChromePointerPressed">
             <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="24">
-                <TextBlock Grid.Column="0" Classes="cfp-brand" Text="Crystalfly" />
+                <TextBlock Grid.Column="0" Classes="cfp-brand" Text="{Binding Loc[AppName]}" />
 
                 <Border Grid.Column="1" Classes="cfp-nav-group" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal"
@@ -1725,13 +1725,13 @@
                                                                  IsChecked="{Binding IsNoSaveStatesModeSelected, Mode=TwoWay}"
                                                                  AutomationProperties.Name="{Binding Loc[MotionOff]}" />
                                                     <RadioButton GroupName="speedrun-save-states-mode"
-                                                                 Content="MiniSaveStates"
+                                                                 Content="{Binding Loc[SpeedrunMiniSaveStates]}"
                                                                  IsChecked="{Binding IsMiniSaveStatesModeSelected, Mode=TwoWay}"
-                                                                 AutomationProperties.Name="MiniSaveStates" />
+                                                                 AutomationProperties.Name="{Binding Loc[SpeedrunMiniSaveStates]}" />
                                                     <RadioButton GroupName="speedrun-save-states-mode"
-                                                                 Content="MultiSaveStates"
+                                                                 Content="{Binding Loc[SpeedrunMultiSaveStates]}"
                                                                  IsChecked="{Binding IsMultiSaveStatesModeSelected, Mode=TwoWay}"
-                                                                 AutomationProperties.Name="MultiSaveStates" />
+                                                                 AutomationProperties.Name="{Binding Loc[SpeedrunMultiSaveStates]}" />
                                                 </StackPanel>
                                             </Grid>
                                         </Border>
