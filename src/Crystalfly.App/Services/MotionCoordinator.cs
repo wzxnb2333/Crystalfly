@@ -5,6 +5,7 @@ using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.LogicalTree;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -56,7 +57,40 @@ public sealed class MotionCoordinator
         {
             RegisterMotionTarget(control, animateNewTargets);
         }
+        // Static XAML surfaces only attach to the visual tree once their page
+        // is shown (ScrollViewer templates apply lazily), so visual-descendant
+        // scans miss subpages on pages that were never opened. Walk the logical
+        // tree too so every static motion target is registered up front and
+        // still animates when it first becomes visible.
+        foreach (var control in EnumerateLogicalControls(owner).Where(IsEntranceAnimationTarget))
+        {
+            RegisterMotionTarget(control, animateNewTargets);
+        }
         ConfigureMicroInteractionTransitions();
+    }
+
+    private static IEnumerable<Control> EnumerateLogicalControls(StyledElement root)
+    {
+        if (root is not ILogical logical)
+        {
+            yield break;
+        }
+
+        foreach (var child in logical.LogicalChildren)
+        {
+            if (child is StyledElement styledChild)
+            {
+                if (styledChild is Control control)
+                {
+                    yield return control;
+                }
+
+                foreach (var descendant in EnumerateLogicalControls(styledChild))
+                {
+                    yield return descendant;
+                }
+            }
+        }
     }
 
     internal void RegisterMotionTarget(Control control, bool animate)
