@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-14T18:09:24.0000000+00:00",
-  "sourceRevision": "155df654eeb3450da9fd8200d20e524daa581e48",
+  "generatedAt": "2026-08-22T17:54:08.0000000+00:00",
+  "sourceRevision": "60e42f29cdfd06341eb7686aa25fe6afb60f357e",
   "entries": [
     {
       "id": "hkmod:AbsRad Configurable Attacks",
@@ -136,7 +136,7 @@
     {
       "id": "hkmod:Architect",
       "addedAt": "2025-06-17T15:45:52.0000000+00:00",
-      "updatedAt": "2026-08-13T17:48:29.0000000+00:00"
+      "updatedAt": "2026-08-19T14:38:14.0000000+00:00"
     },
     {
       "id": "hkmod:ArchitectLegacy",
@@ -1086,7 +1086,7 @@
     {
       "id": "hkmod:Flukemaster",
       "addedAt": "2025-03-30T11:54:23.0000000+00:00",
-      "updatedAt": "2025-07-03T20:29:31.0000000+00:00"
+      "updatedAt": "2026-08-19T15:22:20.0000000+00:00"
     },
     {
       "id": "hkmod:FountainPreview",
@@ -1941,12 +1941,12 @@
     {
       "id": "hkmod:MidasTouch",
       "addedAt": "2024-10-21T20:17:16.0000000+00:00",
-      "updatedAt": "2025-07-02T16:25:28.0000000+00:00"
+      "updatedAt": "2026-08-19T15:22:20.0000000+00:00"
     },
     {
       "id": "hkmod:MilliGolf",
       "addedAt": "2024-08-13T07:41:48.0000000+00:00",
-      "updatedAt": "2026-08-06T06:05:09.0000000+00:00"
+      "updatedAt": "2026-08-19T15:22:20.0000000+00:00"
     },
     {
       "id": "hkmod:Mimicpocalypse",
@@ -2031,7 +2031,7 @@
     {
       "id": "hkmod:MoreStags",
       "addedAt": "2026-02-22T00:17:04.0000000+00:00",
-      "updatedAt": "2026-08-06T06:05:09.0000000+00:00"
+      "updatedAt": "2026-08-22T08:12:37.0000000+00:00"
     },
     {
       "id": "hkmod:MossBeast",
@@ -2606,7 +2606,7 @@
     {
       "id": "hkmod:RespawnPoint Manager",
       "addedAt": "2026-06-01T21:23:03.0000000+00:00",
-      "updatedAt": "2026-06-01T21:23:03.0000000+00:00"
+      "updatedAt": "2026-08-19T12:46:44.0000000+00:00"
     },
     {
       "id": "hkmod:Restore NKG Title Card",
@@ -2776,7 +2776,7 @@
     {
       "id": "hkmod:ShuffledCharmEffects",
       "addedAt": "2025-04-16T21:32:35.0000000+00:00",
-      "updatedAt": "2025-04-17T14:51:34.0000000+00:00"
+      "updatedAt": "2026-08-19T15:22:20.0000000+00:00"
     },
     {
       "id": "hkmod:ShyKnight",
@@ -2979,6 +2979,11 @@
       "updatedAt": "2024-11-17T11:47:07.0000000+00:00"
     },
     {
+      "id": "hkmod:Teleport Master",
+      "addedAt": "2026-08-22T17:54:08.0000000+00:00",
+      "updatedAt": "2026-08-22T17:54:08.0000000+00:00"
+    },
+    {
       "id": "hkmod:TestOfTeamwork",
       "addedAt": "2021-08-22T15:25:58.0000000+00:00",
       "updatedAt": "2025-05-01T18:41:46.0000000+00:00"
@@ -3096,7 +3101,7 @@
     {
       "id": "hkmod:UnconstrainedRotation",
       "addedAt": "2024-12-04T21:20:20.0000000+00:00",
-      "updatedAt": "2025-02-28T16:03:30.0000000+00:00"
+      "updatedAt": "2026-08-19T15:22:20.0000000+00:00"
     },
     {
       "id": "hkmod:UndeadnameJasmine",
@@ -3121,7 +3126,7 @@
     {
       "id": "hkmod:UnlimitedHiveblood",
       "addedAt": "2024-08-23T08:05:50.0000000+00:00",
-      "updatedAt": "2025-02-28T16:03:30.0000000+00:00"
+      "updatedAt": "2026-08-19T15:22:20.0000000+00:00"
     },
     {
       "id": "hkmod:UnlimitedShades",
@@ -3186,7 +3191,7 @@
     {
       "id": "hkmod:VoiceToCrySuffering",
       "addedAt": "2024-09-24T19:56:44.0000000+00:00",
-      "updatedAt": "2025-02-28T16:03:30.0000000+00:00"
+      "updatedAt": "2026-08-19T15:22:20.0000000+00:00"
     },
     {
       "id": "hkmod:VoidAndSoul",
