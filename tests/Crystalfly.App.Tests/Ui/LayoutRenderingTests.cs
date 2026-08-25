@@ -433,15 +433,24 @@ public sealed class LayoutRenderingTests
             Assert.NotNull(workspaceScroll);
             var rail = window.GetVisualDescendants()
                 .OfType<Border>()
-                .Single(border => border.IsEffectivelyVisible && border.Classes.Contains("cfp-rail"));
+                .Single(border => border.IsEffectivelyVisible
+                    && border.Classes.Contains("cfp-rail")
+                    && Math.Abs(border.Bounds.Width - 216) < 1);
             var railOrigin = rail.TranslatePoint(default, window);
             var workspaceOrigin = workspaceScroll.TranslatePoint(default, window);
+            var favoritesRail = window.GetVisualDescendants()
+                .OfType<Border>()
+                .Single(border => border.IsEffectivelyVisible
+                    && border.Classes.Contains("cfp-speedrun-favorites"));
+            var favoritesOrigin = favoritesRail.TranslatePoint(default, window);
             Assert.NotNull(railOrigin);
             Assert.NotNull(workspaceOrigin);
+            Assert.NotNull(favoritesOrigin);
             Assert.InRange(Math.Abs(railOrigin.Value.X), 0, 1.5);
-            Assert.InRange(Math.Abs(window.Width - workspaceOrigin.Value.X - workspaceScroll.Bounds.Width), 0, 1.5);
-            Assert.Equal(12, rail.CornerRadius.TopLeft);
-            Assert.Equal(1, rail.BorderThickness.Left);
+            Assert.Equal(248, favoritesRail.Bounds.Width, precision: 0);
+            Assert.Equal(1, favoritesRail.BorderThickness.Left);
+            Assert.InRange(Math.Abs(window.Width - favoritesOrigin.Value.X - favoritesRail.Bounds.Width), 0, 1.5);
+            Assert.InRange(Math.Abs(favoritesOrigin.Value.X - 12 - workspaceOrigin.Value.X - workspaceScroll.Bounds.Width), 0, 1.5);
             var scrollBottom = workspaceScroll.TranslatePoint(new Point(0, workspaceScroll.Bounds.Height), window);
             Assert.NotNull(scrollBottom);
             // 内容区延伸至页面底部（不再是「切换条 + 上方内容」的两行结构）

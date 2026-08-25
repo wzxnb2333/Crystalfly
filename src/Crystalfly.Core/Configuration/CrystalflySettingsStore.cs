@@ -71,6 +71,7 @@ public static class CrystalflySettingsStore
     private static CrystalflySettings Normalize(CrystalflySettings settings) => settings with
     {
         AccentColor = AccentColorPalette.Normalize(settings.AccentColor),
-        BackgroundImage = BackgroundImageSettings.Normalize(settings.BackgroundImage)
+        BackgroundImage = BackgroundImageSettings.Normalize(settings.BackgroundImage),
+        LiveSplitFavoritePaths = LiveSplitFavoritePathPolicy.NormalizeStoredPaths(settings.LiveSplitFavoritePaths)
     };
 }

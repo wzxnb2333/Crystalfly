@@ -27,6 +27,27 @@ public sealed class MainViewModelStateTests : IDisposable
     private readonly TestDirectory applicationData = new();
 
     [Fact]
+    public async Task Live_split_favorites_add_remove_and_persist_valid_paths()
+    {
+        string root = applicationData.CreateDirectory("live-split-favorites");
+        string favorite = Path.Combine(root, "any-percent.lss");
+        File.WriteAllText(favorite, "<Run />");
+        await using var viewModel = new MainViewModel(root);
+
+        Assert.True(viewModel.TryAddLiveSplitFavorite(favorite));
+        Assert.True(viewModel.TryAddLiveSplitFavorite(favorite));
+        Assert.Single(viewModel.LiveSplitFavorites);
+        Assert.Equal("any-percent.lss", viewModel.LiveSplitFavorites[0].DisplayName);
+        Assert.True(viewModel.RemoveLiveSplitFavorite(favorite));
+        Assert.Empty(viewModel.LiveSplitFavorites);
+
+        await viewModel.DisposeAsync();
+
+        var settings = await CrystalflySettingsStore.LoadAsync(Path.Combine(root, "settings.json"));
+        Assert.Empty(settings.LiveSplitFavoritePaths);
+    }
+
+    [Fact]
     public async Task Speedrun_activity_tab_establishes_baseline_then_detects_new_record()
     {
         string root = applicationData.CreateDirectory("speedrun-leaderboard");

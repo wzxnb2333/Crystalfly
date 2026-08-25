@@ -1579,7 +1579,7 @@
                             </Button>
                         </Grid>
                     </Border>
-                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
                     <Border Grid.Column="0" Classes="cfp-rail cfp-speedrun-rail" Width="216" Padding="12,16" Margin="0,0,12,0" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
                         <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
                             <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTitle]}" />
@@ -1827,7 +1827,58 @@
                             </Border>
                         </Grid>
                             </Grid>
-                        </ScrollViewer>
+                    </ScrollViewer>
+                    <Border Grid.Column="2"
+                            Classes="cfp-rail cfp-speedrun-favorites"
+                            Width="248"
+                            Padding="12,16"
+                            Margin="12,0,0,0"
+                            IsVisible="{Binding IsSpeedrunEnvironmentTab}">
+                        <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Classes="cfp-section-title" Text="{Binding Loc[LiveSplitFavorites]}" />
+                                <Button Grid.Column="1"
+                                        Classes="cfp-icon"
+                                        Click="AddLiveSplitFavorite"
+                                        ToolTip.Tip="{Binding Loc[LiveSplitFavoriteAdd]}"
+                                        AutomationProperties.Name="{Binding Loc[LiveSplitFavoriteAdd]}"
+                                        Content="{LucideIconContent Plus, 15}" />
+                            </Grid>
+                            <TextBlock Grid.Row="1"
+                                       Classes="cfp-meta"
+                                       Text="{Binding Loc[LiveSplitFavoriteEmpty]}"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding HasLiveSplitFavorites, Converter={x:Static converters:BoolConverters.Not}}" />
+                            <ListBox Grid.Row="2"
+                                     ItemsSource="{Binding LiveSplitFavorites}"
+                                     Classes="cfp-list"
+                                     IsVisible="{Binding HasLiveSplitFavorites}"
+                                     AutomationProperties.Name="{Binding Loc[LiveSplitFavorites]}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                                            <Button Classes="cfp-link"
+                                                    Tag="{Binding Path}"
+                                                    Click="OpenLiveSplitFavorite"
+                                                    HorizontalAlignment="Stretch"
+                                                    HorizontalContentAlignment="Left"
+                                                    ToolTip.Tip="{Binding Path}"
+                                                    AutomationProperties.Name="{Binding DisplayName}">
+                                                <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                                            </Button>
+                                            <Button Grid.Column="1"
+                                                    Classes="cfp-icon"
+                                                    Tag="{Binding Path}"
+                                                    Click="RemoveLiveSplitFavorite"
+                                                    ToolTip.Tip="{Binding #Root.DataContext.Loc[LiveSplitFavoriteRemove]}"
+                                                    AutomationProperties.Name="{Binding #Root.DataContext.Loc[LiveSplitFavoriteRemove]}"
+                                                    Content="{LucideIconContent X, 14}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
                     </Grid>
                 </Grid>
             </Grid>

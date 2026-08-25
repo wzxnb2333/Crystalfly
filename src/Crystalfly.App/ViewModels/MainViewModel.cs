@@ -1181,6 +1181,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             DateTimeOffset.UtcNow,
             TimeSpan.FromDays(7));
         settings = await CrystalflySettingsStore.LoadAsync(settingsPath);
+        LoadLiveSplitFavorites();
         OnPropertyChanged(nameof(EffectiveMotionPreference));
         SteamUsernameCredential? storedCredential = await credentialStore.LoadAsync(lifetimeCancellation.Token);
         if (storedCredential is not null)

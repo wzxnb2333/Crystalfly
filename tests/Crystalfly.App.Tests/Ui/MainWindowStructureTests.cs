@@ -271,6 +271,43 @@ public sealed class MainWindowStructureTests
     }
 
     [Fact]
+    public void Speedrun_environment_has_a_live_split_favorites_panel()
+    {
+        var document = LoadMainWindow();
+        var speedrun = FindSectionRoot(document, "IsSpeedrunPage");
+        var favorites = speedrun.Descendants(Avalonia + "Border")
+            .Single(border => HasClass(border, "cfp-speedrun-favorites"));
+        Assert.Equal("2", (string?)favorites.Attribute("Grid.Column"));
+        Assert.Equal("248", (string?)favorites.Attribute("Width"));
+        Assert.DoesNotContain(
+            speedrun.Descendants(Avalonia + "Border")
+                .Single(border => HasClass(border, "cfp-speedrun-rail"))
+                .Descendants(Avalonia + "Border"),
+            border => HasClass(border, "cfp-speedrun-favorites"));
+
+        Assert.Contains(favorites.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "AddLiveSplitFavorite"
+            && HasBinding(button, "ToolTip.Tip", "Loc[LiveSplitFavoriteAdd]"));
+        Assert.Contains(favorites.Descendants(Avalonia + "ListBox"), list =>
+            HasBinding(list, "ItemsSource", "LiveSplitFavorites"));
+        Assert.Contains(favorites.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "OpenLiveSplitFavorite"
+            && HasBinding(button, "Tag", "Path"));
+        Assert.Contains(favorites.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "RemoveLiveSplitFavorite"
+            && HasBinding(button, "Tag", "Path"));
+
+        var code = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "Crystalfly.App",
+            "Views",
+            "MainWindow.SpeedrunHandlers.cs"));
+        Assert.Contains("*.lss", code, StringComparison.Ordinal);
+        Assert.Contains("UseShellExecute = true", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Main_window_requests_Windows_11_rounded_corners_after_opening()
     {
         var code = File.ReadAllText(Path.Combine(

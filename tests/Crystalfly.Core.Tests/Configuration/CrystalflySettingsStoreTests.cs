@@ -26,6 +26,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         Assert.False(defaults.GameDirectoryDiscoveryCompleted);
         Assert.False(defaults.OnboardingCompleted);
         Assert.Empty(defaults.FavoriteInstanceIds);
+        Assert.Empty(defaults.LiveSplitFavoritePaths);
 
         var expected = defaults with
         {
@@ -83,14 +84,16 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
                 CustomCatalogs = [],
                 GameDirectories = [],
                 ModHealthAcknowledgements = [],
-                FavoriteInstanceIds = []
+                FavoriteInstanceIds = [],
+                LiveSplitFavoritePaths = []
             },
             actual with
             {
                 CustomCatalogs = [],
                 GameDirectories = [],
                 ModHealthAcknowledgements = [],
-                FavoriteInstanceIds = []
+                FavoriteInstanceIds = [],
+                LiveSplitFavoritePaths = []
             });
         Assert.Equal(expected.CustomCatalogs, actual.CustomCatalogs);
         Assert.Equal(expected.CustomModLinks, actual.CustomModLinks);
@@ -104,6 +107,40 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
             FileName = "ABCDEF.webp",
             OpacityPercent = 41
         }, actual.BackgroundImage);
+    }
+
+    [Fact]
+    public async Task Save_normalizes_live_split_favorite_paths_to_unique_full_paths()
+    {
+        var path = Path.Combine(root, "favorites.json");
+        var first = Path.Combine(root, "timers", "any-percent.lss");
+        var second = Path.Combine(root, "timers", "112.lss");
+        Directory.CreateDirectory(Path.GetDirectoryName(first)!);
+
+        await CrystalflySettingsStore.SaveAsync(path, new CrystalflySettings
+        {
+            LiveSplitFavoritePaths = [first, first, second]
+        });
+
+        var settings = await CrystalflySettingsStore.LoadAsync(path);
+
+        Assert.Equal([Path.GetFullPath(first), Path.GetFullPath(second)], settings.LiveSplitFavoritePaths);
+    }
+
+    [Fact]
+    public void Live_split_favorite_path_policy_rejects_non_lss_missing_and_directory_paths()
+    {
+        var directory = Directory.CreateDirectory(Path.Combine(root, "timers")).FullName;
+        var valid = Path.Combine(directory, "any-percent.lss");
+        var invalidExtension = Path.Combine(directory, "any-percent.txt");
+        File.WriteAllText(valid, "<Run />");
+        File.WriteAllText(invalidExtension, "timer");
+
+        Assert.True(LiveSplitFavoritePathPolicy.TryNormalizeExistingFile(valid, out var normalized));
+        Assert.Equal(Path.GetFullPath(valid), normalized);
+        Assert.False(LiveSplitFavoritePathPolicy.TryNormalizeExistingFile(invalidExtension, out _));
+        Assert.False(LiveSplitFavoritePathPolicy.TryNormalizeExistingFile(Path.Combine(directory, "missing.lss"), out _));
+        Assert.False(LiveSplitFavoritePathPolicy.TryNormalizeExistingFile(directory, out _));
     }
 
     [Fact]

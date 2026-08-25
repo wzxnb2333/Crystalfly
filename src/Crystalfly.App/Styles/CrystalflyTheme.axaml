@@ -342,6 +342,11 @@
         <Setter Property="Padding" Value="10,12,10,0" />
     </Style>
 
+    <Style Selector="Border.cfp-speedrun-favorites">
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1,0,0,0" />
+        <Setter Property="Padding" Value="12,16" />
+    </Style>
 
     <Style Selector="Border.cfp-speedrun-status">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />

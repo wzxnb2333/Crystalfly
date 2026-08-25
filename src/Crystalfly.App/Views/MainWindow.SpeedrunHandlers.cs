@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
@@ -66,6 +67,69 @@ public partial class MainWindow
         catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
         {
             viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
+        }
+    }
+
+    private async void AddLiveSplitFavorite(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = viewModel.Loc["LiveSplitFavoriteAdd"],
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType(viewModel.Loc["LiveSplitFiles"])
+                {
+                    Patterns = ["*.lss"]
+                }
+            ]
+        });
+        var path = files.FirstOrDefault()?.TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        if (!viewModel.TryAddLiveSplitFavorite(path))
+        {
+            viewModel.ErrorMessage = viewModel.Loc["LiveSplitFavoriteInvalid"];
+        }
+    }
+
+    private void OpenLiveSplitFavorite(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (sender is not Button { Tag: string path }
+            || DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (!File.Exists(path))
+        {
+            viewModel.ErrorMessage = viewModel.Loc["LiveSplitFavoriteMissing"];
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
+        {
+            viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
+        }
+    }
+
+    private void RemoveLiveSplitFavorite(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (sender is Button { Tag: string path } && DataContext is MainViewModel viewModel)
+        {
+            viewModel.RemoveLiveSplitFavorite(path);
         }
     }
 

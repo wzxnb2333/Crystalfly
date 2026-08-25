@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Serialization;
 using Crystalfly.Core.Speedrun;
 
@@ -28,6 +29,78 @@ public partial class MainViewModel
 
     public ObservableCollection<SpeedrunActivityItemViewModel> SpeedrunActivities { get; } = [];
     public ObservableCollection<SpeedrunActivityItemViewModel> VisibleSpeedrunActivities { get; } = [];
+    public ObservableCollection<LiveSplitFavoriteItemViewModel> LiveSplitFavorites { get; } = [];
+    public bool HasLiveSplitFavorites => LiveSplitFavorites.Count > 0;
+
+    public bool TryAddLiveSplitFavorite(string path)
+    {
+        if (!LiveSplitFavoritePathPolicy.TryNormalizeExistingFile(path, out var normalized))
+        {
+            return false;
+        }
+
+        if (settings.LiveSplitFavoritePaths.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        settings = settings with
+        {
+            LiveSplitFavoritePaths = settings.LiveSplitFavoritePaths.Append(normalized).ToArray()
+        };
+        LiveSplitFavorites.Add(new(normalized));
+        OnPropertyChanged(nameof(HasLiveSplitFavorites));
+        _ = QueueSettingsSave();
+        return true;
+    }
+
+    public bool RemoveLiveSplitFavorite(string path)
+    {
+        string normalized;
+        try
+        {
+            normalized = Path.GetFullPath(path.Trim());
+        }
+        catch (Exception exception) when (exception is ArgumentException
+            or IOException
+            or NotSupportedException)
+        {
+            return false;
+        }
+
+        var existing = settings.LiveSplitFavoritePaths.FirstOrDefault(
+            favorite => string.Equals(favorite, normalized, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+        {
+            return false;
+        }
+
+        settings = settings with
+        {
+            LiveSplitFavoritePaths = settings.LiveSplitFavoritePaths
+                .Where(favorite => !string.Equals(favorite, existing, StringComparison.OrdinalIgnoreCase))
+                .ToArray()
+        };
+        var item = LiveSplitFavorites.FirstOrDefault(
+            favorite => string.Equals(favorite.Path, existing, StringComparison.OrdinalIgnoreCase));
+        if (item is not null)
+        {
+            LiveSplitFavorites.Remove(item);
+        }
+        OnPropertyChanged(nameof(HasLiveSplitFavorites));
+        _ = QueueSettingsSave();
+        return true;
+    }
+
+    private void LoadLiveSplitFavorites()
+    {
+        LiveSplitFavorites.Clear();
+        foreach (var path in settings.LiveSplitFavoritePaths)
+        {
+            LiveSplitFavorites.Add(new(path));
+        }
+        OnPropertyChanged(nameof(HasLiveSplitFavorites));
+    }
 
     public bool IsSpeedrunEnvironmentTab => CurrentSpeedrunTab == "Environment";
     public bool IsSpeedrunActivityTab => CurrentSpeedrunTab == "Activity";
@@ -427,4 +500,9 @@ public sealed record SpeedrunActivityItemViewModel(
     public SpeedrunPodiumEntry Run => Entry.Run;
     public bool IsWorldRecord => Entry.IsWorldRecord;
     public string DisplayVerifiedAt => Entry.DisplayVerifiedAt;
+}
+
+public sealed record LiveSplitFavoriteItemViewModel(string Path)
+{
+    public string DisplayName => System.IO.Path.GetFileName(Path);
 }
