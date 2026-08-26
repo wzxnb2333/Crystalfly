@@ -454,7 +454,7 @@ public sealed class LayoutRenderingTests
             var scrollBottom = workspaceScroll.TranslatePoint(new Point(0, workspaceScroll.Bounds.Height), window);
             Assert.NotNull(scrollBottom);
             // 内容区延伸至页面底部（不再是「切换条 + 上方内容」的两行结构）
-            Assert.InRange(window.Height - 16 - scrollBottom.Value.Y, 0, 1.5);
+            Assert.InRange(window.Height - scrollBottom.Value.Y, 0, 1.5);
             // 切换条悬浮在内容之上
             Assert.True(tabBottom.Value.Y <= scrollBottom.Value.Y + 0.5);
         }

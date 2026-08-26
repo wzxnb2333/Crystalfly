@@ -1548,11 +1548,11 @@
 
             <!-- Speedrun -->
             <Grid Classes="cfp-page" IsVisible="{Binding IsSpeedrunPage}">
-                <Grid RowDefinitions="*" Margin="0,16">
+                <Grid RowDefinitions="*">
                     <Border Classes="cfp-speedrun-tab-switch"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Bottom"
-                            Margin="0,0,0,4"
+                            Margin="0,0,0,16"
                             ZIndex="10">
                         <Grid Width="196" ColumnDefinitions="*,*">
                             <Border x:Name="SpeedrunTabIndicator"
