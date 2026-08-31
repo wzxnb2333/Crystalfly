@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-22T17:54:08.0000000+00:00",
-  "sourceRevision": "60e42f29cdfd06341eb7686aa25fe6afb60f357e",
+  "generatedAt": "2026-08-30T09:58:43.0000000+00:00",
+  "sourceRevision": "830c21e2306637491a08e0da08380ee632a2b2be",
   "entries": [
     {
       "id": "hkmod:AbsRad Configurable Attacks",
@@ -136,12 +136,12 @@
     {
       "id": "hkmod:Architect",
       "addedAt": "2025-06-17T15:45:52.0000000+00:00",
-      "updatedAt": "2026-08-19T14:38:14.0000000+00:00"
+      "updatedAt": "2026-08-30T09:58:43.0000000+00:00"
     },
     {
       "id": "hkmod:ArchitectLegacy",
       "addedAt": "2026-05-20T17:32:19.0000000+00:00",
-      "updatedAt": "2026-05-20T17:32:19.0000000+00:00"
+      "updatedAt": "2026-08-30T09:58:43.0000000+00:00"
     },
     {
       "id": "hkmod:Archiv",
@@ -351,7 +351,7 @@
     {
       "id": "hkmod:BugPrince",
       "addedAt": "2025-06-11T19:04:42.0000000+00:00",
-      "updatedAt": "2026-07-28T15:15:54.0000000+00:00"
+      "updatedAt": "2026-08-28T18:01:05.0000000+00:00"
     },
     {
       "id": "hkmod:CabbyCodes",
@@ -516,7 +516,7 @@
     {
       "id": "hkmod:ConnectionSettingsRando",
       "addedAt": "2026-08-05T16:34:22.0000000+00:00",
-      "updatedAt": "2026-08-11T19:14:27.0000000+00:00"
+      "updatedAt": "2026-08-24T06:07:10.0000000+00:00"
     },
     {
       "id": "hkmod:ContainerConfig",
@@ -786,7 +786,7 @@
     {
       "id": "hkmod:DecorationMaster",
       "addedAt": "2021-12-29T10:05:12.0000000+00:00",
-      "updatedAt": "2022-06-04T04:50:14.0000000+00:00"
+      "updatedAt": "2026-08-30T09:58:43.0000000+00:00"
     },
     {
       "id": "hkmod:Deez Nuts Mod",
@@ -1244,6 +1244,11 @@
       "updatedAt": "2022-11-17T22:22:09.0000000+00:00"
     },
     {
+      "id": "hkmod:GlobalList Atlas",
+      "addedAt": "2026-08-28T17:46:14.0000000+00:00",
+      "updatedAt": "2026-08-28T17:46:14.0000000+00:00"
+    },
+    {
       "id": "hkmod:GloriousGrimmMusic",
       "addedAt": "2025-06-18T16:40:20.0000000+00:00",
       "updatedAt": "2025-06-18T16:40:20.0000000+00:00"
@@ -1252,6 +1257,11 @@
       "id": "hkmod:God Soul",
       "addedAt": "2021-10-01T18:37:10.0000000+00:00",
       "updatedAt": "2022-05-19T15:42:04.0000000+00:00"
+    },
+    {
+      "id": "hkmod:GodSeeker112",
+      "addedAt": "2026-08-26T17:52:17.0000000+00:00",
+      "updatedAt": "2026-08-26T17:52:17.0000000+00:00"
     },
     {
       "id": "hkmod:GodSeekerPlus",
@@ -1459,6 +1469,11 @@
       "updatedAt": "2022-05-09T18:24:51.0000000+00:00"
     },
     {
+      "id": "hkmod:HalallowKnight",
+      "addedAt": "2026-08-27T15:55:34.0000000+00:00",
+      "updatedAt": "2026-08-27T15:55:34.0000000+00:00"
+    },
+    {
       "id": "hkmod:Hall of Gods Extras",
       "addedAt": "2021-10-22T21:47:26.0000000+00:00",
       "updatedAt": "2022-05-09T18:24:51.0000000+00:00"
@@ -1477,6 +1492,11 @@
       "id": "hkmod:Hallownest-Vocalized-AudioLoader",
       "addedAt": "2023-04-23T14:37:10.0000000+00:00",
       "updatedAt": "2023-10-07T19:09:40.0000000+00:00"
+    },
+    {
+      "id": "hkmod:HallownestWayfinder",
+      "addedAt": "2026-08-29T06:54:51.0000000+00:00",
+      "updatedAt": "2026-08-29T06:54:51.0000000+00:00"
     },
     {
       "id": "hkmod:HarderAPSettings",
@@ -1996,7 +2016,7 @@
     {
       "id": "hkmod:MoreDoors",
       "addedAt": "2022-09-22T04:44:55.0000000+00:00",
-      "updatedAt": "2026-07-29T03:25:48.0000000+00:00"
+      "updatedAt": "2026-08-28T18:01:05.0000000+00:00"
     },
     {
       "id": "hkmod:MoreHealing",
@@ -2429,6 +2449,11 @@
       "updatedAt": "2023-05-19T19:54:49.0000000+00:00"
     },
     {
+      "id": "hkmod:RadianceSkin",
+      "addedAt": "2026-08-29T17:53:49.0000000+00:00",
+      "updatedAt": "2026-08-29T17:53:49.0000000+00:00"
+    },
+    {
       "id": "hkmod:RadiantMenu",
       "addedAt": "2022-03-11T18:53:31.0000000+00:00",
       "updatedAt": "2025-05-01T15:21:07.0000000+00:00"
@@ -2681,7 +2706,7 @@
     {
       "id": "hkmod:Scattered and Lost",
       "addedAt": "2025-03-08T22:17:44.0000000+00:00",
-      "updatedAt": "2026-07-28T15:15:54.0000000+00:00"
+      "updatedAt": "2026-08-28T18:01:05.0000000+00:00"
     },
     {
       "id": "hkmod:Scatternest",
@@ -2901,7 +2926,7 @@
     {
       "id": "hkmod:SpicyRando",
       "addedAt": "2024-02-27T06:24:01.0000000+00:00",
-      "updatedAt": "2026-01-24T21:00:11.0000000+00:00"
+      "updatedAt": "2026-08-28T18:01:05.0000000+00:00"
     },
     {
       "id": "hkmod:SpoilerViewerMod",
@@ -3066,7 +3091,7 @@
     {
       "id": "hkmod:TreasureHunt",
       "addedAt": "2025-03-20T21:06:16.0000000+00:00",
-      "updatedAt": "2026-06-27T09:36:03.0000000+00:00"
+      "updatedAt": "2026-08-28T18:01:05.0000000+00:00"
     },
     {
       "id": "hkmod:Trial of Crusaders",
