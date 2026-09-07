@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-30T09:58:43.0000000+00:00",
-  "sourceRevision": "830c21e2306637491a08e0da08380ee632a2b2be",
+  "generatedAt": "2026-09-07T02:09:47.0000000+00:00",
+  "sourceRevision": "ec81e1e479ec94d6c3fad1e23dbb9eeed4995c0e",
   "entries": [
     {
       "id": "hkmod:AbsRad Configurable Attacks",
@@ -91,12 +91,12 @@
     {
       "id": "hkmod:AlwaysHazardRespawn",
       "addedAt": "2025-09-23T04:28:34.0000000+00:00",
-      "updatedAt": "2025-09-25T10:36:28.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:AlwaysWorldSense",
       "addedAt": "2024-10-31T17:28:51.0000000+00:00",
-      "updatedAt": "2024-10-31T17:28:51.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Ancient Aspid",
@@ -136,7 +136,7 @@
     {
       "id": "hkmod:Architect",
       "addedAt": "2025-06-17T15:45:52.0000000+00:00",
-      "updatedAt": "2026-08-30T09:58:43.0000000+00:00"
+      "updatedAt": "2026-09-07T02:09:47.0000000+00:00"
     },
     {
       "id": "hkmod:ArchitectLegacy",
@@ -146,7 +146,7 @@
     {
       "id": "hkmod:Archiv",
       "addedAt": "2024-11-09T09:40:39.0000000+00:00",
-      "updatedAt": "2024-11-09T09:40:39.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:AsciiCamera",
@@ -331,7 +331,7 @@
     {
       "id": "hkmod:Breakable Wall Randomizer",
       "addedAt": "2023-02-27T17:41:04.0000000+00:00",
-      "updatedAt": "2026-08-06T15:11:31.0000000+00:00"
+      "updatedAt": "2026-09-07T02:07:44.0000000+00:00"
     },
     {
       "id": "hkmod:BrokeLocUtil",
@@ -356,7 +356,7 @@
     {
       "id": "hkmod:CabbyCodes",
       "addedAt": "2025-12-14T16:53:55.0000000+00:00",
-      "updatedAt": "2026-02-09T19:09:09.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Cagney Carnation",
@@ -426,7 +426,7 @@
     {
       "id": "hkmod:Charm Editor",
       "addedAt": "2025-08-02T21:09:00.0000000+00:00",
-      "updatedAt": "2025-08-03T11:37:18.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Charm Loadouts",
@@ -696,7 +696,7 @@
     {
       "id": "hkmod:DamageValuesRewritten",
       "addedAt": "2025-10-08T15:30:16.0000000+00:00",
-      "updatedAt": "2025-10-08T15:30:16.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:DanielSteginkUtils",
@@ -966,7 +966,7 @@
     {
       "id": "hkmod:EverySceneUtil",
       "addedAt": "2026-03-13T09:15:44.0000000+00:00",
-      "updatedAt": "2026-03-21T08:07:59.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Exaltation",
@@ -1161,7 +1161,7 @@
     {
       "id": "hkmod:GPZPractice",
       "addedAt": "2025-08-25T15:53:49.0000000+00:00",
-      "updatedAt": "2025-08-25T15:53:49.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Galien Illusionist",
@@ -1216,7 +1216,7 @@
     {
       "id": "hkmod:GeoPots",
       "addedAt": "2025-10-29T10:51:30.0000000+00:00",
-      "updatedAt": "2025-11-10T16:42:37.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:GeoRando",
@@ -1281,7 +1281,7 @@
     {
       "id": "hkmod:GodhomeGeo",
       "addedAt": "2025-11-11T23:26:34.0000000+00:00",
-      "updatedAt": "2026-03-14T18:22:05.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:GodhomeQoL",
@@ -1291,7 +1291,7 @@
     {
       "id": "hkmod:GodhomeRandomizer",
       "addedAt": "2024-04-04T18:37:55.0000000+00:00",
-      "updatedAt": "2026-08-06T15:11:31.0000000+00:00"
+      "updatedAt": "2026-09-04T17:43:17.0000000+00:00"
     },
     {
       "id": "hkmod:Godseeker Memory Jump",
@@ -1316,7 +1316,7 @@
     {
       "id": "hkmod:Grass Randomizer",
       "addedAt": "2023-05-11T19:41:06.0000000+00:00",
-      "updatedAt": "2024-12-22T22:48:01.0000000+00:00"
+      "updatedAt": "2026-09-04T17:35:55.0000000+00:00"
     },
     {
       "id": "hkmod:GrassCore",
@@ -1376,7 +1376,7 @@
     {
       "id": "hkmod:HKBattle",
       "addedAt": "2026-06-27T18:38:54.0000000+00:00",
-      "updatedAt": "2026-08-05T16:39:42.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:HKHKHKHKHK",
@@ -1526,7 +1526,7 @@
     {
       "id": "hkmod:Hide Dialog Text",
       "addedAt": "2025-09-13T11:31:57.0000000+00:00",
-      "updatedAt": "2025-09-13T11:31:57.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Hide Mod List",
@@ -1621,7 +1621,7 @@
     {
       "id": "hkmod:InfectedHallownest",
       "addedAt": "2025-11-03T15:12:33.0000000+00:00",
-      "updatedAt": "2026-02-26T06:16:59.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Infection Bomb",
@@ -1641,7 +1641,7 @@
     {
       "id": "hkmod:InfiniteMapMarkers",
       "addedAt": "2024-12-27T11:02:01.0000000+00:00",
-      "updatedAt": "2024-12-27T11:02:01.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:InfiniteNotches",
@@ -1659,6 +1659,11 @@
       "updatedAt": "2023-02-11T10:42:25.0000000+00:00"
     },
     {
+      "id": "hkmod:Input Display",
+      "addedAt": "2026-09-01T03:35:48.0000000+00:00",
+      "updatedAt": "2026-09-01T03:35:48.0000000+00:00"
+    },
+    {
       "id": "hkmod:Inputs Recheck",
       "addedAt": "2026-02-21T19:57:11.0000000+00:00",
       "updatedAt": "2026-02-21T21:58:56.0000000+00:00"
@@ -1666,7 +1671,7 @@
     {
       "id": "hkmod:IntangibleShadow",
       "addedAt": "2025-01-31T15:42:11.0000000+00:00",
-      "updatedAt": "2025-01-31T15:42:11.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Invincibility Monitor",
@@ -1726,7 +1731,7 @@
     {
       "id": "hkmod:Killable Dreamnail",
       "addedAt": "2025-09-03T15:09:18.0000000+00:00",
-      "updatedAt": "2025-09-03T15:09:18.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Kindred Spirit",
@@ -1746,7 +1751,7 @@
     {
       "id": "hkmod:KorzUtils",
       "addedAt": "2023-03-02T21:35:23.0000000+00:00",
-      "updatedAt": "2025-08-04T10:16:26.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Kronk",
@@ -1767,6 +1772,11 @@
       "id": "hkmod:Legacy Charm Costs",
       "addedAt": "2023-08-29T21:24:11.0000000+00:00",
       "updatedAt": "2023-08-29T21:24:11.0000000+00:00"
+    },
+    {
+      "id": "hkmod:LegacyRando",
+      "addedAt": "2026-09-07T02:06:49.0000000+00:00",
+      "updatedAt": "2026-09-07T02:06:49.0000000+00:00"
     },
     {
       "id": "hkmod:Lego Power Bricks",
@@ -1806,7 +1816,7 @@
     {
       "id": "hkmod:Limitations",
       "addedAt": "2025-08-22T17:33:30.0000000+00:00",
-      "updatedAt": "2025-08-22T17:33:30.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:LoadNormalizer",
@@ -2001,12 +2011,12 @@
     {
       "id": "hkmod:Moonside",
       "addedAt": "2025-01-15T16:22:32.0000000+00:00",
-      "updatedAt": "2025-02-16T15:56:07.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:More Charm Notches",
       "addedAt": "2025-09-03T15:54:41.0000000+00:00",
-      "updatedAt": "2025-09-03T15:54:41.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:More Godhome Space",
@@ -2051,7 +2061,7 @@
     {
       "id": "hkmod:MoreStags",
       "addedAt": "2026-02-22T00:17:04.0000000+00:00",
-      "updatedAt": "2026-08-22T08:12:37.0000000+00:00"
+      "updatedAt": "2026-09-04T14:29:32.0000000+00:00"
     },
     {
       "id": "hkmod:MossBeast",
@@ -2086,7 +2096,7 @@
     {
       "id": "hkmod:MuteBosses",
       "addedAt": "2026-02-11T16:31:39.0000000+00:00",
-      "updatedAt": "2026-02-11T16:31:39.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:MyHK",
@@ -2186,7 +2196,7 @@
     {
       "id": "hkmod:NoTransitions",
       "addedAt": "2024-07-27T18:14:11.0000000+00:00",
-      "updatedAt": "2024-07-27T18:14:11.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:NoWalkOfShame",
@@ -2231,7 +2241,7 @@
     {
       "id": "hkmod:OnlyBosses",
       "addedAt": "2025-08-03T18:26:49.0000000+00:00",
-      "updatedAt": "2025-08-03T18:26:49.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:OrbTracker",
@@ -2276,7 +2286,7 @@
     {
       "id": "hkmod:PantheonArchitect",
       "addedAt": "2026-02-01T04:05:46.0000000+00:00",
-      "updatedAt": "2026-02-08T17:53:46.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:PantheonOfRegions",
@@ -2316,7 +2326,7 @@
     {
       "id": "hkmod:PermaFlukes",
       "addedAt": "2025-06-29T10:05:47.0000000+00:00",
-      "updatedAt": "2025-06-30T16:04:19.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:PersistentDivine",
@@ -2346,12 +2356,12 @@
     {
       "id": "hkmod:PogoableFlukes",
       "addedAt": "2024-09-27T07:20:00.0000000+00:00",
-      "updatedAt": "2024-09-27T07:20:00.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Pogonest",
       "addedAt": "2025-02-22T19:18:21.0000000+00:00",
-      "updatedAt": "2025-02-22T19:18:21.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Poorly Translated",
@@ -2466,7 +2476,7 @@
     {
       "id": "hkmod:RainbowFlukes",
       "addedAt": "2025-07-17T15:23:23.0000000+00:00",
-      "updatedAt": "2025-07-17T15:23:23.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:RainbowShinies",
@@ -2616,12 +2626,12 @@
     {
       "id": "hkmod:ReplayLogger",
       "addedAt": "2025-07-14T17:31:29.0000000+00:00",
-      "updatedAt": "2026-07-08T15:07:16.0000000+00:00"
+      "updatedAt": "2026-09-02T15:39:26.0000000+00:00"
     },
     {
       "id": "hkmod:ReplayTimerMod",
       "addedAt": "2026-03-16T16:42:30.0000000+00:00",
-      "updatedAt": "2026-05-04T08:39:23.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:ResetCharmNotches",
@@ -2661,7 +2671,7 @@
     {
       "id": "hkmod:RngSync",
       "addedAt": "2026-05-10T15:52:45.0000000+00:00",
-      "updatedAt": "2026-06-26T10:53:27.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Rogue",
@@ -2756,7 +2766,7 @@
     {
       "id": "hkmod:Shade Lord",
       "addedAt": "2025-08-31T11:26:49.0000000+00:00",
-      "updatedAt": "2025-09-01T17:20:52.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Shade Retreat Macro",
@@ -2811,7 +2821,7 @@
     {
       "id": "hkmod:SiblingClimb",
       "addedAt": "2024-04-01T08:25:23.0000000+00:00",
-      "updatedAt": "2024-04-01T08:25:23.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:SilkSong (but not really)",
@@ -3111,7 +3121,7 @@
     {
       "id": "hkmod:U-tils",
       "addedAt": "2025-08-27T21:50:42.0000000+00:00",
-      "updatedAt": "2025-08-27T22:06:31.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:UltimateChickenKnight",
@@ -3126,7 +3136,7 @@
     {
       "id": "hkmod:UnconstrainedRotation",
       "addedAt": "2024-12-04T21:20:20.0000000+00:00",
-      "updatedAt": "2026-08-19T15:22:20.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:UndeadnameJasmine",
@@ -3136,7 +3146,7 @@
     {
       "id": "hkmod:Uneated Grubs",
       "addedAt": "2025-09-10T15:17:48.0000000+00:00",
-      "updatedAt": "2025-09-10T15:17:48.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Unity Explorer",
@@ -3271,12 +3281,12 @@
     {
       "id": "hkmod:WorseSteadyBody",
       "addedAt": "2024-07-22T08:38:35.0000000+00:00",
-      "updatedAt": "2024-07-22T08:38:35.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:WrathOfTheSwarm",
       "addedAt": "2025-07-30T21:28:23.0000000+00:00",
-      "updatedAt": "2025-07-30T21:28:23.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Wrong Gravity",
