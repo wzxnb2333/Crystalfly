@@ -229,6 +229,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             null,
             githubRoutePreference);
         Loc = new LocalizationViewModel();
+        SpeedrunCommunityLinks = new SpeedrunCommunityLinksViewModel(async links =>
+        {
+            settings = settings with { SpeedrunCommunityLinks = links };
+            await QueueSettingsSave();
+        });
         SteamNetworkStatus = FormatSteamNetworkStatus(systemProxy.Current);
         systemProxy.Changed += OnSystemProxyChanged;
         var downloadQueue = downloadQueueOverride ?? CreateDownloadQueue();
@@ -416,6 +421,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     public LocalizationViewModel Loc { get; private set; }
+
+    public SpeedrunCommunityLinksViewModel SpeedrunCommunityLinks { get; }
 
     public SettingsViewModel Settings { get; }
 
@@ -1181,6 +1188,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             DateTimeOffset.UtcNow,
             TimeSpan.FromDays(7));
         settings = await CrystalflySettingsStore.LoadAsync(settingsPath);
+        SpeedrunCommunityLinks.Load(settings.SpeedrunCommunityLinks);
         LoadLiveSplitFavorites();
         OnPropertyChanged(nameof(EffectiveMotionPreference));
         SteamUsernameCredential? storedCredential = await credentialStore.LoadAsync(lifetimeCancellation.Token);

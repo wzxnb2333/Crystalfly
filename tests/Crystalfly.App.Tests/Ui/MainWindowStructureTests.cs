@@ -209,8 +209,8 @@ public sealed class MainWindowStructureTests
             && HasBinding(button, "Classes.active", "IsSpeedrunActivityTab"));
         var tabSwitch = speedrun.Descendants(Avalonia + "Border")
             .Single(border => HasClass(border, "cfp-speedrun-tab-switch"));
-        Assert.Null(tabSwitch.Attribute("Grid.Row"));
-        Assert.Equal("Bottom", (string?)tabSwitch.Attribute("VerticalAlignment"));
+        Assert.Equal("0", (string?)tabSwitch.Attribute("Grid.Row"));
+        Assert.Equal("Top", (string?)tabSwitch.Attribute("VerticalAlignment"));
         Assert.Equal("10", (string?)tabSwitch.Attribute("ZIndex"));
         Assert.Contains(tabSwitch.Descendants(Avalonia + "Border"), border =>
             HasClass(border, "cfp-speedrun-tab-indicator")
@@ -246,6 +246,18 @@ public sealed class MainWindowStructureTests
             "MainWindow.SpeedrunHandlers.cs"));
         Assert.Contains("private void OpenSpeedrunRun", code, StringComparison.Ordinal);
         Assert.Contains("speedrun.com", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Launch_page_exposes_community_rail_with_curated_groups()
+    {
+        var document = LoadMainWindow();
+        var launch = FindSectionRoot(document, "IsLaunchPage");
+        var rail = launch.Descendants(Avalonia + "Border").Single(border => HasClass(border, "cfp-community-rail"));
+        Assert.Contains("SpeedrunCommunityLinks.HollowKnightLinks", rail.ToString(SaveOptions.DisableFormatting), StringComparison.Ordinal);
+        Assert.Contains("SpeedrunCommunityLinks.SilksongLinks", rail.ToString(SaveOptions.DisableFormatting), StringComparison.Ordinal);
+        Assert.Contains("SpeedrunCommunityLinks.CustomLinks", rail.ToString(SaveOptions.DisableFormatting), StringComparison.Ordinal);
+        Assert.Contains(rail.Descendants(Avalonia + "Button"), button => HasBinding(button, "Command", "OpenCommand"));
     }
 
     [Fact]

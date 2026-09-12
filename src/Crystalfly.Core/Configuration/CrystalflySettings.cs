@@ -120,6 +120,8 @@ public sealed record CrystalflySettings
     public IReadOnlyList<string> FavoriteInstanceIds { get; init; } = [];
     public IReadOnlyList<string> LiveSplitFavoritePaths { get; init; } = [];
 
+    public IReadOnlyList<SpeedrunCommunityLinkDefinition> SpeedrunCommunityLinks { get; init; } = [];
+
 
     public UiLanguage Language { get; init; } = UiLanguage.FollowSystem;
 
