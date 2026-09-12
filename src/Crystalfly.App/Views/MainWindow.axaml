@@ -525,12 +525,6 @@
                                                         <TextBlock Grid.Column="1" Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                                                     </Grid>
                                                 </Button>
-                                                <Button Grid.Column="1"
-                                                        Classes="cfp-icon"
-                                                        Tag="{Binding Id}"
-                                                        ToolTip.Tip="{Binding #Root.DataContext.Loc[SpeedrunCommunityEdit]}"
-                                                        AutomationProperties.Name="{Binding #Root.DataContext.Loc[SpeedrunCommunityEdit]}"
-                                                        Content="{LucideIconContent Pencil, 14}" />
                                                 <Button Grid.Column="2"
                                                         Classes="cfp-icon danger"
                                                         Command="{Binding RemoveCommand}"
@@ -3121,6 +3115,7 @@
                              HostId="Crystalfly.Main" />
     </Grid>
 </Window>
+
 
 
 
