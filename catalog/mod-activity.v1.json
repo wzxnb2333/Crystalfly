@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-07T02:09:47.0000000+00:00",
-  "sourceRevision": "ec81e1e479ec94d6c3fad1e23dbb9eeed4995c0e",
+  "generatedAt": "2026-09-13T16:02:44.0000000+00:00",
+  "sourceRevision": "9c1ac58d342b3e4946cc865c614d36ef772831d1",
   "entries": [
     {
       "id": "hkmod:AbsRad Configurable Attacks",
@@ -136,7 +136,7 @@
     {
       "id": "hkmod:Architect",
       "addedAt": "2025-06-17T15:45:52.0000000+00:00",
-      "updatedAt": "2026-09-07T02:09:47.0000000+00:00"
+      "updatedAt": "2026-09-08T20:54:56.0000000+00:00"
     },
     {
       "id": "hkmod:ArchitectLegacy",
@@ -1214,6 +1214,11 @@
       "updatedAt": "2025-05-01T15:21:07.0000000+00:00"
     },
     {
+      "id": "hkmod:GeoOverHud",
+      "addedAt": "2026-09-13T15:56:09.0000000+00:00",
+      "updatedAt": "2026-09-13T15:56:09.0000000+00:00"
+    },
+    {
       "id": "hkmod:GeoPots",
       "addedAt": "2025-10-29T10:51:30.0000000+00:00",
       "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
@@ -1669,6 +1674,11 @@
       "updatedAt": "2026-02-21T21:58:56.0000000+00:00"
     },
     {
+      "id": "hkmod:Instawings Helper",
+      "addedAt": "2026-09-08T21:00:18.0000000+00:00",
+      "updatedAt": "2026-09-08T21:00:18.0000000+00:00"
+    },
+    {
       "id": "hkmod:IntangibleShadow",
       "addedAt": "2025-01-31T15:42:11.0000000+00:00",
       "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
@@ -1741,7 +1751,7 @@
     {
       "id": "hkmod:Knight of Nights",
       "addedAt": "2026-01-12T09:20:40.0000000+00:00",
-      "updatedAt": "2026-08-07T15:30:00.0000000+00:00"
+      "updatedAt": "2026-09-10T07:51:17.0000000+00:00"
     },
     {
       "id": "hkmod:Konpanion",
@@ -2026,7 +2036,7 @@
     {
       "id": "hkmod:MoreDoors",
       "addedAt": "2022-09-22T04:44:55.0000000+00:00",
-      "updatedAt": "2026-08-28T18:01:05.0000000+00:00"
+      "updatedAt": "2026-09-10T07:51:17.0000000+00:00"
     },
     {
       "id": "hkmod:MoreHealing",
@@ -2206,7 +2216,7 @@
     {
       "id": "hkmod:Noclip Accuracy",
       "addedAt": "2026-06-01T21:23:03.0000000+00:00",
-      "updatedAt": "2026-06-01T21:23:03.0000000+00:00"
+      "updatedAt": "2026-09-13T15:58:20.0000000+00:00"
     },
     {
       "id": "hkmod:Nosk God",
@@ -2641,7 +2651,7 @@
     {
       "id": "hkmod:RespawnPoint Manager",
       "addedAt": "2026-06-01T21:23:03.0000000+00:00",
-      "updatedAt": "2026-08-19T12:46:44.0000000+00:00"
+      "updatedAt": "2026-09-13T16:02:44.0000000+00:00"
     },
     {
       "id": "hkmod:Restore NKG Title Card",
@@ -2694,6 +2704,11 @@
       "updatedAt": "2026-05-10T16:24:32.0000000+00:00"
     },
     {
+      "id": "hkmod:SOCD Cleaner",
+      "addedAt": "2026-09-08T20:55:57.0000000+00:00",
+      "updatedAt": "2026-09-08T20:55:57.0000000+00:00"
+    },
+    {
       "id": "hkmod:STFUGrimmChild",
       "addedAt": "2023-03-11T22:00:23.0000000+00:00",
       "updatedAt": "2023-03-11T22:34:56.0000000+00:00"
@@ -2716,7 +2731,7 @@
     {
       "id": "hkmod:Scattered and Lost",
       "addedAt": "2025-03-08T22:17:44.0000000+00:00",
-      "updatedAt": "2026-08-28T18:01:05.0000000+00:00"
+      "updatedAt": "2026-09-11T17:58:01.0000000+00:00"
     },
     {
       "id": "hkmod:Scatternest",
@@ -2926,7 +2941,7 @@
     {
       "id": "hkmod:Spell Counter",
       "addedAt": "2026-06-01T21:23:03.0000000+00:00",
-      "updatedAt": "2026-06-01T21:23:03.0000000+00:00"
+      "updatedAt": "2026-09-13T15:59:30.0000000+00:00"
     },
     {
       "id": "hkmod:SpellChanger",
