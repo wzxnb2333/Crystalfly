@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-13T16:02:44.0000000+00:00",
-  "sourceRevision": "9c1ac58d342b3e4946cc865c614d36ef772831d1",
+  "generatedAt": "2026-09-18T21:11:09.0000000+00:00",
+  "sourceRevision": "5e3e993d5fec9b783752d0e700025718832a5375",
   "entries": [
     {
       "id": "hkmod:AbsRad Configurable Attacks",
@@ -136,7 +136,7 @@
     {
       "id": "hkmod:Architect",
       "addedAt": "2025-06-17T15:45:52.0000000+00:00",
-      "updatedAt": "2026-09-08T20:54:56.0000000+00:00"
+      "updatedAt": "2026-09-17T15:09:10.0000000+00:00"
     },
     {
       "id": "hkmod:ArchitectLegacy",
@@ -1039,6 +1039,11 @@
       "updatedAt": "2025-10-25T11:34:48.0000000+00:00"
     },
     {
+      "id": "hkmod:FasterAnimators",
+      "addedAt": "2026-09-17T15:12:22.0000000+00:00",
+      "updatedAt": "2026-09-17T15:12:22.0000000+00:00"
+    },
+    {
       "id": "hkmod:FasterIntroSkip",
       "addedAt": "2025-03-03T22:33:29.0000000+00:00",
       "updatedAt": "2025-03-03T22:33:29.0000000+00:00"
@@ -1419,6 +1424,11 @@
       "updatedAt": "2022-10-07T15:27:40.0000000+00:00"
     },
     {
+      "id": "hkmod:HKMP.Timer",
+      "addedAt": "2026-09-15T20:34:33.0000000+00:00",
+      "updatedAt": "2026-09-15T20:34:33.0000000+00:00"
+    },
+    {
       "id": "hkmod:HKMP.VoiceChat",
       "addedAt": "2025-07-26T18:09:44.0000000+00:00",
       "updatedAt": "2026-05-05T10:13:51.0000000+00:00"
@@ -1751,7 +1761,7 @@
     {
       "id": "hkmod:Knight of Nights",
       "addedAt": "2026-01-12T09:20:40.0000000+00:00",
-      "updatedAt": "2026-09-10T07:51:17.0000000+00:00"
+      "updatedAt": "2026-09-15T20:42:20.0000000+00:00"
     },
     {
       "id": "hkmod:Konpanion",
@@ -2071,7 +2081,7 @@
     {
       "id": "hkmod:MoreStags",
       "addedAt": "2026-02-22T00:17:04.0000000+00:00",
-      "updatedAt": "2026-09-04T14:29:32.0000000+00:00"
+      "updatedAt": "2026-09-18T21:11:09.0000000+00:00"
     },
     {
       "id": "hkmod:MossBeast",
@@ -2249,6 +2259,11 @@
       "updatedAt": "2024-07-11T14:44:06.0000000+00:00"
     },
     {
+      "id": "hkmod:OneShot PvP",
+      "addedAt": "2026-09-15T20:22:32.0000000+00:00",
+      "updatedAt": "2026-09-15T20:22:32.0000000+00:00"
+    },
+    {
       "id": "hkmod:OnlyBosses",
       "addedAt": "2025-08-03T18:26:49.0000000+00:00",
       "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
@@ -2351,7 +2366,7 @@
     {
       "id": "hkmod:PlatformingQoL",
       "addedAt": "2025-07-02T18:52:39.0000000+00:00",
-      "updatedAt": "2025-12-27T18:32:05.0000000+00:00"
+      "updatedAt": "2026-09-15T20:40:49.0000000+00:00"
     },
     {
       "id": "hkmod:PlayerDataManager",
