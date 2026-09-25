@@ -12,6 +12,26 @@ public sealed class DownloadQueueServiceTests : IDisposable
         Path.GetTempPath(), "Crystalfly.Tests", Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public async Task Initialize_can_retry_after_store_write_failure_without_stranding_groups()
+    {
+        await WriteStoredGroupsAsync([Group("resume", "feature")], CancellationToken.None);
+        var executor = new ControlledExecutor();
+        await using var queue = CreateQueue(executor);
+        using (var lockedStore = new FileStream(
+            Path.Combine(root, "download-queue.json"), FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            await Assert.ThrowsAnyAsync<IOException>(() => queue.InitializeAsync());
+        }
+
+        Assert.Empty(queue.Groups);
+        await queue.InitializeAsync();
+        await queue.WaitForIdleAsync().WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(DownloadQueueGroupState.Completed, Assert.Single(queue.Groups).State);
+        Assert.Equal(1, executor.StartedTransfers);
+    }
+
+    [Fact]
     public async Task Independent_groups_use_at_most_three_concurrent_network_transfers()
     {
         var executor = new ControlledExecutor(blockTransfers: true);

@@ -34,12 +34,14 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
     private readonly string? snapshotId;
     private string originalJson = string.Empty;
     private string currentSlot = string.Empty;
+    private int slotLoadVersion;
 
     [ObservableProperty]
     public partial IReadOnlyList<SaveEntryViewModel> Entries { get; set; } = [];
     public ObservableCollection<string> Slots { get; } = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSave))]
     public partial bool IsLoaded { get; set; }
 
     [ObservableProperty]
@@ -52,7 +54,7 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
     [ObservableProperty]
     public partial string? SelectedSlot { get; set; }
 
-    public bool CanSave => IsDirty;
+    public bool CanSave => IsLoaded && IsDirty;
 
     public SaveEditorViewModel(
         NamedSnapshotService snapshotService,
@@ -99,6 +101,8 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
     {
         if (string.Equals(slot, currentSlot, StringComparison.OrdinalIgnoreCase))
         {
+            slotLoadVersion++;
+            IsLoaded = true;
             return;
         }
 
@@ -108,11 +112,19 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
     [RelayCommand]
     private async Task SaveAsync(CancellationToken cancellationToken)
     {
+        if (!CanSave)
+        {
+            return;
+        }
+        var version = slotLoadVersion;
         var entries = Entries.Select(entry => entry.ToEntry()).ToArray();
         var json = SaveGameEditor.Rebuild(originalJson, entries);
         await snapshotService.UpdateSaveAsync(instanceId, snapshotId, currentSlot, json, cancellationToken);
-        originalJson = json;
-        IsDirty = false;
+        if (version == slotLoadVersion)
+        {
+            originalJson = json;
+            IsDirty = !Entries.Select(entry => entry.ToEntry()).SequenceEqual(entries);
+        }
     }
 
     [RelayCommand]
@@ -126,32 +138,61 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
 
     private async Task LoadSlotAsync(string slot, CancellationToken cancellationToken)
     {
-        currentSlot = slot;
+        var version = ++slotLoadVersion;
         IsLoaded = false;
         var service = snapshotService;
         var instId = instanceId;
         var snapId = snapshotId;
-        var (json, viewModels) = await Task.Run(() =>
+        try
         {
-            var decrypted = service.DecryptSaveAsync(instId, snapId, slot, cancellationToken)
-                .GetAwaiter().GetResult();
-            var flattened = SaveGameEditor.Flatten(decrypted);
-            var vms = new SaveEntryViewModel[flattened.Count];
-            for (var i = 0; i < flattened.Count; i++)
+            var (json, viewModels) = await Task.Run(() =>
             {
-                vms[i] = new SaveEntryViewModel(flattened[i]);
+                var decrypted = service.DecryptSaveAsync(instId, snapId, slot, cancellationToken)
+                    .GetAwaiter().GetResult();
+                var flattened = SaveGameEditor.Flatten(decrypted);
+                var vms = new SaveEntryViewModel[flattened.Count];
+                for (var i = 0; i < flattened.Count; i++)
+                {
+                    vms[i] = new SaveEntryViewModel(flattened[i]);
+                }
+
+                return (decrypted, vms);
+            }, cancellationToken);
+            if (version != slotLoadVersion)
+            {
+                return;
             }
-
-            return (decrypted, vms);
-        }, cancellationToken);
-        originalJson = json;
-        foreach (var vm in viewModels)
-        {
-            vm.PropertyChanged += (_, _) => IsDirty = true;
+            foreach (var vm in Entries)
+            {
+                vm.PropertyChanged -= OnEntryPropertyChanged;
+            }
+            currentSlot = slot;
+            originalJson = json;
+            foreach (var vm in viewModels)
+            {
+                vm.PropertyChanged += OnEntryPropertyChanged;
+            }
+            Entries = viewModels;
+            SelectedSlot = slot;
+            IsDirty = false;
         }
-
-        Entries = viewModels;
-        IsDirty = false;
-        IsLoaded = true;
+        catch
+        {
+            if (version == slotLoadVersion)
+            {
+                SelectedSlot = string.IsNullOrEmpty(currentSlot) ? null : currentSlot;
+            }
+            throw;
+        }
+        finally
+        {
+            if (version == slotLoadVersion)
+            {
+                IsLoaded = !string.IsNullOrEmpty(currentSlot);
+            }
+        }
     }
+
+    private void OnEntryPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args) =>
+        IsDirty = true;
 }

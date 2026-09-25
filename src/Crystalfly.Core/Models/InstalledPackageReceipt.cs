@@ -21,6 +21,8 @@ public sealed record InstalledPackageReceipt
 
     public bool IsVerified { get; init; } = true;
 
+    public IReadOnlyList<string> SupportedBuildIds { get; init; } = [];
+
     public string BackupRoot { get; init; } = string.Empty;
 
     public IReadOnlyList<InstalledFileReceipt> Files { get; init; } = [];

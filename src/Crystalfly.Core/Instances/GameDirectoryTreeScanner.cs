@@ -104,6 +104,15 @@ public sealed class GameDirectoryTreeScanner
             {
                 continue;
             }
+            try
+            {
+                InstanceDirectory.RejectReparseAncestors(path);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                skipped.Add(path);
+                continue;
+            }
 
             // Fast pre-check: only directories that contain a hollow_knight_Data
             // sibling can be game roots, so skip the full integrity inspect

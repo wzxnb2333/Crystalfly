@@ -16,14 +16,32 @@ public static class InstanceSidecar
         InstanceRecord record,
         CancellationToken cancellationToken = default)
     {
-        await AtomicJsonStore.WriteAsync(GetMetadataPath(record.RootPath, record.Id), record, cancellationToken);
+        var metadataPath = GetMetadataPath(record.RootPath, record.Id);
+        ValidatePath(metadataPath);
+        ValidatePath(GetMarkerPath(record.RootPath));
+        await AtomicJsonStore.WriteAsync(metadataPath, record, cancellationToken);
+        var marker = new InstanceMarker { InstanceId = record.Id };
         await AtomicJsonStore.WriteAsync(
             GetMarkerPath(record.RootPath),
-            new InstanceMarker { InstanceId = record.Id },
+            marker,
+            cancellationToken);
+        // A marker backup must identify this instance, not the original instance
+        // whose marker may have been copied into this game directory.
+        await AtomicJsonStore.WriteAsync(
+            GetMarkerPath(record.RootPath),
+            marker,
             cancellationToken);
     }
 
     public static async Task<InstanceRecord?> LoadAsync(
+        string instanceRoot,
+        CancellationToken cancellationToken = default)
+    {
+        var record = await LoadStoredAsync(instanceRoot, cancellationToken);
+        return record is null ? null : record with { RootPath = Path.GetFullPath(instanceRoot) };
+    }
+
+    internal static async Task<InstanceRecord?> LoadStoredAsync(
         string instanceRoot,
         CancellationToken cancellationToken = default)
     {
@@ -33,7 +51,8 @@ public static class InstanceSidecar
             return null;
         }
         var metadataPath = GetMetadataPath(instanceRoot, marker.InstanceId);
-        if (!File.Exists(metadataPath))
+        ValidatePath(metadataPath);
+        if (!File.Exists(metadataPath) && !File.Exists(metadataPath + ".bak"))
         {
             return null;
         }
@@ -42,7 +61,11 @@ public static class InstanceSidecar
         {
             throw new InvalidDataException("Instance marker and metadata IDs do not match.");
         }
-        return record with { RootPath = Path.GetFullPath(instanceRoot) };
+        if (record.SchemaVersion != InstanceRecord.CurrentSchemaVersion)
+        {
+            throw new InvalidDataException("Unsupported instance metadata schema version.");
+        }
+        return record;
     }
 
     public static async Task<string?> ReadMarkerInstanceIdAsync(
@@ -58,11 +81,23 @@ public static class InstanceSidecar
         CancellationToken cancellationToken)
     {
         var markerPath = GetMarkerPath(instanceRoot);
-        if (!File.Exists(markerPath))
+        ValidatePath(markerPath);
+        if (!File.Exists(markerPath) && !File.Exists(markerPath + ".bak"))
         {
             return null;
         }
-        return await AtomicJsonStore.ReadAsync<InstanceMarker>(markerPath, cancellationToken);
+        var marker = await AtomicJsonStore.ReadAsync<InstanceMarker>(markerPath, cancellationToken);
+        if (marker.SchemaVersion != 1)
+        {
+            throw new InvalidDataException("Unsupported instance marker schema version.");
+        }
+        return marker;
+    }
+
+    private static void ValidatePath(string path)
+    {
+        InstanceDirectory.RejectReparseAncestors(path);
+        InstanceDirectory.RejectReparseAncestors(path + ".bak");
     }
 
     public static string GetMarkerPath(string instanceRoot) =>

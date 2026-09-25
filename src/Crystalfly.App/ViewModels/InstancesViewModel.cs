@@ -371,7 +371,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
         if (SelectedGameDirectory is not null)
         {
             SelectedGameDirectory.InstanceCount = Instances.Count;
-            SelectedGameDirectory.ScanStatus = dependencies.Loc()["ScanReady"];
+            UpdateActiveDirectoryScanStatus();
         }
         _ = RefreshInactiveGameDirectoriesAsync();
         if (dependencies.AutoRequestGameDirectoryDiscovery && IsGameDirectoryDiscoveryRequired)
@@ -395,9 +395,11 @@ public sealed partial class InstancesViewModel : ViewModelBase
         GameDirectoryItemViewModel directory,
         int selectionVersion)
     {
-        await gameDirectoryActivationGate.WaitAsync(dependencies.LifetimeCancellation);
+        var entered = false;
         try
         {
+            await gameDirectoryActivationGate.WaitAsync(dependencies.LifetimeCancellation);
+            entered = true;
             if (selectionVersion != Volatile.Read(ref gameDirectorySelectionVersion))
             {
                 return;
@@ -411,13 +413,23 @@ public sealed partial class InstancesViewModel : ViewModelBase
             dependencies.QueueSettingsSave();
             await dependencies.RefreshInstances();
             directory.InstanceCount = Instances.Count;
-            directory.ScanStatus = Directory.Exists(directory.Path)
-                ? dependencies.Loc()["ScanReady"]
-                : dependencies.Loc()["ScanFailed"];
+            UpdateActiveDirectoryScanStatus();
+        }
+        catch (OperationCanceledException) when (dependencies.LifetimeCancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or InvalidDataException or ArgumentException or System.Text.Json.JsonException)
+        {
+            directory.ScanStatus = dependencies.Loc()["ScanFailed"];
+            dependencies.SetErrorMessage(dependencies.Loc().ErrorMessageFor(exception));
         }
         finally
         {
-            gameDirectoryActivationGate.Release();
+            if (entered)
+            {
+                gameDirectoryActivationGate.Release();
+            }
         }
     }
 
@@ -497,8 +509,16 @@ public sealed partial class InstancesViewModel : ViewModelBase
                 SteamDirectoryRiskRequested?.Invoke(item);
                 break;
             }
-            await RegisterGameDirectoryAsync(item.Candidate, steamRiskAccepted: false);
-            GameDirectoryCandidates.Remove(item);
+            try
+            {
+                await RegisterGameDirectoryAsync(item.Candidate, steamRiskAccepted: false);
+                GameDirectoryCandidates.Remove(item);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                or InvalidDataException or ArgumentException)
+            {
+                dependencies.SetErrorMessage(dependencies.Loc().ErrorMessageFor(exception));
+            }
         }
     }
 
@@ -534,6 +554,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
             {
                 throw new InvalidOperationException(dependencies.Loc()["MigrationBlockedByDownload"]);
             }
+            InstanceDirectory.RejectReparseAncestors(dependencies.GetVersionDataRoot(sourceVersionRoot));
             var recoveries = await FileTransaction.RecoverPendingAsync(
                 Path.Combine(dependencies.GetVersionDataRoot(sourceVersionRoot), "transactions"),
                 cancellationToken);
@@ -548,23 +569,16 @@ public sealed partial class InstancesViewModel : ViewModelBase
         }
 
         GameDirectoryMigrationResult result;
-        if (File.Exists(InstanceSidecar.GetMarkerPath(source)))
+        var record = await InstanceSidecar.LoadAsync(source, dependencies.LifetimeCancellation);
+        if (record is not null)
         {
-            var record = await InstanceSidecar.LoadAsync(source, dependencies.LifetimeCancellation);
             GameDirectoryMigrationResult? coordinatedResult = null;
-            if (record is null)
-            {
-                result = await MigrateCoreAsync(dependencies.LifetimeCancellation);
-            }
-            else
-            {
-                await dependencies.RunCoordinated(
-                    record.Id,
-                    async cancellationToken => coordinatedResult = await MigrateCoreAsync(cancellationToken),
-                    dependencies.LifetimeCancellation);
-                result = coordinatedResult
-                    ?? throw new InvalidOperationException(dependencies.Loc()["OperationFailed"]);
-            }
+            await dependencies.RunCoordinated(
+                record.Id,
+                async cancellationToken => coordinatedResult = await MigrateCoreAsync(cancellationToken),
+                dependencies.LifetimeCancellation);
+            result = coordinatedResult
+                ?? throw new InvalidOperationException(dependencies.Loc()["OperationFailed"]);
         }
         else
         {
@@ -595,6 +609,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
             Source = candidate.Source,
             SteamRiskAccepted = steamRiskAccepted
         };
+        InstanceDirectory.PrepareRegistration(instancePath);
         var existing = GameDirectories.FirstOrDefault(directory =>
             string.Equals(directory.Path, registration.Path, StringComparison.OrdinalIgnoreCase));
         if (existing is null)
@@ -613,11 +628,6 @@ public sealed partial class InstancesViewModel : ViewModelBase
             GameDirectoryDiscoveryCompleted = true,
             VersionRoot = registration.Path
         });
-        // A newly registered version root must carry its .crystalfly metadata root
-        // (instances, downloads, transactions) before any scan or queue touches it;
-        // a brand-new user adding their first game directory would otherwise fail
-        // to install a game version into the directory.
-        Directory.CreateDirectory(dependencies.GetVersionDataRoot(registration.Path));
         foreach (var pending in GameDirectoryCandidates
                      .Where(item => string.Equals(
                          Directory.GetParent(item.Path)?.FullName,
@@ -662,7 +672,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
         {
             await dependencies.RefreshInstances();
             SelectedGameDirectory.InstanceCount = Instances.Count;
-            SelectedGameDirectory.ScanStatus = dependencies.Loc()["ScanReady"];
+            UpdateActiveDirectoryScanStatus();
         }
         OnPropertyChanged(nameof(IsGameDirectoryDiscoveryRequired));
     }
@@ -677,7 +687,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
             SelectedGameDirectory.ScanStatus = dependencies.Loc()["Scanning"];
             await dependencies.RefreshInstances();
             SelectedGameDirectory.InstanceCount = Instances.Count;
-            SelectedGameDirectory.ScanStatus = dependencies.Loc()["ScanReady"];
+            UpdateActiveDirectoryScanStatus();
         }
         await RefreshInactiveGameDirectoriesAsync();
     }
@@ -694,7 +704,10 @@ public sealed partial class InstancesViewModel : ViewModelBase
                     dependencies.GetCatalog(),
                     dependencies.LifetimeCancellation);
                 directory.InstanceCount = records.Count;
-                directory.ScanStatus = dependencies.Loc()["ScanReady"];
+                directory.ScanStatus = dependencies.Loc()[
+                    records is InstanceDiscoveryResult { Issues.Count: > 0 }
+                        ? records.Count > 0 ? "ScanPartial" : "ScanFailed"
+                        : "ScanReady"];
             }
             catch (OperationCanceledException) when (dependencies.LifetimeCancellation.IsCancellationRequested)
             {
@@ -705,6 +718,20 @@ public sealed partial class InstancesViewModel : ViewModelBase
                 directory.ScanStatus = dependencies.Loc()["ScanFailed"];
             }
         }
+    }
+
+    internal void UpdateActiveDirectoryScanStatus()
+    {
+        if (SelectedGameDirectory is not { } directory)
+        {
+            return;
+        }
+        directory.InstanceCount = Instances.Count;
+        directory.ScanStatus = dependencies.Loc()[!Directory.Exists(directory.Path)
+            ? "ScanFailed"
+            : !string.IsNullOrWhiteSpace(dependencies.GetErrorMessage())
+                ? Instances.Count > 0 ? "ScanPartial" : "ScanFailed"
+                : "ScanReady"];
     }
 
     internal void RefreshGameDirectoryLabels()

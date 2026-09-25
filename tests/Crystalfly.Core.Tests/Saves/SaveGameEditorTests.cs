@@ -4,6 +4,72 @@ namespace Crystalfly.Core.Tests.Saves;
 
 public sealed class SaveGameEditorTests
 {
+    [Theory]
+    [InlineData("9007199254740993")]
+    [InlineData("9223372036854775807")]
+    [InlineData("0.1234567890123456789012345678")]
+    [InlineData("1e400")]
+    public void Rebuild_preserves_exact_json_numbers(string number)
+    {
+        string json = "{\"value\":" + number + "}";
+        SaveEntry entry = Assert.Single(SaveGameEditor.Flatten(json));
+
+        Assert.Equal(number, entry.Value);
+        using var document = System.Text.Json.JsonDocument.Parse(SaveGameEditor.Rebuild(json, [entry]));
+        Assert.Equal(number, document.RootElement.GetProperty("value").GetRawText());
+    }
+
+    [Theory]
+    [InlineData("NaN")]
+    [InlineData("Infinity")]
+    [InlineData("true")]
+    [InlineData("{}")]
+    [InlineData("1,234")]
+    public void Rebuild_rejects_non_json_numeric_input(string value)
+    {
+        Assert.Throws<FormatException>(() => SaveGameEditor.Rebuild(
+            "{\"value\":1}", [new SaveEntry("value", value, SaveEntry.KindNumber)]));
+    }
+
+    [Theory]
+    [InlineData("mod.value")]
+    [InlineData("items[0]")]
+    [InlineData("")]
+    [InlineData("a\\b")]
+    [InlineData("quote\"key")]
+    public void Rebuild_edits_property_names_containing_path_syntax(string key)
+    {
+        string json = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, int> { [key] = 1 });
+        SaveEntry entry = Assert.Single(SaveGameEditor.Flatten(json)) with { Value = "9" };
+
+        using var document = System.Text.Json.JsonDocument.Parse(SaveGameEditor.Rebuild(json, [entry]));
+
+        Assert.Equal(9, document.RootElement.GetProperty(key).GetInt32());
+    }
+
+    [Fact]
+    public void Flatten_distinguishes_literal_keys_from_nested_paths()
+    {
+        const string json = """{"mod.value":1,"mod":{"value":2},"items[0]":3,"items":[4]}""";
+        var entries = SaveGameEditor.Flatten(json);
+
+        Assert.Equal(entries.Count, entries.Select(entry => entry.Path).Distinct().Count());
+        string rebuilt = SaveGameEditor.Rebuild(json, entries);
+        Assert.True(System.Text.Json.Nodes.JsonNode.DeepEquals(
+            System.Text.Json.Nodes.JsonNode.Parse(json), System.Text.Json.Nodes.JsonNode.Parse(rebuilt)));
+    }
+
+    [Fact]
+    public void Rebuild_preserves_quoted_keys_with_nested_arrays_objects_and_null_values()
+    {
+        const string json = """{"mod.value":[{"a[b]":{"":null,"plain":2},"quote\"key":3}]}""";
+        var entries = SaveGameEditor.Flatten(json).ToArray();
+        string rebuilt = SaveGameEditor.Rebuild(json, entries);
+
+        Assert.True(System.Text.Json.Nodes.JsonNode.DeepEquals(
+            System.Text.Json.Nodes.JsonNode.Parse(json), System.Text.Json.Nodes.JsonNode.Parse(rebuilt)));
+    }
+
     [Fact]
     public void Flatten_produces_dot_paths_for_nested_objects()
     {
@@ -13,7 +79,7 @@ public sealed class SaveGameEditorTests
 
         Assert.Contains(entries, e => e.Path == "player.health" && e.Value == "5" && e.Kind == SaveEntry.KindNumber);
         Assert.Contains(entries, e => e.Path == "player.position.x" && e.Value == "1.5" && e.Kind == SaveEntry.KindNumber);
-        Assert.Contains(entries, e => e.Path == "player.position.y" && e.Value == "2" && e.Kind == SaveEntry.KindNumber);
+        Assert.Contains(entries, e => e.Path == "player.position.y" && e.Value == "2.0" && e.Kind == SaveEntry.KindNumber);
     }
 
     [Fact]

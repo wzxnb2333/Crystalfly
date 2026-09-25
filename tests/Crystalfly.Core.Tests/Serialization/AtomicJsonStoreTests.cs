@@ -34,6 +34,24 @@ public sealed class AtomicJsonStoreTests : IDisposable
         Assert.Equal(recoverable, await AtomicJsonStore.ReadAsync<InstanceRecord>(path));
     }
 
+    [Fact]
+    public async Task Read_uses_backup_when_main_file_is_missing()
+    {
+        var path = Path.Combine(directory, "instance.json");
+        var recoverable = CreateInstance("recoverable");
+        await AtomicJsonStore.WriteAsync(path + ".bak", recoverable);
+
+        Assert.Equal(recoverable, await AtomicJsonStore.ReadAsync<InstanceRecord>(path));
+    }
+
+    [Fact]
+    public async Task Read_preserves_missing_file_error_without_backup()
+    {
+        Directory.CreateDirectory(directory);
+        await Assert.ThrowsAsync<FileNotFoundException>(() =>
+            AtomicJsonStore.ReadAsync<InstanceRecord>(Path.Combine(directory, "missing.json")));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(directory))

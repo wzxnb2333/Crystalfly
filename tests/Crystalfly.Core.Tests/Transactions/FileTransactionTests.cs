@@ -661,6 +661,130 @@ public sealed class FileTransactionTests
         Assert.True(File.Exists(journalPath));
     }
 
+    [Theory]
+    [InlineData(TransactionState.Committed)]
+    [InlineData(TransactionState.RolledBack)]
+    public async Task RecoverPending_never_cleans_unvalidated_restore_point(TransactionState state)
+    {
+        using var test = new TestDirectory();
+        var target = test.CreateDirectory("target");
+        var outside = test.CreateDirectory("outside");
+        await File.WriteAllTextAsync(Path.Combine(outside, "keep.txt"), "user-data");
+        var journals = test.CreateDirectory("journals");
+        var restorePoint = test.CreateDirectory("journals", "tx-invalid-cleanup");
+        var journalPath = Path.Combine(restorePoint, "journal.json");
+        await AtomicJsonStore.WriteAsync(journalPath, new TransactionJournal
+        {
+            Id = "tx-invalid-cleanup",
+            Operation = "install-package",
+            State = state,
+            CreatedAt = DateTimeOffset.UtcNow,
+            RootPath = target,
+            RestorePointPath = outside
+        });
+
+        var result = Assert.Single(await FileTransaction.RecoverPendingAsync(journals));
+
+        Assert.Equal(TransactionState.NeedsAttention, result.State);
+        Assert.Equal("user-data", await File.ReadAllTextAsync(Path.Combine(outside, "keep.txt")));
+        Assert.True(File.Exists(journalPath));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RecoverPending_reads_only_top_level_journal_and_accepts_backup(bool missingPrimary)
+    {
+        using var test = new TestDirectory();
+        var target = test.CreateDirectory("target");
+        var journals = test.CreateDirectory("journals");
+        var restorePoint = test.CreateDirectory("journals", "tx-program-json");
+        var backup = test.CreateDirectory("journals", "tx-program-json", "backup");
+        await File.WriteAllTextAsync(Path.Combine(target, "journal.json"), "new-data");
+        await File.WriteAllTextAsync(Path.Combine(backup, "journal.json"), "old-data");
+        var journalPath = Path.Combine(restorePoint, "journal.json");
+        await AtomicJsonStore.WriteAsync(missingPrimary ? journalPath + ".bak" : journalPath, new TransactionJournal
+        {
+            Id = "tx-program-json",
+            Operation = "install-package",
+            State = TransactionState.Applying,
+            CreatedAt = DateTimeOffset.UtcNow,
+            RootPath = target,
+            RestorePointPath = restorePoint,
+            Changes = [new TransactionFileChange
+            {
+                RelativePath = "journal.json",
+                BackupRelativePath = "backup/journal.json",
+                OriginalSha256 = Sha256("old-data"),
+                AppliedSha256 = Sha256("new-data")
+            }]
+        });
+
+        var result = Assert.Single(await FileTransaction.RecoverPendingAsync(journals));
+
+        Assert.Equal(TransactionState.RolledBack, result.State);
+        Assert.Equal("old-data", await File.ReadAllTextAsync(Path.Combine(target, "journal.json")));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(journals));
+    }
+
+    [Fact]
+    public async Task RecoverPending_rejects_target_link_before_any_rollback_mutation()
+    {
+        using var test = new TestDirectory();
+        var target = test.CreateDirectory("target");
+        var outside = test.CreateDirectory("outside");
+        test.CreateDirectoryLink(outside, "target", "slot");
+        var journals = test.CreateDirectory("journals");
+        var restorePoint = test.CreateDirectory("journals", "tx-linked");
+        var backup = test.CreateDirectory("journals", "tx-linked", "backup");
+        await File.WriteAllTextAsync(Path.Combine(outside, "existing.txt"), "external");
+        await File.WriteAllTextAsync(Path.Combine(target, "added.txt"), "added");
+        await File.WriteAllTextAsync(Path.Combine(backup, "existing.txt"), "old");
+        await AtomicJsonStore.WriteAsync(Path.Combine(restorePoint, "journal.json"), new TransactionJournal
+        {
+            Id = "tx-linked",
+            Operation = "install-package",
+            State = TransactionState.Applying,
+            CreatedAt = DateTimeOffset.UtcNow,
+            RootPath = target,
+            RestorePointPath = restorePoint,
+            Changes =
+            [
+                new TransactionFileChange
+                {
+                    RelativePath = "slot/existing.txt",
+                    BackupRelativePath = "backup/existing.txt",
+                    OriginalSha256 = Sha256("old"),
+                    AppliedSha256 = Sha256("external")
+                },
+                new TransactionFileChange { RelativePath = "added.txt", AppliedSha256 = Sha256("added") }
+            ]
+        });
+
+        var result = Assert.Single(await FileTransaction.RecoverPendingAsync(journals));
+
+        Assert.Equal(TransactionState.NeedsAttention, result.State);
+        Assert.Equal("external", await File.ReadAllTextAsync(Path.Combine(outside, "existing.txt")));
+        Assert.Equal("added", await File.ReadAllTextAsync(Path.Combine(target, "added.txt")));
+    }
+
+    [Fact]
+    public async Task ApplyDirectory_rejects_linked_journal_root_before_writing()
+    {
+        using var test = new TestDirectory();
+        var staging = test.CreateDirectory("staging");
+        var target = test.CreateDirectory("target");
+        var outside = test.CreateDirectory("outside");
+        var journals = test.CreateDirectoryLink(outside, "journals");
+        await File.WriteAllTextAsync(Path.Combine(staging, "new.txt"), "new");
+
+        await Assert.ThrowsAsync<IOException>(() =>
+            FileTransaction.ApplyDirectoryAsync(staging, target, journals, "install-package"));
+
+        Assert.Empty(Directory.EnumerateFileSystemEntries(target));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(outside));
+    }
+
     private static string Sha256(string value) =>
         Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(value)));
 

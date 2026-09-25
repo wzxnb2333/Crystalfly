@@ -9,6 +9,24 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
     private readonly string root = Path.Combine(Path.GetTempPath(), $"crystalfly-settings-{Guid.NewGuid():N}");
 
     [Fact]
+    public async Task Load_recovers_settings_when_only_backup_remains()
+    {
+        string path = Path.Combine(root, "settings.json");
+        await CrystalflySettingsStore.SaveAsync(path + ".bak", new CrystalflySettings
+        {
+            Language = UiLanguage.SimplifiedChinese,
+            Theme = UiTheme.Dark,
+            CurrentInstanceId = "saved-instance"
+        });
+
+        var settings = await CrystalflySettingsStore.LoadAsync(path);
+
+        Assert.Equal(UiLanguage.SimplifiedChinese, settings.Language);
+        Assert.Equal(UiTheme.Dark, settings.Theme);
+        Assert.Equal("saved-instance", settings.CurrentInstanceId);
+    }
+
+    [Fact]
     public async Task Load_returns_defaults_then_round_trips_saved_settings()
     {
         var path = Path.Combine(root, "settings.json");

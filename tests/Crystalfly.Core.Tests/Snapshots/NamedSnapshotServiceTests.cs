@@ -229,6 +229,63 @@ public sealed class NamedSnapshotServiceTests
             service.UpdateSaveAsync("practice", snapshotId: null, relativePath, "{}"));
     }
 
+    [Fact]
+    public async Task UpdateSave_rolls_back_snapshot_data_when_metadata_write_fails()
+    {
+        using var test = new TestDirectory();
+        var storage = test.CreateDirectory("storage");
+        var instance = test.CreateDirectory("storage", "instances", "practice", "local-low");
+        await Crystalfly.Core.Saves.SaveFileCodec.EncryptAsync(Path.Combine(instance, "user1.dat"), "{\"health\":5}");
+        var service = CreateService(storage);
+        var snapshot = await service.CreateAsync("practice", "Before edit");
+        var metadataPath = Path.Combine(Path.GetDirectoryName(snapshot.SnapshotPath)!, "snapshot.json");
+        using (var lockedMetadata = new FileStream(metadataPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            await Assert.ThrowsAnyAsync<IOException>(() =>
+                service.UpdateSaveAsync("practice", snapshot.Id, "user1.dat", "{\"health\":9}"));
+        }
+
+        Assert.Equal("{\"health\":5}", await service.DecryptSaveAsync("practice", snapshot.Id, "user1.dat"));
+        Assert.Equal(snapshot, Assert.Single(await service.ListAsync("practice")));
+        await service.RestoreAsync("practice", snapshot.Id);
+    }
+
+    [Fact]
+    public async Task UpdateSave_rejects_linked_slot_without_overwriting_external_file()
+    {
+        using var test = new TestDirectory();
+        var storage = test.CreateDirectory("storage");
+        var instance = test.CreateDirectory("storage", "instances", "practice", "local-low");
+        var outside = test.CreateDirectory("outside");
+        var externalFile = Path.Combine(outside, "user1.dat");
+        await File.WriteAllTextAsync(externalFile, "external-save");
+        File.CreateSymbolicLink(Path.Combine(instance, "user1.dat"), externalFile);
+
+        await Assert.ThrowsAsync<IOException>(() =>
+            CreateService(storage).UpdateSaveAsync("practice", null, "user1.dat", "{}"));
+
+        Assert.Equal("external-save", await File.ReadAllTextAsync(externalFile));
+    }
+
+    [Fact]
+    public async Task UpdateSave_commits_snapshot_data_and_matching_hash_together()
+    {
+        using var test = new TestDirectory();
+        var storage = test.CreateDirectory("storage");
+        var instance = test.CreateDirectory("storage", "instances", "practice", "local-low");
+        await Crystalfly.Core.Saves.SaveFileCodec.EncryptAsync(Path.Combine(instance, "user1.dat"), "{\"health\":5}");
+        await test.WriteAsync(instance, "user2.dat", "untouched");
+        var service = CreateService(storage);
+        var snapshot = await service.CreateAsync("practice", "Editable");
+
+        await service.UpdateSaveAsync("practice", snapshot.Id, "user1.dat", "{\"health\":9}");
+        await service.RestoreAsync("practice", snapshot.Id);
+
+        Assert.Equal("{\"health\":9}", await service.DecryptSaveAsync("practice", null, "user1.dat"));
+        Assert.Equal("untouched", await File.ReadAllTextAsync(Path.Combine(instance, "user2.dat")));
+        Assert.NotEqual(snapshot.Sha256, Assert.Single(await service.ListAsync("practice")).Sha256);
+    }
+
     private static NamedSnapshotService CreateService(string storage) => new(
         storage,
         UniqueMutexName(),

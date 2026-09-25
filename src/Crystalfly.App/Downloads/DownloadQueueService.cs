@@ -126,11 +126,25 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     : [];
             ValidateLoadedGroups(loaded);
             var resumable = loaded.Where(NormalizeLoadedGroup).ToArray();
+            var isOffline = networkPolicy?.IsOffline == true;
+            if (isOffline)
+            {
+                foreach (var group in resumable)
+                {
+                    PauseForNetwork(group);
+                }
+            }
+            if (loaded.Length > 0)
+            {
+                await AtomicJsonStore.WriteAsync(
+                    storePath,
+                    CreatePersistableSnapshot(loaded),
+                    cancellationToken);
+            }
             DownloadQueueGroup[] scheduled;
             lock (sync)
             {
                 groups.AddRange(loaded);
-                var isOffline = networkPolicy?.IsOffline == true;
                 if (!isOffline && resumable.Length > 0)
                 {
                     pendingGroups = resumable.Length;
@@ -142,7 +156,6 @@ public sealed class DownloadQueueService : IAsyncDisposable
                 {
                     foreach (var group in resumable)
                     {
-                        PauseForNetwork(group);
                         networkWaitingGroups.Add(group.Id);
                     }
                     scheduled = [];
@@ -152,13 +165,6 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     scheduled = resumable;
                 }
             }
-            if (loaded.Length > 0)
-            {
-                await AtomicJsonStore.WriteAsync(
-                    storePath,
-                    CreatePersistableSnapshot(loaded),
-                    cancellationToken);
-            }
             foreach (var group in scheduled)
             {
                 lock (sync)
@@ -166,6 +172,10 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     groupCancellations[group.Id] = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
                 }
                 channel.Writer.TryWrite(group);
+            }
+            if (isOffline != (networkPolicy?.IsOffline == true))
+            {
+                ScheduleNetworkStateUpdate();
             }
             notify = true;
         }

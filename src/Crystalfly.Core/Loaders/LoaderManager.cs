@@ -37,10 +37,16 @@ public sealed class LoaderManager
         await LoaderStateDetector.InspectAsync(
             _instanceRoot, await GetReceiptAsync(cancellationToken), cancellationToken);
 
-    public async Task<InstalledPackageReceipt?> GetReceiptAsync(CancellationToken cancellationToken = default) =>
-        File.Exists(_receiptPath)
-            ? await AtomicJsonStore.ReadAsync<InstalledPackageReceipt>(_receiptPath, cancellationToken)
-            : null;
+    public async Task<InstalledPackageReceipt?> GetReceiptAsync(CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(_receiptPath) && !File.Exists(_receiptPath + ".bak"))
+        {
+            return null;
+        }
+        var receipt = await AtomicJsonStore.ReadAsync<InstalledPackageReceipt>(_receiptPath, cancellationToken);
+        LoaderStateDetector.ValidateReceipt(receipt);
+        return receipt;
+    }
 
     public async Task<InstalledPackageReceipt> InstallFromFileAsync(
         LoaderManifest manifest,
@@ -190,6 +196,11 @@ public sealed class LoaderManager
             packageId = "modding-api-external";
             loaderState = LoaderState.ModdingApi;
             var managed = Path.Combine(_instanceRoot, "hollow_knight_Data", "Managed");
+            await AddFileIfExistsAsync(
+                Path.Combine(managed, "Assembly-CSharp.dll"),
+                "hollow_knight_Data/Managed/Assembly-CSharp.dll",
+                files,
+                cancellationToken);
             await AddFileIfExistsAsync(
                 Path.Combine(managed, "MMHOOK_Assembly-CSharp.dll"),
                 "hollow_knight_Data/Managed/MMHOOK_Assembly-CSharp.dll",
@@ -348,6 +359,7 @@ public sealed class LoaderManager
             PackageId = manifest.Id,
             LoaderState = loaderState,
             IsVerified = isVerified,
+            SupportedBuildIds = manifest.SupportedBuildIds,
             BackupRoot = newBackupRoot,
             Files = newFiles
         };

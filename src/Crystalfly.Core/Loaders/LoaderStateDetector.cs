@@ -18,6 +18,10 @@ public static class LoaderStateDetector
         CancellationToken cancellationToken = default)
     {
         instanceRoot = Path.GetFullPath(instanceRoot);
+        if (receipt is not null)
+        {
+            ValidateReceipt(receipt);
+        }
         var managed = Path.Combine(instanceRoot, "hollow_knight_Data", "Managed");
         var bepInExRoot = Path.Combine(instanceRoot, "BepInEx");
         var hasBepInEx = File.Exists(Path.Combine(bepInExRoot, "core", "BepInEx.dll"))
@@ -32,11 +36,12 @@ public static class LoaderStateDetector
                 managed,
                 "MMHOOK_TeamCherry*.dll",
                 SearchOption.TopDirectoryOnly).Any());
-        var hasModdingApiArtifacts = hasModdingApi || HasFiles(Path.Combine(managed, "Mods"));
+        var hasModdingApiArtifacts = hasModdingApi || HasActiveModdingApiFiles(Path.Combine(managed, "Mods"));
 
         if (receipt is not null)
         {
-            if (receipt.LoaderState is not (LoaderState.BepInEx or LoaderState.ModdingApi))
+            if (receipt.LoaderState is not (LoaderState.BepInEx or LoaderState.ModdingApi)
+                || receipt.Files.Count == 0)
             {
                 return Inspection(LoaderState.Drifted, receipt);
             }
@@ -91,12 +96,36 @@ public static class LoaderStateDetector
             };
     }
 
+    internal static void ValidateReceipt(InstalledPackageReceipt receipt)
+    {
+        if (receipt.SchemaVersion != InstalledPackageReceipt.CurrentSchemaVersion
+            || string.IsNullOrWhiteSpace(receipt.PackageId)
+            || receipt.Files is null
+            || receipt.SupportedBuildIds is null
+            || receipt.SupportedBuildIds.Any(string.IsNullOrWhiteSpace))
+        {
+            throw new InvalidDataException("Loader receipt has invalid or unsupported metadata.");
+        }
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in receipt.Files)
+        {
+            if (file is null || string.IsNullOrWhiteSpace(file.RelativePath)
+                || Path.IsPathRooted(file.RelativePath)
+                || file.Sha256 is null || file.Sha256.Length != 64 || !file.Sha256.All(Uri.IsHexDigit)
+                || !paths.Add(file.RelativePath.Replace(Path.DirectorySeparatorChar, '/')))
+            {
+                throw new InvalidDataException("Loader receipt contains an invalid or duplicate file entry.");
+            }
+        }
+    }
+
     private static LoaderInspection Inspection(LoaderState state, InstalledPackageReceipt receipt) => new()
     {
         State = state,
         PackageId = receipt.PackageId,
         Version = PackageVersion(receipt.PackageId),
         IsVerified = receipt.IsVerified,
+        SupportedBuildIds = receipt.SupportedBuildIds,
         Ownership = LoaderOwnership.Managed
     };
 
@@ -119,6 +148,13 @@ public static class LoaderStateDetector
 
     private static bool HasFiles(string path) =>
         Directory.Exists(path) && Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).Any();
+
+    private static bool HasActiveModdingApiFiles(string modsRoot) =>
+        Directory.Exists(modsRoot)
+        && (Directory.EnumerateFiles(modsRoot, "*", SearchOption.TopDirectoryOnly).Any()
+            || Directory.EnumerateDirectories(modsRoot, "*", SearchOption.TopDirectoryOnly)
+                .Where(directory => !string.Equals(Path.GetFileName(directory), "Disabled", StringComparison.OrdinalIgnoreCase))
+                .Any(HasFiles));
 
     private static string? ReadAssemblyVersion(string path)
     {

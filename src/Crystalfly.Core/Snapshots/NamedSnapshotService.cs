@@ -236,29 +236,63 @@ public sealed class NamedSnapshotService
             ? GetInstanceLocalLowPath(instanceId)
             : Path.Combine(GetSnapshotsRoot(instanceId), snapshotId, "data");
         var filePath = ResolveUnderBase(basePath, slotRelativePath);
-        await SaveFileCodec.EncryptAsync(filePath, json, cancellationToken);
-
-        if (snapshotId is not null)
+        var transactionRoot = ResolveUnderBase(storagePath, "transactions");
+        var recoveries = await FileTransaction.RecoverPendingAsync(transactionRoot, cancellationToken);
+        if (recoveries.Any(recovery => recovery.State == TransactionState.NeedsAttention))
         {
-            var snapshotRoot = Path.Combine(GetSnapshotsRoot(instanceId), snapshotId);
-            var metadataPath = Path.Combine(snapshotRoot, "snapshot.json");
-            var snapshot = await AtomicJsonStore.ReadAsync<NamedSnapshot>(metadataPath, cancellationToken);
-            var newHash = await LocalLowDirectory.HashFilesAsync(
-                snapshot.SnapshotPath, includeLogs: false, cancellationToken);
-            await AtomicJsonStore.WriteAsync(
-                metadataPath,
-                snapshot with { Sha256 = newHash },
-                cancellationToken);
+            throw new InvalidOperationException("A pending file transaction needs attention.");
+        }
+        var workspace = ResolveUnderBase(transactionRoot, $".save-edit-{Guid.NewGuid():N}");
+        var staging = Path.Combine(workspace, "staging");
+        try
+        {
+            Directory.CreateDirectory(staging);
+            var targetRoot = basePath;
+            if (snapshotId is null)
+            {
+                await SaveFileCodec.EncryptAsync(Path.Combine(staging, Path.GetFileName(filePath)), json, cancellationToken);
+            }
+            else
+            {
+                targetRoot = Path.Combine(GetSnapshotsRoot(instanceId), snapshotId);
+                var metadataPath = ResolveUnderBase(targetRoot, MetadataFileName);
+                var snapshot = await AtomicJsonStore.ReadAsync<NamedSnapshot>(metadataPath, cancellationToken);
+                ValidateSnapshot(instanceId, targetRoot, snapshot);
+                await RequireHashAsync(snapshot.SnapshotPath, snapshot.Sha256, cancellationToken);
+                var preview = Path.Combine(workspace, "preview");
+                await LocalLowDirectory.CopyAsync(snapshot.SnapshotPath, preview, includeLogs: true, cancellationToken);
+                var previewSave = Path.Combine(preview, slotRelativePath);
+                await SaveFileCodec.EncryptAsync(previewSave, json, cancellationToken);
+                var newHash = await LocalLowDirectory.HashFilesAsync(preview, includeLogs: false, cancellationToken);
+                Directory.CreateDirectory(Path.Combine(staging, "data"));
+                File.Copy(previewSave, Path.Combine(staging, "data", slotRelativePath));
+                await AtomicJsonStore.WriteAsync(
+                    Path.Combine(staging, MetadataFileName), snapshot with { Sha256 = newHash }, cancellationToken);
+            }
+            await FileTransaction.ApplyDirectoryAsync(
+                staging, targetRoot, transactionRoot, "edit-save", cancellationToken);
+        }
+        finally
+        {
+            LocalLowDirectory.DeleteIfExists(workspace);
         }
     }
 
     private static string ResolveUnderBase(string basePath, string relativePath)
     {
         var full = Path.GetFullPath(Path.Combine(basePath, relativePath.Replace('/', Path.DirectorySeparatorChar)));
-        var normalizedBase = Path.GetFullPath(basePath);
+        var normalizedBase = Path.TrimEndingDirectorySeparator(Path.GetFullPath(basePath)) + Path.DirectorySeparatorChar;
         if (!full.StartsWith(normalizedBase, StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException("Path escapes the base directory.", nameof(relativePath));
+        }
+        for (string? current = full; current is not null; current = Path.GetDirectoryName(current))
+        {
+            if ((File.Exists(current) || Directory.Exists(current))
+                && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new IOException("Save paths must not contain reparse points.");
+            }
         }
 
         return full;

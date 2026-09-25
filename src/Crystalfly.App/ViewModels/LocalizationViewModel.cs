@@ -51,6 +51,9 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["LaunchIssueModExtraFile"] = "A Mod contains an extra file",
         ["LaunchIssueExternalMod"] = "An unmanaged external Mod was found",
         ["LaunchIssueModIndeterminate"] = "Mod integrity could not be determined",
+        ["LaunchIssueModLoaderMismatch"] = "An enabled Mod requires a different Loader",
+        ["LaunchIssueLoaderUnverified"] = "Loader compatibility is unverified; taking over files does not verify compatibility",
+        ["LaunchIssueGameDataMissing"] = "A required game data file is missing",
         ["Refresh"] = "Refresh",
         ["ManageInstance"] = "Instance settings",
         ["LoaderFiles"] = "Game and Loader files",
@@ -821,6 +824,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["Scanning"] = "Scanning"
         ,["ScanReady"] = "Ready"
         ,["ScanFailed"] = "Unavailable"
+        ,["ScanPartial"] = "Some game directories could not be loaded"
         ,["InvalidGameDirectory"] = "The game directory has no valid parent folder."
         ,["SteamDirectoryRiskTitle"] = "Manage the Steam installation?"
         ,["SteamDirectoryRiskHint"] = "Direct management can conflict with Steam updates or file verification. Migration is recommended."
@@ -881,6 +885,9 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["LaunchIssueModExtraFile"] = "模组目录包含额外文件",
         ["LaunchIssueExternalMod"] = "发现未接管的外部模组",
         ["LaunchIssueModIndeterminate"] = "暂时不能判定模组完整性",
+        ["LaunchIssueModLoaderMismatch"] = "启用的模组与当前加载器不匹配",
+        ["LaunchIssueLoaderUnverified"] = "加载器兼容性尚未验证；接管文件不代表兼容性验证通过",
+        ["LaunchIssueGameDataMissing"] = "游戏必要数据文件缺失",
         ["Refresh"] = "刷新",
         ["ManageInstance"] = "实例设置",
         ["LoaderFiles"] = "游戏与模组加载器文件",
@@ -1651,6 +1658,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["Scanning"] = "正在扫描"
         ,["ScanReady"] = "已就绪"
         ,["ScanFailed"] = "不可用"
+        ,["ScanPartial"] = "部分游戏目录无法读取"
         ,["InvalidGameDirectory"] = "游戏目录没有有效的父文件夹。"
         ,["SteamDirectoryRiskTitle"] = "管理 Steam 原始安装？"
         ,["SteamDirectoryRiskHint"] = "原地管理可能与 Steam 更新或文件验证冲突，推荐迁移实例。"

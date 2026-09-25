@@ -257,6 +257,95 @@ public sealed class PortableUpdateInstallerTests : IDisposable
         Assert.False(Directory.Exists(operation.RecoveryDirectory));
     }
 
+    [Fact]
+    public async Task RecoverAsync_leaves_sibling_installation_recovery_untouched()
+    {
+        string target = CreateTarget();
+        string sibling = Path.Combine(testRoot, "sibling");
+        Directory.CreateDirectory(sibling);
+        File.WriteAllText(Path.Combine(sibling, "Crystalfly.App.exe"), "sibling-new");
+        PortableUpdateOperation siblingOperation = CreateInterruptedOperation(sibling);
+        PortableUpdateOperation operation = CreateInterruptedOperation(target);
+
+        await PortableUpdateInstaller.RecoverAsync(target, CancellationToken.None);
+
+        Assert.Equal("old", File.ReadAllText(Path.Combine(target, "Crystalfly.App.exe")));
+        Assert.False(Directory.Exists(operation.RecoveryDirectory));
+        Assert.Equal("sibling-new", File.ReadAllText(Path.Combine(sibling, "Crystalfly.App.exe")));
+        Assert.True(File.Exists(siblingOperation.OperationLogPath));
+        Assert.Equal("old", File.ReadAllText(Path.Combine(siblingOperation.BackupDirectory, "Crystalfly.App.exe")));
+    }
+
+    [Fact]
+    public async Task RecoverAsync_does_not_treat_backed_up_program_files_as_operation_logs()
+    {
+        string target = CreateTarget();
+        PortableUpdateOperation operation = CreateInterruptedOperation(target);
+        File.WriteAllText(Path.Combine(operation.BackupDirectory, "operation.json"), "program-data");
+
+        await PortableUpdateInstaller.RecoverAsync(target, CancellationToken.None);
+
+        Assert.Equal("program-data", File.ReadAllText(Path.Combine(target, "operation.json")));
+        Assert.Equal("old", File.ReadAllText(Path.Combine(target, "Crystalfly.App.exe")));
+        Assert.False(Directory.Exists(operation.RecoveryDirectory));
+    }
+
+    [Fact]
+    public async Task ApplyAsync_rejects_reparse_point_recovery_root_before_writing()
+    {
+        string target = CreateTarget();
+        File.WriteAllText(Path.Combine(target, "Crystalfly.App.exe"), "old");
+        string outside = Path.Combine(testRoot, "outside");
+        Directory.CreateDirectory(outside);
+        string recoveryRoot = Path.Combine(testRoot, ".crystalfly-update-recovery");
+        Directory.CreateSymbolicLink(recoveryRoot, outside);
+        string asset = CreateZip(("Crystalfly.App.exe", "new"), ("portable.flag", string.Empty));
+
+        try
+        {
+            await Assert.ThrowsAsync<IOException>(() =>
+                PortableUpdateInstaller.ApplyAsync(asset, target, CancellationToken.None));
+
+            Assert.Equal("old", File.ReadAllText(Path.Combine(target, "Crystalfly.App.exe")));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(outside));
+        }
+        finally
+        {
+            if (Directory.Exists(recoveryRoot)
+                && (File.GetAttributes(recoveryRoot) & FileAttributes.ReparsePoint) != 0)
+                Directory.Delete(recoveryRoot);
+        }
+    }
+
+    [Fact]
+    public async Task RecoverAsync_rejects_reparse_point_backup_before_moving_external_files()
+    {
+        string target = CreateTarget();
+        File.WriteAllText(Path.Combine(target, "Crystalfly.App.exe"), "current");
+        PortableUpdateOperation operation = CreateOperation(target, ["Crystalfly.App.exe"]);
+        Directory.Delete(operation.BackupDirectory);
+        string outside = Path.Combine(testRoot, "outside");
+        Directory.CreateDirectory(outside);
+        string outsideFile = Path.Combine(outside, "Crystalfly.App.exe");
+        File.WriteAllText(outsideFile, "external");
+        Directory.CreateSymbolicLink(operation.BackupDirectory, outside);
+
+        try
+        {
+            await Assert.ThrowsAsync<IOException>(() =>
+                PortableUpdateInstaller.RecoverAsync(target, CancellationToken.None));
+
+            Assert.Equal("current", File.ReadAllText(Path.Combine(target, "Crystalfly.App.exe")));
+            Assert.Equal("external", File.ReadAllText(outsideFile));
+            Assert.True(File.Exists(operation.OperationLogPath));
+        }
+        finally
+        {
+            if (Directory.Exists(operation.BackupDirectory))
+                Directory.Delete(operation.BackupDirectory);
+        }
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(testRoot))

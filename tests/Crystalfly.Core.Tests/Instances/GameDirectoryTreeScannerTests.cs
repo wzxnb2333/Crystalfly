@@ -114,6 +114,22 @@ public sealed class GameDirectoryTreeScannerTests : IDisposable
         Assert.Empty(result.Candidates);
     }
 
+    [Fact]
+    public async Task ScanAllDrives_does_not_descend_through_a_linked_parent_directory()
+    {
+        var actualParent = Directory.CreateDirectory(Path.Combine(root, "actual")).FullName;
+        var game = CreateGame(Path.Combine(actualParent, "game"));
+        var linkedParent = Path.Combine(root, "linked");
+        Directory.CreateSymbolicLink(linkedParent, actualParent);
+
+        var result = await new GameDirectoryTreeScanner(
+            getRoots: () => [root],
+            inspect: path => GameDirectoryIntegrityChecker.Inspect(path)).ScanAllDrivesAsync();
+
+        Assert.Equal([game], result.Candidates.Select(candidate => candidate.Path));
+        Assert.Contains(linkedParent, result.SkippedPaths, StringComparer.OrdinalIgnoreCase);
+    }
+
     private static string CreateGame(string path)
     {
         Directory.CreateDirectory(Path.Combine(path, "hollow_knight_Data"));

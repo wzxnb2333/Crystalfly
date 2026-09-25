@@ -27,6 +27,34 @@ public sealed class DownloadPathTests : IDisposable
         Assert.Throws<InvalidDataException>(() => DownloadPath.ResolveUnderRoot(_root, relativePath));
     }
 
+    [Theory]
+    [InlineData("linked/file.dll")]
+    [InlineData("linked/nested/file.dll")]
+    public void ResolveUnderRootRejectsReparsePointAncestors(string relativePath)
+    {
+        Directory.CreateDirectory(_root);
+        string outside = Path.Combine(_root, "outside");
+        Directory.CreateDirectory(outside);
+        string staging = Path.Combine(_root, "staging");
+        Directory.CreateDirectory(staging);
+        Directory.CreateSymbolicLink(Path.Combine(staging, "linked"), outside);
+
+        Assert.Throws<IOException>(() => DownloadPath.ResolveUnderRoot(staging, relativePath));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(outside));
+    }
+
+    [Fact]
+    public void ResolveUnderRootRejectsLinkedStagingRoot()
+    {
+        Directory.CreateDirectory(_root);
+        string outside = Path.Combine(_root, "outside");
+        Directory.CreateDirectory(outside);
+        string staging = Path.Combine(_root, "staging");
+        Directory.CreateSymbolicLink(staging, outside);
+
+        Assert.Throws<IOException>(() => DownloadPath.ResolveUnderRoot(staging, "file.dll"));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_root))

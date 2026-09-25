@@ -1,6 +1,9 @@
+using Crystalfly.Core.Loaders;
 using Crystalfly.Core.Models;
 
 namespace Crystalfly.Core.Runtime;
+
+public sealed record LaunchCompatibilityContext(string BuildId, LoaderInspection Loader);
 
 public sealed record LaunchPreflightResult(
     bool GameFilesReady,
@@ -82,7 +85,8 @@ public static class LaunchPreflightEvaluator
         string instanceId,
         IReadOnlyList<ModHealthReport> modHealthReports,
         IReadOnlyList<ModHealthAcknowledgement>? acknowledgements = null,
-        bool gameProcessRunning = false)
+        bool gameProcessRunning = false,
+        LaunchCompatibilityContext? compatibility = null)
     {
         ArgumentNullException.ThrowIfNull(installedMods);
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
@@ -101,15 +105,17 @@ public static class LaunchPreflightEvaluator
             gameProcessRunning);
         AddDependencyIssues(issues, installedMods, installedById);
         AddModHealthIssues(issues, modHealthReports, installedById);
+        AddCompatibilityIssues(issues, installedMods, compatibility);
 
         var evaluatedIssues = issues.Select(issue => issue.Severity == LaunchIssueSeverity.Warning
             && acknowledgements.Any(acknowledgement => acknowledgement.Matches(instanceId, issue))
                 ? issue with { IsAcknowledged = true }
                 : issue).ToArray();
         bool dependenciesReady = !issues.Any(issue => issue.Code is
-            LaunchIssueCode.MissingDependency or LaunchIssueCode.DisabledDependency);
+            LaunchIssueCode.MissingDependency or LaunchIssueCode.DisabledDependency or LaunchIssueCode.ModLoaderMismatch);
         bool loaderReady = loaderState is not LoaderState.Conflict and not LoaderState.Drifted
-            && (isKnownBuild || loaderState == LoaderState.Vanilla);
+            && (isKnownBuild || loaderState == LoaderState.Vanilla)
+            && !issues.Any(issue => issue.Code == LaunchIssueCode.UnsupportedBuildLoaderCombination);
 
         return new LaunchPreflightResult(
             executableExists && !gameProcessRunning,
@@ -167,6 +173,76 @@ public static class LaunchPreflightEvaluator
         {
             issues.Add(Forceable(LaunchIssueCode.LocalLowNotReady));
         }
+    }
+
+    private static void AddCompatibilityIssues(
+        List<LaunchPreflightIssue> issues,
+        IReadOnlyList<InstalledModReceipt> installedMods,
+        LaunchCompatibilityContext? compatibility)
+    {
+        if (compatibility is null || compatibility.Loader.State is LoaderState.Conflict or LoaderState.Drifted)
+        {
+            return;
+        }
+        var loader = compatibility.Loader;
+        if (loader.State != LoaderState.Vanilla)
+        {
+            if (loader.SupportedBuildIds.Count > 0
+                && !loader.SupportedBuildIds.Contains(compatibility.BuildId, StringComparer.OrdinalIgnoreCase)
+                && !issues.Any(issue => issue.Code == LaunchIssueCode.UnsupportedBuildLoaderCombination))
+            {
+                issues.Add(new LaunchPreflightIssue
+                {
+                    Code = LaunchIssueCode.UnsupportedBuildLoaderCombination,
+                    Severity = LaunchIssueSeverity.Forceable,
+                    Arguments = [compatibility.BuildId, loader.PackageId ?? loader.State.ToString()]
+                });
+            }
+            if (!loader.IsVerified || loader.SupportedBuildIds.Count == 0)
+            {
+                issues.Add(new LaunchPreflightIssue
+                {
+                    Code = LaunchIssueCode.LoaderCompatibilityUnverified,
+                    Severity = LaunchIssueSeverity.Warning,
+                    SubjectLoaderId = loader.PackageId ?? loader.State.ToString(),
+                    Arguments = [compatibility.BuildId, loader.PackageId ?? loader.State.ToString()]
+                });
+            }
+        }
+        foreach (var mod in installedMods.Where(mod => mod.Enabled))
+        {
+            if (!MatchesLoader(mod.LoaderId, loader))
+            {
+                issues.Add(ModIssue(
+                    LaunchIssueCode.ModLoaderMismatch,
+                    LaunchIssueSeverity.Forceable,
+                    mod.Id,
+                    arguments: [mod.Id, mod.LoaderId, loader.PackageId ?? loader.State.ToString()]));
+            }
+        }
+    }
+
+    private static bool MatchesLoader(string requiredId, LoaderInspection loader)
+    {
+        if (loader.State == LoaderState.Vanilla)
+        {
+            return false;
+        }
+        if (string.Equals(requiredId, loader.PackageId, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        var family = loader.State == LoaderState.BepInEx ? "bepinex" : "modding-api";
+        if (!requiredId.Equals(family, StringComparison.OrdinalIgnoreCase)
+            && !requiredId.StartsWith(family + "-", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        return string.IsNullOrWhiteSpace(loader.PackageId)
+            || requiredId.Equals(family, StringComparison.OrdinalIgnoreCase)
+            || requiredId.Equals(family + "-external", StringComparison.OrdinalIgnoreCase)
+            || loader.PackageId.Equals(family, StringComparison.OrdinalIgnoreCase)
+            || loader.PackageId.Equals(family + "-external", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void AddDependencyIssues(

@@ -658,8 +658,10 @@ public sealed class ModMarketRenderingTests
         }
     }
 
-    [AvaloniaFact]
-    public async Task Market_install_missing_sidecar_closes_overlay_and_fails_first_queue_item()
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Market_install_missing_sidecar_uses_backup_or_fails_safely(bool keepBackup)
     {
         var context = await ShowReadyMarketInstallAsync();
         var releaseInstall = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -694,11 +696,21 @@ public sealed class ModMarketRenderingTests
             Assert.Null(dialogViewModel.DialogError);
 
             File.Delete(InstanceSidecar.GetMarkerPath(context.InstanceRoot));
+            if (!keepBackup)
+            {
+                File.Delete(InstanceSidecar.GetMarkerPath(context.InstanceRoot) + ".bak");
+            }
             releaseInstall.SetResult();
             await heldOperation;
             await context.ViewModel.DownloadCenter.DownloadQueue.WaitForIdleAsync();
 
             var group = Assert.Single(context.ViewModel.DownloadCenter.DownloadQueue.Groups);
+            if (keepBackup)
+            {
+                Assert.Equal(DownloadQueueGroupState.Completed, group.State);
+                Assert.True(File.Exists(context.InstalledModPath));
+                return;
+            }
             Assert.Equal(DownloadQueueGroupState.Failed, group.State);
             Assert.Equal(DownloadQueueItemState.Failed,
                 Assert.Single(group.Items, item => item.Kind == DownloadQueueItemKind.Loader).State);

@@ -30,6 +30,7 @@ public static class FileTransaction
         var journals = Path.GetFullPath(journalRoot);
         EnsureSeparateRoots(staging, target);
         RejectExistingReparsePointAncestors(target, nameof(targetRoot));
+        RejectExistingReparsePointAncestors(journals, nameof(journalRoot));
         Directory.CreateDirectory(target);
         Directory.CreateDirectory(journals);
 
@@ -132,18 +133,36 @@ public static class FileTransaction
         CancellationToken cancellationToken = default)
     {
         var root = Path.GetFullPath(journalRoot);
+        RejectExistingReparsePointAncestors(root, nameof(journalRoot));
         if (!Directory.Exists(root))
         {
             return [];
         }
 
         var results = new List<TransactionJournal>();
-        foreach (var journalPath in Directory
-            .EnumerateFiles(root, JournalFileName, SearchOption.AllDirectories)
-            .ToArray())
+        foreach (var restorePoint in Directory.EnumerateDirectories(root).ToArray())
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var journalPath = Path.Combine(restorePoint, JournalFileName);
+            RejectExistingReparsePointAncestors(journalPath, "transaction journal");
+            RejectExistingReparsePointAncestors(journalPath + ".bak", "transaction journal backup");
+            if (!File.Exists(journalPath) && !File.Exists(journalPath + ".bak"))
+            {
+                continue;
+            }
             var journal = await AtomicJsonStore.ReadAsync<TransactionJournal>(journalPath, cancellationToken);
+            try
+            {
+                ValidateJournal(journal, journalPath);
+            }
+            catch (Exception exception) when (exception is IOException or InvalidDataException or ArgumentException
+                or UnauthorizedAccessException)
+            {
+                journal = journal with { State = TransactionState.NeedsAttention, Error = exception.Message };
+                await AtomicJsonStore.WriteAsync(journalPath, journal, cancellationToken);
+                results.Add(journal);
+                continue;
+            }
             switch (journal.State)
             {
                 case TransactionState.Prepared:
@@ -173,6 +192,8 @@ public static class FileTransaction
         string journalPath,
         CancellationToken cancellationToken = default)
     {
+        RejectExistingReparsePointAncestors(journalPath, "transaction journal");
+        RejectExistingReparsePointAncestors(journalPath + ".bak", "transaction journal backup");
         var persistedJournal = await AtomicJsonStore.ReadAsync<TransactionJournal>(
             journalPath,
             cancellationToken);
@@ -516,6 +537,8 @@ public static class FileTransaction
         {
             throw new InvalidDataException("Transaction journal paths are invalid.");
         }
+        RejectExistingReparsePointAncestors(journal.RootPath, "transaction target");
+        RejectExistingReparsePointAncestors(journal.RestorePointPath, "transaction restore point");
 
         foreach (var path in journal.CreatedPaths)
         {
@@ -536,10 +559,12 @@ public static class FileTransaction
         }
         foreach (var change in journal.Changes)
         {
-            _ = ResolveUnderRoot(journal.RootPath, change.RelativePath);
+            RejectExistingReparsePointAncestors(
+                ResolveUnderRoot(journal.RootPath, change.RelativePath), "transaction target");
             if (change.BackupRelativePath is not null)
             {
-                _ = ResolveUnderRoot(journal.RestorePointPath, change.BackupRelativePath);
+                RejectExistingReparsePointAncestors(
+                    ResolveUnderRoot(journal.RestorePointPath, change.BackupRelativePath), "transaction backup");
             }
         }
     }
@@ -556,6 +581,7 @@ public static class FileTransaction
         {
             throw new InvalidDataException($"Transaction {description} escapes its root: '{path}'.");
         }
+        RejectExistingReparsePointAncestors(fullPath, description);
     }
 
     private static void ValidateDestinations(

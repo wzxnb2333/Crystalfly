@@ -472,11 +472,14 @@ public sealed class ModManager
         };
         var oldPath = ReceiptPath(id);
         var newPath = ReceiptPath(relinked.Id);
-        if (!string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
-        {
-            File.Delete(oldPath);
-        }
-        await AtomicJsonStore.WriteAsync(newPath, relinked, cancellationToken);
+        using var workspace = new TemporaryDirectory(_transactionRoot, ".mod-relink-");
+        await ApplyModStateAsync(
+            workspace.CreateDirectory("staging"),
+            [],
+            relinked,
+            string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase) ? null : id,
+            "relink-mod",
+            cancellationToken);
         return relinked;
     }
 

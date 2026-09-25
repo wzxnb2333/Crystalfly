@@ -16,6 +16,14 @@ public static class DownloadPath
         string rootPrefix = Path.TrimEndingDirectorySeparator(fullRoot) + Path.DirectorySeparatorChar;
         if (!candidate.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException($"Depot path escapes the staging directory: {relativePath}");
+        for (string? current = candidate; current is not null; current = Path.GetDirectoryName(current))
+        {
+            if ((File.Exists(current) || Directory.Exists(current))
+                && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new IOException($"Depot path contains a reparse point: {relativePath}");
+            }
+        }
 
         return candidate;
     }

@@ -136,6 +136,37 @@ public sealed class InstanceSidecarTests : IDisposable
         await Assert.ThrowsAsync<InvalidDataException>(() => InstanceSidecar.LoadAsync(instanceRoot));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Load_recovers_missing_primary_marker_or_metadata_from_backup(bool markerMissing)
+    {
+        var instanceRoot = Directory.CreateDirectory(Path.Combine(root, "versions", "Practice")).FullName;
+        var record = CreateRecord(instanceRoot);
+        await InstanceSidecar.SaveAsync(record);
+        await InstanceSidecar.SaveAsync(record);
+        File.Delete(markerMissing
+            ? InstanceSidecar.GetMarkerPath(instanceRoot)
+            : InstanceSidecar.GetMetadataPath(instanceRoot, record.Id));
+
+        Assert.Equal(record, await InstanceSidecar.LoadAsync(instanceRoot));
+    }
+
+    [Fact]
+    public async Task Save_rejects_a_linked_metadata_root_without_writing_external_files()
+    {
+        var versions = Directory.CreateDirectory(Path.Combine(root, "versions")).FullName;
+        var instance = Directory.CreateDirectory(Path.Combine(versions, "game")).FullName;
+        var external = Directory.CreateDirectory(Path.Combine(root, "external")).FullName;
+        var link = Path.Combine(versions, ".crystalfly");
+        Directory.CreateSymbolicLink(link, external);
+
+        await Assert.ThrowsAsync<IOException>(() => InstanceSidecar.SaveAsync(CreateRecord(instance)));
+
+        Assert.Empty(Directory.EnumerateFileSystemEntries(external));
+        Assert.False(File.Exists(InstanceSidecar.GetMarkerPath(instance)));
+    }
+
     private static InstanceRecord CreateRecord(string instanceRoot) => new()
     {
         Id = "practice",

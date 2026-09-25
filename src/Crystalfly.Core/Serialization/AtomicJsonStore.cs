@@ -52,7 +52,8 @@ public static class AtomicJsonStore
         {
             return await ReadFileAsync<T>(path, cancellationToken);
         }
-        catch (JsonException) when (File.Exists(path + ".bak"))
+        catch (Exception exception) when (exception is JsonException or FileNotFoundException
+            && File.Exists(path + ".bak"))
         {
             return await ReadFileAsync<T>(path + ".bak", cancellationToken);
         }

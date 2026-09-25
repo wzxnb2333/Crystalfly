@@ -19,5 +19,7 @@ public sealed record LoaderInspection
 
     public bool IsVerified { get; init; }
 
+    public IReadOnlyList<string> SupportedBuildIds { get; init; } = [];
+
     public LoaderOwnership Ownership { get; init; }
 }

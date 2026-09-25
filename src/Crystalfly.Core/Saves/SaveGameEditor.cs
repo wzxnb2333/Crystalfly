@@ -56,7 +56,7 @@ public static class SaveGameEditor
             case JsonObject obj:
                 foreach (var property in obj)
                 {
-                    var path = prefix.Length == 0 ? property.Key : $"{prefix}.{property.Key}";
+                    var path = PropertyPath(prefix, property.Key);
                     if (property.Value is null)
                     {
                         entries.Add(new SaveEntry(path, string.Empty, SaveEntry.KindNull));
@@ -96,9 +96,9 @@ public static class SaveGameEditor
             return new SaveEntry(path, boolVal ? "true" : "false", SaveEntry.KindBoolean);
         }
 
-        if (value.TryGetValue<double>(out var numVal))
+        if (value.GetValueKind() == JsonValueKind.Number)
         {
-            return new SaveEntry(path, numVal.ToString(System.Globalization.CultureInfo.InvariantCulture), SaveEntry.KindNumber);
+            return new SaveEntry(path, value.ToJsonString(), SaveEntry.KindNumber);
         }
 
         return new SaveEntry(path, value.ToString(), SaveEntry.KindString);
@@ -151,10 +151,32 @@ public static class SaveGameEditor
     {
         SaveEntry.KindNull => null,
         SaveEntry.KindBoolean => JsonValue.Create(bool.Parse(entry.Value)),
-        SaveEntry.KindNumber => JsonValue.Create(
-            double.Parse(entry.Value, System.Globalization.CultureInfo.InvariantCulture)),
+        SaveEntry.KindNumber => ParseNumber(entry.Value),
         _ => JsonValue.Create(entry.Value)
     };
+
+    private static JsonNode ParseNumber(string value)
+    {
+        try
+        {
+            var node = JsonNode.Parse(value);
+            if (node?.GetValueKind() == JsonValueKind.Number)
+            {
+                return node;
+            }
+        }
+        catch (JsonException exception)
+        {
+            throw new FormatException("Save number must be a valid JSON number.", exception);
+        }
+
+        throw new FormatException("Save number must be a valid JSON number.");
+    }
+
+    private static string PropertyPath(string prefix, string key) =>
+        key.Length == 0 || key.IndexOfAny(['.', '[', ']', '\\', '"']) >= 0
+            ? $"{prefix}[{JsonSerializer.Serialize(key)}]"
+            : prefix.Length == 0 ? key : $"{prefix}.{key}";
 
     private static List<PathSegment> ParsePath(string path)
     {
@@ -164,6 +186,26 @@ public static class SaveGameEditor
         {
             if (path[i] == '[')
             {
+                if (i + 1 < path.Length && path[i + 1] == '"')
+                {
+                    var endQuote = i + 2;
+                    while (endQuote < path.Length && path[endQuote] != '"')
+                    {
+                        endQuote += path[endQuote] == '\\' ? 2 : 1;
+                    }
+                    if (endQuote + 1 >= path.Length || path[endQuote + 1] != ']')
+                    {
+                        throw new FormatException("Invalid quoted save property path.");
+                    }
+                    var key = JsonSerializer.Deserialize<string>(path[(i + 1)..(endQuote + 1)])!;
+                    segments.Add(new PathSegment(key));
+                    i = endQuote + 2;
+                    if (i < path.Length && path[i] == '.')
+                    {
+                        i++;
+                    }
+                    continue;
+                }
                 var end = path.IndexOf(']', i);
                 if (end < 0)
                 {

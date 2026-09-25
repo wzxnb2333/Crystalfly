@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -68,6 +69,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly object steamReconnectQueueLock = new();
     private readonly object disposeLock = new();
     private readonly Func<Task>? launchOverride;
+    private readonly Func<ProcessStartInfo, Process?> startGameProcess;
     private readonly Func<CancellationToken, Task>? downloadOverride;
     private readonly Func<Task>? disposeSteamOverride;
     private readonly Func<CancellationToken, Task<RefreshTokenCredential>>? qrSignInOverride;
@@ -130,6 +132,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private MarketModItemViewModel? selectedMarketModDisplay;
     private Func<CancellationToken, Task<GameCatalog>> catalogLoader;
     private Func<Task> steamReconnect;
+    private readonly string? sharedLocalLowPathOverride;
+    private int instanceRefreshVersion;
     private Func<
         string,
         GameCatalog,
@@ -171,8 +175,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Func<bool>? gameProcessRunningOverride = null,
         SpeedrunComClient? speedrunComClientOverride = null,
         SystemProxyService? systemProxyOverride = null,
-        HttpClient? packageHttpClientOverride = null)
+        HttpClient? packageHttpClientOverride = null,
+        string? sharedLocalLowPathOverride = null,
+        Func<ProcessStartInfo, Process?>? startGameProcessOverride = null)
     {
+        startGameProcess = startGameProcessOverride ?? Process.Start;
+        this.sharedLocalLowPathOverride = sharedLocalLowPathOverride;
         this.launchOverride = launchOverride;
         this.downloadOverride = downloadOverride;
         this.disposeSteamOverride = disposeSteamOverride;
@@ -258,6 +266,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             GetSelectedSpeedrunInstance: () => SelectedSpeedrunInstance,
             SetSelectedSpeedrunInstance: value => SelectedSpeedrunInstance = value,
             SetErrorMessage: message => ErrorMessage = message,
+            GetErrorMessage: () => ErrorMessage,
             SetStatusMessage: message => StatusMessage = message,
             SetCurrentPage: value => CurrentPage = value,
             SetCurrentManageTab: value => CurrentManageTab = value,
@@ -1780,8 +1789,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private async Task RefreshInstancesAsync(bool showBusy)
     {
-        if (!Directory.Exists(VersionRoot))
+        var refreshVersion = Interlocked.Increment(ref instanceRefreshVersion);
+        var scanRoot = VersionRoot;
+        if (!Directory.Exists(scanRoot))
         {
+            ClearInstanceProjection();
+            if (!string.IsNullOrWhiteSpace(VersionRoot))
+            {
+                ErrorMessage = $"{Loc["ScanFailed"]}: {VersionRoot}";
+                StatusMessage = Loc["ScanFailed"];
+            }
+            Instances.UpdateActiveDirectoryScanStatus();
             return;
         }
 
@@ -1793,6 +1811,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         StatusMessage = Loc["StatusChecking"];
         try
         {
+            var discoveryIssues = new System.Collections.Concurrent.ConcurrentBag<InstanceDiscoveryIssue>();
+            InstanceDirectory.RejectReparseAncestors(paths.GetVersionDataRoot(scanRoot));
             var discovered = new List<(
                 InstanceRecord Record,
                 LoaderState LoaderState,
@@ -1802,24 +1822,30 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 "transactions",
                 async cancellationToken =>
                 {
-                    var deletionRecoveries = await new InstanceDeletionService(VersionRoot)
+                    var deletionRecoveries = await new InstanceDeletionService(scanRoot)
                         .RecoverPendingAsync(cancellationToken);
                     if (deletionRecoveries.Any(recovery => !recovery.Completed))
                     {
                         throw new InvalidOperationException(Loc["DeleteRecoveryNeedsAttention"]);
                     }
-                    await EnsureTransactionsHealthyAsync(cancellationToken);
+                    await EnsureTransactionsHealthyAsync(cancellationToken, scanRoot);
                     bool canCompleteActiveSession = runtimeSession is null
                         && !IsGameRunning
                         && !new SystemHollowKnightProcessProbe().IsRunning();
                     var scanCatalog = catalog;
-                    var scanRoot = VersionRoot;
                     var inspections = await Task.Run(async () =>
                     {
                         var records = await instanceDiscovery(
                             scanRoot,
                             scanCatalog,
                             cancellationToken).ConfigureAwait(false);
+                        if (records is InstanceDiscoveryResult result)
+                        {
+                            foreach (var issue in result.Issues)
+                            {
+                                discoveryIssues.Add(issue);
+                            }
+                        }
                         var isolation = new LocalLowIsolationService(
                             GetSharedLocalLowPath(),
                             paths.GetVersionDataRoot(scanRoot));
@@ -1830,23 +1856,44 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                         var sortedRecords = records
                             .OrderBy(instance => instance.Name, StringComparer.OrdinalIgnoreCase)
                             .ToArray();
-                        return await Task.WhenAll(sortedRecords.Select(async record =>
+                        var inspected = await Task.WhenAll(sortedRecords.Select(async record =>
                         {
-                            var loaderManager = CreateLoaderManager(record);
-                            var loaderInspection = await loaderManager
-                                .InspectAsync(cancellationToken).ConfigureAwait(false);
-                            var loaderState = loaderInspection.State;
-                            var loaderReceipt = await loaderManager
-                                .GetReceiptAsync(cancellationToken).ConfigureAwait(false);
-                            var modCount = (await CreateModManager(record).DiscoverAsync(
-                                loaderInspection.PackageId ?? loaderState.ToString(),
-                                cancellationToken).ConfigureAwait(false)).Mods.Count;
-                            return (record, loaderState, loaderReceipt, modCount);
+                            try
+                            {
+                                var loaderManager = CreateLoaderManager(record);
+                                var loaderInspection = await loaderManager
+                                    .InspectAsync(cancellationToken).ConfigureAwait(false);
+                                var loaderState = loaderInspection.State;
+                                var loaderReceipt = await loaderManager
+                                    .GetReceiptAsync(cancellationToken).ConfigureAwait(false);
+                                var modCount = (await CreateModManager(record).DiscoverAsync(
+                                    loaderInspection.PackageId ?? loaderState.ToString(),
+                                    cancellationToken).ConfigureAwait(false)).Mods.Count;
+                                return ((InstanceRecord Record, LoaderState LoaderState,
+                                    InstalledPackageReceipt? LoaderReceipt, int ModCount)?)
+                                    (record, loaderState, loaderReceipt, modCount);
+                            }
+                            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                                or InvalidDataException or ArgumentException or System.Text.Json.JsonException)
+                            {
+                                discoveryIssues.Add(new InstanceDiscoveryIssue(record.RootPath, exception));
+                                return null;
+                            }
                         })).ConfigureAwait(false);
+                        return inspected.Where(item => item.HasValue).Select(item => item!.Value).ToArray();
                     }, cancellationToken);
                     discovered.AddRange(inspections);
                 },
                 lifetimeCancellation.Token);
+            if (refreshVersion != Volatile.Read(ref instanceRefreshVersion))
+            {
+                return;
+            }
+            if (!string.Equals(scanRoot, VersionRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                ClearInstanceProjection();
+                return;
+            }
             lastInstanceProjection = discovered;
             Instances.Instances.Clear();
             foreach (var item in discovered)
@@ -1865,21 +1912,51 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 instance.Id == settings.CurrentInstanceId)
                 ?? (settings.CurrentInstanceId is null ? Instances.SpeedrunInstances.FirstOrDefault() : null);
             StatusMessage = Loc["StatusReady"];
+            if (discoveryIssues.Count > 0)
+            {
+                ErrorMessage = Loc["ScanPartial"] + Environment.NewLine + string.Join(
+                    Environment.NewLine,
+                    discoveryIssues.OrderBy(issue => issue.Path, StringComparer.OrdinalIgnoreCase)
+                        .Select(issue => $"{issue.Path}: {Loc.ErrorMessageFor(issue.Error)}"));
+            }
         }
         catch (Exception exception) when (exception is IOException
             or UnauthorizedAccessException
             or InvalidDataException
-            or InvalidOperationException)
+            or InvalidOperationException
+            or System.Text.Json.JsonException)
         {
-            ErrorMessage = Loc.ErrorMessageFor(exception);
+            if (refreshVersion == Volatile.Read(ref instanceRefreshVersion))
+            {
+                ClearInstanceProjection();
+                if (string.Equals(scanRoot, VersionRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    ErrorMessage = Loc.ErrorMessageFor(exception);
+                }
+            }
         }
         finally
         {
+            if (refreshVersion == Volatile.Read(ref instanceRefreshVersion)
+                && string.Equals(scanRoot, VersionRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                Instances.UpdateActiveDirectoryScanStatus();
+            }
             if (showBusy)
             {
                 IsBusy = false;
             }
         }
+    }
+
+    private void ClearInstanceProjection()
+    {
+        lastInstanceProjection = null;
+        Instances.Instances.Clear();
+        Instances.ApplyInstanceFilter();
+        SelectedInstance = null;
+        SelectedSpeedrunInstance = null;
+        PopulateSpeedrunInstances();
     }
 
     private InstanceItemViewModel ProjectInstanceItem(
@@ -2018,10 +2095,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ErrorMessage = Loc["NoInstance"];
             return;
         }
-        await ReloadSelectedInstanceDetailsAsync();
+        var selected = SelectedInstance;
+        if (!await ReloadSelectedInstanceDetailsAsync() || !ReferenceEquals(selected, SelectedInstance))
+        {
+            return;
+        }
         if (force ? !LaunchPreflight.CanForceLaunch : !LaunchPreflight.CanLaunchNormally)
         {
-            ErrorMessage = Loc["LaunchBlocked"];
+            ErrorMessage ??= Loc["LaunchBlocked"];
             return;
         }
         if (launchOverride is not null)
@@ -2068,7 +2149,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                         await EnsureTransactionsHealthyAsync();
                     }
                     runtimeSession = await InstanceRuntimeSession.StartAsync(isolation, record.Id);
-                    process = Process.Start(new ProcessStartInfo(executable)
+                    process = startGameProcess(new ProcessStartInfo(executable)
                     {
                         WorkingDirectory = record.RootPath,
                         UseShellExecute = true
@@ -2090,7 +2171,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             await completedSession.CompleteAsync();
             runtimeSession = null;
         }
-        catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is IOException or InvalidOperationException
+            or UnauthorizedAccessException or Win32Exception or InvalidDataException or JsonException)
         {
             if (!(SpeedrunReminderIsError && SpeedrunReportPath is not null))
             {
@@ -2103,7 +2185,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     await runtimeSession.CompleteAsync();
                     runtimeSession = null;
                 }
-                catch (Exception recoveryException) when (recoveryException is IOException or InvalidOperationException)
+                catch (Exception recoveryException) when (recoveryException is IOException or InvalidOperationException
+                    or UnauthorizedAccessException or InvalidDataException or JsonException)
                 {
                     ErrorMessage += $" LocalLow: {recoveryException.Message}";
                 }
@@ -2115,12 +2198,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    private async Task ReloadSelectedInstanceDetailsAsync()
+    private async Task<bool> ReloadSelectedInstanceDetailsAsync()
     {
         var selected = SelectedInstance;
+        LaunchPreflight = new(false, false, false, false);
         if (selected is null || !Directory.Exists(VersionRoot))
         {
-            return;
+            ErrorMessage = selected is null
+                ? Loc["NoInstance"]
+                : Loc.ErrorMessageFor(new DirectoryNotFoundException(VersionRoot));
+            return false;
         }
         long generation = Interlocked.Increment(ref detailsLoadGeneration);
         var previousCancellation = Interlocked.Exchange(ref detailsLoadCancellation, null);
@@ -2129,8 +2216,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation.Token);
         detailsLoadCancellation = cancellation;
         IsLoadingInstanceDetails = true;
-        detailsLoadTask = LoadInstanceDetailsAsync(selected.Record, generation, cancellation.Token);
+        detailsLoadTask = LoadInstanceDetailsAsync(selected.Record, generation, cancellation.Token, verifyGameFiles: true);
         await detailsLoadTask;
+        return generation == Volatile.Read(ref detailsLoadGeneration)
+            && ReferenceEquals(selected, SelectedInstance)
+            && !cancellation.IsCancellationRequested;
     }
 
     [RelayCommand]
@@ -2788,7 +2878,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         foreach (var issue in LaunchPreflight.Issues.Where(issue =>
                      issue.Severity == LaunchIssueSeverity.Warning
                      && !issue.IsAcknowledged
-                     && !string.IsNullOrWhiteSpace(issue.SubjectModId)))
+                     && (!string.IsNullOrWhiteSpace(issue.SubjectModId)
+                         || !string.IsNullOrWhiteSpace(issue.SubjectLoaderId))))
         {
             var acknowledgement = ModHealthAcknowledgement.Create(SelectedInstance.Id, issue);
             if (knownFingerprints.Add(acknowledgement.Fingerprint))
@@ -3952,6 +4043,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         LaunchIssueCode.ModExtraFile => "LaunchIssueModExtraFile",
         LaunchIssueCode.UnmanagedExternalMod => "LaunchIssueExternalMod",
         LaunchIssueCode.ModHealthIndeterminate => "LaunchIssueModIndeterminate",
+        LaunchIssueCode.ModLoaderMismatch => "LaunchIssueModLoaderMismatch",
+        LaunchIssueCode.LoaderCompatibilityUnverified => "LaunchIssueLoaderUnverified",
+        LaunchIssueCode.GameDataMissing => "LaunchIssueGameDataMissing",
         _ => "LaunchIssues"
     };
 
@@ -4086,7 +4180,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private async Task LoadInstanceDetailsAsync(
         InstanceRecord record,
         long generation,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool verifyGameFiles = false)
     {
         try
         {
@@ -4096,6 +4191,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             {
                 return;
             }
+            LaunchPreflight = new(false, false, false, false);
             var loaderManager = CreateLoaderManager(record);
             var loaderState = LoaderState.Vanilla;
             var loaderInspection = new LoaderInspection
@@ -4108,6 +4204,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ModDiscoveryResult discovery = new();
             IReadOnlyList<ModHealthReport> modHealthReports = [];
             IReadOnlyList<TransactionJournal> recoveries = [];
+            var effectiveBuildId = record.BuildId;
+            IReadOnlyList<string> missingGameFiles = [];
             var stateLoaded = false;
             await instanceOperationCoordinator.RunAsync(record.Id, async cancellationToken =>
             {
@@ -4120,6 +4218,26 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 recoveries = await FileTransaction.RecoverPendingAsync(
                     Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
                     cancellationToken);
+                if (verifyGameFiles)
+                {
+                    var requiredDataFiles = new List<string> { "hollow_knight_Data/globalgamemanagers" };
+                    var recordedBuild = catalog.Builds.FirstOrDefault(build =>
+                        string.Equals(build.Id, record.BuildId, StringComparison.OrdinalIgnoreCase));
+                    if (recordedBuild?.UnityPlayerSha256 is not null)
+                    {
+                        requiredDataFiles.Add("UnityPlayer.dll");
+                    }
+                    missingGameFiles = requiredDataFiles
+                        .Where(path => !File.Exists(Path.Combine(record.RootPath, path)))
+                        .ToArray();
+                    if (missingGameFiles.Count == 0
+                        && File.Exists(Path.Combine(record.RootPath, "hollow_knight.exe"))
+                        && catalog.Builds.Count > 0)
+                    {
+                        var fingerprint = await BuildFingerprintService.CalculateAsync(record.RootPath, cancellationToken);
+                        effectiveBuildId = BuildFingerprintService.FindBuild(catalog.Builds, fingerprint)?.Id ?? "unknown";
+                    }
+                }
                 loaderInspection = await loaderManager.InspectAsync(cancellationToken);
                 loaderState = loaderInspection.State;
                 loaderReceipt = await loaderManager.GetReceiptAsync(cancellationToken);
@@ -4157,7 +4275,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 GetSharedLocalLowPath(),
                 paths.GetVersionDataRoot(VersionRoot));
             var preflight = LaunchPreflightEvaluator.Evaluate(
-                BuildIdentity.IsKnown(record.BuildId),
+                BuildIdentity.IsKnown(effectiveBuildId),
                 File.Exists(Path.Combine(record.RootPath, "hollow_knight.exe")),
                 loaderState,
                 installed,
@@ -4166,7 +4284,27 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 record.Id,
                 modHealthReports,
                 settings.ModHealthAcknowledgements,
-                new SystemHollowKnightProcessProbe().IsRunning());
+                new SystemHollowKnightProcessProbe().IsRunning(),
+                new LaunchCompatibilityContext(effectiveBuildId, loaderInspection with
+                {
+                    SupportedBuildIds = catalog.Loaders.FirstOrDefault(loader =>
+                        string.Equals(loader.Id, loaderInspection.PackageId, StringComparison.OrdinalIgnoreCase))
+                        ?.SupportedBuildIds ?? loaderInspection.SupportedBuildIds
+                }));
+            if (missingGameFiles.Count > 0)
+            {
+                preflight = preflight with
+                {
+                    GameFilesReady = false,
+                    Issues = preflight.Issues.Concat(missingGameFiles.Select(path => new LaunchPreflightIssue
+                    {
+                        Code = LaunchIssueCode.GameDataMissing,
+                        Severity = LaunchIssueSeverity.Forceable,
+                        RelativeFilePath = path,
+                        Arguments = [path]
+                    })).ToArray()
+                };
+            }
 
             if (generation != Volatile.Read(ref detailsLoadGeneration)
                 || SelectedInstance?.Id != record.Id)
@@ -4241,7 +4379,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception exception) when (IsExpectedInstanceDetailsException(exception))
         {
-            ErrorMessage = Loc.ErrorMessageFor(exception);
+            if (generation == Volatile.Read(ref detailsLoadGeneration)
+                && SelectedInstance?.Id == record.Id)
+            {
+                LaunchPreflight = new(false, false, false, false);
+                ErrorMessage = Loc.ErrorMessageFor(exception);
+            }
         }
         finally
         {
@@ -4256,6 +4399,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private static bool IsExpectedInstanceDetailsException(Exception exception) =>
         exception is IOException
             or InvalidDataException
+            or JsonException
             or UnauthorizedAccessException
             or InvalidOperationException;
 
@@ -4585,10 +4729,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         return false;
     }
 
-    private async Task EnsureTransactionsHealthyAsync(CancellationToken cancellationToken = default)
+    private async Task EnsureTransactionsHealthyAsync(
+        CancellationToken cancellationToken = default, string? versionRoot = null)
     {
         var recoveries = await FileTransaction.RecoverPendingAsync(
-            Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
+            Path.Combine(paths.GetVersionDataRoot(versionRoot ?? VersionRoot), "transactions"),
             cancellationToken);
         if (recoveries.Any(recovery => recovery.State == TransactionState.NeedsAttention))
         {
@@ -5097,21 +5242,27 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private LoaderManager CreateLoaderManager(InstanceRecord record)
     {
-        var stateRoot = GetInstanceStateRoot(record.Id);
+        var stateRoot = Path.GetDirectoryName(InstanceSidecar.GetMetadataPath(record.RootPath, record.Id))!;
+        var dataRoot = Path.GetDirectoryName(Path.GetDirectoryName(stateRoot)!)!;
         return new LoaderManager(
             record.RootPath,
-            Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
+            Path.Combine(dataRoot, "transactions"),
             Path.Combine(stateRoot, "loader.json"),
-            Path.Combine(paths.GetVersionDataRoot(VersionRoot), "packages"),
+            Path.Combine(dataRoot, "packages"),
             packageHttpClient);
     }
 
-    private ModManager CreateModManager(InstanceRecord record) => new(
-        record.RootPath,
-        Path.Combine(paths.GetVersionDataRoot(VersionRoot), "transactions"),
-        Path.Combine(GetInstanceStateRoot(record.Id), "mods"),
-        Path.Combine(paths.GetVersionDataRoot(VersionRoot), "packages"),
-        packageHttpClient);
+    private ModManager CreateModManager(InstanceRecord record)
+    {
+        var stateRoot = Path.GetDirectoryName(InstanceSidecar.GetMetadataPath(record.RootPath, record.Id))!;
+        var dataRoot = Path.GetDirectoryName(Path.GetDirectoryName(stateRoot)!)!;
+        return new ModManager(
+            record.RootPath,
+            Path.Combine(dataRoot, "transactions"),
+            Path.Combine(stateRoot, "mods"),
+            Path.Combine(dataRoot, "packages"),
+            packageHttpClient);
+    }
 
     public string? GetSelectedInstanceSaveDirectory() => SelectedInstance is null
         ? null
@@ -5152,7 +5303,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private string GetInstalledModGraphLayoutPath(string instanceId) =>
         Path.Combine(GetInstanceStateRoot(instanceId), "dependency-graph.layout.json");
 
-    private static string GetSharedLocalLowPath() => Path.Combine(
+    private string GetSharedLocalLowPath() => sharedLocalLowPathOverride ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "..",
         "LocalLow",

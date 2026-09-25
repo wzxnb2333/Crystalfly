@@ -32,6 +32,7 @@ internal sealed record InstancesDependencies(
     Func<InstanceItemViewModel?> GetSelectedSpeedrunInstance,
     Action<InstanceItemViewModel?> SetSelectedSpeedrunInstance,
     Action<string?> SetErrorMessage,
+    Func<string?> GetErrorMessage,
     Action<string> SetStatusMessage,
     Action<string> SetCurrentPage,
     Action<string> SetCurrentManageTab,

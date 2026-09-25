@@ -609,6 +609,21 @@ public sealed class LoaderManagerTests : IDisposable
     }
 
     [Fact]
+    public async Task Adopted_modding_api_detects_changes_to_the_patched_game_assembly()
+    {
+        var manager = CreateManager();
+        var managed = Path.Combine(InstanceRoot, "hollow_knight_Data", "Managed");
+        Directory.CreateDirectory(managed);
+        await File.WriteAllTextAsync(Path.Combine(managed, "MMHOOK_Assembly-CSharp.dll"), "hook");
+        var assembly = Path.Combine(managed, "Assembly-CSharp.dll");
+        await File.WriteAllTextAsync(assembly, "patched");
+        await manager.AdoptExternalAsync();
+        await File.WriteAllTextAsync(assembly, "vanilla-after-game-update");
+
+        Assert.Equal(LoaderState.Drifted, await manager.GetStateAsync());
+    }
+
+    [Fact]
     public async Task AdoptExternal_throws_when_the_loader_cannot_be_identified()
     {
         var manager = CreateManager();

@@ -76,18 +76,28 @@ internal static class PortableUpdateInstaller
         string parent = Directory.GetParent(target)?.FullName
             ?? throw new IOException("Portable update target must have a parent directory.");
         string recoveryRoot = Path.Combine(parent, RecoveryDirectoryName);
+        RejectReparsePoint(recoveryRoot);
         if (!Directory.Exists(recoveryRoot))
         {
             return;
         }
 
-        foreach (string operationLogPath in Directory.EnumerateFiles(
-                     recoveryRoot,
-                     OperationLogName,
-                     SearchOption.AllDirectories).ToArray())
+        foreach (string recovery in Directory.EnumerateDirectories(recoveryRoot).ToArray())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            PortableUpdateOperation operation = ReadAndValidateOperation(operationLogPath, target, recoveryRoot);
+            RejectReparsePoint(recovery);
+            string operationLogPath = Path.Combine(recovery, OperationLogName);
+            RejectReparsePoint(operationLogPath);
+            if (!File.Exists(operationLogPath))
+            {
+                continue;
+            }
+            PortableUpdateOperation operation = ReadAndValidateOperation(operationLogPath, recoveryRoot);
+            if (!string.Equals(operation.TargetDirectory, target, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+            ValidateRecoveryPaths(operation);
             if (!operation.Committed && !File.Exists(operation.HealthFilePath))
             {
                 RestoreBackup(operation);
@@ -103,6 +113,7 @@ internal static class PortableUpdateInstaller
     {
         ArgumentNullException.ThrowIfNull(operation);
         cancellationToken.ThrowIfCancellationRequested();
+        ValidateRecoveryPaths(operation);
         if (!File.Exists(operation.HealthFilePath))
         {
             throw new IOException("Updated application did not complete its health handshake.");
@@ -311,7 +322,6 @@ internal static class PortableUpdateInstaller
 
     private static PortableUpdateOperation ReadAndValidateOperation(
         string operationLogPath,
-        string target,
         string recoveryRoot)
     {
         PortableUpdateOperation operation;
@@ -325,11 +335,12 @@ internal static class PortableUpdateInstaller
             throw new InvalidDataException("Portable update operation log is invalid.", exception);
         }
 
+        string target = Path.TrimEndingDirectorySeparator(Path.GetFullPath(operation.TargetDirectory));
         string recovery = Path.GetFullPath(operation.RecoveryDirectory);
         string backup = Path.GetFullPath(operation.BackupDirectory);
         string log = Path.GetFullPath(operation.OperationLogPath);
         string health = Path.GetFullPath(operation.HealthFilePath);
-        if (!string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(operation.TargetDirectory)), target,
+        if (!string.Equals(Directory.GetParent(target)?.FullName, Directory.GetParent(recoveryRoot)?.FullName,
                 StringComparison.OrdinalIgnoreCase)
             || !PathSafety.IsStrictDescendant(recoveryRoot, recovery)
             || !string.Equals(backup, Path.Combine(recovery, BackupDirectoryName), StringComparison.OrdinalIgnoreCase)
@@ -388,6 +399,34 @@ internal static class PortableUpdateInstaller
 
     private static bool IsReparsePoint(string path) =>
         (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+
+    private static void ValidateRecoveryPaths(PortableUpdateOperation operation)
+    {
+        RejectReparsePoint(Directory.GetParent(operation.RecoveryDirectory)!.FullName);
+        RejectReparsePoint(operation.RecoveryDirectory);
+        RejectReparsePoint(operation.BackupDirectory);
+        RejectReparsePoint(Path.Combine(operation.RecoveryDirectory, StagingDirectoryName));
+        RejectReparsePoint(operation.OperationLogPath);
+        RejectReparsePoint(operation.OperationLogPath + ".tmp");
+        RejectReparsePoint(operation.HealthFilePath);
+    }
+
+    private static void RejectReparsePoint(string path)
+    {
+        try
+        {
+            if (IsReparsePoint(path))
+            {
+                throw new IOException("Portable update recovery paths must not be reparse points.");
+            }
+        }
+        catch (FileNotFoundException)
+        {
+        }
+        catch (DirectoryNotFoundException)
+        {
+        }
+    }
 
     private static void Move(string source, string destination)
     {

@@ -22,7 +22,10 @@ public enum LaunchIssueCode
     ModModifiedFile,
     ModExtraFile,
     UnmanagedExternalMod,
-    ModHealthIndeterminate
+    ModHealthIndeterminate,
+    ModLoaderMismatch,
+    LoaderCompatibilityUnverified,
+    GameDataMissing
 }
 
 public sealed record LaunchPreflightIssue
@@ -32,6 +35,8 @@ public sealed record LaunchPreflightIssue
     public required LaunchIssueSeverity Severity { get; init; }
 
     public string? SubjectModId { get; init; }
+
+    public string? SubjectLoaderId { get; init; }
 
     public string? RelativeFilePath { get; init; }
 

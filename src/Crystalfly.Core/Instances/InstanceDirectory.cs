@@ -28,6 +28,48 @@ public static class InstanceDirectory
         return destination;
     }
 
+    public static void PrepareRegistration(string instancePath)
+    {
+        var instanceRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(instancePath));
+        RejectReparseAncestors(instanceRoot);
+        if (!GameDirectoryIntegrityChecker.Inspect(instanceRoot).IsValid)
+        {
+            throw new InvalidDataException("The selected directory is not a complete game installation.");
+        }
+        var versionRoot = Path.GetDirectoryName(instanceRoot)
+            ?? throw new ArgumentException("Instance root must have a parent directory.", nameof(instancePath));
+        _ = ResolveUnderRoot(versionRoot, Path.GetFileName(instanceRoot));
+        var metadataRoot = Path.Combine(versionRoot, ".crystalfly");
+        RejectReparseAncestors(metadataRoot);
+        Directory.CreateDirectory(metadataRoot);
+        foreach (var directory in new[] { instanceRoot, metadataRoot })
+        {
+            using var probe = new FileStream(
+                Path.Combine(directory, $".crystalfly-write-check-{Guid.NewGuid():N}"),
+                FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose);
+        }
+    }
+
+    public static void RejectReparseAncestors(string path)
+    {
+        for (string? current = Path.GetFullPath(path); current is not null; current = Path.GetDirectoryName(current))
+        {
+            FileAttributes attributes;
+            try
+            {
+                attributes = File.GetAttributes(current);
+            }
+            catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
+            {
+                continue;
+            }
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new IOException($"Managed game paths cannot traverse reparse point '{current}'.");
+            }
+        }
+    }
+
     private static void ValidateName(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);

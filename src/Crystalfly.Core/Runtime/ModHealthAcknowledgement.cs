@@ -13,12 +13,13 @@ public sealed record ModHealthAcknowledgement
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
         ArgumentNullException.ThrowIfNull(issue);
-        ArgumentException.ThrowIfNullOrWhiteSpace(issue.SubjectModId);
+        var subjectId = issue.SubjectModId ?? issue.SubjectLoaderId;
+        ArgumentException.ThrowIfNullOrWhiteSpace(subjectId);
 
         string canonicalValue = string.Join(
             '\u001f',
             Normalize(instanceId),
-            Normalize(issue.SubjectModId),
+            Normalize(subjectId),
             issue.Code.ToString(),
             NormalizePath(issue.RelativeFilePath),
             Normalize(issue.CurrentFileSha256),

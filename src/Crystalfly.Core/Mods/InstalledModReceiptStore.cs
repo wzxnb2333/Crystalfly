@@ -15,7 +15,12 @@ internal static class InstalledModReceiptStore
             return [];
         }
         var receipts = new List<(string Path, InstalledModReceipt Receipt, bool Migrated)>();
-        foreach (var path in Directory.EnumerateFiles(receiptsRoot, "*.json", SearchOption.TopDirectoryOnly))
+        var receiptPaths = Directory.EnumerateFiles(receiptsRoot, "*.json", SearchOption.TopDirectoryOnly)
+            .Concat(Directory.EnumerateFiles(receiptsRoot, "*.json.bak", SearchOption.TopDirectoryOnly)
+                .Select(path => path[..^4]))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
+        foreach (var path in receiptPaths)
         {
             var receipt = await AtomicJsonStore.ReadAsync<InstalledModReceipt>(path, cancellationToken);
             if (receipt.SchemaVersion > InstalledModReceipt.CurrentSchemaVersion)
@@ -33,13 +38,41 @@ internal static class InstalledModReceiptStore
                 receipts.Add((path, receipt, false));
             }
         }
-        var validated = ValidateAll(instanceRoot, receipts.Select(item => item.Receipt).ToArray());
-        foreach (var item in receipts.Where(item => item.Migrated))
+        // Older relinks removed the old primary but left its backup behind.
+        // Retain the bytes outside the receipt namespace when a current primary
+        // already owns the exact same taken-over files. Ambiguous overlaps still fail validation.
+        var relinkedBackups = receipts.Where(item => !File.Exists(item.Path)
+            && receipts.Any(current => File.Exists(current.Path)
+                && RepresentsRelinkedFiles(item.Receipt, current.Receipt))).ToArray();
+        foreach (var item in relinkedBackups)
+        {
+            ValidateAll(instanceRoot, [item.Receipt]);
+        }
+        var active = receipts.Except(relinkedBackups).ToArray();
+        var validated = ValidateAll(instanceRoot, active.Select(item => item.Receipt).ToArray());
+        foreach (var item in relinkedBackups)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            File.Move(item.Path + ".bak", item.Path + $".relinked-{Guid.NewGuid():N}.bak");
+        }
+        foreach (var item in active.Where(item => item.Migrated))
         {
             await AtomicJsonStore.WriteAsync(item.Path, item.Receipt, cancellationToken);
         }
         return validated.OrderBy(receipt => receipt.Name, StringComparer.OrdinalIgnoreCase).ToArray();
     }
+
+    private static bool RepresentsRelinkedFiles(InstalledModReceipt backup, InstalledModReceipt current) =>
+        backup.Ownership == ModOwnership.LocalTakenOver
+        && current.Ownership == ModOwnership.LocalTakenOver
+        && !string.Equals(backup.Id, current.Id, StringComparison.OrdinalIgnoreCase)
+        && backup.Enabled == current.Enabled
+        && string.Equals(backup.InstallRoot, current.InstallRoot, StringComparison.OrdinalIgnoreCase)
+        && backup.Files is { Count: > 0 } && current.Files is not null
+        && backup.Files.Count == current.Files.Count
+        && backup.Files.All(file => file is not null && current.Files.Any(candidate => candidate is not null
+            && string.Equals(file.RelativePath, candidate.RelativePath, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(file.Sha256, candidate.Sha256, StringComparison.OrdinalIgnoreCase)));
 
     internal static IReadOnlyList<InstalledModReceipt> ValidateAll(
         string instanceRoot,
@@ -154,6 +187,10 @@ internal static class InstalledModReceiptStore
         {
             throw new InvalidDataException(
                 $"Mod receipt '{receipt.Id}' uses unsupported schema version {receipt.SchemaVersion}.");
+        }
+        if (receipt.Files is null || receipt.Files.Any(file => file is null))
+        {
+            throw new InvalidDataException($"Mod receipt '{receipt.Id}' contains an invalid legacy file list.");
         }
         return receipt with
         {

@@ -76,6 +76,7 @@ public sealed class GameDirectoryScanner
             GameDirectoryIntegrityReport report;
             try
             {
+                InstanceDirectory.RejectReparseAncestors(fullPath);
                 report = inspect(fullPath);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)

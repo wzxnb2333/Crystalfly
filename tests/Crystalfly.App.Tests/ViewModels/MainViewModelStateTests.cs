@@ -3926,7 +3926,7 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.NotNull(method);
         await Assert.IsAssignableFrom<Task>(method.Invoke(
             viewModel,
-            [record, generation, CancellationToken.None]));
+            [record, generation, CancellationToken.None, false]));
     }
 
     private static Task InvokeLoadModPresetsAsync(

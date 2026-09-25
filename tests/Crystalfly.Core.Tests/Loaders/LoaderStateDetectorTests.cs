@@ -124,6 +124,50 @@ public sealed class LoaderStateDetectorTests : IDisposable
         Assert.Equal(LoaderOwnership.Managed, inspection.Ownership);
     }
 
+    [Theory]
+    [InlineData(LoaderState.BepInEx)]
+    [InlineData(LoaderState.ModdingApi)]
+    public async Task Empty_receipt_cannot_prove_loader_readiness(LoaderState state)
+    {
+        Directory.CreateDirectory(root);
+        var receipt = new InstalledPackageReceipt { PackageId = "loader", LoaderState = state };
+
+        Assert.Equal(LoaderState.Drifted, await LoaderStateDetector.DetectAsync(root, receipt));
+    }
+
+    [Theory]
+    [InlineData("null-files")]
+    [InlineData("null-entry")]
+    [InlineData("future-schema")]
+    [InlineData("null-package")]
+    [InlineData("null-builds")]
+    public async Task Invalid_receipt_is_reported_as_invalid_data(string fault)
+    {
+        var path = CreateFile("hollow_knight_Data/Managed/MMHOOK_Assembly-CSharp.dll", "hook");
+        var receipt = Receipt("modding-api-78", LoaderState.ModdingApi, path, "hook");
+        receipt = fault switch
+        {
+            "null-files" => receipt with { Files = null! },
+            "null-entry" => receipt with { Files = [null!] },
+            "future-schema" => receipt with { SchemaVersion = 999 },
+            "null-package" => receipt with { PackageId = null! },
+            "null-builds" => receipt with { SupportedBuildIds = null! },
+            _ => throw new InvalidOperationException()
+        };
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => LoaderStateDetector.InspectAsync(root, receipt));
+    }
+
+    [Fact]
+    public async Task Disabled_modding_api_mods_do_not_conflict_with_BepInEx()
+    {
+        var core = CreateFile("BepInEx/core/BepInEx.dll", "loader");
+        var receipt = Receipt("bepinex-5.4.23.4", LoaderState.BepInEx, core, "loader");
+        CreateFile("hollow_knight_Data/Managed/Mods/Disabled/OldMod/OldMod.dll", "disabled");
+
+        Assert.Equal(LoaderState.BepInEx, await LoaderStateDetector.DetectAsync(root, receipt));
+    }
+
     private string CreateFile(string relativePath, string content)
     {
         var path = Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));

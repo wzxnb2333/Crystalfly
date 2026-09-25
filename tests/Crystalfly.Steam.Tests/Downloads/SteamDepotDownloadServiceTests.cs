@@ -474,6 +474,29 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_staging, "game.dat")));
     }
 
+    [Fact]
+    public async Task DownloadRejectsLinkedDirectoryBeforeTouchingExternalPartials()
+    {
+        Directory.CreateDirectory(_staging);
+        string outside = Path.Combine(_staging, "outside");
+        Directory.CreateDirectory(outside);
+        string staging = Path.Combine(_staging, "staging");
+        Directory.CreateDirectory(staging);
+        Directory.CreateSymbolicLink(Path.Combine(staging, "linked"), outside);
+        string sentinel = Path.Combine(outside, "game.dat.crystalfly-part");
+        await File.WriteAllTextAsync(sentinel, "external-partial");
+        byte[] bytes = "new"u8.ToArray();
+        var manifest = new SteamDepotManifest(123, [DepotFile("linked/game.dat", "chunk-0", bytes)]);
+        var source = new MemoryContentClient(manifest, bytes);
+
+        await Assert.ThrowsAsync<IOException>(() =>
+            new SteamDepotDownloadService(source).DownloadAsync(new SteamDownloadRequest(staging, 123)));
+
+        Assert.Equal(0, source.DownloadedChunkCount);
+        Assert.Equal("external-partial", await File.ReadAllTextAsync(sentinel));
+        Assert.False(File.Exists(Path.Combine(outside, "game.dat")));
+    }
+
     private static SteamDepotManifest CreateManifest(params byte[][] chunks)
     {
         byte[] content = chunks.SelectMany(static chunk => chunk).ToArray();
