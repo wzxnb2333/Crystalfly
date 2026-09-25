@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Crystalfly.App.ViewModels.Dialogs"
+             xmlns:converters="using:Avalonia.Data.Converters"
+             xmlns:u="https://irihi.tech/ursa"
+             x:Class="Crystalfly.App.Views.Dialogs.CommunityLinkDialogView"
+             x:DataType="vm:CommunityLinkDialogViewModel" Width="520" MaxHeight="520">
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Enter" Command="{Binding SaveCommand}" />
+        <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+    </UserControl.KeyBindings>
+    <Grid Margin="24" RowDefinitions="Auto,*,Auto" RowSpacing="16">
+        <TextBlock Classes="cfp-section-title" Text="{Binding Title}" />
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="12">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding Loc[SpeedrunCommunityName]}" />
+                    <TextBox Text="{Binding Name, Mode=TwoWay}" MaxLength="120"
+                             IsEnabled="{Binding CanEdit}" u:FocusHelper.DialogFocusHint="True"
+                             AutomationProperties.Name="{Binding Loc[SpeedrunCommunityName]}" />
+                </StackPanel>
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding Loc[SpeedrunCommunityUrl]}" />
+                    <TextBox Text="{Binding Url, Mode=TwoWay}" MaxLength="2048"
+                             IsEnabled="{Binding CanEdit}"
+                             AutomationProperties.Name="{Binding Loc[SpeedrunCommunityUrl]}" />
+                    <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunCommunityUrlHint]}" TextWrapping="Wrap" />
+                </StackPanel>
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource CfErrorBrush}"
+                           TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"
+                           IsVisible="{Binding ErrorMessage, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+        </ScrollViewer>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Classes="cfp-secondary" Content="{Binding Loc[Cancel]}" Command="{Binding CancelCommand}" MinWidth="96" />
+            <Button Classes="cfp-primary" Content="{Binding Loc[Confirm]}" Command="{Binding SaveCommand}" MinWidth="96" />
+        </StackPanel>
+    </Grid>
+</UserControl>

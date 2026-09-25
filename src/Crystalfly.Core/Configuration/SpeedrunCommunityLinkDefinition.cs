@@ -27,10 +27,10 @@ public sealed record SpeedrunCommunityLinkDefinition
         var name = value.Name?.Trim() ?? string.Empty;
         var icon = value.IconKey?.Trim() ?? "link";
         var url = value.Url?.Trim() ?? string.Empty;
-        if (id.Length == 0 || id.Length > 80 || name.Length == 0 || name.Length > 120 || icon.Length > 40
+        if (id.Length == 0 || id.Length > 80 || name.Length == 0 || name.Length > 120 || icon.Length > 40 || url.Length > 2048
             || !Uri.TryCreate(url, UriKind.Absolute, out var uri)
             || uri.Scheme != Uri.UriSchemeHttps
-            || string.IsNullOrWhiteSpace(uri.Host))
+            || string.IsNullOrWhiteSpace(uri.Host) || uri.UserInfo.Length != 0)
         {
             return false;
         }
@@ -39,7 +39,7 @@ public sealed record SpeedrunCommunityLinkDefinition
         {
             Id = id,
             Name = name,
-            Url = uri.GetComponents(UriComponents.HttpRequestUrl, UriFormat.UriEscaped),
+            Url = uri.AbsoluteUri,
             IconKey = icon.Length == 0 ? "link" : icon
         };
         return true;

@@ -1,23 +1,16 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Crystalfly.Core.Configuration;
+using Lucide.Avalonia;
 
 namespace Crystalfly.App.ViewModels;
 
 public sealed class SpeedrunCommunityLinkItemViewModel : ObservableObject
 {
-    public SpeedrunCommunityLinkItemViewModel(SpeedrunCommunityLinkDefinition definition, bool isCustom, Func<Task>? removeAsync = null)
+    public SpeedrunCommunityLinkItemViewModel(SpeedrunCommunityLinkDefinition definition, bool isCustom)
     {
         Definition = definition;
         IsCustom = isCustom;
-        OpenCommand = new DelegateCommand(() =>
-        {
-            if (Uri.TryCreate(Definition.Url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps)
-                Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
-        });
-        RemoveCommand = new AsyncDelegateCommand(removeAsync);
     }
 
     public SpeedrunCommunityLinkDefinition Definition { get; private set; }
@@ -27,14 +20,12 @@ public sealed class SpeedrunCommunityLinkItemViewModel : ObservableObject
     public string Group => Definition.Group.ToString();
     public string Url => Definition.Url;
     public string Host => new Uri(Definition.Url).Host;
-    public ICommand OpenCommand { get; }
-    public ICommand RemoveCommand { get; }
-    public string Icon => Definition.IconKey.ToLowerInvariant() switch
+    public LucideIconKind Icon => Definition.IconKey.ToLowerInvariant() switch
     {
-        "github" => "⌘",
-        "discord" => "◉",
-        "speedrun" => "▶",
-        _ => "↗"
+        "github" => LucideIconKind.GitFork,
+        "discord" => LucideIconKind.MessagesSquare,
+        "speedrun" => LucideIconKind.Timer,
+        _ => LucideIconKind.ExternalLink
     };
 
     public void Update(SpeedrunCommunityLinkDefinition definition)
@@ -57,6 +48,7 @@ public sealed class SpeedrunCommunityLinksViewModel : ViewModelBase
     ];
 
     private readonly Func<IReadOnlyList<SpeedrunCommunityLinkDefinition>, Task> saveAsync;
+    private readonly SemaphoreSlim mutationGate = new(1, 1);
     public ObservableCollection<SpeedrunCommunityLinkItemViewModel> Links { get; } = [];
     public IEnumerable<SpeedrunCommunityLinkItemViewModel> CustomLinks => Links.Where(x => x.IsCustom);
     public IEnumerable<SpeedrunCommunityLinkItemViewModel> HollowKnightLinks => Links.Where(x => !x.IsCustom && x.Definition.Group == SpeedrunCommunityGroup.HollowKnight);
@@ -87,48 +79,71 @@ public sealed class SpeedrunCommunityLinksViewModel : ViewModelBase
             {
                 continue;
             }
-            Links.Add(new SpeedrunCommunityLinkItemViewModel(definition, true, () => RemoveAsync(definition.Id)));
+            Links.Add(new SpeedrunCommunityLinkItemViewModel(definition, true));
         }
         NotifyCollectionsChanged();
     }
 
     public async Task<bool> AddAsync(SpeedrunCommunityLinkDefinition definition)
     {
-        if (!SpeedrunCommunityLinkDefinition.TryNormalize(definition, out var normalized)
-            || Links.Any(x => string.Equals(x.Id, normalized.Id, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(x.Url, normalized.Url, StringComparison.OrdinalIgnoreCase)))
+        await mutationGate.WaitAsync();
+        try
         {
-            return false;
+            if (!SpeedrunCommunityLinkDefinition.TryNormalize(definition, out var normalized)
+                || Links.Any(x => string.Equals(x.Id, normalized.Id, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(x.Url, normalized.Url, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+            await saveAsync(CustomLinks.Select(x => x.Definition).Append(normalized).ToArray());
+            Links.Add(new SpeedrunCommunityLinkItemViewModel(normalized, true));
+            NotifyCollectionsChanged();
+            return true;
         }
-        Links.Add(new SpeedrunCommunityLinkItemViewModel(normalized, true, () => RemoveAsync(normalized.Id)));
-        NotifyCollectionsChanged();
-        await SaveAsync();
-        return true;
+        finally
+        {
+            mutationGate.Release();
+        }
     }
 
     public async Task<bool> UpdateAsync(SpeedrunCommunityLinkDefinition definition)
     {
-        if (!SpeedrunCommunityLinkDefinition.TryNormalize(definition, out var normalized)) return false;
-        var existing = Links.FirstOrDefault(x => x.IsCustom && string.Equals(x.Id, normalized.Id, StringComparison.OrdinalIgnoreCase));
-        if (existing is null) return false;
-        if (Links.Any(x => x != existing && string.Equals(x.Url, normalized.Url, StringComparison.OrdinalIgnoreCase))) return false;
-        existing.Update(normalized);
-        NotifyCollectionsChanged();
-        await SaveAsync();
-        return true;
+        await mutationGate.WaitAsync();
+        try
+        {
+            if (!SpeedrunCommunityLinkDefinition.TryNormalize(definition, out var normalized)) return false;
+            var existing = Links.FirstOrDefault(x => x.IsCustom && string.Equals(x.Id, normalized.Id, StringComparison.OrdinalIgnoreCase));
+            if (existing is null) return false;
+            if (Links.Any(x => x != existing && string.Equals(x.Url, normalized.Url, StringComparison.OrdinalIgnoreCase))) return false;
+            await saveAsync(CustomLinks.Select(x => x == existing ? normalized : x.Definition).ToArray());
+            existing.Update(normalized);
+            NotifyCollectionsChanged();
+            return true;
+        }
+        finally
+        {
+            mutationGate.Release();
+        }
     }
 
     public async Task<bool> RemoveAsync(string id)
     {
-        var existing = Links.FirstOrDefault(x => x.IsCustom && string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
-        if (existing is null) return false;
-        Links.Remove(existing);
-        NotifyCollectionsChanged();
-        await SaveAsync();
-        return true;
+        await mutationGate.WaitAsync();
+        try
+        {
+            var existing = Links.FirstOrDefault(x => x.IsCustom && string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
+            if (existing is null) return false;
+            await saveAsync(CustomLinks.Where(x => x != existing).Select(x => x.Definition).ToArray());
+            Links.Remove(existing);
+            NotifyCollectionsChanged();
+            return true;
+        }
+        finally
+        {
+            mutationGate.Release();
+        }
     }
 
-    private async Task SaveAsync() => await saveAsync(Links.Where(x => x.IsCustom).Select(x => x.Definition).ToArray());
     private void NotifyCollectionsChanged()
     {
         OnPropertyChanged(nameof(CustomLinks));
@@ -140,18 +155,4 @@ public sealed class SpeedrunCommunityLinksViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasHollowKnightLinks));
         OnPropertyChanged(nameof(HasSilksongLinks));
     }
-}
-
-internal sealed class DelegateCommand(Action execute) : ICommand
-{
-    public event EventHandler? CanExecuteChanged { add { } remove { } }
-    public bool CanExecute(object? parameter) => true;
-    public void Execute(object? parameter) => execute();
-}
-
-internal sealed class AsyncDelegateCommand(Func<Task>? execute) : ICommand
-{
-    public event EventHandler? CanExecuteChanged { add { } remove { } }
-    public bool CanExecute(object? parameter) => execute is not null;
-    public async void Execute(object? parameter) { if (execute is not null) await execute(); }
 }

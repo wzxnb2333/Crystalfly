@@ -23,6 +23,7 @@ public sealed class SpeedrunCommunityLinkDefinitionTests
     [Theory]
     [InlineData("http://example.com")]
     [InlineData("javascript:alert(1)")]
+    [InlineData("https://user:password@example.com")]
     [InlineData("")]
     public void TryNormalize_rejects_non_https(string url)
     {
@@ -43,5 +44,14 @@ public sealed class SpeedrunCommunityLinkDefinitionTests
         var normalized = SpeedrunCommunityLinkDefinition.NormalizeStoredLinks(links);
         var only = Assert.Single(normalized);
         Assert.Equal("one", only.Id);
+    }
+
+    [Fact]
+    public void TryNormalize_preserves_deep_link_query_and_fragment()
+    {
+        const string url = "https://example.com/resources?game=hk#practice";
+        var input = new SpeedrunCommunityLinkDefinition { Id = "link", Name = "Guide", Url = url };
+        Assert.True(SpeedrunCommunityLinkDefinition.TryNormalize(input, out var normalized));
+        Assert.Equal(url, normalized.Url);
     }
 }

@@ -62,6 +62,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        SizeChanged += (_, _) => UpdateLaunchLayout();
+        UpdateLaunchLayout();
         // 行的内容容器(ContentPresenter)会在行悬停/选中时拦截空白区域的指针按下,
         // 且 ListBoxItem 会在冒泡阶段标记事件已处理;因此选择逻辑必须在隧道阶段、
         // 以 ListBox 为根注册,才能覆盖行内任意非交互区域。
@@ -98,12 +100,28 @@ public partial class MainWindow : Window
     private void OnWindowMinimizeClick(object? sender, RoutedEventArgs e) =>
         WindowState = WindowState.Minimized;
 
+    private void UpdateLaunchLayout()
+    {
+        var compact = Bounds.Width < 1180;
+        LaunchPageGrid.ColumnDefinitions[2].Width = new GridLength(compact ? 0 : 272);
+        Grid.SetColumn(CommunityRail, compact ? 1 : 2);
+        Grid.SetRow(CommunityRail, compact ? 1 : 0);
+        Grid.SetRowSpan(CommunityRail, compact ? 1 : 2);
+        CommunityRail.MaxHeight = compact ? 216 : double.PositiveInfinity;
+        CommunityRail.Margin = compact ? new Thickness(24, 0, 24, 16) : new Thickness(0, 16, 16, 16);
+    }
+
     private void OnWindowMaximizeClick(object? sender, RoutedEventArgs e) =>
         WindowState = WindowState == WindowState.Maximized
             ? WindowState.Normal
             : WindowState.Maximized;
 
     private void OnWindowCloseClick(object? sender, RoutedEventArgs e) => Close();
+
+    private void DismissError(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel) viewModel.ErrorMessage = null;
+    }
 
     private async void OnOpened(object? sender, EventArgs eventArgs)
     {

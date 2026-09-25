@@ -257,7 +257,8 @@ public sealed class MainWindowStructureTests
         Assert.Contains("SpeedrunCommunityLinks.HollowKnightLinks", rail.ToString(SaveOptions.DisableFormatting), StringComparison.Ordinal);
         Assert.Contains("SpeedrunCommunityLinks.SilksongLinks", rail.ToString(SaveOptions.DisableFormatting), StringComparison.Ordinal);
         Assert.Contains("SpeedrunCommunityLinks.CustomLinks", rail.ToString(SaveOptions.DisableFormatting), StringComparison.Ordinal);
-        Assert.Contains(rail.Descendants(Avalonia + "Button"), button => HasBinding(button, "Command", "OpenCommand"));
+        Assert.Contains(rail.Descendants(Avalonia + "Button"), button =>
+            HasBinding(button, "Tag", "Url") && (string?)button.Attribute("Click") == "OpenExternalUrl");
     }
 
     [Fact]

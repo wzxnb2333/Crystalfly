@@ -20,23 +20,52 @@ public partial class MainWindow
 {
     private async void AddSpeedrunCommunityLink(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel) return;
-        var dialog = new TextInputDialogViewModel(
-            viewModel.Loc["SpeedrunCommunityAdd"],
-            viewModel.Loc["SpeedrunCommunityUrlHint"],
-            "https://",
-            viewModel.Loc["SpeedrunCommunityUrl"],
-            viewModel.Loc["Confirm"],
-            viewModel.Loc["Cancel"]);
-        var url = await OverlayDialog.ShowCustomAsync<TextInputDialogView, TextInputDialogViewModel, string?>(dialog, OverlayHostId, CreateOverlayOptions());
-        if (!Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps) return;
-        var name = uri.Host.Replace("www.", string.Empty, StringComparison.OrdinalIgnoreCase);
-        var id = $"custom-{Guid.NewGuid():N}";
-        await viewModel.SpeedrunCommunityLinks.AddAsync(new Crystalfly.Core.Configuration.SpeedrunCommunityLinkDefinition
+        if (DataContext is MainViewModel viewModel)
         {
-            Id = id, Name = name, Group = Crystalfly.Core.Configuration.SpeedrunCommunityGroup.Other,
-            Url = uri.AbsoluteUri, IconKey = "link"
-        });
+            await ShowCommunityLinkDialogAsync(viewModel);
+        }
+    }
+
+    private async void EditSpeedrunCommunityLink(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel viewModel
+            && sender is Button { DataContext: SpeedrunCommunityLinkItemViewModel { IsCustom: true } item })
+        {
+            await ShowCommunityLinkDialogAsync(viewModel, item);
+        }
+    }
+
+    private async Task ShowCommunityLinkDialogAsync(MainViewModel viewModel, SpeedrunCommunityLinkItemViewModel? item = null)
+    {
+        var dialog = new CommunityLinkDialogViewModel(viewModel.Loc,
+            item is null ? viewModel.SpeedrunCommunityLinks.AddAsync : viewModel.SpeedrunCommunityLinks.UpdateAsync,
+            item?.Definition);
+        var options = CreateOverlayOptions();
+        options.IsCloseButtonVisible = false;
+        await OverlayDialog.ShowCustomAsync<CommunityLinkDialogView, CommunityLinkDialogViewModel, bool>(
+            dialog, OverlayHostId, options);
+    }
+
+    private async void RemoveSpeedrunCommunityLink(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || sender is not Button { DataContext: SpeedrunCommunityLinkItemViewModel { IsCustom: true } item })
+        {
+            return;
+        }
+        if (!await ShowConfirmationAsync(viewModel.Loc["SpeedrunCommunityRemove"],
+                viewModel.Loc["SpeedrunCommunityRemoveHint"], item.Name, viewModel, isDangerous: true))
+        {
+            return;
+        }
+        try
+        {
+            await viewModel.SpeedrunCommunityLinks.RemoveAsync(item.Id);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
+        }
     }
 
     private async void ShowCreateSpeedrunEnvironmentDialog(object? sender, RoutedEventArgs eventArgs)

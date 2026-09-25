@@ -27,7 +27,7 @@ using SkiaSharp;
 
 namespace Crystalfly.App.Tests.Ui;
 
-public sealed class DocumentationScreenshotTests
+public sealed partial class DocumentationScreenshotTests
 {
     private static readonly ScreenshotCase[] Cases =
     [

@@ -237,11 +237,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             null,
             githubRoutePreference);
         Loc = new LocalizationViewModel();
-        SpeedrunCommunityLinks = new SpeedrunCommunityLinksViewModel(async links =>
-        {
-            settings = settings with { SpeedrunCommunityLinks = links };
-            await QueueSettingsSave();
-        });
+        SpeedrunCommunityLinks = new SpeedrunCommunityLinksViewModel(SaveSpeedrunCommunityLinksAsync);
         SteamNetworkStatus = FormatSteamNetworkStatus(systemProxy.Current);
         systemProxy.Changed += OnSystemProxyChanged;
         var downloadQueue = downloadQueueOverride ?? CreateDownloadQueue();
@@ -4154,6 +4150,43 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             return settingsSaveQueue = SaveSettingsAfterAsync(settingsSaveQueue);
         }
+    }
+
+    private Task SaveSpeedrunCommunityLinksAsync(IReadOnlyList<SpeedrunCommunityLinkDefinition> links)
+    {
+        lock (settingsSaveQueueLock)
+        {
+            if (settingsSavesClosed)
+            {
+                return Task.FromException(new InvalidOperationException(Loc["ShuttingDown"]));
+            }
+            var save = SaveCommunityLinksAfterAsync(settingsSaveQueue, links);
+            // The dialog observes failure; subsequent settings writes must still run.
+            settingsSaveQueue = ObserveCommunityLinkSaveAsync(save);
+            return save;
+        }
+    }
+
+    private async Task SaveCommunityLinksAfterAsync(Task previousSave, IReadOnlyList<SpeedrunCommunityLinkDefinition> links)
+    {
+        await previousSave;
+        var previousLinks = settings.SpeedrunCommunityLinks;
+        settings = settings with { SpeedrunCommunityLinks = links };
+        try
+        {
+            await SaveSettingsWithLockAsync(settings, CancellationToken.None);
+        }
+        catch
+        {
+            settings = settings with { SpeedrunCommunityLinks = previousLinks };
+            throw;
+        }
+    }
+
+    private static async Task ObserveCommunityLinkSaveAsync(Task save)
+    {
+        try { await save; }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException) { }
     }
 
     private async Task SaveSettingsAfterAsync(Task previousSave)
