@@ -32,10 +32,26 @@ export async function readJsonBody(request: Request): Promise<unknown> {
         throw new RequestBodyError("请求体不能超过 128 KiB。", 413);
     }
 
-    const text = await request.text();
-    if (Buffer.byteLength(text, "utf8") > MAX_BODY_BYTES) {
-        throw new RequestBodyError("请求体不能超过 128 KiB。", 413);
+    const chunks: Uint8Array[] = [];
+    let receivedBytes = 0;
+    const reader = request.body?.getReader();
+    if (reader) {
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                receivedBytes += value.byteLength;
+                if (receivedBytes > MAX_BODY_BYTES) {
+                    void reader.cancel().catch(() => undefined);
+                    throw new RequestBodyError("请求体不能超过 128 KiB。", 413);
+                }
+                if (value.byteLength > 0) chunks.push(value);
+            }
+        } finally {
+            reader.releaseLock();
+        }
     }
+    const text = new TextDecoder().decode(Buffer.concat(chunks, receivedBytes));
     try {
         return JSON.parse(text) as unknown;
     } catch {
