@@ -414,7 +414,7 @@ public sealed class LayoutRenderingTests
                     && Equals(button.Content, viewModel.Loc["SpeedrunCreate"]));
             Assert.Equal(HorizontalAlignment.Stretch, createButton.HorizontalAlignment);
 
-            // 切换条位于内容顶部并水平居中。
+            // 切换条位于内容底部并水平居中，独立占位避免遮挡。
             var tabSwitch = window.GetVisualDescendants()
                 .OfType<Border>()
                 .Single(border => border.Classes.Contains("cfp-speedrun-tab-switch"));
@@ -425,7 +425,7 @@ public sealed class LayoutRenderingTests
             Assert.NotNull(tabBottom);
             Assert.NotNull(tabTop);
             Assert.NotNull(tabCenter);
-            Assert.InRange(tabTop.Value.Y, 45, 85);
+            Assert.InRange(window.ClientSize.Height - tabBottom.Value.Y, 0, 20);
             Assert.InRange(Math.Abs(tabCenter.Value.X - window.Width / 2), 0, 2);
 
             var workspaceScroll = window.GetVisualDescendants()
@@ -455,7 +455,7 @@ public sealed class LayoutRenderingTests
             Assert.InRange(Math.Abs(favoritesOrigin.Value.X - 12 - workspaceOrigin.Value.X - workspaceScroll.Bounds.Width), 0, 1.5);
             var scrollBottom = workspaceScroll.TranslatePoint(new Point(0, workspaceScroll.Bounds.Height), window);
             Assert.NotNull(scrollBottom);
-            Assert.True(tabBottom.Value.Y <= workspaceOrigin.Value.Y + 50);
+            Assert.True(scrollBottom.Value.Y <= tabTop.Value.Y);
         }
         finally
         {

@@ -1689,8 +1689,8 @@
 
             <!-- Speedrun -->
             <Grid Classes="cfp-page" IsVisible="{Binding IsSpeedrunPage}">
-                <Grid RowDefinitions="Auto,*">
-                    <Border Grid.Row="0" Classes="cfp-speedrun-tab-switch" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,4,0,10"
+                <Grid RowDefinitions="*,Auto">
+                    <Border Grid.Row="1" Classes="cfp-speedrun-tab-switch" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,10,0,4"
                             ZIndex="10">
                         <Grid Width="240" ColumnDefinitions="*,*">
                             <Border x:Name="SpeedrunTabIndicator"
@@ -1717,7 +1717,7 @@
                             </Button>
                         </Grid>
                     </Border>
-                    <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
                     <Border Grid.Column="0" Classes="cfp-rail cfp-speedrun-rail" Width="216" Padding="12,16" Margin="0,0,12,0" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
                         <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
                             <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTitle]}" TextWrapping="Wrap" />
