@@ -72,6 +72,7 @@ public static class CrystalflySettingsStore
     {
         AccentColor = AccentColorPalette.Normalize(settings.AccentColor),
         BackgroundImage = BackgroundImageSettings.Normalize(settings.BackgroundImage),
-        LiveSplitFavoritePaths = LiveSplitFavoritePathPolicy.NormalizeStoredPaths(settings.LiveSplitFavoritePaths)
+        LiveSplitFavoritePaths = LiveSplitFavoritePathPolicy.NormalizeStoredPaths(settings.LiveSplitFavoritePaths),
+        SpeedrunCommunityLinks = SpeedrunCommunityLinkDefinition.NormalizeStoredLinks(settings.SpeedrunCommunityLinks)
     };
 }

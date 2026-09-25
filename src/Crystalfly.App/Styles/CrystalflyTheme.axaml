@@ -348,6 +348,25 @@
         <Setter Property="Padding" Value="12,16" />
     </Style>
 
+    <Style Selector="Border.cfp-community-rail">
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <Style Selector="Button.cfp-community-link">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="8,7" />
+        <Setter Property="CornerRadius" Value="7" />
+    </Style>
+
+    <Style Selector="Button.cfp-community-link:pointerover">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+    </Style>
+
     <Style Selector="Border.cfp-speedrun-status">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
         <Setter Property="CornerRadius" Value="8" />

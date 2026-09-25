@@ -186,13 +186,13 @@
             </u:LoadingContainer.Indicator>
         <Grid>
             <!-- Launch -->
-            <Grid Classes="cfp-page" IsVisible="{Binding IsLaunchPage}" ColumnDefinitions="224,*">
-                <Border Grid.ColumnSpan="2"
+            <Grid Classes="cfp-page cfp-launch-page" IsVisible="{Binding IsLaunchPage}" ColumnDefinitions="224,*,272">
+                <Border Grid.ColumnSpan="3"
                         Classes="cfp-launch-issue-frame"
                         IsHitTestVisible="False"
                         IsVisible="{Binding HasLaunchIssues}"
                         ZIndex="100" />
-                <Border Grid.Column="0" Classes="cfp-rail" Padding="16">
+                <Border Grid.Column="0" Classes="cfp-rail cfp-launch-rail" Padding="16">
                     <Grid RowDefinitions="Auto,*,Auto">
                         <StackPanel Grid.Row="0" Spacing="12" HorizontalAlignment="Stretch">
                             <Image Width="64"
@@ -404,6 +404,141 @@
                                    IsVisible="{Binding HasInstance, Converter={x:Static converters:BoolConverters.Not}}" />
                     </StackPanel>
                 </ScrollViewer>
+
+                <Border Grid.Column="2"
+                        Classes="cfp-rail cfp-community-rail"
+                        Padding="12,16"
+                        Margin="12,0,0,0">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Spacing="14">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunCommunityTitle]}" />
+                                    <TextBlock Classes="cfp-caption" Text="{Binding Loc[SpeedrunCommunityHint]}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Classes="cfp-icon"
+                                        Click="AddSpeedrunCommunityLink"
+                                        ToolTip.Tip="{Binding Loc[SpeedrunCommunityAdd]}"
+                                        AutomationProperties.Name="{Binding Loc[SpeedrunCommunityAdd]}"
+                                        Content="{LucideIconContent Plus, 15}"
+                                        VerticalAlignment="Top" />
+                            </Grid>
+
+                            <StackPanel Spacing="6" IsVisible="{Binding SpeedrunCommunityLinks.HasHollowKnightLinks}">
+                                <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SpeedrunCommunityHollowKnight]}" />
+                                <ItemsControl ItemsSource="{Binding SpeedrunCommunityLinks.HollowKnightLinks}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,1">
+                                                <Button Classes="cfp-community-link"
+                                                        Grid.ColumnSpan="3"
+                                                        Command="{Binding OpenCommand}"
+                                                        HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Left"
+                                                        ToolTip.Tip="{Binding Url}"
+                                                        AutomationProperties.Name="{Binding Name}">
+                                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                                        <TextBlock Text="{Binding Icon}" FontSize="16" VerticalAlignment="Center" />
+                                                        <StackPanel Grid.Column="1" Spacing="1">
+                                                            <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Classes="cfp-caption" Text="{Binding Host}" TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Button>
+                                                <Button Grid.Column="2"
+                                                        Classes="cfp-icon"
+                                                        Tag="{Binding Id}"
+                                                        IsVisible="{Binding IsCustom}"
+                                                        ToolTip.Tip="{Binding #Root.DataContext.Loc[SpeedrunCommunityEdit]}"
+                                                        AutomationProperties.Name="{Binding #Root.DataContext.Loc[SpeedrunCommunityEdit]}"
+                                                        Content="{LucideIconContent Pencil, 14}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <StackPanel Spacing="6" IsVisible="{Binding SpeedrunCommunityLinks.HasSilksongLinks}">
+                                <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SpeedrunCommunitySilksong]}" />
+                                <ItemsControl ItemsSource="{Binding SpeedrunCommunityLinks.SilksongLinks}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Classes="cfp-community-link"
+                                                    Command="{Binding OpenCommand}"
+                                                    HorizontalAlignment="Stretch"
+                                                    HorizontalContentAlignment="Left"
+                                                    ToolTip.Tip="{Binding Url}"
+                                                    AutomationProperties.Name="{Binding Name}">
+                                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                                    <TextBlock Text="{Binding Icon}" FontSize="16" VerticalAlignment="Center" />
+                                                    <StackPanel Grid.Column="1" Spacing="1">
+                                                        <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Classes="cfp-caption" Text="{Binding Host}" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <StackPanel Spacing="6" IsVisible="{Binding SpeedrunCommunityLinks.HasOtherLinks}">
+                                <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SpeedrunCommunityOther]}" />
+                                <ItemsControl ItemsSource="{Binding SpeedrunCommunityLinks.OtherLinks}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Classes="cfp-community-link"
+                                                    Command="{Binding OpenCommand}"
+                                                    HorizontalAlignment="Stretch"
+                                                    HorizontalContentAlignment="Left"
+                                                    ToolTip.Tip="{Binding Url}"
+                                                    AutomationProperties.Name="{Binding Name}">
+                                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                                    <TextBlock Text="{Binding Icon}" FontSize="16" VerticalAlignment="Center" />
+                                                    <StackPanel Grid.Column="1" Spacing="1">
+                                                        <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Classes="cfp-caption" Text="{Binding Host}" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <StackPanel Spacing="6" IsVisible="{Binding SpeedrunCommunityLinks.HasCustomLinks}">
+                                <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SpeedrunCommunityCustom]}" />
+                                <ItemsControl ItemsSource="{Binding SpeedrunCommunityLinks.CustomLinks}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
+                                                <Button Classes="cfp-community-link"
+                                                        Command="{Binding OpenCommand}"
+                                                        HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Left"
+                                                        ToolTip.Tip="{Binding Url}"
+                                                        AutomationProperties.Name="{Binding Name}">
+                                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                                        <TextBlock Text="{Binding Icon}" FontSize="16" VerticalAlignment="Center" />
+                                                        <TextBlock Grid.Column="1" Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                    </Grid>
+                                                </Button>
+                                                <Button Grid.Column="2"
+                                                        Classes="cfp-icon danger"
+                                                        Command="{Binding RemoveCommand}"
+                                                        ToolTip.Tip="{Binding #Root.DataContext.Loc[SpeedrunCommunityRemove]}"
+                                                        AutomationProperties.Name="{Binding #Root.DataContext.Loc[SpeedrunCommunityRemove]}"
+                                                        Content="{LucideIconContent Trash2, 14}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
             </Grid>
 
             <!-- Versions -->
@@ -1548,11 +1683,8 @@
 
             <!-- Speedrun -->
             <Grid Classes="cfp-page" IsVisible="{Binding IsSpeedrunPage}">
-                <Grid RowDefinitions="*">
-                    <Border Classes="cfp-speedrun-tab-switch"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Bottom"
-                            Margin="0,0,0,16"
+                <Grid RowDefinitions="Auto,*">
+                    <Border Grid.Row="0" Classes="cfp-speedrun-tab-switch" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,4,0,10"
                             ZIndex="10">
                         <Grid Width="196" ColumnDefinitions="*,*">
                             <Border x:Name="SpeedrunTabIndicator"
@@ -1579,7 +1711,7 @@
                             </Button>
                         </Grid>
                     </Border>
-                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                    <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto">
                     <Border Grid.Column="0" Classes="cfp-rail cfp-speedrun-rail" Width="216" Padding="12,16" Margin="0,0,12,0" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
                         <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
                             <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTitle]}" />
@@ -1625,7 +1757,7 @@
                                       PointerPressed="OnSpeedrunWorkspacePointerPressed"
                                       PointerReleased="OnSpeedrunWorkspacePointerReleased">
                             <Grid MinHeight="{Binding #SpeedrunWorkspace.Bounds.Height}">
-                        <Grid Classes="cfp-workspace cfp-subpage" RowDefinitions="Auto,Auto,*" RowSpacing="12" Margin="0,0,0,44" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
+                        <Grid Classes="cfp-workspace cfp-subpage" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
                             <Border Classes="cfp-card cfp-speedrun-summary"
                                     Padding="14"
                                     IsVisible="{Binding HasSelectedSpeedrunInstance}">
@@ -1776,7 +1908,7 @@
                                 </StackPanel>
                             </Border>
                         </Grid>
-                        <Grid Classes="cfp-workspace cfp-speedrun-activity cfp-subpage" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="10" Margin="0,0,0,44" IsVisible="{Binding IsSpeedrunActivityTab}">
+                        <Grid Classes="cfp-workspace cfp-speedrun-activity cfp-subpage" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="10" IsVisible="{Binding IsSpeedrunActivityTab}">
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                                 <StackPanel Spacing="3">
                                     <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunActivityTitle]}" />

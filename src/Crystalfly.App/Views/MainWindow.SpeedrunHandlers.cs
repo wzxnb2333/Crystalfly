@@ -18,6 +18,27 @@ namespace Crystalfly.App.Views;
 
 public partial class MainWindow
 {
+    private async void AddSpeedrunCommunityLink(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel) return;
+        var dialog = new TextInputDialogViewModel(
+            viewModel.Loc["SpeedrunCommunityAdd"],
+            viewModel.Loc["SpeedrunCommunityUrlHint"],
+            "https://",
+            viewModel.Loc["SpeedrunCommunityUrl"],
+            viewModel.Loc["Confirm"],
+            viewModel.Loc["Cancel"]);
+        var url = await OverlayDialog.ShowCustomAsync<TextInputDialogView, TextInputDialogViewModel, string?>(dialog, OverlayHostId, CreateOverlayOptions());
+        if (!Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps) return;
+        var name = uri.Host.Replace("www.", string.Empty, StringComparison.OrdinalIgnoreCase);
+        var id = $"custom-{Guid.NewGuid():N}";
+        await viewModel.SpeedrunCommunityLinks.AddAsync(new Crystalfly.Core.Configuration.SpeedrunCommunityLinkDefinition
+        {
+            Id = id, Name = name, Group = Crystalfly.Core.Configuration.SpeedrunCommunityGroup.Other,
+            Url = uri.AbsoluteUri, IconKey = "link"
+        });
+    }
+
     private async void ShowCreateSpeedrunEnvironmentDialog(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is not MainViewModel { SelectedSpeedrunTemplate: { } template } viewModel)
