@@ -1689,8 +1689,8 @@
 
             <!-- Speedrun -->
             <Grid Classes="cfp-page" IsVisible="{Binding IsSpeedrunPage}">
-                <Grid RowDefinitions="*,Auto">
-                    <Border Grid.Row="1" Classes="cfp-speedrun-tab-switch" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,10,0,4"
+                <Grid RowDefinitions="*">
+                    <Border Grid.Row="0" Classes="cfp-speedrun-tab-switch" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,16"
                             ZIndex="10">
                         <Grid Width="240" ColumnDefinitions="*,*">
                             <Border x:Name="SpeedrunTabIndicator"
@@ -1770,7 +1770,8 @@
                                       HorizontalScrollBarVisibility="Disabled"
                                       PointerPressed="OnSpeedrunWorkspacePointerPressed"
                                       PointerReleased="OnSpeedrunWorkspacePointerReleased">
-                            <Grid MinHeight="{Binding #SpeedrunWorkspace.Bounds.Height}">
+                        <Border x:Name="SpeedrunScrollContent" MinHeight="{Binding #SpeedrunWorkspace.Bounds.Height}" Padding="0,16,0,80">
+                            <Grid>
                         <Grid Classes="cfp-workspace cfp-subpage" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
                             <Border Classes="cfp-card cfp-speedrun-summary"
                                     Padding="14"
@@ -1922,7 +1923,7 @@
                                 </StackPanel>
                             </Border>
                         </Grid>
-                        <Grid Classes="cfp-workspace cfp-speedrun-activity cfp-subpage" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="10" IsVisible="{Binding IsSpeedrunActivityTab}">
+                        <Grid Classes="cfp-workspace cfp-speedrun-activity cfp-subpage" Margin="16,0" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="10" IsVisible="{Binding IsSpeedrunActivityTab}">
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                                 <StackPanel Spacing="3">
                                     <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunActivityTitle]}" />
@@ -1973,6 +1974,7 @@
                             </Border>
                         </Grid>
                             </Grid>
+                        </Border>
                     </ScrollViewer>
                     <Border Grid.Column="2"
                             Classes="cfp-rail cfp-speedrun-favorites"

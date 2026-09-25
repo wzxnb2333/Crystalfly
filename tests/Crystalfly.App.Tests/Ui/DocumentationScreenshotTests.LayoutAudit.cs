@@ -8,7 +8,9 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Crystalfly.App.ViewModels;
 using Crystalfly.Core.Configuration;
+using Crystalfly.Core.Speedrun;
 
 namespace Crystalfly.App.Tests.Ui;
 
@@ -19,11 +21,12 @@ public sealed partial class DocumentationScreenshotTests
     [InlineData(900, 600, UiLanguage.English)]
     [InlineData(1280, 720, UiLanguage.English)]
     [InlineData(1920, 1080, UiLanguage.SimplifiedChinese)]
-    public async Task Speedrun_switch_stays_below_scrolling_content_in_both_tabs(int width, int height, UiLanguage language)
+    public async Task Speedrun_switch_preserves_workspace_height_and_activity_edge_spacing(int width, int height, UiLanguage language)
     {
         await using var fixture = CreateFixture();
         await fixture.PrepareAsync(ScreenshotState.Speedrun);
         fixture.ViewModel.Loc.Apply(language);
+        fixture.ViewModel.SelectedMotionPreference = new(UiMotionPreference.Off, "Off");
         fixture.Window.Width = width;
         fixture.Window.Height = height;
         fixture.Window.Show();
@@ -52,15 +55,53 @@ public sealed partial class DocumentationScreenshotTests
             Assert.True(tabSwitch.IsEffectivelyVisible);
 
             var origin = Assert.IsType<Point>(tabSwitch.TranslatePoint(default, layout));
-            var contentOrigin = Assert.IsType<Point>(content.TranslatePoint(default, layout));
-            Assert.True(content.Bounds.Height > 0);
-            Assert.True(contentOrigin.Y + content.Bounds.Height <= origin.Y);
-            Assert.InRange(origin.Y + tabSwitch.Bounds.Height, layout.Bounds.Height - 5, layout.Bounds.Height);
+            Assert.Equal(layout.Bounds.Height, content.Bounds.Height, precision: 0);
+            Assert.Equal(layout.Bounds.Height, workspace.Bounds.Height, precision: 0);
+            Assert.InRange(layout.Bounds.Height - origin.Y - tabSwitch.Bounds.Height, 15, 17);
             Assert.InRange(origin.X + tabSwitch.Bounds.Width / 2, layout.Bounds.Width / 2 - 1, layout.Bounds.Width / 2 + 1);
+
+            workspace.Offset = default;
+            Dispatcher.UIThread.RunJobs();
+            if (tab == "Activity")
+            {
+                var activity = Assert.Single(workspace.GetVisualDescendants().OfType<Grid>(),
+                    grid => grid.Classes.Contains("cfp-speedrun-activity"));
+                var activityOrigin = Assert.IsType<Point>(activity.TranslatePoint(default, layout));
+                Assert.InRange(activityOrigin.X, 15, 17);
+                Assert.InRange(activityOrigin.Y, 15, 17);
+                Assert.InRange(layout.Bounds.Width - activityOrigin.X - activity.Bounds.Width, 15, 17);
+
+                var board = new SpeedrunBoardDescriptor(SpeedrunGame.HollowKnight, "any", "Any%", null, null, []);
+                for (var i = 0; i < 30; i++)
+                {
+                    var run = new SpeedrunPodiumEntry($"run-{i}", 2, $"Player {i}", "PT35M", 2100, DateTimeOffset.UnixEpoch, "https://example.invalid/run");
+                    var entry = new SpeedrunActivityEntry(run.RunId, SpeedrunActivityKind.SecondPlace, board, run, DateTimeOffset.UnixEpoch);
+                    fixture.ViewModel.SpeedrunActivities.Add(new SpeedrunActivityItemViewModel(entry, "#2", board.DisplayName));
+                }
+                fixture.ViewModel.SelectSpeedrunActivityFilterCommand.Execute("HollowKnight");
+                fixture.ViewModel.SelectSpeedrunActivityFilterCommand.Execute("All");
+                Dispatcher.UIThread.RunJobs();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+                Assert.True(workspace.Extent.Height > workspace.Viewport.Height);
+
+                var rows = activity.GetVisualDescendants().OfType<Border>()
+                    .Where(border => border.Classes.Contains("cfp-speedrun-activity-row")).ToArray();
+                Assert.Equal(30, rows.Length);
+                foreach (var row in rows)
+                {
+                    var rowOrigin = Assert.IsType<Point>(row.TranslatePoint(default, layout));
+                    Assert.True(rowOrigin.X >= 15);
+                    Assert.True(layout.Bounds.Width - rowOrigin.X - row.Bounds.Width >= 15);
+                }
+            }
 
             workspace.Offset = new Vector(0, workspace.Extent.Height);
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(origin, tabSwitch.TranslatePoint(default, layout));
+            var scrollContent = fixture.Window.FindControl<Border>("SpeedrunScrollContent")!;
+            var body = Assert.IsType<Grid>(scrollContent.Child);
+            var bodyBottom = Assert.IsType<Point>(body.TranslatePoint(new Point(0, body.Bounds.Height), layout));
+            Assert.True(bodyBottom.Y <= origin.Y - 8);
         }
     }
 
