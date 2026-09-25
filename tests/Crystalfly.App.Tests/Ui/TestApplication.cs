@@ -10,8 +10,7 @@ namespace Crystalfly.App.Tests.Ui;
 public static class TestApplication
 {
     public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<App>()
-            .UseSkia()
+        => Program.BuildAvaloniaApp()
             .UseHeadless(new AvaloniaHeadlessPlatformOptions
             {
                 UseHeadlessDrawing = false,

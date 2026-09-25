@@ -88,7 +88,7 @@
     </Styles.Resources>
 
     <Style Selector="Window">
-        <Setter Property="FontFamily" Value="Inter, Segoe UI, Microsoft YaHei UI, sans-serif" />
+        <Setter Property="FontFamily" Value="fonts:Inter#Inter" />
     </Style>
 
     <Style Selector="Window.cfp-window">

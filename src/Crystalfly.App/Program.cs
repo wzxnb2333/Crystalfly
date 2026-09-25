@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Media;
 using Crystalfly.App.Runtime;
 
 namespace Crystalfly.App;
@@ -61,5 +62,16 @@ internal sealed class Program
     public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
         .UsePlatformDetect()
         .WithInterFont()
+        .With(new FontManagerOptions
+        {
+            DefaultFamilyName = "fonts:Inter#Inter",
+            // Cover Chinese text in windows, popups, and controls with their own font.
+            FontFallbacks =
+            [
+                new FontFallback { FontFamily = new FontFamily("Microsoft YaHei UI") },
+                new FontFallback { FontFamily = new FontFamily("Microsoft YaHei") },
+                new FontFallback { FontFamily = new FontFamily("SimSun") }
+            ]
+        })
         .LogToTrace();
 }
