@@ -47,7 +47,10 @@ public sealed class ModActivitySourceTests : IDisposable
         var catalog = EmbeddedModActivityCatalog.Load();
 
         Assert.True(validation.IsValid, validation.ToString());
-        Assert.InRange(catalog.Entries.Count, 640, 660);
+        var generated = document.RootElement.Deserialize<ModActivityCatalog>(CrystalflyJson.Options);
+        Assert.NotNull(generated);
+        Assert.NotEmpty(generated.Entries);
+        AssertCatalogEqual(generated, catalog);
         Assert.Equal(
             catalog.Entries.Select(entry => entry.Id).Order(StringComparer.Ordinal),
             catalog.Entries.Select(entry => entry.Id));
