@@ -1958,6 +1958,95 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.False(viewModel.IsSteamLoggedIn);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Password_sign_in_remembers_the_submitted_credentials_when_fields_change(bool hidePanel)
+    {
+        string root = applicationData.CreateDirectory("password-edited-during-login");
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var viewModel = new MainViewModel(root,
+            passwordSignInOverride: async (username, password, cancellationToken) =>
+            {
+                Assert.Equal("runner", username);
+                Assert.Equal("submitted-password", password);
+                started.TrySetResult();
+                await release.Task.WaitAsync(cancellationToken);
+                return new RefreshTokenCredential("runner", "token");
+            })
+        {
+            SteamUsername = "runner",
+            SteamPassword = "submitted-password",
+            IsPasswordLoginVisible = true
+        };
+        var signIn = viewModel.SignInWithPasswordCommand.ExecuteAsync(null);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        if (hidePanel)
+        {
+            viewModel.TogglePasswordLoginCommand.Execute(null);
+        }
+        else
+        {
+            viewModel.SteamUsername = "edited-account";
+            viewModel.SteamPassword = "edited-password";
+        }
+        release.SetResult();
+        await signIn.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.True(viewModel.IsSteamLoggedIn);
+        Assert.Null(viewModel.ErrorMessage);
+        var stored = await new DpapiCredentialStore(Path.Combine(root, "steam-credentials.dat")).LoadAsync();
+        Assert.Equal(new SteamUsernameCredential("runner", "submitted-password"), stored);
+    }
+
+    [Fact]
+    public async Task Disposal_waits_for_password_sign_in_cleanup_before_releasing_dependencies()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseCleanup = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var viewModel = new MainViewModel(applicationData.CreateDirectory("password-close"),
+            passwordSignInOverride: async (_, _, cancellationToken) =>
+            {
+                started.TrySetResult();
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                    return new RefreshTokenCredential("runner", "token");
+                }
+                finally
+                {
+                    cancelled.TrySetResult();
+                    await releaseCleanup.Task;
+                }
+            })
+        {
+            SteamUsername = "runner",
+            SteamPassword = "submitted-password"
+        };
+        var signIn = viewModel.SignInWithPasswordCommand.ExecuteAsync(null);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var disposal = viewModel.DisposeAsync().AsTask();
+        bool disposedBeforeCleanup;
+        try
+        {
+            await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await Task.WhenAny(disposal, Task.Delay(100));
+            disposedBeforeCleanup = disposal.IsCompleted;
+        }
+        finally
+        {
+            releaseCleanup.TrySetResult();
+        }
+        var failure = await Record.ExceptionAsync(() =>
+            Task.WhenAll(signIn, disposal).WaitAsync(TimeSpan.FromSeconds(5)));
+
+        Assert.Null(failure);
+        Assert.False(disposedBeforeCleanup);
+        Assert.False(viewModel.IsSteamLoggedIn);
+    }
+
     [Fact]
     public async Task Password_sign_in_requires_username_and_password()
     {

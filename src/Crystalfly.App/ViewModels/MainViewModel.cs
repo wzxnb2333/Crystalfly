@@ -2339,6 +2339,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ErrorMessage = Loc["SteamCredentialsRequired"];
             return;
         }
+        var submittedCredential = new SteamUsernameCredential(SteamUsername, SteamPassword);
 
         var signInCancellation = CancellationTokenSource.CreateLinkedTokenSource(
             lifetimeCancellation.Token);
@@ -2357,9 +2358,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             await steamConnectionGate.WaitAsync(signInCancellation.Token);
             gateTaken = true;
             await DisposeCurrentSteamSessionAsync();
-            RefreshTokenCredential credential = await ConnectWithCredentialsCoreAsync(signInCancellation.Token);
+            RefreshTokenCredential credential = await ConnectWithCredentialsCoreAsync(
+                submittedCredential, signInCancellation.Token);
             await credentialStore.SaveAsync(
-                new SteamUsernameCredential(SteamUsername, SteamPassword),
+                submittedCredential,
                 signInCancellation.Token);
             IsSteamLoggedIn = true;
             SteamStatus = credential.AccountName;
@@ -2407,16 +2409,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    private async Task<RefreshTokenCredential> ConnectWithCredentialsCoreAsync(CancellationToken cancellationToken)
+    private async Task<RefreshTokenCredential> ConnectWithCredentialsCoreAsync(
+        SteamUsernameCredential credential,
+        CancellationToken cancellationToken)
     {
         if (passwordSignInOverride is not null)
         {
-            return await passwordSignInOverride(SteamUsername, SteamPassword, cancellationToken);
+            return await passwordSignInOverride(credential.Username, credential.Password, cancellationToken);
         }
         steamSession = CreateSteamSession(includeQrEvents: false);
         return await steamSession.ConnectWithCredentialsAsync(
-            SteamUsername,
-            SteamPassword,
+            credential.Username,
+            credential.Password,
             cancellationToken);
     }
 
@@ -5433,6 +5437,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     LaunchGameCommand.ExecutionTask ?? Task.CompletedTask,
                     ForceLaunchGameCommand.ExecutionTask ?? Task.CompletedTask,
                     SignInWithQrCommand.ExecutionTask ?? Task.CompletedTask,
+                    SignInWithPasswordCommand.ExecutionTask ?? Task.CompletedTask,
                     DownloadBuildCommand.ExecutionTask ?? Task.CompletedTask,
                     PrepareMarketInstallTargetsCommand.ExecutionTask ?? Task.CompletedTask,
                     InstallMarketModCommand.ExecutionTask ?? Task.CompletedTask,
