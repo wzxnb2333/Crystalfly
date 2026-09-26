@@ -55,7 +55,8 @@ public sealed partial class DownloadQueueGroupItemViewModel : ViewModelBase
     public string SpeedText => QueueDisplayText.Speed(group.BytesPerSecond);
 
     public bool CanCancel => group.State is
-        DownloadQueueGroupState.Pending or DownloadQueueGroupState.Running or DownloadQueueGroupState.Failed;
+        DownloadQueueGroupState.Pending or DownloadQueueGroupState.Running
+            or DownloadQueueGroupState.WaitingForNetwork or DownloadQueueGroupState.Failed;
 
     public bool CanRetry => group.State == DownloadQueueGroupState.Failed;
 

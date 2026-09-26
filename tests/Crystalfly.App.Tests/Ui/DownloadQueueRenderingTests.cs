@@ -7,6 +7,7 @@ using Avalonia.VisualTree;
 using Crystalfly.App.Downloads;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.Views;
+using Crystalfly.Core.Networking;
 using Crystalfly.Core.Packages;
 using Ursa.Controls;
 
@@ -14,6 +15,69 @@ namespace Crystalfly.App.Tests.Ui;
 
 public sealed class DownloadQueueRenderingTests
 {
+    [AvaloniaFact]
+    public async Task Offline_queue_keeps_individual_cancel_visible_and_preserves_other_downloads()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "crystalfly-offline-cancel", Guid.NewGuid().ToString("N"));
+        var policy = new NetworkPolicy(isOffline: true);
+        var executor = new CompletingExecutor();
+        var queue = new DownloadQueueService(
+            Path.Combine(root, "download-queue.json"), executor, static () => false,
+            TimeSpan.FromMilliseconds(10), networkPolicy: policy);
+        var viewModel = new MainViewModel(root, downloadQueueOverride: queue)
+        {
+            CurrentPage = "Downloads",
+            CurrentDownloadSection = "DownloadQueue"
+        };
+        var window = new MainWindow { Width = 900, Height = 600, DataContext = viewModel };
+        window.Show();
+        try
+        {
+            await queue.InitializeAsync();
+            await queue.EnqueueAsync(Group("offline-first"));
+            await queue.EnqueueAsync(Group("offline-second"));
+            await WaitUntilAsync(() =>
+            {
+                Dispatcher.UIThread.RunJobs();
+                return viewModel.DownloadCenter.DownloadQueueGroups.Count == 2;
+            });
+
+            var cancel = Assert.Single(window.GetVisualDescendants().OfType<Button>(), button =>
+                ReferenceEquals(button.Command, viewModel.DownloadCenter.CancelQueuedDownloadCommand)
+                && Equals(button.CommandParameter, "offline-first"));
+            Assert.True(cancel.IsEffectivelyVisible);
+            Assert.True(cancel.IsEnabled);
+            cancel.Command!.Execute(cancel.CommandParameter);
+            await WaitUntilAsync(() =>
+            {
+                Dispatcher.UIThread.RunJobs();
+                return viewModel.DownloadCenter.DownloadQueueGroups.Single(group => group.Id == "offline-first").State
+                    == DownloadQueueGroupState.Canceled;
+            });
+            Assert.False(cancel.IsEffectivelyVisible);
+            Assert.Equal(DownloadQueueGroupState.WaitingForNetwork,
+                queue.Groups.Single(group => group.Id == "offline-second").State);
+
+            policy.SetOffline(false);
+            await queue.WaitForIdleAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(DownloadQueueGroupState.Canceled,
+                queue.Groups.Single(group => group.Id == "offline-first").State);
+            Assert.Equal(DownloadQueueGroupState.Completed,
+                queue.Groups.Single(group => group.Id == "offline-second").State);
+            Assert.Equal(1, executor.TransferCalls);
+        }
+        finally
+        {
+            typeof(MainWindow)
+                .GetField("closeAfterDispose", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .SetValue(window, true);
+            window.Close();
+            await viewModel.DisposeAsync();
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
     [AvaloniaFact]
     public async Task Closing_with_active_download_requires_confirmation()
     {

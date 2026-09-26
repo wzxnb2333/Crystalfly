@@ -221,7 +221,7 @@ public sealed partial class DownloadCenterViewModel : ViewModelBase
         var scheduleRefresh = false;
         lock (downloadQueueProjectionSync)
         {
-            if (SnapshotMatchesLastApplied(groups))
+            if (pendingDownloadQueueSnapshot is null && SnapshotMatchesLastApplied(groups))
             {
                 return;
             }

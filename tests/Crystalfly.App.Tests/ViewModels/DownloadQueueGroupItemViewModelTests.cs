@@ -6,6 +6,22 @@ namespace Crystalfly.App.Tests.ViewModels;
 
 public sealed class DownloadQueueGroupItemViewModelTests
 {
+    [Theory]
+    [InlineData(DownloadQueueGroupState.Pending, true)]
+    [InlineData(DownloadQueueGroupState.Running, true)]
+    [InlineData(DownloadQueueGroupState.WaitingForNetwork, true)]
+    [InlineData(DownloadQueueGroupState.Failed, true)]
+    [InlineData(DownloadQueueGroupState.Completed, false)]
+    [InlineData(DownloadQueueGroupState.Canceled, false)]
+    public void Individual_cancel_is_available_for_every_unfinished_group(
+        DownloadQueueGroupState state, bool canCancel)
+    {
+        var viewModel = new DownloadQueueGroupItemViewModel(
+            Group() with { State = state }, new LocalizationViewModel());
+
+        Assert.Equal(canCancel, viewModel.CanCancel);
+    }
+
     [Fact]
     public void Update_projects_progress_actions_and_localized_state_without_losing_expansion()
     {

@@ -327,6 +327,32 @@ public sealed class DownloadCenterViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Latest_speed_snapshot_replaces_a_transient_value_before_ui_dispatch()
+    {
+        await using var queue = CreateQueue(new FakeQueueExecutor());
+        var center = CreateCenter(queue);
+        var active = Group("active", "Active") with
+        {
+            State = DownloadQueueGroupState.Running,
+            Stage = "Downloading",
+            BytesPerSecond = 1024
+        };
+        center.QueueDownloadQueueProjection([active]);
+        center.ApplyPendingDownloadQueueProjection();
+        var displayed = Assert.Single(center.DownloadQueueGroups);
+        var notifications = 0;
+        displayed.PropertyChanged += (_, _) => notifications++;
+
+        center.QueueDownloadQueueProjection([active with { BytesPerSecond = 4096 }]);
+        center.QueueDownloadQueueProjection([active with { }]);
+        center.ApplyPendingDownloadQueueProjection();
+
+        Assert.Same(displayed, Assert.Single(center.DownloadQueueGroups));
+        Assert.Equal(QueueDisplayText.Speed(active.BytesPerSecond), displayed.SpeedText);
+        Assert.Equal(0, notifications);
+    }
+
+    [Fact]
     public async Task Projection_updates_only_the_group_whose_data_changed()
     {
         await using var queue = CreateQueue(new FakeQueueExecutor());
