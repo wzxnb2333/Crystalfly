@@ -1194,6 +1194,176 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Refresh_does_not_duplicate_a_pending_external_adoption_prompt()
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        InstallExternalBepInEx(instanceRoot);
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = test.CreateDirectory("versions"),
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "BepInEx", 0)
+        };
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+        var confirmation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var prompts = 0;
+        viewModel.ExternalContentConfirmPrompt = (_, _, _) =>
+        {
+            prompts++;
+            return confirmation.Task;
+        };
+        try
+        {
+            await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+            SetPrivateField(viewModel, "detailsLoadGeneration", 2L);
+            await InvokeLoadInstanceDetailsAsync(viewModel, record, 2);
+            Assert.Equal(1, prompts);
+        }
+        finally
+        {
+            confirmation.TrySetResult(false);
+        }
+    }
+
+    [Fact]
+    public async Task Late_adoption_confirmation_after_disposal_does_not_touch_instance_or_fault()
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        InstallExternalBepInEx(instanceRoot);
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        var versionRoot = test.CreateDirectory("versions");
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot,
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "BepInEx", 0)
+        };
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+        var confirmation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        viewModel.ExternalContentConfirmPrompt = (_, _, _) => confirmation.Task;
+        var method = typeof(MainViewModel).GetMethod("PromptAdoptExternalContentAsync",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        var pendingPrompt = Assert.IsAssignableFrom<Task>(method.Invoke(viewModel, [record]));
+        await viewModel.DisposeAsync();
+        confirmation.SetResult(true);
+
+        var exception = await Record.ExceptionAsync(() => pendingPrompt);
+
+        Assert.Null(exception);
+        Assert.False(File.Exists(Path.Combine(versionRoot, ".crystalfly", "instances", record.Id, "loader.json")));
+    }
+
+    [Fact]
+    public async Task Disposal_waits_for_the_active_external_adoption_refresh()
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        InstallExternalBepInEx(instanceRoot);
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        await using var viewModel = new MainViewModel(
+            test.CreateDirectory("app-data"),
+            sharedLocalLowPathOverride: test.CreateDirectory("shared"))
+        {
+            VersionRoot = test.CreateDirectory("versions"),
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "BepInEx", 0)
+        };
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+        var refreshStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRefresh = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        SetPrivateField(viewModel, "instanceDiscovery",
+            new Func<string, GameCatalog, CancellationToken, Task<IReadOnlyList<InstanceRecord>>>(
+                async (_, _, _) =>
+                {
+                    refreshStarted.TrySetResult();
+                    await releaseRefresh.Task;
+                    return [record];
+                }));
+        viewModel.ExternalContentConfirmPrompt = (_, _, _) => Task.FromResult(true);
+        Task? disposal = null;
+        try
+        {
+            await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+            await refreshStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            disposal = viewModel.DisposeAsync().AsTask();
+            Assert.False(disposal.IsCompleted);
+        }
+        finally
+        {
+            releaseRefresh.TrySetResult();
+            if (disposal is not null)
+            {
+                await disposal.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+        }
+        Assert.True(GetPrivateAssignableField<Task>(viewModel, "externalContentAdoptionTask").IsCompletedSuccessfully);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Pending_adoption_confirmation_cancels_on_disposal(bool manual)
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        InstallExternalBepInEx(instanceRoot);
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        var versionRoot = test.CreateDirectory("versions");
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot,
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "BepInEx", 0)
+        };
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+        var confirmation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        viewModel.ExternalContentConfirmPrompt = (_, _, _) => confirmation.Task;
+        if (manual)
+        {
+            _ = viewModel.AdoptExternalContentCommand.ExecuteAsync(null);
+        }
+        else
+        {
+            await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+        }
+        var adoption = manual
+            ? viewModel.AdoptExternalContentCommand.ExecutionTask!
+            : GetPrivateAssignableField<Task>(viewModel, "externalContentAdoptionTask");
+
+        await viewModel.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        confirmation.SetResult(true);
+
+        Assert.True(adoption.IsCompletedSuccessfully);
+        Assert.False(File.Exists(Path.Combine(versionRoot, ".crystalfly", "instances", record.Id, "loader.json")));
+    }
+
+    [Fact]
+    public async Task Adoption_confirmation_for_a_deselected_instance_does_not_change_files()
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        InstallExternalBepInEx(instanceRoot);
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        var versionRoot = test.CreateDirectory("versions");
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot,
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "BepInEx", 0)
+        };
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+        var confirmation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        viewModel.ExternalContentConfirmPrompt = (_, _, _) => confirmation.Task;
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+        var adoption = GetPrivateAssignableField<Task>(viewModel, "externalContentAdoptionTask");
+        viewModel.SelectedInstance = null;
+        confirmation.SetResult(true);
+
+        await adoption.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Null(viewModel.SelectedInstance);
+        Assert.False(File.Exists(Path.Combine(versionRoot, ".crystalfly", "instances", record.Id, "loader.json")));
+    }
+
+    [Fact]
     public async Task Adopt_external_loader_creates_an_unverified_receipt()
     {
         using var test = new TestDirectory();
@@ -1297,6 +1467,52 @@ public sealed class MainViewModelStateTests : IDisposable
         string id = (await LoadedReceiptIdsAsync(versionRoot, record)).Single();
         Assert.Equal("debugmod-test", id);
     }
+
+    [Fact]
+    public async Task Pending_adopted_mod_catalog_match_cancels_on_disposal()
+    {
+        using var test = new TestDirectory();
+        var instanceRoot = test.CreateDirectory("versions", "1578");
+        var modsRoot = Path.Combine(instanceRoot, "hollow_knight_Data", "Managed", "Mods");
+        Directory.CreateDirectory(modsRoot);
+        await File.WriteAllTextAsync(Path.Combine(modsRoot, "DebugMod.dll"), "debug");
+        var record = Instance("1578", instanceRoot) with { BuildId = "1.5.78.11833" };
+        var versionRoot = test.CreateDirectory("versions");
+        await using var viewModel = new MainViewModel(
+            test.CreateDirectory("app-data"),
+            sharedLocalLowPathOverride: test.CreateDirectory("shared"))
+        {
+            VersionRoot = versionRoot,
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Vanilla", 1)
+        };
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+        var catalog = CatalogWithDebugMod();
+        SetPrivateField(viewModel, "catalog", catalog with
+        {
+            Mods = [catalog.Mods[0], DebugModManifest("debugmod-alt")]
+        });
+        var prompted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var choice = new TaskCompletionSource<ModManifest?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        viewModel.ExternalContentConfirmPrompt = (_, _, _) => Task.FromResult(true);
+        viewModel.CatalogMatchPrompt = (_, _) =>
+        {
+            prompted.TrySetResult();
+            return choice.Task;
+        };
+        await InvokeLoadInstanceDetailsAsync(viewModel, record, 1);
+        await prompted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var adoptedIds = await LoadedReceiptIdsAsync(versionRoot, record);
+        Assert.Single(adoptedIds);
+
+        await viewModel.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        choice.SetResult(catalog.Mods[0]);
+
+        Assert.True(GetPrivateAssignableField<Task>(viewModel, "externalContentAdoptionTask").IsCompletedSuccessfully);
+        Assert.Equal(adoptedIds, await LoadedReceiptIdsAsync(versionRoot, record));
+        Assert.DoesNotContain("debugmod-test", adoptedIds);
+        Assert.Equal("debug", await File.ReadAllTextAsync(Path.Combine(modsRoot, "DebugMod.dll")));
+    }
+
     private static async Task<IReadOnlyList<string>> LoadedReceiptIdsAsync(
         string versionRoot,
         InstanceRecord record)

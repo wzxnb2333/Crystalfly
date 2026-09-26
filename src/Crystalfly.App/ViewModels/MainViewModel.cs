@@ -118,6 +118,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private long detailsLoadGeneration;
     private CancellationTokenSource? detailsLoadCancellation;
     private Task detailsLoadTask = Task.CompletedTask;
+    private Task externalContentAdoptionTask = Task.CompletedTask;
     private Task catalogRefreshTask = Task.CompletedTask;
     private Task steamReconnectTask = Task.CompletedTask;
     private long selectedModContentLoadGeneration;
@@ -4424,9 +4425,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             SelectedLogFile = InstanceLogs.FirstOrDefault();
             LaunchPreflight = preflight;
-            if (generation == Volatile.Read(ref detailsLoadGeneration))
+            lock (disposeLock)
             {
-                _ = PromptAdoptExternalContentAsync(record);
+                if (generation == Volatile.Read(ref detailsLoadGeneration)
+                    && !lifetimeCancellation.IsCancellationRequested
+                    && externalContentAdoptionTask.IsCompleted
+                    && AdoptExternalContentCommand.ExecutionTask?.IsCompleted != false)
+                {
+                    externalContentAdoptionTask = PromptAdoptExternalContentAsync(record);
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -4462,71 +4469,87 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         if (!CanAdoptExternalContent
             || string.Equals(adoptPromptedForInstance, record.Id, StringComparison.Ordinal)
-            || externalContentConfirmPrompt is null)
+            || externalContentConfirmPrompt is null
+            || lifetimeCancellation.IsCancellationRequested)
         {
             return;
         }
-        string message = ExternalModAdoptCount == 0
-            ? Loc["AdoptExternalContentMessageNoMods"]
-            : string.Format(
-                Loc["AdoptExternalContentMessage"],
-                ExternalModAdoptCount);
-        bool confirmed = await externalContentConfirmPrompt(
-            Loc["AdoptExternalContentTitle"],
-            message,
-            Loc["AdoptExternalContent"]);
-        if (confirmed)
-        {
-            // Only mark the instance as prompted after the user confirms, so a
-            // declined prompt can be reconsidered the next time the instance is
-            // selected instead of being silently skipped forever.
-            adoptPromptedForInstance = record.Id;
-            await AdoptExternalContentCoreAsync(record);
-        }
+        await ConfirmAndAdoptExternalContentAsync(record);
     }
 
     [RelayCommand]
     private async Task AdoptExternalContentAsync()
     {
-        if (SelectedInstance?.Record is not { } record || !CanAdoptExternalContent)
+        if (SelectedInstance?.Record is not { } record || !CanAdoptExternalContent
+            || !externalContentAdoptionTask.IsCompleted
+            || lifetimeCancellation.IsCancellationRequested)
         {
             return;
         }
-        if (externalContentConfirmPrompt is not null)
+        await ConfirmAndAdoptExternalContentAsync(record);
+    }
+
+    private async Task ConfirmAndAdoptExternalContentAsync(InstanceRecord record)
+    {
+        var cancellationToken = lifetimeCancellation.Token;
+        try
         {
-            string message = ExternalModAdoptCount == 0
-                ? Loc["AdoptExternalContentMessageNoMods"]
-                : string.Format(
-                    Loc["AdoptExternalContentMessage"],
-                    ExternalModAdoptCount);
-            bool confirmed = await externalContentConfirmPrompt(
-                Loc["AdoptExternalContentTitle"],
-                message,
-                Loc["AdoptExternalContent"]);
-            if (!confirmed)
+            if (externalContentConfirmPrompt is not null)
+            {
+                string message = ExternalModAdoptCount == 0
+                    ? Loc["AdoptExternalContentMessageNoMods"]
+                    : string.Format(
+                        Loc["AdoptExternalContentMessage"],
+                        ExternalModAdoptCount);
+                bool confirmed = await externalContentConfirmPrompt(
+                    Loc["AdoptExternalContentTitle"],
+                    message,
+                    Loc["AdoptExternalContent"]).WaitAsync(cancellationToken);
+                if (!confirmed)
+                {
+                    return;
+                }
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (SelectedInstance?.Id != record.Id)
             {
                 return;
             }
+            // A declined prompt remains available on the next selection. Once
+            // confirmed, refreshes must not offer adoption while it is running.
+            adoptPromptedForInstance = record.Id;
+            await AdoptExternalContentCoreAsync(record, cancellationToken);
         }
-        await AdoptExternalContentCoreAsync(record);
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception) when (IsExpectedInstanceDetailsException(exception))
+        {
+            if (!cancellationToken.IsCancellationRequested && SelectedInstance?.Id == record.Id)
+            {
+                ErrorMessage = Loc.ErrorMessageFor(exception);
+            }
+        }
     }
 
-    private async Task AdoptExternalContentCoreAsync(InstanceRecord record)
+    private async Task AdoptExternalContentCoreAsync(
+        InstanceRecord record,
+        CancellationToken cancellationToken)
     {
         var loaderManager = CreateLoaderManager(record);
         var modManager = CreateModManager(record);
         var failures = new List<string>();
         try
         {
-            if (loaderManager.GetReceiptAsync(lifetimeCancellation.Token).GetAwaiter().GetResult() is null)
+            if (await loaderManager.GetReceiptAsync(cancellationToken) is null)
             {
-                var inspection = await loaderManager.InspectAsync(lifetimeCancellation.Token);
+                var inspection = await loaderManager.InspectAsync(cancellationToken);
                 if (inspection.Ownership == LoaderOwnership.External
                     && (inspection.State is LoaderState.BepInEx or LoaderState.Drifted))
                 {
                     try
                     {
-                        await loaderManager.AdoptExternalAsync(lifetimeCancellation.Token);
+                        await loaderManager.AdoptExternalAsync(cancellationToken);
                     }
                     catch (Exception exception) when (exception is IOException
                         or InvalidDataException
@@ -4539,14 +4562,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
 
             var discovery = await modManager.DiscoverAsync(
-                await GetLoaderIdForDiscoveryAsync(record, loaderManager),
-                lifetimeCancellation.Token);
+                await GetLoaderIdForDiscoveryAsync(loaderManager, cancellationToken),
+                cancellationToken);
             if (discovery.ExternalMods.Count != 0)
             {
                 failures.AddRange(await modManager.TakeOverAllExternalAsync(
-                    discovery, lifetimeCancellation.Token));
+                    discovery, cancellationToken));
                 failures.AddRange(await MatchTakenOverModsToCatalogAsync(
-                    record, modManager, lifetimeCancellation.Token));
+                    record, modManager, cancellationToken));
             }
         }
         catch (Exception exception) when (exception is IOException
@@ -4557,8 +4580,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             failures.Add(exception.Message);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+        bool wasSelected = SelectedInstance?.Id == record.Id;
         await RefreshAsync();
-        if (SelectedInstance?.Id != record.Id)
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!wasSelected || SelectedInstance is { } selected && selected.Id != record.Id)
+        {
+            return;
+        }
+        if (SelectedInstance is null)
         {
             SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == record.Id)
                 ?? new InstanceItemViewModel(record, record.BuildId, record.BuildId, 0);
@@ -4566,7 +4596,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         await LoadInstanceDetailsAsync(
             record,
             Interlocked.Increment(ref detailsLoadGeneration),
-            lifetimeCancellation.Token);
+            cancellationToken);
         if (failures.Count == 0)
         {
             StatusMessage = Loc["AdoptExternalContentDone"];
@@ -4578,10 +4608,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     private async Task<string> GetLoaderIdForDiscoveryAsync(
-        InstanceRecord record,
-        LoaderManager loaderManager)
+        LoaderManager loaderManager,
+        CancellationToken cancellationToken)
     {
-        var inspection = await loaderManager.InspectAsync(lifetimeCancellation.Token);
+        var inspection = await loaderManager.InspectAsync(cancellationToken);
         return inspection.PackageId ?? inspection.State switch
             {
                 LoaderState.BepInEx => "bepinex-external",
@@ -4618,7 +4648,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ModManifest? selected = candidates.Count == 1
                 ? candidates[0]
                 : candidates.Count > 1 && catalogMatchPrompt is not null
-                    ? await catalogMatchPrompt(candidates, receipt.Name)
+                    ? await catalogMatchPrompt(candidates, receipt.Name).WaitAsync(cancellationToken)
                     : null;
             if (selected is null)
             {
@@ -4626,7 +4656,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             try
             {
-                await modManager.RelinkReceiptToCatalogAsync(receipt.Id, selected, lifetimeCancellation.Token);
+                await modManager.RelinkReceiptToCatalogAsync(receipt.Id, selected, cancellationToken);
             }
             catch (Exception exception) when (exception is IOException
                 or InvalidDataException
@@ -5406,12 +5436,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     DownloadBuildCommand.ExecutionTask ?? Task.CompletedTask,
                     PrepareMarketInstallTargetsCommand.ExecutionTask ?? Task.CompletedTask,
                     InstallMarketModCommand.ExecutionTask ?? Task.CompletedTask,
+                    AdoptExternalContentCommand.ExecutionTask ?? Task.CompletedTask,
                     TestGitHubLatencyCommand.ExecutionTask ?? Task.CompletedTask,
                     DownloadCenter.RefreshSteamChunkCacheStatusCommand.ExecutionTask ?? Task.CompletedTask,
                     DownloadCenter.ClearSteamChunkCacheCommand.ExecutionTask ?? Task.CompletedTask,
                     pendingExternalProtocolCommand,
                     steamOfflineTransitionTask,
                     pendingDetailsLoad,
+                    externalContentAdoptionTask,
                     pendingContentLoad);
                 try
                 {
