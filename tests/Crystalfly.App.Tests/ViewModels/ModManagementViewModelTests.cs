@@ -1,5 +1,10 @@
+using System.IO.Compression;
+using System.Security.Cryptography;
 using Crystalfly.App.ViewModels;
+using Crystalfly.Core.Loaders;
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Mods;
+using Crystalfly.Core.Serialization;
 
 namespace Crystalfly.App.Tests.ViewModels;
 
@@ -156,9 +161,128 @@ public sealed class ModManagementViewModelTests
         Assert.All(viewModel.InstalledMods, item => Assert.False(item.HasConflicts));
     }
 
-    private static ModManagementViewModel CreateViewModel()
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, false)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    [InlineData(true, true, true)]
+    [InlineData(false, false, null)]
+    [InlineData(false, true, null)]
+    [InlineData(true, false, null)]
+    [InlineData(true, true, null)]
+    public async Task Local_mod_operation_keeps_submitted_package_while_waiting(
+        bool reimport, bool zip, bool? replacePath)
     {
-        var dependencies = new ModManagementDependencies(
+        var root = Path.Combine(Path.GetTempPath(), "Crystalfly.Tests", Guid.NewGuid().ToString("N"));
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task? operation = null;
+        try
+        {
+            var record = NewInstance() with { RootPath = Path.Combine(root, "instance") };
+            var transactions = Path.Combine(root, "transactions");
+            var manager = new ModManager(record.RootPath, transactions, Path.Combine(root, "mods"));
+            var loaderReceipt = Path.Combine(root, "loader.json");
+            var loaderFile = Path.Combine(record.RootPath, "hollow_knight_Data", "Managed", "MMHOOK_Assembly-CSharp.dll");
+            Directory.CreateDirectory(Path.GetDirectoryName(loaderFile)!);
+            await File.WriteAllTextAsync(loaderFile, "loader");
+            await AtomicJsonStore.WriteAsync(loaderReceipt, new InstalledPackageReceipt
+            {
+                PackageId = "modding-api-77",
+                LoaderState = LoaderState.ModdingApi,
+                Files = [new InstalledFileReceipt
+                {
+                    RelativePath = "hollow_knight_Data/Managed/MMHOOK_Assembly-CSharp.dll",
+                    Sha256 = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(loaderFile)))
+                }]
+            });
+            var submittedPath = await PackageAsync("submitted", "Local", zip, "submitted");
+            var nextPath = replacePath is null ? submittedPath
+                : replacePath.Value ? await PackageAsync("next", "Next", !zip, "next") : string.Empty;
+            InstalledModReceipt? original = null;
+            if (reimport)
+            {
+                var initialPath = await PackageAsync("initial", "Local", false, "initial");
+                original = await manager.ImportLocalDllAsync("local-Local", "Local", "modding-api-77", initialPath);
+            }
+            string? error = null;
+            var dependencies = CreateDependencies() with
+            {
+                GetSelectedInstance = () => record,
+                CreateModManager = _ => manager,
+                CreateLoaderManager = _ => new LoaderManager(record.RootPath, transactions, loaderReceipt),
+                SetErrorMessage = value => error = value,
+                RunInstanceMutation = async mutation =>
+                {
+                    started.SetResult();
+                    await released.Task;
+                    await mutation(record);
+                }
+            };
+            var viewModel = new ModManagementViewModel(dependencies) { LocalModPath = submittedPath };
+            if (original is not null)
+            {
+                viewModel.SelectedInstalledMod = new InstalledModItemViewModel(original, null, static () => { });
+            }
+            operation = reimport
+                ? viewModel.ReimportSelectedLocalModCommand.ExecuteAsync(null)
+                : viewModel.ImportLocalModCommand.ExecuteAsync(null);
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            viewModel.LocalModPath = nextPath;
+            viewModel.SelectedInstalledMod = null;
+            released.SetResult();
+            await operation.WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.Null(error);
+            var receipt = Assert.Single(await manager.GetInstalledAsync());
+            Assert.Equal("local-Local", receipt.Id);
+            Assert.Equal("Local", receipt.Name);
+            Assert.True(receipt.IsLocal);
+            var file = Assert.Single(receipt.Files);
+            Assert.Equal("submitted", await File.ReadAllTextAsync(Path.Combine(record.RootPath, file.RelativePath)));
+            Assert.Equal(!reimport && replacePath is null ? string.Empty : nextPath, viewModel.LocalModPath);
+        }
+        finally
+        {
+            released.TrySetResult();
+            if (operation is not null)
+            {
+                try { await operation; } catch { /* Preserve the original assertion or operation failure. */ }
+            }
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+
+        async Task<string> PackageAsync(string directory, string name, bool archive, string content)
+        {
+            var directoryPath = Path.Combine(root, directory);
+            Directory.CreateDirectory(directoryPath);
+            var path = Path.Combine(directoryPath, name + (archive ? ".zip" : ".dll"));
+            if (archive)
+            {
+                using var package = ZipFile.Open(path, ZipArchiveMode.Create);
+                await using var writer = new StreamWriter(package.CreateEntry(name + ".dll").Open());
+                await writer.WriteAsync(content);
+            }
+            else
+            {
+                await File.WriteAllTextAsync(path, content);
+            }
+            return path;
+        }
+    }
+
+    private static ModManagementViewModel CreateViewModel() => new(CreateDependencies());
+
+    private static ModManagementDependencies CreateDependencies()
+    {
+        return new ModManagementDependencies(
             () => new GameCatalog(),
             () => new LocalizationViewModel(),
             _ => { },
@@ -178,7 +302,6 @@ public sealed class ModManagementViewModelTests
             _ => { },
             () => NewInstance(),
             _ => Task.CompletedTask);
-        return new ModManagementViewModel(dependencies);
     }
 
     private static InstanceRecord NewInstance() => new()

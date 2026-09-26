@@ -414,7 +414,8 @@ public partial class ModManagementViewModel : ViewModelBase
     [RelayCommand]
     private async Task ReimportSelectedLocalModAsync()
     {
-        if (SelectedInstalledMod is not { CanReimport: true } selected || !File.Exists(LocalModPath))
+        var submittedPath = LocalModPath;
+        if (SelectedInstalledMod is not { CanReimport: true } selected || !File.Exists(submittedPath))
         {
             dependencies.SetErrorMessage(Loc["LocalModPathRequired"]);
             return;
@@ -422,9 +423,9 @@ public partial class ModManagementViewModel : ViewModelBase
         await dependencies.RunInstanceMutation(record =>
         {
             var manager = dependencies.CreateModManager(record);
-            return string.Equals(Path.GetExtension(LocalModPath), ".dll", StringComparison.OrdinalIgnoreCase)
-                ? manager.ReimportLocalDllAsync(selected.Id, LocalModPath)
-                : manager.ReimportLocalZipAsync(selected.Id, LocalModPath);
+            return string.Equals(Path.GetExtension(submittedPath), ".dll", StringComparison.OrdinalIgnoreCase)
+                ? manager.ReimportLocalDllAsync(selected.Id, submittedPath)
+                : manager.ReimportLocalZipAsync(selected.Id, submittedPath);
         });
     }
 
@@ -628,7 +629,8 @@ public partial class ModManagementViewModel : ViewModelBase
     [RelayCommand]
     private async Task ImportLocalModAsync()
     {
-        if (dependencies.GetSelectedInstance() is null || !File.Exists(LocalModPath))
+        var submittedPath = LocalModPath;
+        if (dependencies.GetSelectedInstance() is null || !File.Exists(submittedPath))
         {
             dependencies.SetErrorMessage(Loc["LocalModPathRequired"]);
             return;
@@ -637,22 +639,25 @@ public partial class ModManagementViewModel : ViewModelBase
         {
             var loader = await dependencies.CreateLoaderManager(record).GetReceiptAsync()
                 ?? throw new InvalidOperationException(Loc["LoaderRequired"]);
-            var fileName = Path.GetFileNameWithoutExtension(LocalModPath);
+            var fileName = Path.GetFileNameWithoutExtension(submittedPath);
             var id = $"local-{fileName}";
             var manager = dependencies.CreateModManager(record);
-            if (string.Equals(Path.GetExtension(LocalModPath), ".dll", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(Path.GetExtension(submittedPath), ".dll", StringComparison.OrdinalIgnoreCase))
             {
-                await manager.ImportLocalDllAsync(id, fileName, loader.PackageId, LocalModPath);
+                await manager.ImportLocalDllAsync(id, fileName, loader.PackageId, submittedPath);
             }
-            else if (string.Equals(Path.GetExtension(LocalModPath), ".zip", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(Path.GetExtension(submittedPath), ".zip", StringComparison.OrdinalIgnoreCase))
             {
-                await manager.ImportLocalZipAsync(id, fileName, loader.PackageId, LocalModPath);
+                await manager.ImportLocalZipAsync(id, fileName, loader.PackageId, submittedPath);
             }
             else
             {
                 throw new InvalidDataException(Loc["LocalModType"]);
             }
-            LocalModPath = string.Empty;
+            if (string.Equals(LocalModPath, submittedPath, StringComparison.Ordinal))
+            {
+                LocalModPath = string.Empty;
+            }
         });
     }
 
