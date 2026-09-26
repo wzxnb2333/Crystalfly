@@ -77,6 +77,7 @@ public sealed class InstanceSelectionPersistenceTests
         params InstanceRecord[] records)
     {
         var viewModel = new MainViewModel(appData);
+        SetPrivateField(viewModel, "sharedLocalLowPathOverride", Path.Combine(appData, "shared-local-low"));
         SetPrivateField(
             viewModel,
             "catalogLoader",

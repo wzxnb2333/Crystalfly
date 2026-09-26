@@ -595,36 +595,38 @@ public partial class MainWindow
 
     private async void ConfirmRestoreSnapshot(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel || viewModel.SelectedSnapshot is null)
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance, SelectedSnapshot: { } snapshot } viewModel)
         {
             return;
         }
+        var versionRoot = viewModel.VersionRoot;
         var confirmed = await ShowConfirmationAsync(
             viewModel.Loc["ConfirmSnapshotRestoreTitle"],
             viewModel.Loc["ConfirmSnapshotRestoreMessage"],
-            viewModel.SelectedSnapshot.Name,
+            snapshot.Name,
             viewModel);
-        if (confirmed)
+        if (confirmed && !closeRequested && DataContext == viewModel)
         {
-            await viewModel.RestoreSnapshotCommand.ExecuteAsync(null);
+            await viewModel.RestoreNamedSnapshotAsync(instance.Record, snapshot.Id, versionRoot);
         }
     }
 
     private async void ConfirmDeleteSnapshot(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel || viewModel.SelectedSnapshot is null)
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance, SelectedSnapshot: { } snapshot } viewModel)
         {
             return;
         }
+        var versionRoot = viewModel.VersionRoot;
         var confirmed = await ShowConfirmationAsync(
             viewModel.Loc["ConfirmSnapshotDeleteTitle"],
             viewModel.Loc["ConfirmSnapshotDeleteMessage"],
-            viewModel.SelectedSnapshot.Name,
+            snapshot.Name,
             viewModel,
             isDangerous: true);
-        if (confirmed)
+        if (confirmed && !closeRequested && DataContext == viewModel)
         {
-            await viewModel.DeleteSnapshotCommand.ExecuteAsync(null);
+            await viewModel.DeleteNamedSnapshotAsync(instance.Record, snapshot.Id, versionRoot);
         }
     }
 }

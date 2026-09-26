@@ -1908,15 +1908,25 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 return;
             }
             lastInstanceProjection = discovered;
-            Instances.Instances.Clear();
-            foreach (var item in discovered)
+            var previousSelection = SelectedInstance;
+            suppressInstanceDetailsReload = true;
+            try
             {
-                Instances.Instances.Add(ProjectInstanceItem(item, settings));
-            }
+                Instances.Instances.Clear();
+                foreach (var item in discovered)
+                {
+                    Instances.Instances.Add(ProjectInstanceItem(item, settings));
+                }
 
-            Instances.ApplyInstanceFilter();
-            SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == settings.CurrentInstanceId)
-                ?? Instances.Instances.FirstOrDefault();
+                Instances.ApplyInstanceFilter();
+                SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == settings.CurrentInstanceId)
+                    ?? Instances.Instances.FirstOrDefault();
+            }
+            finally
+            {
+                suppressInstanceDetailsReload = false;
+            }
+            OnSelectedInstanceChanged(previousSelection, SelectedInstance);
             PopulateSpeedrunInstances();
             // Restore the speedrun selection only when the remembered instance actually is one.
             // Falling back to the first speedrun instance would otherwise overwrite the remembered
@@ -2949,9 +2959,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ErrorMessage = Loc["SelectSnapshot"];
             return;
         }
-        var snapshotId = SelectedSnapshot.Id;
-        await RunInstanceMutationAsync(record => CreateSnapshotService().RestoreAsync(record.Id, snapshotId));
+        await RestoreNamedSnapshotAsync(SelectedInstance.Record, SelectedSnapshot.Id, VersionRoot);
     }
+
+    internal Task RestoreNamedSnapshotAsync(InstanceRecord instance, string snapshotId, string versionRoot) =>
+        RunInstanceMutationAsync(record => CreateSnapshotService(versionRoot)
+            .RestoreAsync(record.Id, snapshotId, lifetimeCancellation.Token), instance);
 
     [RelayCommand]
     private async Task DeleteSnapshotAsync()
@@ -2961,14 +2974,20 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ErrorMessage = Loc["SelectSnapshot"];
             return;
         }
-        var snapshotId = SelectedSnapshot.Id;
+        await DeleteNamedSnapshotAsync(SelectedInstance.Record, SelectedSnapshot.Id, VersionRoot);
+    }
+
+    internal async Task DeleteNamedSnapshotAsync(InstanceRecord instance, string snapshotId, string versionRoot)
+    {
         var deleted = false;
         await RunInstanceMutationAsync(async record =>
         {
-            await CreateSnapshotService().DeleteAsync(record.Id, snapshotId);
+            await CreateSnapshotService(versionRoot).DeleteAsync(record.Id, snapshotId, lifetimeCancellation.Token);
             deleted = true;
-        });
-        if (deleted && SelectedSnapshot?.Id == snapshotId)
+        }, instance);
+        if (deleted && SelectedInstance?.Record == instance
+            && string.Equals(VersionRoot, versionRoot, StringComparison.OrdinalIgnoreCase)
+            && SelectedSnapshot?.Id == snapshotId)
         {
             SelectedSnapshot = null;
         }
@@ -3270,14 +3289,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    partial void OnSelectedInstanceChanged(InstanceItemViewModel? value)
+    partial void OnSelectedInstanceChanged(InstanceItemViewModel? oldValue, InstanceItemViewModel? newValue)
     {
+        var value = newValue;
         // A language-switch re-projection re-resolves the selection to a new item
         // instance without clearing and reloading the already-localized details.
         if (suppressInstanceDetailsReload)
         {
             return;
         }
+        var snapshotToRestore = oldValue?.Record == value?.Record ? SelectedSnapshot : null;
         long generation = Interlocked.Increment(ref detailsLoadGeneration);
         var previousLoadCancellation = Interlocked.Exchange(ref detailsLoadCancellation, null);
         previousLoadCancellation?.Cancel();
@@ -3290,6 +3311,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ModManagement.ClearAvailableMods();
         ModManagement.ClearInstalledMods();
         Snapshots.Clear();
+        SelectedSnapshot = null;
         lock (presetCollectionGate)
         {
             ModPresets.Clear();
@@ -3328,7 +3350,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation.Token);
             detailsLoadCancellation = cancellation;
-            detailsLoadTask = LoadInstanceDetailsAsync(value.Record, generation, cancellation.Token);
+            detailsLoadTask = LoadInstanceDetailsAsync(value.Record, generation, cancellation.Token,
+                snapshotToRestore: snapshotToRestore);
             if (CurrentManageTab == "Config")
             {
                 _ = LoadGameConfigAsync();
@@ -4253,7 +4276,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         InstanceRecord record,
         long generation,
         CancellationToken cancellationToken,
-        bool verifyGameFiles = false)
+        bool verifyGameFiles = false,
+        NamedSnapshot? snapshotToRestore = null)
     {
         try
         {
@@ -4414,11 +4438,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ExternalModAdoptCount = discovery.Mods.Count(mod => mod.Ownership == ModOwnership.External);
             ModManagement.LoadInstalledMods(discovery.Mods, installed, modHealthReports, record);
             UpdateSelectedMarketInstallationState();
+            var selectedSnapshotId = SelectedSnapshot?.Id ?? snapshotToRestore?.Id;
             Snapshots.Clear();
             foreach (var snapshot in snapshots)
             {
                 Snapshots.Add(snapshot);
             }
+            SelectedSnapshot = Snapshots.FirstOrDefault(snapshot => snapshot.Id == selectedSnapshotId);
             lock (presetCollectionGate)
             {
                 var selectedPresetId = SelectedPreset?.Id;
@@ -5440,8 +5466,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         CreateLoaderManager(record),
         CreateModManager(record));
 
-    private NamedSnapshotService CreateSnapshotService() => new(
-        paths.GetVersionDataRoot(VersionRoot));
+    private NamedSnapshotService CreateSnapshotService(string? versionRoot = null) => new(
+        paths.GetVersionDataRoot(versionRoot ?? VersionRoot));
 
     private GlobalModSettingsService CreateGlobalModSettingsService(string? versionRoot = null) => new(
         new LocalLowIsolationService(
