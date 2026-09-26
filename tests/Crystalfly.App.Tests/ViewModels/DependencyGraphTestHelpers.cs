@@ -68,10 +68,13 @@ internal static class DependencyGraphTestHelpers
             static () => { });
     }
 
-    public static async Task WaitUntilAsync(Func<bool> condition, int timeoutMilliseconds = 5000)
+    public static Task WaitUntilAsync(Func<bool> condition, int timeoutMilliseconds = 5000) =>
+        WaitUntilAsync(() => Task.FromResult(condition()), timeoutMilliseconds);
+
+    public static async Task WaitUntilAsync(Func<Task<bool>> condition, int timeoutMilliseconds = 5000)
     {
         var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMilliseconds);
-        while (!condition())
+        while (!await condition())
         {
             if (DateTime.UtcNow >= deadline)
             {

@@ -72,12 +72,22 @@ public sealed class DependencyGraphLayoutCacheTests
         {
             Positions = { ["a"] = new(120, 240), ["ghost"] = new(500, 600) }
         });
+        string? error = null;
         var viewModel = new DependencyGraphViewModel(Dependencies(
             getLayoutPath: _ => layoutPath,
-            getSelectedInstanceId: () => "inst"));
+            getSelectedInstanceId: () => "inst") with { SetErrorMessage = message => error = message });
         viewModel.Rebuild([Mod("a")], selectedId: null, instanceId: "inst");
 
-        await WaitUntilAsync(() => !File.ReadAllText(layoutPath).Contains("ghost", StringComparison.OrdinalIgnoreCase));
+        // Use the shared reader so polling cannot block the atomic replacement.
+        await WaitUntilAsync(async () =>
+        {
+            var layout = await DependencyGraphLayoutStore.TryReadAsync(layoutPath);
+            return layout is not null && !layout.Positions.ContainsKey("ghost");
+        });
+        var saved = Assert.IsType<DependencyGraphLayout>(await DependencyGraphLayoutStore.TryReadAsync(layoutPath));
+        Assert.Equal(new DependencyGraphNodePosition(120, 240), Assert.Single(saved.Positions).Value);
+        Assert.True(saved.Positions.ContainsKey("a"));
+        Assert.Null(error);
     }
 
     [Fact]
