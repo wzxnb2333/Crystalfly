@@ -107,21 +107,29 @@ public sealed partial class ApplicationUpdateDialogViewModel : ViewModelBase, ID
     private async Task UpdateAsync()
     {
         updateCancellation?.Dispose();
-        updateCancellation = new CancellationTokenSource();
+        var cancellation = new CancellationTokenSource();
+        updateCancellation = cancellation;
         ErrorText = string.Empty;
         ProgressText = string.Empty;
         ProgressValue = 0;
         State = ApplicationUpdateDialogState.Downloading;
 
-        var progress = new Progress<ApplicationUpdateProgress>(ApplyProgress);
+        var progress = new Progress<ApplicationUpdateProgress>(value =>
+        {
+            // Progress callbacks may reach the UI after this attempt has ended.
+            if (ReferenceEquals(updateCancellation, cancellation) && !cancellation.IsCancellationRequested)
+            {
+                ApplyProgress(value);
+            }
+        });
         try
         {
-            bool started = await startUpdate(progress, updateCancellation.Token);
+            bool started = await startUpdate(progress, cancellation.Token);
             State = started
                 ? ApplicationUpdateDialogState.StartingUpdater
                 : ApplicationUpdateDialogState.Available;
         }
-        catch (OperationCanceledException) when (updateCancellation.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
             State = ApplicationUpdateDialogState.Available;
         }
@@ -137,8 +145,11 @@ public sealed partial class ApplicationUpdateDialogViewModel : ViewModelBase, ID
         }
         finally
         {
-            updateCancellation.Dispose();
-            updateCancellation = null;
+            if (ReferenceEquals(updateCancellation, cancellation))
+            {
+                updateCancellation = null;
+            }
+            cancellation.Dispose();
         }
     }
 

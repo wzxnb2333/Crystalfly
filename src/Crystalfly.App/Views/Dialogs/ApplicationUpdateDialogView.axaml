@@ -6,7 +6,8 @@
              x:Class="Crystalfly.App.Views.Dialogs.ApplicationUpdateDialogView"
              x:DataType="vm:ApplicationUpdateDialogViewModel"
              MinWidth="520"
-             MaxWidth="680">
+             MaxWidth="680"
+             MaxHeight="520">
     <UserControl.KeyBindings>
         <KeyBinding Gesture="Escape" Command="{Binding CloseDialogCommand}" />
     </UserControl.KeyBindings>
@@ -36,7 +37,11 @@
                              AutomationProperties.Name="{Binding StatusText}" />
             </StackPanel>
             <Border Classes="cfp-error" IsVisible="{Binding HasError}">
-                <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" />
+                <ScrollViewer MaxHeight="120"
+                              HorizontalScrollBarVisibility="Disabled"
+                              VerticalScrollBarVisibility="Auto">
+                    <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" />
+                </ScrollViewer>
             </Border>
         </StackPanel>
         <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
