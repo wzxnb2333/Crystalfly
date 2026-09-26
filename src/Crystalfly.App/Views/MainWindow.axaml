@@ -39,6 +39,12 @@
             <Setter Property="ToolTip.Tip"
                     Value="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[WindowClose]}" />
         </Style>
+        <Style Selector="u|ToastCard /template/ Button#PART_CloseButton">
+            <Setter Property="AutomationProperties.Name"
+                    Value="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[WindowClose]}" />
+            <Setter Property="ToolTip.Tip"
+                    Value="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[WindowClose]}" />
+        </Style>
     </Window.Styles>
 
     <Design.DataContext>

@@ -589,6 +589,86 @@ public sealed class ThemeRenderingTests
         }
     }
 
+    [AvaloniaTheory]
+    [InlineData(UiLanguage.SimplifiedChinese, false)]
+    [InlineData(UiLanguage.SimplifiedChinese, true)]
+    [InlineData(UiLanguage.English, false)]
+    [InlineData(UiLanguage.English, true)]
+    public async Task Toast_close_button_is_localized_and_dismisses_only_the_notification(
+        UiLanguage language, bool success)
+    {
+        var applicationDataRoot = Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N"));
+        var viewModel = new MainViewModel(applicationDataRoot);
+        viewModel.Loc.Apply(language);
+        viewModel.SelectedMotionPreference = new(UiMotionPreference.Off, "Off");
+        var window = new MainWindow { Width = 900, Height = 600 };
+        window.Show();
+        window.DataContext = viewModel;
+        Dispatcher.UIThread.RunJobs();
+        try
+        {
+            if (success)
+            {
+                Assert.True(TryInvokeToastRequested(viewModel, "completed operation"));
+            }
+            else
+            {
+                viewModel.ErrorMessage = "operation error";
+            }
+            Dispatcher.UIThread.RunJobs();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+            var card = Assert.Single(window.GetVisualDescendants().OfType<ToastCard>());
+            var close = Assert.Single(card.GetVisualDescendants().OfType<Button>(), button =>
+                button.Name == "PART_CloseButton");
+            Assert.Equal(viewModel.Loc["WindowClose"],
+                new Avalonia.Automation.Peers.ButtonAutomationPeer(close).GetName());
+            Assert.Equal(viewModel.Loc["WindowClose"], ToolTip.GetTip(close));
+            viewModel.Loc.Apply(language == UiLanguage.English ? UiLanguage.SimplifiedChinese : UiLanguage.English);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(viewModel.Loc["WindowClose"],
+                new Avalonia.Automation.Peers.ButtonAutomationPeer(close).GetName());
+            Assert.Equal(viewModel.Loc["WindowClose"], ToolTip.GetTip(close));
+            Point center = default;
+            Control? hit = null;
+            for (var attempt = 0; attempt < 100; attempt++)
+            {
+                Dispatcher.UIThread.RunJobs();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+                center = Assert.IsType<Point>(close.TranslatePoint(
+                    new Point(close.Bounds.Width / 2, close.Bounds.Height / 2), window));
+                window.MouseMove(center, RawInputModifiers.None);
+                hit = window.InputHitTest(center) as Control;
+                if (hit == close || hit?.GetVisualAncestors().Contains(close) == true)
+                {
+                    break;
+                }
+                await Task.Delay(10);
+            }
+            Assert.True(hit == close || hit?.GetVisualAncestors().Contains(close) == true,
+                $"The notification close button must be hit-testable at {center}; hit {hit?.GetType().Name}.");
+            window.MouseDown(center, MouseButton.Left, RawInputModifiers.None);
+            window.MouseUp(center, MouseButton.Left, RawInputModifiers.None);
+            for (var attempt = 0; attempt < 100 && window.GetVisualDescendants().Contains(card); attempt++)
+            {
+                await Task.Delay(10);
+                Dispatcher.UIThread.RunJobs();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+            }
+            Assert.DoesNotContain(card, window.GetVisualDescendants());
+            Assert.True(window.IsVisible);
+            Assert.Equal(success ? null : "operation error", viewModel.ErrorMessage);
+        }
+        finally
+        {
+            await CloseWindowAsync(window);
+            await viewModel.DisposeAsync();
+            if (Directory.Exists(applicationDataRoot))
+            {
+                Directory.Delete(applicationDataRoot, recursive: true);
+            }
+        }
+    }
+
     [AvaloniaFact]
     public async Task Main_window_toast_manager_tracks_DataContext_and_uninstalls_on_close()
     {
