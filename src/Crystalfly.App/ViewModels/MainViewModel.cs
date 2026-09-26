@@ -1537,6 +1537,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
         var viewModel = new GameConfigViewModel(configPath);
         viewModel.Saved += OnGameConfigSaved;
+        viewModel.OperationErrorChanged += exception =>
+        {
+            if (ReferenceEquals(GameConfig, viewModel))
+            {
+                ErrorMessage = exception is null ? null : Loc.ErrorMessageFor(exception);
+            }
+        };
         GameConfig = viewModel;
         try
         {
@@ -2979,6 +2986,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             selected.Id,
             targetSnapshotId,
             sourceLabel);
+        editor.OperationErrorChanged += exception =>
+        {
+            if (ReferenceEquals(SaveEditor, editor))
+            {
+                ErrorMessage = exception is null ? null : Loc.ErrorMessageFor(exception);
+            }
+        };
         SaveEditor = editor;
         try
         {

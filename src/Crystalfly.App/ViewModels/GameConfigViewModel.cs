@@ -53,6 +53,8 @@ public sealed partial class GameConfigViewModel : ViewModelBase
     /// <summary>Raised after a successful save so the host can show a confirmation.</summary>
     public event Action? Saved;
 
+    public event Action<Exception?>? OperationErrorChanged;
+
     public ObservableCollection<ConfigEntryViewModel> Entries { get; } = [];
 
     public bool CanSave => IsDirty;
@@ -108,17 +110,35 @@ public sealed partial class GameConfigViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task SaveAsync(CancellationToken cancellationToken)
+    private Task SaveAsync(CancellationToken cancellationToken) => RunCommandAsync(async () =>
     {
         RebuildDocumentFromEntries();
         await AppConfigService.SaveAsync(configPath, document, cancellationToken);
         IsDirty = false;
         Saved?.Invoke();
-    }
+    }, cancellationToken);
 
     [RelayCommand]
-    private async Task ResetAsync(CancellationToken cancellationToken) =>
-        await LoadAsync(cancellationToken);
+    private Task ResetAsync(CancellationToken cancellationToken) =>
+        RunCommandAsync(() => LoadAsync(cancellationToken), cancellationToken);
+
+    private async Task RunCommandAsync(Func<Task> operation, CancellationToken cancellationToken)
+    {
+        OperationErrorChanged?.Invoke(null);
+        try
+        {
+            await operation();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or UnauthorizedAccessException)
+        {
+            OperationErrorChanged?.Invoke(exception);
+        }
+    }
 
     [RelayCommand]
     private void AddEntry()

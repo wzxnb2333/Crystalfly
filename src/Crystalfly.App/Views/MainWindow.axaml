@@ -56,7 +56,8 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 IsEnabled="{Binding CanNavigate}">
-                    <Button Classes="cfp-nav"
+                    <Button AutomationProperties.Name="{Binding Loc[NavLaunch]}"
+                            Classes="cfp-nav"
                             Classes.active="{Binding IsLaunchPage}"
                             Command="{Binding SelectPageCommand}"
                             CommandParameter="Launch">
@@ -65,7 +66,8 @@
                             <TextBlock Text="{Binding Loc[NavLaunch]}" />
                         </StackPanel>
                     </Button>
-                    <Button Classes="cfp-nav"
+                    <Button AutomationProperties.Name="{Binding Loc[NavSpeedrun]}"
+                            Classes="cfp-nav"
                             Classes.active="{Binding IsSpeedrunPage}"
                             Command="{Binding SelectPageCommand}"
                             CommandParameter="Speedrun">
@@ -74,7 +76,8 @@
                             <TextBlock Text="{Binding Loc[NavSpeedrun]}" />
                         </StackPanel>
                     </Button>
-                    <Button Classes="cfp-nav"
+                    <Button AutomationProperties.Name="{Binding Loc[NavDownloads]}"
+                            Classes="cfp-nav"
                             Classes.active="{Binding IsDownloadsPage}"
                             Command="{Binding SelectPageCommand}"
                             CommandParameter="Downloads">
@@ -83,7 +86,8 @@
                             <TextBlock Text="{Binding Loc[NavDownloads]}" />
                         </StackPanel>
                     </Button>
-                    <Button Classes="cfp-nav"
+                    <Button AutomationProperties.Name="{Binding Loc[NavSettings]}"
+                            Classes="cfp-nav"
                             Classes.active="{Binding IsSettingsPage}"
                             Command="{Binding SelectPageCommand}"
                             CommandParameter="Settings">
@@ -232,7 +236,8 @@
                         </StackPanel>
 
                         <StackPanel Grid.Row="2" Spacing="8">
-                            <Button Classes="cfp-primary"
+                            <Button AutomationProperties.Name="{Binding Loc[LaunchGame]}"
+                                    Classes="cfp-primary"
                                      HorizontalAlignment="Stretch"
                                      HorizontalContentAlignment="Center"
                                      Click="ConfirmLaunch" MinHeight="44" FontSize="14" FontWeight="SemiBold"
@@ -249,7 +254,8 @@
                                       Command="{Binding SelectPageCommand}"
                                       CommandParameter="Versions"
                                       Content="{Binding Loc[SelectInstance]}" />
-                            <Button Classes="cfp-secondary"
+                            <Button AutomationProperties.Name="{Binding Loc[ManageInstance]}"
+                                    Classes="cfp-secondary"
                                     MinHeight="40"
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Center"
@@ -582,7 +588,8 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
                             <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
-                                <Button Classes="cfp-secondary" Click="AddCustomGameDirectory" HorizontalAlignment="Stretch">
+                                <Button AutomationProperties.Name="{Binding Loc[AddGameDirectory]}"
+                                        Classes="cfp-secondary" Click="AddCustomGameDirectory" HorizontalAlignment="Stretch">
                                     <StackPanel Orientation="Horizontal" Spacing="6"><LucideIcon Kind="FolderPlus" Size="15" /><TextBlock Text="{Binding Loc[AddGameDirectory]}" /></StackPanel>
                                 </Button>
                                 <Button Grid.Column="1" Classes="cfp-icon" Command="{Binding Instances.RefreshGameDirectoriesCommand}" ToolTip.Tip="{Binding Loc[RefreshGameDirectories]}" AutomationProperties.Name="{Binding Loc[RefreshGameDirectories]}" Content="{LucideIconContent RefreshCw, 15}" />
@@ -660,43 +667,50 @@
                 <Grid ColumnDefinitions="176,*">
                     <Border Grid.Column="0" Classes="cfp-rail" Padding="8,16">
                         <StackPanel Classes="cfp-manage-nav" Spacing="4" IsEnabled="{Binding CanNavigate}">
-                            <Button Classes="cfp-local-nav"
+                            <Button AutomationProperties.Name="{Binding Loc[Overview]}"
+                                    Classes="cfp-local-nav"
                                     Classes.active="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Overview}"
                                     Command="{Binding SelectManageTabCommand}"
                                     CommandParameter="Overview">
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"><LucideIcon Kind="Box" Size="16" /><TextBlock Grid.Column="1" Text="{Binding Loc[Overview]}" TextTrimming="CharacterEllipsis" /></Grid>
                             </Button>
-                            <Button Classes="cfp-local-nav"
+                            <Button AutomationProperties.Name="{Binding Loc[Loader]}"
+                                    Classes="cfp-local-nav"
                                     Classes.active="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Loader}"
                                     Command="{Binding SelectManageTabCommand}"
                                     CommandParameter="Loader">
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"><LucideIcon Kind="Wrench" Size="16" /><TextBlock Grid.Column="1" Text="{Binding Loc[Loader]}" TextTrimming="CharacterEllipsis" /></Grid>
                             </Button>
-                            <Button Classes="cfp-local-nav"
+                            <Button AutomationProperties.Name="{Binding Loc[Mods]}"
+                                    Classes="cfp-local-nav"
                                     Classes.active="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Mods}"
                                     Command="{Binding SelectManageTabCommand}"
                                     CommandParameter="Mods">
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"><LucideIcon Kind="PackagePlus" Size="16" /><TextBlock Grid.Column="1" Text="{Binding Loc[Mods]}" TextTrimming="CharacterEllipsis" /></Grid>
                             </Button>
-                            <Button Classes="cfp-local-nav"
+                            <Button AutomationProperties.Name="{Binding Loc[ModPresets]}"
+                                    Classes="cfp-local-nav"
                                     Classes.active="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Presets}"
                                     Command="{Binding SelectManageTabCommand}"
                                     CommandParameter="Presets">
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"><LucideIcon Kind="ListRestart" Size="16" /><TextBlock Grid.Column="1" Text="{Binding Loc[ModPresets]}" TextTrimming="CharacterEllipsis" /></Grid>
                             </Button>
-                            <Button Classes="cfp-local-nav"
+                            <Button AutomationProperties.Name="{Binding Loc[Snapshots]}"
+                                    Classes="cfp-local-nav"
                                     Classes.active="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Snapshots}"
                                     Command="{Binding SelectManageTabCommand}"
                                     CommandParameter="Snapshots">
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"><LucideIcon Kind="Camera" Size="16" /><TextBlock Grid.Column="1" Text="{Binding Loc[Snapshots]}" TextTrimming="CharacterEllipsis" /></Grid>
                             </Button>
-                            <Button Classes="cfp-local-nav"
+                            <Button AutomationProperties.Name="{Binding Loc[Logs]}"
+                                    Classes="cfp-local-nav"
                                     Classes.active="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Logs}"
                                     Command="{Binding SelectManageTabCommand}"
                                     CommandParameter="Logs">
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"><LucideIcon Kind="ScrollText" Size="16" /><TextBlock Grid.Column="1" Text="{Binding Loc[Logs]}" TextTrimming="CharacterEllipsis" /></Grid>
                             </Button>
-                            <Button Classes="cfp-local-nav"
+                            <Button AutomationProperties.Name="{Binding Loc[Config]}"
+                                    Classes="cfp-local-nav"
                                     Classes.active="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Config}"
                                     Command="{Binding SelectManageTabCommand}"
                                     CommandParameter="Config">
@@ -737,13 +751,16 @@
                                         <StackPanel Spacing="12">
                                             <TextBlock Classes="cfp-section-title" Text="{Binding Loc[InstanceShortcuts]}" />
                                             <WrapPanel Orientation="Horizontal">
-                                                <Button Classes="cfp-secondary" Margin="0,0,8,8" Click="OpenSelectedInstanceFolder">
+                                                <Button AutomationProperties.Name="{Binding Loc[InstanceFolder]}"
+                                                        Classes="cfp-secondary" Margin="0,0,8,8" Click="OpenSelectedInstanceFolder">
                                                     <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="FolderOpen" Size="16" /><TextBlock Text="{Binding Loc[InstanceFolder]}" /></StackPanel>
                                                 </Button>
-                                                <Button Classes="cfp-secondary" Margin="0,0,8,8" Click="OpenSelectedSaveFolder">
+                                                <Button AutomationProperties.Name="{Binding Loc[SaveFolder]}"
+                                                        Classes="cfp-secondary" Margin="0,0,8,8" Click="OpenSelectedSaveFolder">
                                                     <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="ArchiveRestore" Size="16" /><TextBlock Text="{Binding Loc[SaveFolder]}" /></StackPanel>
                                                 </Button>
-                                                <Button Classes="cfp-secondary" Margin="0,0,0,8" Click="OpenSelectedModFolder" IsEnabled="{Binding CanOpenModFolder}">
+                                                <Button AutomationProperties.Name="{Binding Loc[ModFolder]}"
+                                                        Classes="cfp-secondary" Margin="0,0,0,8" Click="OpenSelectedModFolder" IsEnabled="{Binding CanOpenModFolder}">
                                                     <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="PackageOpen" Size="16" /><TextBlock Text="{Binding Loc[ModFolder]}" /></StackPanel>
                                                 </Button>
                                             </WrapPanel>
@@ -753,13 +770,16 @@
                                         <StackPanel Spacing="12">
                                             <TextBlock Classes="cfp-section-title" Text="{Binding Loc[InstanceActions]}" />
                                             <WrapPanel Orientation="Horizontal">
-                                                <Button Classes="cfp-secondary" Margin="0,0,8,8" Click="RenameSelectedInstance">
+                                                <Button AutomationProperties.Name="{Binding Loc[RenameInstance]}"
+                                                        Classes="cfp-secondary" Margin="0,0,8,8" Click="RenameSelectedInstance">
                                                     <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Pencil" Size="16" /><TextBlock Text="{Binding Loc[RenameInstance]}" /></StackPanel>
                                                 </Button>
-                                                <Button Classes="cfp-secondary" Margin="0,0,8,8" Click="ConfirmCompleteInstanceFiles">
+                                                <Button AutomationProperties.Name="{Binding Loc[CompleteInstanceFiles]}"
+                                                        Classes="cfp-secondary" Margin="0,0,8,8" Click="ConfirmCompleteInstanceFiles">
                                                     <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="CircleCheck" Size="16" /><TextBlock Text="{Binding Loc[CompleteInstanceFiles]}" /></StackPanel>
                                                 </Button>
-                                                <Button Classes="cfp-danger" Margin="0,0,0,8" Click="ConfirmDeleteSelectedInstance">
+                                                <Button AutomationProperties.Name="{Binding Loc[DeleteInstance]}"
+                                                        Classes="cfp-danger" Margin="0,0,0,8" Click="ConfirmDeleteSelectedInstance">
                                                     <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Trash2" Size="16" /><TextBlock Text="{Binding Loc[DeleteInstance]}" /></StackPanel>
                                                 </Button>
                                             </WrapPanel>
@@ -778,7 +798,8 @@
                                                Text="{Binding LoaderVerificationStatus}"
                                                TextWrapping="Wrap"
                                                IsVisible="{Binding LoaderVerificationStatus, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-                                    <Button Classes="cfp-link" HorizontalAlignment="Left" MinHeight="36"
+                                    <Button AutomationProperties.Name="{Binding Loc[AdoptExternalContent]}"
+                                            Classes="cfp-link" HorizontalAlignment="Left" MinHeight="36"
                                             Command="{Binding AdoptExternalContentCommand}"
                                             IsVisible="{Binding CanAdoptExternalContent}">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
@@ -808,7 +829,8 @@
                                             <TextBlock Classes="cfp-meta"
                                                        Text="{Binding Loc[NoLoadersAction]}"
                                                        TextWrapping="Wrap" />
-                                            <Button Classes="cfp-secondary"
+                                            <Button AutomationProperties.Name="{Binding Loc[Refresh]}"
+                                                    Classes="cfp-secondary"
                                                     Command="{Binding RefreshCommand}"
                                                     HorizontalAlignment="Left">
                                                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -818,7 +840,8 @@
                                             </Button>
                                         </StackPanel>
                                         <WrapPanel Orientation="Horizontal">
-                                            <Button Classes="cfp-accent"
+                                            <Button AutomationProperties.Name="{Binding Loc[InstallOrSwitch]}"
+                                                    Classes="cfp-accent"
                                                     Command="{Binding InstallOrSwitchLoaderCommand}"
                                                     Margin="0,0,8,8">
                                                 <Button.IsEnabled>
@@ -833,7 +856,8 @@
                                                     <TextBlock Text="{Binding Loc[InstallOrSwitch]}" />
                                                 </StackPanel>
                                             </Button>
-                                            <Button Classes="cfp-secondary"
+                                            <Button AutomationProperties.Name="{Binding Loc[Repair]}"
+                                                    Classes="cfp-secondary"
                                                     Command="{Binding RepairLoaderCommand}"
                                                     Margin="0,0,8,8">
                                                 <Button.IsEnabled>
@@ -848,7 +872,8 @@
                                                     <TextBlock Text="{Binding Loc[Repair]}" />
                                                 </StackPanel>
                                             </Button>
-                                            <Button Classes="cfp-secondary"
+                                            <Button AutomationProperties.Name="{Binding Loc[Uninstall]}"
+                                                    Classes="cfp-secondary"
                                                     Click="ConfirmUninstallLoader"
                                                     Margin="0,0,8,8">
                                                 <Button.IsEnabled>
@@ -889,7 +914,8 @@
                                                     </StackPanel>
                                                 </u:PathPicker.ButtonContent>
                                             </u:PathPicker>
-                                            <Button Classes="cfp-secondary"
+                                            <Button AutomationProperties.Name="{Binding Loc[ImportLocalLoader]}"
+                                                    Classes="cfp-secondary"
                                                     Command="{Binding ImportLocalLoaderCommand}"
                                                     HorizontalAlignment="Left">
                                                 <Button.IsEnabled>
@@ -918,7 +944,8 @@
                                         <TextBlock Classes="cfp-page-title" Text="{Binding Loc[ModPacks]}" />
                                         <TextBlock Classes="cfp-meta" Text="{Binding Loc[ModPacksHint]}" TextWrapping="Wrap" />
                                     </StackPanel>
-                                    <Button Grid.Column="1"
+                                    <Button AutomationProperties.Name="{Binding Loc[RestorePresetState]}"
+                                            Grid.Column="1"
                                             Classes="cfp-secondary"
                                             Command="{Binding RestorePresetStateCommand}"
                                             IsEnabled="{Binding HasPresetRestorePoint}"
@@ -988,7 +1015,8 @@
                                                            IsVisible="{Binding VisibleModPacks.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}" />
                                             </Grid>
                                         </Border>
-                                        <Button Grid.Row="3"
+                                        <Button AutomationProperties.Name="{Binding Loc[ImportSharedPreset]}"
+                                                Grid.Row="3"
                                                 Classes="cfp-secondary"
                                                 HorizontalAlignment="Stretch"
                                                 Click="ShowImportSharedModPackDialog">
@@ -1007,7 +1035,8 @@
                                                         <TextBlock Classes="cfp-section-title" Text="{Binding SelectedPreset.Name}" TextTrimming="CharacterEllipsis" />
                                                         <TextBlock Classes="cfp-meta" Text="{Binding Loc[ModPackSummary]}" TextWrapping="Wrap" />
                                                     </StackPanel>
-                                                    <Button Grid.Column="1" Classes="cfp-accent" Click="ConfirmApplyPreset">
+                                                    <Button AutomationProperties.Name="{Binding Loc[ApplyPreset]}"
+                                                            Grid.Column="1" Classes="cfp-accent" Click="ConfirmApplyPreset">
                                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                                             <LucideIcon Kind="Play" Size="16" />
                                                             <TextBlock Text="{Binding Loc[ApplyPreset]}" />
@@ -1032,7 +1061,8 @@
                                                     <Button Classes="cfp-secondary danger" Click="ConfirmDeletePreset" Margin="0,0,8,8" Content="{Binding Loc[DeletePreset]}" />
                                                 </WrapPanel>
 
-                                                <Button Classes="cfp-secondary"
+                                                <Button AutomationProperties.Name="{Binding Loc[ViewModPackContents]}"
+                                                        Classes="cfp-secondary"
                                                         Command="{Binding ToggleSelectedPresetEntriesCommand}"
                                                         HorizontalAlignment="Stretch">
                                                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
@@ -1093,7 +1123,8 @@
                                                  PlaceholderText="{Binding Loc[SnapshotName]}"
                                                  AutomationProperties.Name="{Binding Loc[SnapshotName]}"
                                                  Margin="0,0,8,8" />
-                                        <Button Classes="cfp-accent"
+                                        <Button AutomationProperties.Name="{Binding Loc[CreateSnapshot]}"
+                                                Classes="cfp-accent"
                                                 Command="{Binding CreateSnapshotCommand}"
                                                 Margin="0,0,8,8">
                                             <Button.IsEnabled>
@@ -1110,7 +1141,8 @@
                                             </StackPanel>
                                         </Button>
                                     </WrapPanel>
-                                    <Button Classes="cfp-market-item"
+                                    <Button AutomationProperties.Name="{Binding Loc[CurrentSave]}"
+                                            Classes="cfp-market-item"
                                             Command="{Binding EditSaveCommand}"
                                             CommandParameter="current"
                                             HorizontalAlignment="Stretch"
@@ -1180,7 +1212,8 @@
                                     <StackPanel Orientation="Horizontal"
                                                 HorizontalAlignment="Right"
                                                 Spacing="8">
-                                        <Button Classes="cfp-secondary danger"
+                                        <Button AutomationProperties.Name="{Binding Loc[DeleteSnapshot]}"
+                                                Classes="cfp-secondary danger"
                                                 Click="ConfirmDeleteSnapshot">
                                             <Button.IsEnabled>
                                                 <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
@@ -1194,7 +1227,8 @@
                                                 <TextBlock Text="{Binding Loc[DeleteSnapshot]}" />
                                             </StackPanel>
                                         </Button>
-                                        <Button Classes="cfp-secondary"
+                                        <Button AutomationProperties.Name="{Binding Loc[Restore]}"
+                                                Classes="cfp-secondary"
                                                 Click="ConfirmRestoreSnapshot">
                                             <Button.IsEnabled>
                                                 <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
@@ -1216,7 +1250,8 @@
                                             IsVisible="{Binding $parent[Window].((vm:MainViewModel)DataContext).IsEditingSave}"
                                             DataContext="{Binding SaveEditor}">
                                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                                        <Button Classes="cfp-secondary"
+                                        <Button AutomationProperties.Name="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[Back]}"
+                                                Classes="cfp-secondary"
                                                 Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).ExitSaveEditorCommand}">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <LucideIcon Kind="ArrowLeft" Size="16" />
@@ -1300,13 +1335,15 @@
                                     <StackPanel Orientation="Horizontal"
                                                 Spacing="8"
                                                 HorizontalAlignment="Right">
-                                        <Button Classes="cfp-secondary" Command="{Binding ResetCommand}">
+                                        <Button AutomationProperties.Name="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[ResetConfig]}"
+                                                Classes="cfp-secondary" Command="{Binding ResetCommand}">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <LucideIcon Kind="RotateCcw" Size="16" />
                                                 <TextBlock Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[ResetConfig]}" />
                                             </StackPanel>
                                         </Button>
-                                        <Button Classes="cfp-primary"
+                                        <Button AutomationProperties.Name="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[Save]}"
+                                                Classes="cfp-primary"
                                                 Command="{Binding SaveCommand}"
                                                 IsEnabled="{Binding CanSave}">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -1323,7 +1360,8 @@
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Logs}">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <TextBlock Grid.Column="0" Classes="cfp-page-title" Text="{Binding Loc[Logs]}" />
-                                    <Button Grid.Column="1"
+                                    <Button AutomationProperties.Name="{Binding Loc[RefreshLogs]}"
+                                            Grid.Column="1"
                                             Classes="cfp-secondary"
                                             Command="{Binding RefreshLogsCommand}">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -1438,7 +1476,8 @@
                                                                Text="{Binding Loc[AdvancedConfigHint]}"
                                                                TextWrapping="Wrap" />
                                                 </StackPanel>
-                                                <Button Grid.Column="1"
+                                                <Button AutomationProperties.Name="{Binding Loc[AddEntry]}"
+                                                        Grid.Column="1"
                                                         Classes="cfp-secondary"
                                                         Command="{Binding GameConfig.AddEntryCommand}"
                                                         VerticalAlignment="Center">
@@ -1483,7 +1522,8 @@
                                             </ItemsControl>
                                         </StackPanel>
                                         <WrapPanel Orientation="Horizontal">
-                                            <Button Name="ConfigSaveButton"
+                                            <Button AutomationProperties.Name="{Binding Loc[SaveConfig]}"
+                                                    Name="ConfigSaveButton"
                                                     Classes="cfp-accent"
                                                     Command="{Binding GameConfig.SaveCommand}"
                                                     IsEnabled="{Binding GameConfig.IsDirty}"
@@ -1493,7 +1533,8 @@
                                                     <TextBlock Text="{Binding Loc[SaveConfig]}" />
                                                 </StackPanel>
                                             </Button>
-                                            <Button Name="ConfigResetButton"
+                                            <Button AutomationProperties.Name="{Binding Loc[ResetConfig]}"
+                                                    Name="ConfigResetButton"
                                                     Classes="cfp-secondary"
                                                     Command="{Binding GameConfig.ResetCommand}"
                                                     Margin="0,0,8,8">
@@ -1628,7 +1669,8 @@
                                             <TextBlock Classes="cfp-meta" Text="{Binding Loc[CurrentVersion]}" />
                                             <TextBlock Classes="cfp-meta" Text="{Binding ModManagement.SelectedInstalledMod.Version}" />
                                         </StackPanel>
-                                        <Button Classes="cfp-link" HorizontalAlignment="Left" MinHeight="36"
+                                        <Button AutomationProperties.Name="{Binding Loc[MatchToCatalog]}"
+                                                Classes="cfp-link" HorizontalAlignment="Left" MinHeight="36"
                                                 Command="{Binding MatchSelectedModToCatalogCommand}"
                                                 IsVisible="{Binding ModManagement.SelectedInstalledMod.CanMatchToCatalog}">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -2112,19 +2154,22 @@
                                         <TextBlock Classes="cfp-meta" Text="{Binding SteamNetworkStatus}" TextWrapping="Wrap" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Center">
-                                        <Button Classes="cfp-accent" Command="{Binding SignInWithQrCommand}" IsVisible="{Binding IsSteamLoggedIn, Converter={x:Static converters:BoolConverters.Not}}">
+                                        <Button AutomationProperties.Name="{Binding Loc[SignInQr]}"
+                                                Classes="cfp-accent" Command="{Binding SignInWithQrCommand}" IsVisible="{Binding IsSteamLoggedIn, Converter={x:Static converters:BoolConverters.Not}}">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <LucideIcon Kind="LogIn" Size="16" />
                                                 <TextBlock Text="{Binding Loc[SignInQr]}" />
                                             </StackPanel>
                                         </Button>
-                                        <Button Classes="cfp-link" Command="{Binding TogglePasswordLoginCommand}" MinHeight="36" IsVisible="{Binding IsSteamLoggedIn, Converter={x:Static converters:BoolConverters.Not}}">
+                                        <Button AutomationProperties.Name="{Binding Loc[SwitchToPasswordLogin]}"
+                                                Classes="cfp-link" Command="{Binding TogglePasswordLoginCommand}" MinHeight="36" IsVisible="{Binding IsSteamLoggedIn, Converter={x:Static converters:BoolConverters.Not}}">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <LucideIcon Kind="KeyRound" Size="14" />
                                                 <TextBlock Text="{Binding Loc[SwitchToPasswordLogin]}" />
                                             </StackPanel>
                                         </Button>
-                                        <Button Classes="cfp-secondary" Command="{Binding SignOutSteamCommand}" IsVisible="{Binding IsSteamLoggedIn}">
+                                        <Button AutomationProperties.Name="{Binding Loc[SignOut]}"
+                                                Classes="cfp-secondary" Command="{Binding SignOutSteamCommand}" IsVisible="{Binding IsSteamLoggedIn}">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <LucideIcon Kind="LogOut" Size="16" />
                                                 <TextBlock Text="{Binding Loc[SignOut]}" />
@@ -2133,7 +2178,8 @@
                                     </StackPanel>
                                 </Grid>
                             </Border>
-                            <Button Classes="cfp-link" Command="{Binding RefreshSteamNetworkCommand}" HorizontalAlignment="Left" MinHeight="36">
+                            <Button AutomationProperties.Name="{Binding Loc[RefreshSteamNetwork]}"
+                                    Classes="cfp-link" Command="{Binding RefreshSteamNetworkCommand}" HorizontalAlignment="Left" MinHeight="36">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <LucideIcon Kind="RefreshCw" Size="14" />
                                     <TextBlock Text="{Binding Loc[RefreshSteamNetwork]}" />
@@ -2147,7 +2193,8 @@
                                     <TextBox Classes="cfp-input" Text="{Binding SteamUsername, Mode=TwoWay}" PlaceholderText="{Binding Loc[SteamUsername]}" MinWidth="320" AutomationProperties.Name="{Binding Loc[SteamUsername]}" />
                                     <TextBox Classes="cfp-input" Text="{Binding SteamPassword, Mode=TwoWay}" PasswordChar="●" PlaceholderText="{Binding Loc[SteamPassword]}" MinWidth="320" AutomationProperties.Name="{Binding Loc[SteamPassword]}" />
                                     <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <Button Classes="cfp-primary" Command="{Binding SignInWithPasswordCommand}">
+                                        <Button AutomationProperties.Name="{Binding Loc[SteamLogin]}"
+                                                Classes="cfp-primary" Command="{Binding SignInWithPasswordCommand}">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <LucideIcon Kind="LogIn" Size="16" />
                                                 <TextBlock Text="{Binding Loc[SteamLogin]}" />
@@ -2195,7 +2242,8 @@
                                 </ListBox>
                                 <StackPanel Spacing="8" IsVisible="{Binding DownloadBuilds.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}">
                                     <TextBlock Classes="cfp-meta" Text="{Binding Loc[NoDownloadBuildsAction]}" TextWrapping="Wrap" />
-                                    <Button Classes="cfp-secondary" Command="{Binding SelectPageCommand}" CommandParameter="Settings" HorizontalAlignment="Left">
+                                    <Button AutomationProperties.Name="{Binding Loc[OpenSettings]}"
+                                            Classes="cfp-secondary" Command="{Binding SelectPageCommand}" CommandParameter="Settings" HorizontalAlignment="Left">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <LucideIcon Kind="Settings" Size="16" />
                                             <TextBlock Text="{Binding Loc[OpenSettings]}" />
@@ -2204,7 +2252,8 @@
                                 </StackPanel>
                                 <ProgressBar x:Name="SteamDownloadProgress" Classes="cfp-progress" Minimum="0" Maximum="1" Value="{Binding DownloadProgress}" IsVisible="{Binding IsDownloading}" />
                                 <TextBlock Classes="cfp-meta" Text="{Binding DownloadStatus}" TextWrapping="Wrap" />
-                                <Button Classes="cfp-primary" Command="{Binding DownloadBuildCommand}" HorizontalAlignment="Left" IsVisible="{Binding IsDownloading, Converter={x:Static converters:BoolConverters.Not}}">
+                                <Button AutomationProperties.Name="{Binding Loc[NavDownloads]}"
+                                        Classes="cfp-primary" Command="{Binding DownloadBuildCommand}" HorizontalAlignment="Left" IsVisible="{Binding IsDownloading, Converter={x:Static converters:BoolConverters.Not}}">
                                     <Button.IsEnabled>
                                         <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
                                             <Binding Path="IsSteamLoggedIn" />
@@ -2218,7 +2267,8 @@
                                         <TextBlock Text="{Binding Loc[NavDownloads]}" />
                                     </StackPanel>
                                 </Button>
-                                <Button Classes="cfp-secondary" Command="{Binding CancelDownloadCommand}" HorizontalAlignment="Left" IsVisible="{Binding IsDownloading}">
+                                <Button AutomationProperties.Name="{Binding Loc[Cancel]}"
+                                        Classes="cfp-secondary" Command="{Binding CancelDownloadCommand}" HorizontalAlignment="Left" IsVisible="{Binding IsDownloading}">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <LucideIcon Kind="X" Size="16" />
                                         <TextBlock Text="{Binding Loc[Cancel]}" />
@@ -2721,19 +2771,24 @@
                 <Grid Classes="cfp-settings-layout" ColumnDefinitions="176,*">
                     <Border Grid.Column="0" Classes="cfp-rail" Padding="8,16">
                         <StackPanel Classes="cfp-manage-nav" Spacing="4" IsEnabled="{Binding CanNavigate}">
-                            <Button Classes="cfp-local-nav" Classes.active="{Binding Settings.IsGeneralSettingsSection}" Command="{Binding Settings.SelectSettingsSectionCommand}" CommandParameter="General">
+                            <Button AutomationProperties.Name="{Binding Loc[SettingsGeneral]}"
+                                    Classes="cfp-local-nav" Classes.active="{Binding Settings.IsGeneralSettingsSection}" Command="{Binding Settings.SelectSettingsSectionCommand}" CommandParameter="General">
                                 <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Settings2" Size="16" /><TextBlock Text="{Binding Loc[SettingsGeneral]}" /></StackPanel>
                             </Button>
-                            <Button Classes="cfp-local-nav" Classes.active="{Binding Settings.IsNetworkSettingsSection}" Command="{Binding Settings.SelectSettingsSectionCommand}" CommandParameter="Network">
+                            <Button AutomationProperties.Name="{Binding Loc[SettingsNetwork]}"
+                                    Classes="cfp-local-nav" Classes.active="{Binding Settings.IsNetworkSettingsSection}" Command="{Binding Settings.SelectSettingsSectionCommand}" CommandParameter="Network">
                                 <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Gauge" Size="16" /><TextBlock Text="{Binding Loc[SettingsNetwork]}" /></StackPanel>
                             </Button>
-                            <Button Classes="cfp-local-nav" Classes.active="{Binding Settings.IsCatalogSettingsSection}" Command="{Binding Settings.SelectSettingsSectionCommand}" CommandParameter="Catalog">
+                            <Button AutomationProperties.Name="{Binding Loc[SettingsCatalog]}"
+                                    Classes="cfp-local-nav" Classes.active="{Binding Settings.IsCatalogSettingsSection}" Command="{Binding Settings.SelectSettingsSectionCommand}" CommandParameter="Catalog">
                                 <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Store" Size="16" /><TextBlock Text="{Binding Loc[SettingsCatalog]}" /></StackPanel>
                             </Button>
-                            <Button Classes="cfp-local-nav" Classes.active="{Binding Settings.IsUpdatesSettingsSection}" Command="{Binding Settings.SelectSettingsSectionCommand}" CommandParameter="Updates">
+                            <Button AutomationProperties.Name="{Binding Loc[SettingsUpdates]}"
+                                    Classes="cfp-local-nav" Classes.active="{Binding Settings.IsUpdatesSettingsSection}" Command="{Binding Settings.SelectSettingsSectionCommand}" CommandParameter="Updates">
                                 <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="RefreshCw" Size="16" /><TextBlock Text="{Binding Loc[SettingsUpdates]}" /></StackPanel>
                             </Button>
-                            <Button Classes="cfp-local-nav" Classes.active="{Binding Settings.IsAboutSettingsSection}" Command="{Binding Settings.SelectSettingsSectionCommand}" CommandParameter="About">
+                            <Button AutomationProperties.Name="{Binding Loc[SettingsAbout]}"
+                                    Classes="cfp-local-nav" Classes.active="{Binding Settings.IsAboutSettingsSection}" Command="{Binding Settings.SelectSettingsSectionCommand}" CommandParameter="About">
                                 <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Info" Size="16" /><TextBlock Text="{Binding Loc[SettingsAbout]}" /></StackPanel>
                             </Button>
                         </StackPanel>
@@ -2962,7 +3017,8 @@
                                             <Border Grid.Column="2" Classes="cfp-latency-result"><StackPanel Spacing="2"><TextBlock Classes="cfp-caption" Text="{Binding Loc[GitHubMirror]}" /><TextBlock Classes="cfp-row-title" Text="{Binding Settings.GitHubMirrorLatency}" /></StackPanel></Border>
                                             <Border Grid.Row="1" Classes="cfp-latency-result"><StackPanel Spacing="2"><TextBlock Classes="cfp-caption" Text="{Binding Loc[GitHubGhProxyNet]}" /><TextBlock Classes="cfp-row-title" Text="{Binding Settings.GitHubGhProxyNetLatency}" /></StackPanel></Border>
                                             <Border Grid.Row="1" Grid.Column="1" Classes="cfp-latency-result"><StackPanel Spacing="2"><TextBlock Classes="cfp-caption" Text="{Binding Loc[GitHubGhFastTop]}" /><TextBlock Classes="cfp-row-title" Text="{Binding Settings.GitHubGhFastTopLatency}" /></StackPanel></Border>
-                                            <Button Grid.Row="1" Grid.Column="2" Classes="cfp-secondary" Command="{Binding Settings.TestGitHubLatencyCommand}" IsEnabled="{Binding Settings.IsTestingGitHubLatency, Converter={x:Static converters:BoolConverters.Not}}"><StackPanel Orientation="Horizontal" Spacing="6"><LucideIcon Kind="Gauge" Size="15" /><TextBlock Text="{Binding Loc[TestLatency]}" /></StackPanel></Button>
+                                            <Button AutomationProperties.Name="{Binding Loc[TestLatency]}"
+                                                    Grid.Row="1" Grid.Column="2" Classes="cfp-secondary" Command="{Binding Settings.TestGitHubLatencyCommand}" IsEnabled="{Binding Settings.IsTestingGitHubLatency, Converter={x:Static converters:BoolConverters.Not}}"><StackPanel Orientation="Horizontal" Spacing="6"><LucideIcon Kind="Gauge" Size="15" /><TextBlock Text="{Binding Loc[TestLatency]}" /></StackPanel></Button>
                                         </Grid>
                                     </StackPanel>
                                 </Border>
@@ -2988,14 +3044,16 @@
                                             <ComboBox Classes="cfp-input" ItemsSource="{Binding Settings.CustomModLinksBuildOptions}" SelectedItem="{Binding Settings.SelectedCustomModLinksBuild, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[MarketBuild]}"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate></ComboBox>
                                             <ComboBox Grid.Column="1" Classes="cfp-input" ItemsSource="{Binding Settings.CustomModLinksLoaderOptions}" SelectedItem="{Binding Settings.SelectedCustomModLinksLoader, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[MarketLoader]}"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate></ComboBox>
                                         </Grid>
-                                        <Button Classes="cfp-accent" Command="{Binding Settings.SaveCustomModLinksCommand}" HorizontalAlignment="Right"><StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Save" Size="16" /><TextBlock Text="{Binding Loc[Save]}" /></StackPanel></Button>
+                                        <Button AutomationProperties.Name="{Binding Loc[Save]}"
+                                                Classes="cfp-accent" Command="{Binding Settings.SaveCustomModLinksCommand}" HorizontalAlignment="Right"><StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Save" Size="16" /><TextBlock Text="{Binding Loc[Save]}" /></StackPanel></Button>
                                     </StackPanel>
                                 </Border>
                                 <Border Classes="cfp-card">
                                     <StackPanel Spacing="12">
                                         <TextBlock Classes="cfp-section-title" Text="{Binding Loc[CustomCatalogSources]}" />
                                         <TextBox Classes="cfp-input" Text="{Binding Settings.CustomSourcesText, Mode=TwoWay}" AcceptsReturn="True" MinHeight="120" AutomationProperties.Name="{Binding Loc[CustomCatalogSources]}" TextWrapping="NoWrap" />
-                                        <Button Classes="cfp-accent" Command="{Binding Settings.SaveCustomSourcesCommand}" HorizontalAlignment="Right">
+                                        <Button AutomationProperties.Name="{Binding Loc[Save]}"
+                                                Classes="cfp-accent" Command="{Binding Settings.SaveCustomSourcesCommand}" HorizontalAlignment="Right">
                                             <Button.IsEnabled><MultiBinding Converter="{x:Static converters:BoolConverters.And}"><Binding Path="IsBusy" Converter="{x:Static converters:BoolConverters.Not}" /><Binding Path="IsGameRunning" Converter="{x:Static converters:BoolConverters.Not}" /></MultiBinding></Button.IsEnabled>
                                             <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Save" Size="16" /><TextBlock Text="{Binding Loc[Save]}" /></StackPanel>
                                         </Button>
@@ -3056,7 +3114,8 @@
                                 <Border Classes="cfp-card">
                                     <StackPanel Spacing="16">
                                         <StackPanel Spacing="4"><TextBlock Classes="cfp-section-title" Text="{Binding Loc[AboutTitle]}" /><TextBlock Classes="cfp-meta" Text="{Binding Loc[AboutDescription]}" TextWrapping="Wrap" /></StackPanel>
-                                        <Button Classes="cfp-link" HorizontalAlignment="Left" MinHeight="36" Command="{Binding ShowOnboardingCommand}">
+                                        <Button AutomationProperties.Name="{Binding Loc[OnboardingReopen]}"
+                                                Classes="cfp-link" HorizontalAlignment="Left" MinHeight="36" Command="{Binding ShowOnboardingCommand}">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <LucideIcon Kind="GraduationCap" Size="14" />
                                                 <TextBlock Text="{Binding Loc[OnboardingReopen]}" />

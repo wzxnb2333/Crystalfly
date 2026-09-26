@@ -156,6 +156,8 @@ public sealed partial class DocumentationScreenshotTests
                 var name = new ButtonAutomationPeer(button).GetName();
                 if (string.IsNullOrWhiteSpace(name))
                     failures.Add($"{state}/{section}: unnamed button with classes {string.Join(' ', button.Classes)}.");
+                else if (button.Content is Control content && name == content.GetType().FullName)
+                    failures.Add($"{state}/{section}: button '{string.Join(' ', button.GetVisualDescendants().OfType<TextBlock>().Select(text => text.Text))}' exposes its content type '{name}' instead of an accessible name.");
             }
             foreach (var text in fixture.Window.GetVisualDescendants().OfType<TextBlock>())
             {

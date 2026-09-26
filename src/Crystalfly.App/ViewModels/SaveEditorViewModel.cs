@@ -56,6 +56,8 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
 
     public bool CanSave => IsLoaded && IsDirty;
 
+    public event Action<Exception?>? OperationErrorChanged;
+
     public SaveEditorViewModel(
         NamedSnapshotService snapshotService,
         string instanceId,
@@ -116,15 +118,18 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
         {
             return;
         }
-        var version = slotLoadVersion;
-        var entries = Entries.Select(entry => entry.ToEntry()).ToArray();
-        var json = SaveGameEditor.Rebuild(originalJson, entries);
-        await snapshotService.UpdateSaveAsync(instanceId, snapshotId, currentSlot, json, cancellationToken);
-        if (version == slotLoadVersion)
+        await RunCommandAsync(async () =>
         {
-            originalJson = json;
-            IsDirty = !Entries.Select(entry => entry.ToEntry()).SequenceEqual(entries);
-        }
+            var version = slotLoadVersion;
+            var entries = Entries.Select(entry => entry.ToEntry()).ToArray();
+            var json = SaveGameEditor.Rebuild(originalJson, entries);
+            await snapshotService.UpdateSaveAsync(instanceId, snapshotId, currentSlot, json, cancellationToken);
+            if (version == slotLoadVersion)
+            {
+                originalJson = json;
+                IsDirty = !Entries.Select(entry => entry.ToEntry()).SequenceEqual(entries);
+            }
+        }, cancellationToken);
     }
 
     [RelayCommand]
@@ -132,7 +137,28 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
     {
         if (!string.IsNullOrEmpty(currentSlot))
         {
-            await LoadSlotAsync(currentSlot, cancellationToken);
+            await RunCommandAsync(() => LoadSlotAsync(currentSlot, cancellationToken), cancellationToken);
+        }
+    }
+
+    private async Task RunCommandAsync(Func<Task> operation, CancellationToken cancellationToken)
+    {
+        OperationErrorChanged?.Invoke(null);
+        try
+        {
+            await operation();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or UnauthorizedAccessException
+            or FormatException
+            or InvalidOperationException
+            or System.Security.Cryptography.CryptographicException)
+        {
+            OperationErrorChanged?.Invoke(exception);
         }
     }
 
