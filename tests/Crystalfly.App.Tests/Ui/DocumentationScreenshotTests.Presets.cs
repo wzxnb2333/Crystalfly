@@ -18,6 +18,62 @@ namespace Crystalfly.App.Tests.Ui;
 public sealed partial class DocumentationScreenshotTests
 {
     [AvaloniaTheory]
+    [InlineData(UiLanguage.SimplifiedChinese)]
+    [InlineData(UiLanguage.English)]
+    public async Task Overlay_close_button_is_localized_and_cancels_without_saving(UiLanguage language)
+    {
+        await using var fixture = CreateFixture();
+        await fixture.PrepareAsync(ScreenshotState.ModPresets);
+        var viewModel = fixture.ViewModel;
+        viewModel.Loc.Apply(language);
+        var originalPresets = viewModel.ModPresets.ToArray();
+        fixture.Window.Width = 900;
+        fixture.Window.Height = 600;
+        fixture.Window.Show();
+        fixture.Window.DataContext = viewModel;
+        Dispatcher.UIThread.RunJobs();
+        Click(Assert.Single(fixture.Window.GetVisualDescendants().OfType<Button>(), button =>
+            button.IsEffectivelyVisible && new ButtonAutomationPeer(button).GetName() == viewModel.Loc["CopyPreset"]));
+        TextInputDialogView? dialog = null;
+        for (var attempt = 0; attempt < 100 && dialog is null; attempt++)
+        {
+            await Task.Delay(10);
+            Dispatcher.UIThread.RunJobs();
+            dialog = fixture.Window.GetVisualDescendants().OfType<TextInputDialogView>().SingleOrDefault();
+        }
+        Assert.NotNull(dialog);
+        var close = Assert.Single(fixture.Window.GetVisualDescendants().OfType<Button>(), button =>
+            button.IsEffectivelyVisible && button.Name == "PART_CloseButton");
+        Assert.Equal(viewModel.Loc["WindowClose"], new ButtonAutomationPeer(close).GetName());
+        Assert.Equal(viewModel.Loc["WindowClose"], ToolTip.GetTip(close));
+        viewModel.Loc.Apply(language == UiLanguage.English ? UiLanguage.SimplifiedChinese : UiLanguage.English);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(viewModel.Loc["WindowClose"], new ButtonAutomationPeer(close).GetName());
+        Assert.Equal(viewModel.Loc["WindowClose"], ToolTip.GetTip(close));
+        Click(close);
+        for (var attempt = 0; attempt < 100 && fixture.Window.GetVisualDescendants().Contains(dialog); attempt++)
+        {
+            await Task.Delay(10);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.DoesNotContain(dialog, fixture.Window.GetVisualDescendants());
+        Assert.Equal(originalPresets, viewModel.ModPresets);
+        Assert.Null(viewModel.ErrorMessage);
+
+        void Click(Button button)
+        {
+            button.BringIntoView();
+            Dispatcher.UIThread.RunJobs();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+            var center = Assert.IsType<Point>(button.TranslatePoint(
+                new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), fixture.Window));
+            fixture.Window.MouseDown(center, MouseButton.Left, RawInputModifiers.None);
+            fixture.Window.MouseUp(center, MouseButton.Left, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+        }
+    }
+
+    [AvaloniaTheory]
     [InlineData(UiLanguage.SimplifiedChinese, false)]
     [InlineData(UiLanguage.SimplifiedChinese, true)]
     [InlineData(UiLanguage.English, false)]

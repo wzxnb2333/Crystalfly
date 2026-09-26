@@ -32,6 +32,15 @@
         <x:Int32 x:Key="Zero">0</x:Int32>
     </Window.Resources>
 
+    <Window.Styles>
+        <Style Selector="u|CustomDialogControl /template/ Button#PART_CloseButton">
+            <Setter Property="AutomationProperties.Name"
+                    Value="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[WindowClose]}" />
+            <Setter Property="ToolTip.Tip"
+                    Value="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[WindowClose]}" />
+        </Style>
+    </Window.Styles>
+
     <Design.DataContext>
         <vm:MainViewModel />
     </Design.DataContext>
