@@ -1704,17 +1704,15 @@
                                     Classes.active="{Binding IsSpeedrunEnvironmentTab}"
                                     Command="{Binding SelectSpeedrunTabCommand}"
                                     CommandParameter="Environment"
-                                    AutomationProperties.Name="{Binding Loc[SpeedrunEnvironmentTab]}">
-                                <TextBlock Text="{Binding Loc[SpeedrunEnvironmentTab]}" />
-                            </Button>
+                                    Content="{Binding Loc[SpeedrunEnvironmentTab]}"
+                                    AutomationProperties.Name="{Binding Loc[SpeedrunEnvironmentTab]}" />
                             <Button Grid.Column="1"
                                     Classes="cfp-speedrun-tab-segment"
                                     Classes.active="{Binding IsSpeedrunActivityTab}"
                                     Command="{Binding SelectSpeedrunTabCommand}"
                                     CommandParameter="Activity"
-                                    AutomationProperties.Name="{Binding Loc[SpeedrunActivityTab]}">
-                                <TextBlock Text="{Binding Loc[SpeedrunActivityTab]}" />
-                            </Button>
+                                    Content="{Binding Loc[SpeedrunActivityTab]}"
+                                    AutomationProperties.Name="{Binding Loc[SpeedrunActivityTab]}" />
                         </Grid>
                     </Border>
                     <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">

@@ -17,20 +17,26 @@ namespace Crystalfly.App.Tests.Ui;
 public sealed partial class DocumentationScreenshotTests
 {
     [AvaloniaTheory]
-    [InlineData(900, 600, UiLanguage.SimplifiedChinese)]
-    [InlineData(900, 600, UiLanguage.English)]
-    [InlineData(1280, 720, UiLanguage.English)]
-    [InlineData(1920, 1080, UiLanguage.SimplifiedChinese)]
-    public async Task Speedrun_switch_preserves_workspace_height_and_activity_edge_spacing(int width, int height, UiLanguage language)
+    [InlineData(900, 600, UiLanguage.SimplifiedChinese, 1d, false)]
+    [InlineData(900, 600, UiLanguage.English, 1d, true)]
+    [InlineData(1280, 720, UiLanguage.English, 1d, true)]
+    [InlineData(1920, 1080, UiLanguage.SimplifiedChinese, 1d, false)]
+    [InlineData(1920, 1080, UiLanguage.SimplifiedChinese, 1.5d, false)]
+    [InlineData(1920, 1080, UiLanguage.SimplifiedChinese, 1.5d, true)]
+    [InlineData(2560, 1440, UiLanguage.English, 2d, true)]
+    public async Task Speedrun_switch_preserves_workspace_height_and_activity_edge_spacing(
+        int width, int height, UiLanguage language, double scaling, bool light)
     {
         await using var fixture = CreateFixture();
         await fixture.PrepareAsync(ScreenshotState.Speedrun);
         fixture.ViewModel.Loc.Apply(language);
         fixture.ViewModel.SelectedMotionPreference = new(UiMotionPreference.Off, "Off");
-        fixture.Window.Width = width;
-        fixture.Window.Height = height;
+        Application.Current!.RequestedThemeVariant = light ? ThemeVariant.Light : ThemeVariant.Dark;
+        fixture.Window.Width = width / scaling;
+        fixture.Window.Height = height / scaling;
         fixture.Window.Show();
         fixture.Window.DataContext = fixture.ViewModel;
+        fixture.Window.SetRenderScaling(scaling);
         Dispatcher.UIThread.RunJobs();
 
         var tabSwitch = Assert.Single(fixture.Window.GetVisualDescendants().OfType<Border>(),
@@ -53,6 +59,14 @@ public sealed partial class DocumentationScreenshotTests
             Assert.Equal(tab, fixture.ViewModel.CurrentSpeedrunTab);
             Assert.Contains("active", button.Classes);
             Assert.True(tabSwitch.IsEffectivelyVisible);
+            foreach (var segment in tabSwitch.GetVisualDescendants().OfType<Button>())
+            {
+                var label = Assert.Single(segment.GetVisualDescendants().OfType<TextBlock>());
+                Assert.False(string.IsNullOrWhiteSpace(label.Text));
+                Assert.True(label.Bounds.Width > 0, $"The {segment.CommandParameter} tab label has no visible width.");
+                Assert.True(label.TextLayout.WidthIncludingTrailingWhitespace <= label.Bounds.Width + 1,
+                    $"The {segment.CommandParameter} tab label requires {label.TextLayout.WidthIncludingTrailingWhitespace:F1}px, but has {label.Bounds.Width:F1}px.");
+            }
 
             var origin = Assert.IsType<Point>(tabSwitch.TranslatePoint(default, layout));
             Assert.Equal(layout.Bounds.Height, content.Bounds.Height, precision: 0);

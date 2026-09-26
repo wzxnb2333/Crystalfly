@@ -404,10 +404,11 @@
     </Style>
 
     <Style Selector="Button.cfp-speedrun-tab-segment">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="CornerRadius" Value="14" />
-        <Setter Property="Padding" Value="14,4" />
+        <Setter Property="Padding" Value="10,4" />
         <Setter Property="MinWidth" Value="95" />
         <Setter Property="MinHeight" Value="32" />
         <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
