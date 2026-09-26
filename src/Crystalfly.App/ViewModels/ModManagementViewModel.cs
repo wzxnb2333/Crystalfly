@@ -412,20 +412,30 @@ public partial class ModManagementViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task ReimportSelectedLocalModAsync()
+    private Task ReimportSelectedLocalModAsync()
     {
         var submittedPath = LocalModPath;
         if (SelectedInstalledMod is not { CanReimport: true } selected || !File.Exists(submittedPath))
         {
             dependencies.SetErrorMessage(Loc["LocalModPathRequired"]);
-            return;
+            return Task.CompletedTask;
         }
-        await dependencies.RunInstanceMutation(record =>
+        return ReimportLocalModAsync(null, selected.Id, submittedPath);
+    }
+
+    internal Task ReimportLocalModAsync(InstanceRecord? target, string modId, string submittedPath)
+    {
+        if (!File.Exists(submittedPath))
+        {
+            dependencies.SetErrorMessage(Loc["LocalModPathRequired"]);
+            return Task.CompletedTask;
+        }
+        return RunLocalModMutationAsync(target, record =>
         {
             var manager = dependencies.CreateModManager(record);
             return string.Equals(Path.GetExtension(submittedPath), ".dll", StringComparison.OrdinalIgnoreCase)
-                ? manager.ReimportLocalDllAsync(selected.Id, submittedPath)
-                : manager.ReimportLocalZipAsync(selected.Id, submittedPath);
+                ? manager.ReimportLocalDllAsync(modId, submittedPath, dependencies.LifetimeCancellation)
+                : manager.ReimportLocalZipAsync(modId, submittedPath, dependencies.LifetimeCancellation);
         });
     }
 
@@ -627,39 +637,44 @@ public partial class ModManagementViewModel : ViewModelBase
         .ToArray();
 
     [RelayCommand]
-    private async Task ImportLocalModAsync()
+    private Task ImportLocalModAsync() => ImportLocalModAsync(null, LocalModPath);
+
+    internal async Task ImportLocalModAsync(InstanceRecord? target, string submittedPath)
     {
-        var submittedPath = LocalModPath;
-        if (dependencies.GetSelectedInstance() is null || !File.Exists(submittedPath))
+        if ((target ?? dependencies.GetSelectedInstance()) is null || !File.Exists(submittedPath))
         {
             dependencies.SetErrorMessage(Loc["LocalModPathRequired"]);
             return;
         }
-        await dependencies.RunInstanceMutation(async record =>
+        await RunLocalModMutationAsync(target, async record =>
         {
-            var loader = await dependencies.CreateLoaderManager(record).GetReceiptAsync()
+            var loader = await dependencies.CreateLoaderManager(record).GetReceiptAsync(dependencies.LifetimeCancellation)
                 ?? throw new InvalidOperationException(Loc["LoaderRequired"]);
             var fileName = Path.GetFileNameWithoutExtension(submittedPath);
             var id = $"local-{fileName}";
             var manager = dependencies.CreateModManager(record);
             if (string.Equals(Path.GetExtension(submittedPath), ".dll", StringComparison.OrdinalIgnoreCase))
             {
-                await manager.ImportLocalDllAsync(id, fileName, loader.PackageId, submittedPath);
+                await manager.ImportLocalDllAsync(id, fileName, loader.PackageId, submittedPath, dependencies.LifetimeCancellation);
             }
             else if (string.Equals(Path.GetExtension(submittedPath), ".zip", StringComparison.OrdinalIgnoreCase))
             {
-                await manager.ImportLocalZipAsync(id, fileName, loader.PackageId, submittedPath);
+                await manager.ImportLocalZipAsync(id, fileName, loader.PackageId, submittedPath, dependencies.LifetimeCancellation);
             }
             else
             {
                 throw new InvalidDataException(Loc["LocalModType"]);
             }
-            if (string.Equals(LocalModPath, submittedPath, StringComparison.Ordinal))
+            if (target is null && string.Equals(LocalModPath, submittedPath, StringComparison.Ordinal))
             {
                 LocalModPath = string.Empty;
             }
         });
     }
+
+    private Task RunLocalModMutationAsync(InstanceRecord? target, Func<InstanceRecord, Task> operation) =>
+        target is null ? dependencies.RunInstanceMutation(operation)
+            : dependencies.RunTargetedInstanceMutation(target, operation);
 
     private void ApplyModFilters()
     {

@@ -21,4 +21,5 @@ public sealed record ModManagementDependencies(
     Func<ModHealthStatus, string> HealthDisplay,
     Action<string?> SetErrorMessage,
     Func<InstanceRecord?> GetSelectedInstance,
-    Func<ModDependencyRepairPlan, Task> EnqueueModDependencyRepair);
+    Func<ModDependencyRepairPlan, Task> EnqueueModDependencyRepair,
+    Func<InstanceRecord, Func<InstanceRecord, Task>, Task> RunTargetedInstanceMutation);

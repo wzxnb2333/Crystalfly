@@ -301,7 +301,8 @@ public sealed class ModManagementViewModelTests
             _ => "healthy",
             _ => { },
             () => NewInstance(),
-            _ => Task.CompletedTask);
+            _ => Task.CompletedTask,
+            (record, operation) => operation(record));
     }
 
     private static InstanceRecord NewInstance() => new()

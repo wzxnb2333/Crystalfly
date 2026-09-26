@@ -368,7 +368,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ModHealthDisplay,
             message => ErrorMessage = message,
             () => SelectedInstance?.Record,
-            EnqueueModDependencyRepairAsync));
+            EnqueueModDependencyRepairAsync,
+            (record, operation) => RunInstanceMutationAsync(operation, record)));
         DependencyGraph = new DependencyGraphViewModel(new DependencyGraphDependencies(
             () => Loc,
             ProjectMarketMod,
@@ -4757,34 +4758,49 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    private async Task RunInstanceMutationAsync(Func<InstanceRecord, Task> operation)
+    private async Task RunInstanceMutationAsync(
+        Func<InstanceRecord, Task> operation, InstanceRecord? target = null)
     {
-        if (SelectedInstance is null || IsMutationBlocked())
+        if ((target ?? SelectedInstance?.Record) is not { } record || IsMutationBlocked())
         {
             return;
         }
 
-        var instanceId = SelectedInstance.Id;
+        var instanceId = record.Id;
+        var operationCancellation = lifetimeCancellation.Token;
         IsBusy = true;
         ErrorMessage = null;
         try
         {
-            var record = SelectedInstance.Record;
             await instanceOperationCoordinator.RunAsync(
                 record.Id,
-                async _ =>
+                async cancellationToken =>
                 {
                     if (new SystemHollowKnightProcessProbe().IsRunning())
                     {
                         throw new InvalidOperationException(Loc["CloseGameFirst"]);
                     }
-                    await EnsureTransactionsHealthyAsync();
+                    await EnsureTransactionsHealthyAsync(cancellationToken, Directory.GetParent(record.RootPath)!.FullName);
                     await operation(record);
                 },
-                lifetimeCancellation.Token);
-            await RefreshAsync();
-            SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == instanceId);
+                operationCancellation);
+            operationCancellation.ThrowIfCancellationRequested();
+            if (target is null || SelectedInstance?.Record == record)
+            {
+                await RefreshAsync();
+                if (target is null)
+                {
+                    SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == instanceId);
+                }
+            }
+            else
+            {
+                await RefreshUnselectedInstanceModCountAsync(record, operationCancellation);
+            }
             NotifyOperationCompleted();
+        }
+        catch (OperationCanceledException) when (operationCancellation.IsCancellationRequested)
+        {
         }
         catch (Exception exception) when (exception is IOException
             or InvalidDataException
@@ -4796,12 +4812,47 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             or System.Text.Json.JsonException)
         {
             var operationError = Loc.ErrorMessageFor(exception);
-            await RefreshAfterFailedMutationAsync(instanceId, operationError);
+            if (target is not null && SelectedInstance?.Record != record)
+            {
+                ErrorMessage = operationError;
+            }
+            else
+            {
+                await RefreshAfterFailedMutationAsync(instanceId, operationError);
+            }
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    private async Task RefreshUnselectedInstanceModCountAsync(InstanceRecord record, CancellationToken cancellationToken)
+    {
+        var loaderId = await GetLoaderIdForDiscoveryAsync(CreateLoaderManager(record), cancellationToken);
+        var modCount = (await CreateModManager(record).DiscoverAsync(loaderId, cancellationToken)).Mods.Count;
+        cancellationToken.ThrowIfCancellationRequested();
+        if (SelectedInstance?.Record == record)
+        {
+            await RefreshAsync();
+            return;
+        }
+        var existing = Instances.Instances.FirstOrDefault(item => item.Record == record);
+        if (existing is null || existing.ModCount == modCount)
+        {
+            return;
+        }
+        var updated = existing with { ModCount = modCount };
+        foreach (var collection in new[] { Instances.Instances, Instances.VisibleInstances, Instances.SpeedrunInstances })
+        {
+            var index = collection.IndexOf(existing);
+            if (index >= 0)
+            {
+                collection[index] = updated;
+            }
+        }
+        lastInstanceProjection = lastInstanceProjection?.Select(item => item.Record == record
+            ? (item.Record, item.LoaderState, item.LoaderReceipt, modCount) : item).ToArray();
     }
 
     private bool IsMutationBlocked()

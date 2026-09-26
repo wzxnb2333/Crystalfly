@@ -142,29 +142,16 @@ public partial class MainWindow
 
     private async void ImportLocalModPackage(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel)
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance } viewModel)
         {
             return;
         }
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = viewModel.Loc["SelectModPackageTitle"],
-            AllowMultiple = false,
-            FileTypeFilter =
-            [
-                new FilePickerFileType(viewModel.Loc["Mods"])
-                {
-                    Patterns = ["*.zip", "*.dll"]
-                }
-            ]
-        });
-        var path = files.FirstOrDefault()?.TryGetLocalPath();
-        if (string.IsNullOrWhiteSpace(path))
+        var path = await SelectLocalModPackageAsync(viewModel, viewModel.Loc["SelectModPackageTitle"]);
+        if (path is null)
         {
             return;
         }
-        viewModel.ModManagement.LocalModPath = path;
-        await viewModel.ModManagement.ImportLocalModCommand.ExecuteAsync(null);
+        await viewModel.ModManagement.ImportLocalModAsync(instance.Record, path);
     }
 
     private async void ToggleHoveredInstalledMod(object? sender, RoutedEventArgs eventArgs)
@@ -235,31 +222,50 @@ public partial class MainWindow
 
     private async void ReimportHoveredLocalMod(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel
-            || sender is not Control { DataContext: InstalledModItemViewModel item })
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance } viewModel
+            || sender is not Control { DataContext: InstalledModItemViewModel { CanReimport: true } item })
         {
             return;
         }
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = viewModel.Loc["ReimportLocalMod"],
-            AllowMultiple = false,
-            FileTypeFilter =
-            [
-                new FilePickerFileType(viewModel.Loc["Mods"])
-                {
-                    Patterns = ["*.zip", "*.dll"]
-                }
-            ]
-        });
-        var path = files.FirstOrDefault()?.TryGetLocalPath();
-        if (string.IsNullOrWhiteSpace(path))
+        var modId = item.Id;
+        var path = await SelectLocalModPackageAsync(viewModel, viewModel.Loc["ReimportLocalMod"]);
+        if (path is null)
         {
             return;
         }
-        viewModel.ModManagement.SelectedInstalledMod = item;
-        viewModel.ModManagement.LocalModPath = path;
-        await viewModel.ModManagement.ReimportSelectedLocalModCommand.ExecuteAsync(null);
+        await viewModel.ModManagement.ReimportLocalModAsync(instance.Record, modId, path);
+    }
+
+    private async Task<string?> SelectLocalModPackageAsync(MainViewModel viewModel, string title)
+    {
+        try
+        {
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = false,
+                FileTypeFilter = [new FilePickerFileType(viewModel.Loc["Mods"]) { Patterns = ["*.zip", "*.dll"] }]
+            });
+            if (closeRequested || DataContext != viewModel)
+            {
+                return null;
+            }
+            var path = files.FirstOrDefault()?.TryGetLocalPath();
+            return string.IsNullOrWhiteSpace(path) ? null : path;
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or InvalidOperationException or NotSupportedException or ArgumentException)
+        {
+            if (!closeRequested && DataContext == viewModel)
+            {
+                viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
+            }
+            return null;
+        }
     }
 
     private async void ShowInstalledModHealth(object? sender, RoutedEventArgs eventArgs)
