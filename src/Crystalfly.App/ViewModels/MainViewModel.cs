@@ -2844,12 +2844,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             return;
         }
 
-        var instance = SelectedInstance.Record;
+        await DeleteModGlobalSettingsAsync(SelectedInstance.Record, manifest, VersionRoot);
+    }
+
+    internal async Task DeleteModGlobalSettingsAsync(
+        InstanceRecord instance,
+        ModManifest manifest,
+        string versionRoot)
+    {
         try
         {
             await instanceOperationCoordinator.RunAsync(instance.Id, async cancellationToken =>
             {
-                var deleted = await CreateGlobalModSettingsService().DeleteAsync(
+                var deleted = await CreateGlobalModSettingsService(versionRoot).DeleteAsync(
                     instance.Id,
                     [manifest],
                     cancellationToken);
@@ -2858,8 +2865,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     throw new FileNotFoundException("The selected Mod does not have global settings.");
                 }
             }, lifetimeCancellation.Token);
+            lifetimeCancellation.Token.ThrowIfCancellationRequested();
             UpdateSelectedMarketInstallationState();
             NotifyOperationCompleted();
+        }
+        catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
+        {
         }
         catch (Exception exception) when (exception is IOException
             or InvalidDataException
@@ -5432,10 +5443,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private NamedSnapshotService CreateSnapshotService() => new(
         paths.GetVersionDataRoot(VersionRoot));
 
-    private GlobalModSettingsService CreateGlobalModSettingsService() => new(
+    private GlobalModSettingsService CreateGlobalModSettingsService(string? versionRoot = null) => new(
         new LocalLowIsolationService(
             GetSharedLocalLowPath(),
-            paths.GetVersionDataRoot(VersionRoot)));
+            paths.GetVersionDataRoot(versionRoot ?? VersionRoot)));
 
     private string GetInstanceStateRoot(string instanceId) =>
         Path.Combine(paths.GetVersionDataRoot(VersionRoot), "instances", instanceId);

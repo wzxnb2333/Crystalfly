@@ -111,20 +111,25 @@ public partial class MainWindow
     {
         if (DataContext is not MainViewModel
             {
+                SelectedInstance: { } instance,
+                SelectedMarketMod: { } manifest,
                 SelectedMarketModDisplay: { } mod,
                 HasSelectedModGlobalSettings: true
             } viewModel)
         {
             return;
         }
+        var versionRoot = viewModel.VersionRoot;
         if (await ShowConfirmationAsync(
                 viewModel.Loc["DeleteGlobalSettings"],
                 viewModel.Loc["DeleteGlobalSettings"],
                 mod.PrimaryName,
                 viewModel,
-                isDangerous: true))
+                isDangerous: true)
+            && !closeRequested
+            && DataContext == viewModel)
         {
-            await viewModel.DeleteSelectedModGlobalSettingsCommand.ExecuteAsync(null);
+            await viewModel.DeleteModGlobalSettingsAsync(instance.Record, manifest, versionRoot);
         }
     }
 
@@ -176,8 +181,8 @@ public partial class MainWindow
 
     private async void TakeOverHoveredInstalledMod(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel
-            || sender is not Control { DataContext: InstalledModItemViewModel item })
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance } viewModel
+            || sender is not Control { DataContext: InstalledModItemViewModel { CanTakeOver: true } item })
         {
             return;
         }
@@ -186,9 +191,9 @@ public partial class MainWindow
                 viewModel.Loc["TakeOverMod"],
                 viewModel.Loc["ExternalModReadOnly"],
                 item.Name,
-                viewModel))
+                viewModel) && !closeRequested && DataContext == viewModel)
         {
-            await viewModel.ModManagement.TakeOverSelectedModCommand.ExecuteAsync(null);
+            await viewModel.ModManagement.TakeOverModAsync(instance.Record, item.Id, item.Discovery);
         }
     }
 
@@ -204,8 +209,8 @@ public partial class MainWindow
 
     private async void AcceptHoveredLocalModFiles(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel
-            || sender is not Control { DataContext: InstalledModItemViewModel item })
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance } viewModel
+            || sender is not Control { DataContext: InstalledModItemViewModel { CanAcceptCurrent: true } item })
         {
             return;
         }
@@ -214,9 +219,9 @@ public partial class MainWindow
                 viewModel.Loc["AcceptCurrentFiles"],
                 item.HealthDisplayName,
                 item.Name,
-                viewModel))
+                viewModel) && !closeRequested && DataContext == viewModel)
         {
-            await viewModel.ModManagement.AcceptSelectedLocalModFilesCommand.ExecuteAsync(null);
+            await viewModel.ModManagement.AcceptLocalModFilesAsync(instance.Record, item.Id);
         }
     }
 

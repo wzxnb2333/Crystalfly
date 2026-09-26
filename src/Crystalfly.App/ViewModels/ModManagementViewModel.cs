@@ -367,9 +367,12 @@ public partial class ModManagementViewModel : ViewModelBase
         {
             return;
         }
-        await dependencies.RunInstanceMutation(record =>
-            dependencies.CreateModManager(record).TakeOverAsync(selected.Id, selected.Discovery));
+        await TakeOverModAsync(null, selected.Id, selected.Discovery);
     }
+
+    internal Task TakeOverModAsync(InstanceRecord? target, string modId, ModDiscoveryEntry discovery) =>
+        RunModMutationAsync(target, record =>
+            dependencies.CreateModManager(record).TakeOverAsync(modId, discovery, dependencies.LifetimeCancellation));
 
     [RelayCommand]
     private async Task ToggleSelectedModPinnedAsync()
@@ -416,9 +419,12 @@ public partial class ModManagementViewModel : ViewModelBase
         {
             return;
         }
-        await dependencies.RunInstanceMutation(record =>
-            dependencies.CreateModManager(record).AcceptCurrentLocalFilesAsync(selected.Id));
+        await AcceptLocalModFilesAsync(null, selected.Id);
     }
+
+    internal Task AcceptLocalModFilesAsync(InstanceRecord? target, string modId) =>
+        RunModMutationAsync(target, record =>
+            dependencies.CreateModManager(record).AcceptCurrentLocalFilesAsync(modId, cancellationToken: dependencies.LifetimeCancellation));
 
     [RelayCommand]
     private Task ReimportSelectedLocalModAsync()
