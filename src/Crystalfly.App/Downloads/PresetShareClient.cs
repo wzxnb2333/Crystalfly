@@ -57,6 +57,7 @@ public sealed class PresetShareClient
             linked.Token);
         var payload = await ReadSuccessAsync<GetResponse>(response, linked.Token);
         if (!string.Equals(payload.Code, code, StringComparison.Ordinal)
+            || payload.Preset is null
             || payload.Preset.SchemaVersion != ModPreset.CurrentSchemaVersion)
         {
             throw new InvalidDataException("Preset sharing service returned a mismatched preset.");
@@ -98,8 +99,15 @@ public sealed class PresetShareClient
         {
             await ThrowResponseAsync(response, cancellationToken);
         }
-        return await response.Content.ReadFromJsonAsync<T>(CrystalflyJson.Options, cancellationToken)
-            ?? throw new InvalidDataException("Preset sharing service returned an empty response.");
+        try
+        {
+            return await response.Content.ReadFromJsonAsync<T>(CrystalflyJson.Options, cancellationToken)
+                ?? throw new InvalidDataException("Preset sharing service returned an empty response.");
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidDataException("Preset sharing service returned an invalid response.", exception);
+        }
     }
 
     private static async Task ThrowResponseAsync(

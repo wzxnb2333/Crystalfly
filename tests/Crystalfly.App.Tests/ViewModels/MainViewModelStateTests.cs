@@ -4645,6 +4645,124 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Equal(clearSelection ? null : other.Id, viewModel.SelectedInstance?.Id);
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task Shared_preset_import_keeps_original_instance_while_http_is_pending(
+        bool clearSelection, bool changeVersionRoot)
+    {
+        var versionRoot = applicationData.CreateDirectory("shared-preset-versions");
+        var original = Instance("original", applicationData.CreateDirectory("shared-preset-versions", "original"));
+        var currentVersionRoot = changeVersionRoot
+            ? applicationData.CreateDirectory("other-shared-preset-versions") : versionRoot;
+        var currentRoot = Path.Combine(currentVersionRoot, "current");
+        Directory.CreateDirectory(currentRoot);
+        var current = Instance("current", currentRoot);
+        var shared = new ModPreset
+        {
+            Id = "shared", Name = "Shared", GameBuildId = original.BuildId,
+            LoaderId = "modding-api-77", ApplyMode = ModPresetApplyMode.Append, Entries = []
+        };
+        var currentPreset = shared with { Id = "current-preset", Name = "Current preset" };
+        var currentPresetsRoot = Path.Combine(currentVersionRoot, ".crystalfly", "instances", current.Id, "presets");
+        Directory.CreateDirectory(currentPresetsRoot);
+        var currentFile = Path.Combine(currentPresetsRoot, PresetFileName(currentPreset.Id));
+        var currentDocument = CrystalflyJson.Serialize(currentPreset);
+        await File.WriteAllTextAsync(currentFile, currentDocument);
+        using var handler = new DelayedPresetResponseHandler();
+        using var client = new HttpClient(handler);
+        using var policy = new NetworkPolicy();
+        await using var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        viewModel.SelectedInstance = new InstanceItemViewModel(original, original.BuildId, "Vanilla", 0);
+        await GetPrivateAssignableField<Task>(viewModel, "detailsLoadTask");
+        SetPrivateField(viewModel, "presetShareClient", new PresetShareClient(
+            client, policy, new Uri("https://share.example.test/")));
+        viewModel.PresetShareCode = "A1B2C3D4E5F6";
+        var import = viewModel.ImportSharedPresetCommand.ExecuteAsync(null);
+        await handler.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        ModPreset? selectedAfterSwitch = null;
+        try
+        {
+            viewModel.VersionRoot = currentVersionRoot;
+            viewModel.SelectedInstance = clearSelection ? null
+                : new InstanceItemViewModel(current, current.BuildId, "Vanilla", 0);
+            await GetPrivateAssignableField<Task>(viewModel, "detailsLoadTask");
+            selectedAfterSwitch = viewModel.SelectedPreset;
+            viewModel.PresetShareCode = "Z9Y8X7W6V5U4";
+        }
+        finally
+        {
+            handler.Response.SetResult(CrystalflyJson.Serialize(new { Code = "A1B2C3D4E5F6", Preset = shared }));
+            await import.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        Assert.Null(viewModel.ErrorMessage);
+        var originalPresetsRoot = Path.Combine(versionRoot, ".crystalfly", "instances", original.Id, "presets");
+        Assert.True(Directory.Exists(originalPresetsRoot), "The submitted instance must receive the shared preset.");
+        var importedFile = Assert.Single(Directory.GetFiles(originalPresetsRoot, "*.json"));
+        var imported = await AtomicJsonStore.ReadAsync<ModPreset>(importedFile);
+        Assert.Equal(shared.Name, imported.Name);
+        Assert.Equal(currentDocument, await File.ReadAllTextAsync(currentFile));
+        Assert.Single(Directory.GetFiles(currentPresetsRoot, "*.json"));
+        Assert.Same(selectedAfterSwitch, viewModel.SelectedPreset);
+        Assert.Equal(clearSelection ? null : current.Id, viewModel.SelectedInstance?.Id);
+        Assert.Equal("Z9Y8X7W6V5U4", viewModel.PresetShareCode);
+        if (changeVersionRoot)
+        {
+            Assert.False(Directory.Exists(Path.Combine(
+                currentVersionRoot, ".crystalfly", "instances", original.Id)));
+        }
+    }
+
+    [Theory]
+    [InlineData(false, "{invalid response")]
+    [InlineData(true, "{invalid response")]
+    [InlineData(true, "{\"code\":\"A1B2C3D4E5F6\",\"preset\":null}")]
+    [InlineData(true, "{\"code\":\"A1B2C3D4E5F6\"}")]
+    public async Task Invalid_share_response_reports_error_without_escaping_command(bool import, string response)
+    {
+        using var handler = new DelayedPresetResponseHandler();
+        using var client = new HttpClient(handler);
+        using var policy = new NetworkPolicy();
+        await using var viewModel = CreateViewModel();
+        viewModel.VersionRoot = applicationData.CreateDirectory("invalid-share");
+        viewModel.SelectedInstance = new InstanceItemViewModel(
+            Instance("original", applicationData.CreateDirectory("invalid-share", "original")), "Build", "Vanilla", 0);
+        await GetPrivateAssignableField<Task>(viewModel, "detailsLoadTask");
+        viewModel.SelectedPreset = new ModPreset
+        {
+            Id = "original", Name = "Original", GameBuildId = "build",
+            LoaderId = "modding-api-77", ApplyMode = ModPresetApplyMode.Append, Entries = []
+        };
+        SetPrivateField(viewModel, "presetShareClient", new PresetShareClient(
+            client, policy, new Uri("https://share.example.test/")));
+        viewModel.PresetShareCode = "A1B2C3D4E5F6";
+        handler.Response.SetResult(response);
+        await (import ? viewModel.ImportSharedPresetCommand.ExecuteAsync(null)
+            : viewModel.ShareSelectedPresetCommand.ExecuteAsync(null));
+        Assert.False(string.IsNullOrWhiteSpace(viewModel.ErrorMessage));
+        Assert.False(viewModel.HasLastPresetShare);
+        Assert.Empty(viewModel.ModPresets);
+    }
+
+    private sealed class DelayedPresetResponseHandler : HttpMessageHandler
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<string> Response { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(await Response.Task.WaitAsync(cancellationToken), Encoding.UTF8, "application/json")
+            };
+        }
+    }
+
     private static async Task WritePresetTestLoaderAsync(InstanceRecord record)
     {
         const string relative = "hollow_knight_Data/Managed/MMHOOK_Assembly-CSharp.dll";

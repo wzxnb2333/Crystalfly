@@ -98,7 +98,7 @@ public partial class MainWindow
 
     private async void ShowCopyModPackDialog(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel { SelectedPreset: { } preset } viewModel)
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance, SelectedPreset: { } preset } viewModel)
         {
             return;
         }
@@ -119,8 +119,7 @@ public partial class MainWindow
             return;
         }
 
-        viewModel.PresetCopyName = name;
-        await viewModel.CopySelectedPresetCommand.ExecuteAsync(null);
+        await viewModel.CopyPresetAsync(instance.Record, preset.Id, name.Trim());
     }
 
     private async void ShowImportSharedModPackDialog(object? sender, RoutedEventArgs eventArgs)
@@ -170,7 +169,7 @@ public partial class MainWindow
 
     private async void ConfirmDeletePreset(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel { SelectedPreset: { } preset } viewModel)
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance, SelectedPreset: { } preset } viewModel)
         {
             return;
         }
@@ -182,7 +181,7 @@ public partial class MainWindow
                 viewModel,
                 isDangerous: true))
         {
-            await viewModel.DeleteSelectedPresetAsync();
+            await viewModel.DeletePresetAsync(instance.Record, preset.Id);
         }
     }
 

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Crystalfly.App.Downloads;
+using Crystalfly.Core.Instances;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Mods;
 using Crystalfly.Core.Runtime;
@@ -136,17 +137,19 @@ public partial class MainViewModel
     }
 
     [RelayCommand]
-    private async Task CopySelectedPresetAsync()
+    private Task CopySelectedPresetAsync()
     {
-        if (SelectedPreset is null || string.IsNullOrWhiteSpace(PresetCopyName))
+        if (SelectedInstance is null || SelectedPreset is null || string.IsNullOrWhiteSpace(PresetCopyName))
         {
-            return;
+            return Task.CompletedTask;
         }
-        var record = SelectedInstance?.Record;
-        var id = SelectedPreset.Id;
-        var name = PresetCopyName.Trim();
+        return CopyPresetAsync(SelectedInstance.Record, SelectedPreset.Id, PresetCopyName.Trim());
+    }
+
+    internal async Task CopyPresetAsync(InstanceRecord record, string id, string name)
+    {
         string? copiedId = null;
-        await RunPresetMutationAsync(async (service, cancellationToken) =>
+        await RunPresetMutationAsync(record, async (service, cancellationToken) =>
         {
             copiedId = (await service.CopyAsync(
                 id,
@@ -159,17 +162,12 @@ public partial class MainViewModel
         }
     }
 
-    internal async Task DeleteSelectedPresetAsync()
-    {
-        if (SelectedPreset is null)
-        {
-            return;
-        }
-        var id = SelectedPreset.Id;
-        await RunPresetMutationAsync((service, cancellationToken) =>
-            service.DeleteAsync(id, cancellationToken));
-        SelectedPreset = ModPresets.FirstOrDefault();
-    }
+    internal Task DeleteSelectedPresetAsync() => SelectedInstance is { } instance && SelectedPreset is { } preset
+        ? DeletePresetAsync(instance.Record, preset.Id)
+        : Task.CompletedTask;
+
+    internal Task DeletePresetAsync(InstanceRecord record, string id) =>
+        RunPresetMutationAsync(record, (service, cancellationToken) => service.DeleteAsync(id, cancellationToken));
 
     internal async Task ImportPresetFromFileAsync(string path)
     {
@@ -238,8 +236,9 @@ public partial class MainViewModel
     [RelayCommand]
     private async Task ImportSharedPresetAsync()
     {
+        var record = SelectedInstance?.Record;
         var code = PresetShareCode.Trim();
-        if (code.Length == 0)
+        if (record is null || code.Length == 0)
         {
             return;
         }
@@ -248,15 +247,16 @@ public partial class MainViewModel
         {
             var shared = await GetPresetShareClient().GetAsync(code, lifetimeCancellation.Token);
             string? importedId = null;
-            await RunPresetMutationAsync(async (service, cancellationToken) =>
+            await RunPresetMutationAsync(record, async (service, cancellationToken) =>
             {
                 importedId = (await service.ImportAsync(
                     CrystalflyJson.Serialize(shared),
                     cancellationToken)).Id;
             });
-            SelectedPreset = importedId is null
-                ? SelectedPreset
-                : ModPresets.FirstOrDefault(preset => preset.Id == importedId);
+            if (importedId is not null && SelectedInstance?.Record == record)
+            {
+                SelectedPreset = ModPresets.FirstOrDefault(preset => preset.Id == importedId);
+            }
         }
         catch (Exception exception) when (exception is HttpRequestException
             or InvalidDataException
@@ -351,10 +351,16 @@ public partial class MainViewModel
         }
     }
 
+    private Task RunPresetMutationAsync(Func<ModPresetService, CancellationToken, Task> operation) =>
+        SelectedInstance is { } instance
+            ? RunPresetMutationAsync(instance.Record, operation)
+            : Task.CompletedTask;
+
     private async Task RunPresetMutationAsync(
+        InstanceRecord record,
         Func<ModPresetService, CancellationToken, Task> operation)
     {
-        if (SelectedInstance is null || IsMutationBlocked())
+        if (IsMutationBlocked())
         {
             return;
         }
@@ -362,14 +368,13 @@ public partial class MainViewModel
         ErrorMessage = null;
         try
         {
-            var record = SelectedInstance.Record;
             await instanceOperationCoordinator.RunAsync(record.Id, async cancellationToken =>
             {
                 if (new SystemHollowKnightProcessProbe().IsRunning())
                 {
                     throw new InvalidOperationException(Loc["CloseGameFirst"]);
                 }
-                await EnsureTransactionsHealthyAsync(cancellationToken);
+                await EnsureTransactionsHealthyAsync(cancellationToken, Directory.GetParent(record.RootPath)!.FullName);
                 await operation(CreateModPresetService(record), cancellationToken);
             }, lifetimeCancellation.Token);
             await LoadModPresetsAsync(record, lifetimeCancellation.Token);
@@ -488,7 +493,7 @@ public partial class MainViewModel
         ModCatalogCompatibility.ProjectForBuild(catalog.Mods, record.BuildId),
         CreateLoaderManager(record),
         CreateModManager(record),
-        Path.Combine(GetInstanceStateRoot(record.Id), "presets"));
+        Path.Combine(Path.GetDirectoryName(InstanceSidecar.GetMetadataPath(record.RootPath, record.Id))!, "presets"));
 
     private PresetShareClient GetPresetShareClient() =>
         presetShareClient ??= new PresetShareClient(
