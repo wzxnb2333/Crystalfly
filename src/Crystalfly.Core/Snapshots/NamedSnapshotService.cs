@@ -66,7 +66,7 @@ public sealed class NamedSnapshotService
                 Path.Combine(stagingRoot, MetadataFileName),
                 snapshot,
                 cancellationToken);
-            Directory.Move(stagingRoot, snapshotRoot);
+            await LocalLowDirectory.MoveAsync(stagingRoot, snapshotRoot, cancellationToken);
             return snapshot;
         }
         catch

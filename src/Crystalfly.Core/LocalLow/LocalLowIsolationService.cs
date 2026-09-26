@@ -302,7 +302,7 @@ public sealed class LocalLowIsolationService
             record.SharedSha256,
             includeLogs: true,
             cancellationToken);
-        Directory.Move(stagingPath, SharedBackupPath);
+        await LocalLowDirectory.MoveAsync(stagingPath, SharedBackupPath, cancellationToken);
         checkpointObserver?.Invoke(LocalLowCheckpoint.TakeoverBackupCommitted);
         record = record with { State = TransactionState.Committed };
         await AtomicJsonStore.WriteAsync(takeoverPath, record, cancellationToken);
@@ -353,7 +353,7 @@ public sealed class LocalLowIsolationService
                     record.SharedSha256,
                     includeLogs: true,
                     cancellationToken);
-                Directory.Move(record.StagingPath, record.BackupPath);
+                await LocalLowDirectory.MoveAsync(record.StagingPath, record.BackupPath, cancellationToken);
             }
             else
             {
@@ -372,7 +372,7 @@ public sealed class LocalLowIsolationService
                     record.SharedSha256,
                     includeLogs: true,
                     cancellationToken);
-                Directory.Move(record.StagingPath, record.BackupPath);
+                await LocalLowDirectory.MoveAsync(record.StagingPath, record.BackupPath, cancellationToken);
             }
 
             if (record.State != TransactionState.Committed)
@@ -433,7 +433,7 @@ public sealed class LocalLowIsolationService
                 cancellationToken);
         }
         await RequireHashAsync(stagingPath, expectedHash, includeLogs: false, cancellationToken);
-        Directory.Move(stagingPath, instancePath);
+        await LocalLowDirectory.MoveAsync(stagingPath, instancePath, cancellationToken);
         return instancePath;
     }
 

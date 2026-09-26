@@ -5,6 +5,26 @@ namespace Crystalfly.Core.LocalLow;
 
 internal static class LocalLowDirectory
 {
+    internal static async Task MoveAsync(string sourcePath, string destinationPath, CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                Directory.Move(sourcePath, destinationPath);
+                return;
+            }
+            catch (IOException exception) when (OperatingSystem.IsWindows() && attempt < 20
+                && (uint)exception.HResult is 0x80070005 or 0x80070020 or 0x80070021)
+            {
+                // A short-lived reader of a child file can deny a directory rename on Windows.
+                // Keep the verified staging data intact and bound the wait for persistent failures.
+                await Task.Delay(50, cancellationToken);
+            }
+        }
+    }
+
     public static async Task CopyAsync(
         string sourceRoot,
         string destinationRoot,
