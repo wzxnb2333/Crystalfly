@@ -337,18 +337,27 @@ public partial class ModManagementViewModel : ViewModelBase
                 : Loc["ExternalModReadOnly"]);
             return;
         }
-        var modId = SelectedInstalledMod.Id;
-        IReadOnlyList<InstalledModReceipt> unused = [];
-        await dependencies.RunInstanceMutation(async record =>
+        await UninstallModAsync(null, SelectedInstalledMod.Id);
+    }
+
+    internal async Task UninstallModAsync(InstanceRecord? target, string modId)
+    {
+        var instance = target ?? dependencies.GetSelectedInstance();
+        IReadOnlyList<InstalledModReceipt>? unused = null;
+        await RunModMutationAsync(target, async record =>
         {
             var manager = dependencies.CreateModManager(record);
-            var before = await manager.GetInstalledAsync();
+            var before = await manager.GetInstalledAsync(dependencies.LifetimeCancellation);
             var removed = before.Single(mod => string.Equals(mod.Id, modId, StringComparison.OrdinalIgnoreCase));
-            await manager.UninstallIgnoringDependentsAsync(modId);
-            var remaining = await manager.GetInstalledAsync();
+            await manager.UninstallIgnoringDependentsAsync(modId, dependencies.LifetimeCancellation);
+            var remaining = await manager.GetInstalledAsync(dependencies.LifetimeCancellation);
             unused = InstalledModDependencyGraph.FindUnusedDependencies([removed], remaining);
         });
-        SetUnusedDependencySuggestions(unused);
+        if (unused is not null && !dependencies.LifetimeCancellation.IsCancellationRequested
+            && dependencies.GetSelectedInstance() == instance)
+        {
+            SetUnusedDependencySuggestions(unused);
+        }
     }
 
     [RelayCommand]
@@ -430,7 +439,7 @@ public partial class ModManagementViewModel : ViewModelBase
             dependencies.SetErrorMessage(Loc["LocalModPathRequired"]);
             return Task.CompletedTask;
         }
-        return RunLocalModMutationAsync(target, record =>
+        return RunModMutationAsync(target, record =>
         {
             var manager = dependencies.CreateModManager(record);
             return string.Equals(Path.GetExtension(submittedPath), ".dll", StringComparison.OrdinalIgnoreCase)
@@ -541,12 +550,22 @@ public partial class ModManagementViewModel : ViewModelBase
             return;
         }
         var selectedIds = selected.Select(mod => mod.Id).ToArray();
+        await UninstallModsAsync(null, selectedIds);
+    }
+
+    internal async Task UninstallModsAsync(InstanceRecord? target, IReadOnlyList<string> selectedIds)
+    {
+        var instance = target ?? dependencies.GetSelectedInstance();
         ModBatchUninstallResult? result = null;
-        await dependencies.RunInstanceMutation(async record =>
+        await RunModMutationAsync(target, async record =>
         {
-            result = await dependencies.CreateModManager(record).UninstallBatchAsync(selectedIds);
+            result = await dependencies.CreateModManager(record).UninstallBatchAsync(selectedIds, dependencies.LifetimeCancellation);
         });
-        SetUnusedDependencySuggestions(result?.UnusedDependencies ?? []);
+        if (result is not null && !dependencies.LifetimeCancellation.IsCancellationRequested
+            && dependencies.GetSelectedInstance() == instance)
+        {
+            SetUnusedDependencySuggestions(result.UnusedDependencies);
+        }
     }
 
     private void SetUnusedDependencySuggestions(IReadOnlyList<InstalledModReceipt> suggestions)
@@ -646,7 +665,7 @@ public partial class ModManagementViewModel : ViewModelBase
             dependencies.SetErrorMessage(Loc["LocalModPathRequired"]);
             return;
         }
-        await RunLocalModMutationAsync(target, async record =>
+        await RunModMutationAsync(target, async record =>
         {
             var loader = await dependencies.CreateLoaderManager(record).GetReceiptAsync(dependencies.LifetimeCancellation)
                 ?? throw new InvalidOperationException(Loc["LoaderRequired"]);
@@ -672,7 +691,7 @@ public partial class ModManagementViewModel : ViewModelBase
         });
     }
 
-    private Task RunLocalModMutationAsync(InstanceRecord? target, Func<InstanceRecord, Task> operation) =>
+    private Task RunModMutationAsync(InstanceRecord? target, Func<InstanceRecord, Task> operation) =>
         target is null ? dependencies.RunInstanceMutation(operation)
             : dependencies.RunTargetedInstanceMutation(target, operation);
 

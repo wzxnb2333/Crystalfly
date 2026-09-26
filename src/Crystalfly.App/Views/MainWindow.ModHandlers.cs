@@ -334,6 +334,10 @@ public partial class MainWindow
 
     private async Task ConfirmModRemovalAsync(MainViewModel viewModel, bool bulk)
     {
+        if (viewModel.SelectedInstance is not { } instance)
+        {
+            return;
+        }
         var plan = viewModel.ModManagement.CreateModRemovalPlan(bulk);
         var installed = viewModel.ModManagement.InstalledMods.ToDictionary(mod => mod.Id, StringComparer.OrdinalIgnoreCase);
         var nodes = plan.Nodes.Select(node =>
@@ -362,15 +366,15 @@ public partial class MainWindow
             DependencyPlanDialogView,
             DependencyPlanDialogViewModel,
             bool>(dialog, OverlayHostId, CreateOverlayOptions());
-        if (confirmed)
+        if (confirmed && !closeRequested && DataContext == viewModel)
         {
             if (bulk)
             {
-                await viewModel.ModManagement.UninstallSelectedModsCommand.ExecuteAsync(null);
+                await viewModel.ModManagement.UninstallModsAsync(instance.Record, plan.TargetModIds);
             }
             else
             {
-                await viewModel.ModManagement.UninstallSelectedModCommand.ExecuteAsync(null);
+                await viewModel.ModManagement.UninstallModAsync(instance.Record, plan.TargetModIds.Single());
             }
         }
     }

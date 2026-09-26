@@ -278,6 +278,130 @@ public sealed class ModManagementViewModelTests
         }
     }
 
+    [Theory]
+    [InlineData(false, "success")]
+    [InlineData(true, "success")]
+    [InlineData(false, "cancel")]
+    [InlineData(true, "cancel")]
+    [InlineData(false, "pinned")]
+    [InlineData(true, "pinned")]
+    [InlineData(false, "drift")]
+    [InlineData(true, "drift")]
+    [InlineData(false, "dependents")]
+    [InlineData(true, "dependents")]
+    public async Task Targeted_mod_removal_preserves_guards_and_other_instance_feedback(bool bulk, string condition)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "Crystalfly.Tests", Guid.NewGuid().ToString("N"));
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cancellation = new CancellationTokenSource();
+        Task? operation = null;
+        try
+        {
+            var record = NewInstance() with { RootPath = Path.Combine(root, "instance") };
+            var receiptsRoot = Path.Combine(root, "mods");
+            var manager = new ModManager(record.RootPath, Path.Combine(root, "transactions"), receiptsRoot);
+            Directory.CreateDirectory(root);
+            foreach (var name in new[] { "A", "B" })
+            {
+                var path = Path.Combine(root, name + ".zip");
+                using (var archive = ZipFile.Open(path, ZipArchiveMode.Create))
+                {
+                    await using var writer = new StreamWriter(archive.CreateEntry(name + ".dll").Open());
+                    await writer.WriteAsync(name);
+                }
+                await manager.InstallFromFileAsync(new ModManifest
+                {
+                    Id = name, Name = name, Version = "1.0.0", LoaderId = "modding-api-77",
+                    DownloadUrl = "https://example.invalid/" + name + ".zip",
+                    Sha256 = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(path))),
+                    Dependencies = condition == "dependents" && name == "B" ? ["A"] : []
+                }, path);
+            }
+            var original = await manager.GetInstalledAsync();
+            var targetFile = Path.Combine(record.RootPath, original.Single(mod => mod.Id == "A").Files.Single().RelativePath);
+            var current = record;
+            string? error = null;
+            var mutationCalls = 0;
+            var dependencies = CreateDependencies() with
+            {
+                LifetimeCancellation = cancellation.Token,
+                GetSelectedInstance = () => current,
+                CreateModManager = target =>
+                {
+                    Assert.Equal(record, target);
+                    return manager;
+                },
+                RunInstanceMutation = _ => throw new InvalidOperationException("Must use the confirmed instance."),
+                RunTargetedInstanceMutation = async (target, mutation) =>
+                {
+                    Assert.Equal(record, target);
+                    mutationCalls++;
+                    started.SetResult();
+                    await released.Task;
+                    try
+                    {
+                        await mutation(target);
+                    }
+                    catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+                    {
+                    }
+                    catch (InvalidOperationException exception)
+                    {
+                        error = exception.Message;
+                    }
+                }
+            };
+            var viewModel = new ModManagementViewModel(dependencies);
+            operation = bulk ? viewModel.UninstallModsAsync(record, ["A"]) : viewModel.UninstallModAsync(record, "A");
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            current = record with { Id = "other", RootPath = Path.Combine(root, "other") };
+            viewModel.UnusedDependencySuggestions.Add("Current instance feedback");
+            if (condition == "cancel")
+            {
+                await cancellation.CancelAsync();
+            }
+            else if (condition == "pinned")
+            {
+                await manager.SetPinnedAsync("A", true);
+            }
+            else if (condition == "drift")
+            {
+                await File.WriteAllTextAsync(targetFile, "changed after confirmation");
+            }
+            var before = CrystalflyJson.Serialize(await manager.GetInstalledAsync());
+            released.SetResult();
+            await operation.WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.Equal(1, mutationCalls);
+            var removed = condition == "success" || condition == "dependents" && !bulk;
+            var remaining = await manager.GetInstalledAsync();
+            Assert.Equal(removed ? ["B"] : new[] { "A", "B" }, remaining.Select(mod => mod.Id).Order().ToArray());
+            Assert.Equal(!removed, File.Exists(targetFile));
+            if (!removed)
+            {
+                Assert.Equal(before, CrystalflyJson.Serialize(remaining));
+                Assert.Equal(condition == "drift" ? "changed after confirmation" : "A", await File.ReadAllTextAsync(targetFile));
+            }
+            var dependent = Assert.Single(remaining, mod => mod.Id == "B");
+            Assert.Equal("B", await File.ReadAllTextAsync(Path.Combine(record.RootPath, dependent.Files.Single().RelativePath)));
+            Assert.Equal(condition == "drift" || condition == "pinned" && !bulk || condition == "dependents" && bulk, error is not null);
+            Assert.Equal(["Current instance feedback"], viewModel.UnusedDependencySuggestions.ToArray());
+        }
+        finally
+        {
+            released.TrySetResult();
+            if (operation is not null)
+            {
+                try { await operation; } catch { /* Preserve the original assertion or operation failure. */ }
+            }
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     private static ModManagementViewModel CreateViewModel() => new(CreateDependencies());
 
     private static ModManagementDependencies CreateDependencies()
