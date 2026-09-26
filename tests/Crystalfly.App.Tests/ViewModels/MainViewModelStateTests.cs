@@ -4464,6 +4464,231 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.True(viewModel.IsSelectedPresetEntriesExpanded);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Copy_preset_keeps_submitted_source_and_name_while_waiting_for_instance_operation(bool clearSelection)
+    {
+        var versionRoot = applicationData.CreateDirectory("preset-copy-versions");
+        var record = Instance("practice", applicationData.CreateDirectory("preset-copy-versions", "practice"));
+        var presetsRoot = Path.Combine(versionRoot, ".crystalfly", "instances", record.Id, "presets");
+        Directory.CreateDirectory(presetsRoot);
+        var source = new ModPreset
+        {
+            Id = "source",
+            Name = "Original",
+            GameBuildId = record.BuildId,
+            LoaderId = "modding-api-77",
+            ApplyMode = ModPresetApplyMode.Append,
+            Entries = [new ModPresetEntry { Id = "helper", Name = "Helper", Version = "1.0" }]
+        };
+        var other = source with { Id = "other", Name = "Other", Entries = [] };
+        foreach (var preset in new[] { source, other })
+        {
+            await File.WriteAllTextAsync(
+                Path.Combine(presetsRoot, PresetFileName(preset.Id)), CrystalflyJson.Serialize(preset));
+        }
+        await using var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        viewModel.SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Vanilla", 0);
+        await GetPrivateAssignableField<Task>(viewModel, "detailsLoadTask");
+        viewModel.SelectedPreset = viewModel.ModPresets.Single(preset => preset.Id == source.Id);
+        viewModel.PresetCopyName = "  Submitted copy  ";
+        var coordinator = GetPrivateField<InstanceOperationCoordinator>(viewModel, "instanceOperationCoordinator");
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var blocker = coordinator.RunAsync(record.Id, async _ =>
+        {
+            entered.SetResult();
+            await release.Task;
+        });
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var copy = viewModel.CopySelectedPresetCommand.ExecuteAsync(null);
+        try
+        {
+            Assert.True(viewModel.IsBusy);
+            Assert.False(copy.IsCompleted);
+            viewModel.SelectedPreset = clearSelection ? null : other;
+            viewModel.PresetCopyName = "Later edit";
+        }
+        finally
+        {
+            release.TrySetResult();
+            await Task.WhenAll(blocker, copy).WaitAsync(TimeSpan.FromSeconds(5));
+        }
+
+        Assert.Null(viewModel.ErrorMessage);
+        var copied = Assert.Single(viewModel.ModPresets, preset => preset.Id != source.Id && preset.Id != other.Id);
+        Assert.Equal("Submitted copy", copied.Name);
+        var copiedEntry = Assert.Single(copied.Entries);
+        Assert.Equal("helper", copiedEntry.Id);
+        Assert.Equal("Helper", copiedEntry.Name);
+        Assert.Equal("1.0", copiedEntry.Version);
+        Assert.Empty(copiedEntry.FileHashes);
+        Assert.Equal(copied.Id, viewModel.SelectedPreset?.Id);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Capture_preset_keeps_submitted_name_and_mode_while_waiting_for_instance_operation(bool recapture)
+    {
+        var versionRoot = applicationData.CreateDirectory("preset-capture-versions");
+        var record = Instance("practice", applicationData.CreateDirectory("preset-capture-versions", "practice"));
+        await WritePresetTestLoaderAsync(record);
+        var source = new ModPreset
+        {
+            Id = "source", Name = "Original", GameBuildId = record.BuildId,
+            LoaderId = "modding-api-77", ApplyMode = ModPresetApplyMode.Append, Entries = []
+        };
+        if (recapture)
+        {
+            var presetsRoot = Path.Combine(versionRoot, ".crystalfly", "instances", record.Id, "presets");
+            Directory.CreateDirectory(presetsRoot);
+            await File.WriteAllTextAsync(
+                Path.Combine(presetsRoot, PresetFileName(source.Id)), CrystalflyJson.Serialize(source));
+        }
+        await using var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        viewModel.SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Modding API", 0);
+        await GetPrivateAssignableField<Task>(viewModel, "detailsLoadTask");
+        viewModel.PresetName = "  Submitted name  ";
+        viewModel.SelectedPresetModeOption = new SettingOption<ModPresetApplyMode>(ModPresetApplyMode.Exact, "Exact");
+        var coordinator = GetPrivateField<InstanceOperationCoordinator>(viewModel, "instanceOperationCoordinator");
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var blocker = coordinator.RunAsync(record.Id, async _ =>
+        {
+            entered.SetResult();
+            await release.Task;
+        });
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var capture = recapture
+            ? viewModel.RecaptureSelectedPresetCommand.ExecuteAsync(null)
+            : viewModel.CreatePresetCommand.ExecuteAsync(null);
+        try
+        {
+            Assert.True(viewModel.IsBusy);
+            Assert.False(capture.IsCompleted);
+            viewModel.PresetName = "Later edit";
+            viewModel.SelectedPresetModeOption = new SettingOption<ModPresetApplyMode>(ModPresetApplyMode.Append, "Append");
+        }
+        finally
+        {
+            release.TrySetResult();
+            await Task.WhenAll(blocker, capture).WaitAsync(TimeSpan.FromSeconds(5));
+        }
+
+        Assert.Null(viewModel.ErrorMessage);
+        var captured = Assert.Single(viewModel.ModPresets);
+        Assert.Equal("Submitted name", captured.Name);
+        Assert.Equal(ModPresetApplyMode.Exact, captured.ApplyMode);
+        if (recapture)
+        {
+            Assert.Equal(source.Id, captured.Id);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Enqueue_preset_keeps_original_target_when_selection_changes_during_queue_initialization(bool clearSelection)
+    {
+        var versionRoot = applicationData.CreateDirectory("preset-queue-versions");
+        var original = Instance("original", applicationData.CreateDirectory("preset-queue-versions", "original"));
+        var other = Instance("other", applicationData.CreateDirectory("preset-queue-versions", "other"));
+        await WritePresetTestLoaderAsync(original);
+        await using var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        viewModel.IsOfflineMode = true;
+        SetPrivateField(viewModel, "catalog", new GameCatalog
+        {
+            Mods = [new ModManifest
+            {
+                Id = "helper", Name = "Helper", Version = "1.0", LoaderId = "modding-api-77",
+                DownloadUrl = "https://example.invalid/helper.zip", Sha256 = new string('A', 64),
+                SupportedBuildIds = [original.BuildId]
+            }]
+        });
+        viewModel.SelectedInstance = new InstanceItemViewModel(original, original.BuildId, "Modding API", 0);
+        await GetPrivateAssignableField<Task>(viewModel, "detailsLoadTask");
+        viewModel.SelectedPreset = new ModPreset
+        {
+            Id = "source", Name = "Original", GameBuildId = original.BuildId,
+            LoaderId = "modding-api-77", ApplyMode = ModPresetApplyMode.Append,
+            Entries = [new ModPresetEntry { Id = "helper", Name = "Helper", Version = "1.0" }]
+        };
+        var queue = viewModel.DownloadCenter.DownloadQueue;
+        var gate = GetPrivateField<SemaphoreSlim>(queue, "mutationGate");
+        await gate.WaitAsync();
+        var enqueue = viewModel.EnqueueSelectedPresetAsync();
+        try
+        {
+            await WaitUntilAsync(() => viewModel.PresetApplySteps.Count > 0);
+            Assert.False(enqueue.IsCompleted);
+            viewModel.SelectedInstance = clearSelection
+                ? null
+                : new InstanceItemViewModel(other, other.BuildId, "Vanilla", 0);
+            await GetPrivateAssignableField<Task>(viewModel, "detailsLoadTask");
+        }
+        finally
+        {
+            gate.Release();
+            await enqueue.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+
+        Assert.Null(viewModel.ErrorMessage);
+        var group = Assert.Single(queue.Groups);
+        Assert.Equal(original.Id, group.TargetInstanceId);
+        Assert.Equal(original.RootPath, group.TargetInstanceRoot);
+        Assert.Equal("source", group.Items[0].PackageId);
+        Assert.Equal(clearSelection ? null : other.Id, viewModel.SelectedInstance?.Id);
+    }
+
+    private static async Task WritePresetTestLoaderAsync(InstanceRecord record)
+    {
+        const string relative = "hollow_knight_Data/Managed/MMHOOK_Assembly-CSharp.dll";
+        var path = Path.Combine(record.RootPath, relative.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllTextAsync(path, "loader");
+        var stateRoot = Path.GetDirectoryName(InstanceSidecar.GetMetadataPath(record.RootPath, record.Id))!;
+        await AtomicJsonStore.WriteAsync(Path.Combine(stateRoot, "loader.json"), new InstalledPackageReceipt
+        {
+            PackageId = "modding-api-77", LoaderState = LoaderState.ModdingApi,
+            Files = [new InstalledFileReceipt { RelativePath = relative, Sha256 = FileSha256(path) }]
+        });
+    }
+
+    [Fact]
+    public async Task Preset_reload_for_previous_instance_does_not_replace_current_instance_workspace()
+    {
+        var versionRoot = applicationData.CreateDirectory("preset-reload-versions");
+        var previous = Instance("previous", applicationData.CreateDirectory("preset-reload-versions", "previous"));
+        var current = Instance("current", applicationData.CreateDirectory("preset-reload-versions", "current"));
+        var currentPreset = new ModPreset
+        {
+            Id = "current-preset",
+            Name = "Current preset",
+            GameBuildId = current.BuildId,
+            LoaderId = "modding-api-77",
+            ApplyMode = ModPresetApplyMode.Append,
+            Entries = []
+        };
+        await using var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        viewModel.SelectedInstance = new InstanceItemViewModel(current, current.BuildId, "Vanilla", 0);
+        await GetPrivateAssignableField<Task>(viewModel, "detailsLoadTask");
+        viewModel.ModPresets.Add(currentPreset);
+        viewModel.SelectedPreset = currentPreset;
+        viewModel.HasPresetRestorePoint = true;
+
+        await InvokeLoadModPresetsAsync(viewModel, previous);
+
+        Assert.Same(currentPreset, Assert.Single(viewModel.ModPresets));
+        Assert.Same(currentPreset, viewModel.SelectedPreset);
+        Assert.True(viewModel.HasPresetRestorePoint);
+    }
+
     [Fact]
     public async Task Preset_reload_racing_instance_details_load_never_duplicates_mod_presets()
     {

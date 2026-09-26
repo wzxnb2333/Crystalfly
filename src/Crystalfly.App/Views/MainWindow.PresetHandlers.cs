@@ -49,7 +49,7 @@ public partial class MainWindow
                 bool>(dialog, OverlayHostId, CreateOverlayOptions());
             if (confirmed)
             {
-                await viewModel.EnqueueSelectedPresetAsync();
+                await viewModel.EnqueuePresetAsync(instance.Record, preset);
             }
         }
         catch (Exception exception) when (exception is IOException

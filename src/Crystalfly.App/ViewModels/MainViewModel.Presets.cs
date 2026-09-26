@@ -94,17 +94,21 @@ public partial class MainViewModel
             ErrorMessage = Loc["PresetNameRequired"];
             return;
         }
+        var record = SelectedInstance?.Record;
+        var name = PresetName.Trim();
+        var mode = SelectedPresetModeOption.Value;
         string? createdId = null;
         await RunPresetMutationAsync(async (service, cancellationToken) =>
         {
             createdId = (await service.CaptureAsync(
-                PresetName.Trim(),
-                SelectedPresetModeOption.Value,
+                name,
+                mode,
                 cancellationToken)).Id;
         });
-        SelectedPreset = createdId is null
-            ? SelectedPreset
-            : ModPresets.FirstOrDefault(preset => preset.Id == createdId);
+        if (createdId is not null && SelectedInstance?.Record == record)
+        {
+            SelectedPreset = ModPresets.FirstOrDefault(preset => preset.Id == createdId);
+        }
     }
 
     [RelayCommand]
@@ -116,13 +120,19 @@ public partial class MainViewModel
         {
             return;
         }
+        var record = SelectedInstance?.Record;
         var id = SelectedPreset.Id;
+        var name = PresetName.Trim();
+        var mode = SelectedPresetModeOption.Value;
         await RunPresetMutationAsync((service, cancellationToken) => service.RecaptureAsync(
             id,
-            PresetName.Trim(),
-            SelectedPresetModeOption.Value,
+            name,
+            mode,
             cancellationToken));
-        SelectedPreset = ModPresets.FirstOrDefault(preset => preset.Id == id);
+        if (SelectedInstance?.Record == record)
+        {
+            SelectedPreset = ModPresets.FirstOrDefault(preset => preset.Id == id);
+        }
     }
 
     [RelayCommand]
@@ -132,17 +142,21 @@ public partial class MainViewModel
         {
             return;
         }
+        var record = SelectedInstance?.Record;
+        var id = SelectedPreset.Id;
+        var name = PresetCopyName.Trim();
         string? copiedId = null;
         await RunPresetMutationAsync(async (service, cancellationToken) =>
         {
             copiedId = (await service.CopyAsync(
-                SelectedPreset.Id,
-                PresetCopyName.Trim(),
+                id,
+                name,
                 cancellationToken)).Id;
         });
-        SelectedPreset = copiedId is null
-            ? SelectedPreset
-            : ModPresets.FirstOrDefault(preset => preset.Id == copiedId);
+        if (copiedId is not null && SelectedInstance?.Record == record)
+        {
+            SelectedPreset = ModPresets.FirstOrDefault(preset => preset.Id == copiedId);
+        }
     }
 
     internal async Task DeleteSelectedPresetAsync()
@@ -260,24 +274,39 @@ public partial class MainViewModel
         {
             return null;
         }
-        var plan = await CreateModPresetService(SelectedInstance.Record)
-            .CreatePlanAsync(SelectedPreset, lifetimeCancellation.Token);
+        var record = SelectedInstance.Record;
+        var preset = SelectedPreset;
+        var plan = await CreateModPresetService(record)
+            .CreatePlanAsync(preset, lifetimeCancellation.Token);
+        if (SelectedInstance?.Record != record || SelectedPreset != preset)
+        {
+            return null;
+        }
         ProjectPresetApplySteps(plan);
         return plan;
     }
 
-    internal async Task EnqueueSelectedPresetAsync()
+    internal Task EnqueueSelectedPresetAsync()
     {
         if (SelectedInstance is null || SelectedPreset is null)
         {
-            return;
+            return Task.CompletedTask;
         }
+        return EnqueuePresetAsync(SelectedInstance.Record, SelectedPreset);
+    }
+
+    internal async Task EnqueuePresetAsync(InstanceRecord record, ModPreset preset)
+    {
         ErrorMessage = null;
         try
         {
-            var service = CreateModPresetService(SelectedInstance.Record);
-            var plan = await service.CreatePlanAsync(SelectedPreset, lifetimeCancellation.Token);
-            ProjectPresetApplySteps(plan);
+            var sourceCatalog = catalog;
+            var service = CreateModPresetService(record);
+            var plan = await service.CreatePlanAsync(preset, lifetimeCancellation.Token);
+            if (SelectedInstance?.Record == record && SelectedPreset == preset)
+            {
+                ProjectPresetApplySteps(plan);
+            }
             if (plan.IsBlocked)
             {
                 throw new InvalidOperationException(
@@ -292,7 +321,7 @@ public partial class MainViewModel
                 return;
             }
             await DownloadCenter.DownloadQueue.InitializeAsync(lifetimeCancellation.Token);
-            var group = ModPresetQueueGroupFactory.Create(plan, catalog, SelectedInstance.Record);
+            var group = ModPresetQueueGroupFactory.Create(plan, sourceCatalog, record);
             var result = await DownloadCenter.EnqueueAsync(group, lifetimeCancellation.Token);
             NotifyToast(result.Added
                 ? Loc["AddedToDownloadQueue"]
@@ -367,6 +396,8 @@ public partial class MainViewModel
         InstanceRecord record,
         CancellationToken cancellationToken)
     {
+        var generation = Volatile.Read(ref detailsLoadGeneration);
+        var versionRoot = VersionRoot;
         var selectedId = SelectedPreset?.Id;
         var service = CreateModPresetService(record);
         var presets = await service.GetAllAsync(cancellationToken);
@@ -376,6 +407,13 @@ public partial class MainViewModel
         // the two Clear+Add sequences would duplicate (or corrupt) the list.
         lock (presetCollectionGate)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (generation != Volatile.Read(ref detailsLoadGeneration)
+                || SelectedInstance?.Record != record
+                || !string.Equals(versionRoot, VersionRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
             ModPresets.Clear();
             foreach (var preset in presets)
             {
@@ -386,8 +424,8 @@ public partial class MainViewModel
                 : ModPresets.FirstOrDefault(preset => preset.Id == selectedId)
                     ?? ModPresets.FirstOrDefault();
             RefreshModPackWorkspace();
+            HasPresetRestorePoint = hasRestorePoint;
         }
-        HasPresetRestorePoint = hasRestorePoint;
     }
 
     private void RebuildPresetModeOptions()
