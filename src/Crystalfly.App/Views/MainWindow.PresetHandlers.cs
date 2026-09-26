@@ -66,7 +66,7 @@ public partial class MainWindow
 
     private async void ShowCreateModPackDialog(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel)
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance } viewModel)
         {
             return;
         }
@@ -86,14 +86,12 @@ public partial class MainWindow
             ModPackEditorDialogView,
             ModPackEditorDialogViewModel,
             ModPackEditorDialogResult?>(dialog, OverlayHostId, CreateOverlayOptions());
-        if (result is null)
+        if (result is null || closeRequested || DataContext != viewModel)
         {
             return;
         }
 
-        viewModel.PresetName = result.Name;
-        viewModel.SelectedPresetModeOption = viewModel.PresetModeOptions.First(option => option.Value == result.ApplyMode);
-        await viewModel.CreatePresetCommand.ExecuteAsync(null);
+        await viewModel.CreatePresetAsync(instance.Record, result.Name, result.ApplyMode);
     }
 
     private async void ShowCopyModPackDialog(object? sender, RoutedEventArgs eventArgs)
@@ -124,7 +122,7 @@ public partial class MainWindow
 
     private async void ShowImportSharedModPackDialog(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel)
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance } viewModel)
         {
             return;
         }
@@ -140,13 +138,12 @@ public partial class MainWindow
             TextInputDialogView,
             TextInputDialogViewModel,
             string?>(dialog, OverlayHostId, CreateOverlayOptions());
-        if (string.IsNullOrWhiteSpace(code))
+        if (string.IsNullOrWhiteSpace(code) || closeRequested || DataContext != viewModel)
         {
             return;
         }
 
-        viewModel.PresetShareCode = code;
-        await viewModel.ImportSharedPresetCommand.ExecuteAsync(null);
+        await viewModel.ImportSharedPresetAsync(instance.Record, code);
     }
 
     private async void ShareAndCopyPresetLink(object? sender, RoutedEventArgs eventArgs)

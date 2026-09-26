@@ -4747,6 +4747,31 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Empty(viewModel.ModPresets);
     }
 
+    [Fact]
+    public async Task Shared_preset_import_reports_non_shutdown_cancellation_without_writing()
+    {
+        using var handler = new DelayedPresetResponseHandler();
+        using var client = new HttpClient(handler);
+        using var policy = new NetworkPolicy();
+        await using var viewModel = CreateViewModel();
+        viewModel.VersionRoot = applicationData.CreateDirectory("cancelled-share");
+        viewModel.SelectedInstance = new InstanceItemViewModel(
+            Instance("original", applicationData.CreateDirectory("cancelled-share", "original")), "Build", "Vanilla", 0);
+        await GetPrivateAssignableField<Task>(viewModel, "detailsLoadTask");
+        SetPrivateField(viewModel, "presetShareClient", new PresetShareClient(
+            client, policy, new Uri("https://share.example.test/")));
+        viewModel.PresetShareCode = "A1B2C3D4E5F6";
+        var import = viewModel.ImportSharedPresetCommand.ExecuteAsync(null);
+        await handler.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        handler.Response.SetCanceled();
+        await import.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(string.IsNullOrWhiteSpace(viewModel.ErrorMessage));
+        Assert.False(viewModel.IsBusy);
+        Assert.Empty(viewModel.ModPresets);
+        var presetsRoot = Path.Combine(viewModel.VersionRoot, ".crystalfly", "instances", "original", "presets");
+        Assert.False(Directory.Exists(presetsRoot) && Directory.EnumerateFiles(presetsRoot).Any());
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

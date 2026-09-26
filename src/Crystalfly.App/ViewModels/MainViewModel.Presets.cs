@@ -88,18 +88,22 @@ public partial class MainViewModel
     }
 
     [RelayCommand]
-    private async Task CreatePresetAsync()
+    private Task CreatePresetAsync()
     {
         if (string.IsNullOrWhiteSpace(PresetName) || SelectedPresetModeOption is null)
         {
             ErrorMessage = Loc["PresetNameRequired"];
-            return;
+            return Task.CompletedTask;
         }
-        var record = SelectedInstance?.Record;
-        var name = PresetName.Trim();
-        var mode = SelectedPresetModeOption.Value;
+        return SelectedInstance is { } instance
+            ? CreatePresetAsync(instance.Record, PresetName.Trim(), SelectedPresetModeOption.Value)
+            : Task.CompletedTask;
+    }
+
+    internal async Task CreatePresetAsync(InstanceRecord record, string name, ModPresetApplyMode mode)
+    {
         string? createdId = null;
-        await RunPresetMutationAsync(async (service, cancellationToken) =>
+        await RunPresetMutationAsync(record, async (service, cancellationToken) =>
         {
             createdId = (await service.CaptureAsync(
                 name,
@@ -259,18 +263,25 @@ public partial class MainViewModel
     }
 
     [RelayCommand]
-    private async Task ImportSharedPresetAsync()
+    private Task ImportSharedPresetAsync()
     {
         var record = SelectedInstance?.Record;
         var code = PresetShareCode.Trim();
         if (record is null || code.Length == 0)
         {
-            return;
+            return Task.CompletedTask;
         }
+        return ImportSharedPresetAsync(record, code);
+    }
+
+    internal async Task ImportSharedPresetAsync(InstanceRecord record, string code)
+    {
         ErrorMessage = null;
+        var cancellationToken = lifetimeCancellation.Token;
         try
         {
-            var shared = await GetPresetShareClient().GetAsync(code, lifetimeCancellation.Token);
+            var shared = await GetPresetShareClient().GetAsync(code, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             string? importedId = null;
             await RunPresetMutationAsync(record, async (service, cancellationToken) =>
             {
@@ -282,6 +293,9 @@ public partial class MainViewModel
             {
                 SelectedPreset = ModPresets.FirstOrDefault(preset => preset.Id == importedId);
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
         catch (Exception exception) when (exception is HttpRequestException
             or InvalidDataException
