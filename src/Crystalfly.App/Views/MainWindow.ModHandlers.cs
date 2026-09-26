@@ -561,19 +561,19 @@ public partial class MainWindow
 
     private async void ConfirmUninstallLoader(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel || viewModel.SelectedInstance is null)
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance } viewModel)
         {
             return;
         }
         var confirmed = await ShowConfirmationAsync(
             viewModel.Loc["ConfirmLoaderUninstallTitle"],
             viewModel.Loc["ConfirmLoaderUninstallMessage"],
-            viewModel.SelectedInstance.Name,
+            instance.Name,
             viewModel,
             isDangerous: true);
-        if (confirmed)
+        if (confirmed && !closeRequested && DataContext == viewModel)
         {
-            await viewModel.UninstallLoaderCommand.ExecuteAsync(null);
+            await viewModel.UninstallInstanceLoaderAsync(instance.Record);
         }
     }
 

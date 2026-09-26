@@ -2792,15 +2792,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ErrorMessage = Loc["NoInstance"];
             return;
         }
-        await RunInstanceMutationAsync(async record =>
+        await UninstallInstanceLoaderAsync(SelectedInstance.Record);
+    }
+
+    internal Task UninstallInstanceLoaderAsync(InstanceRecord instance) =>
+        RunInstanceMutationAsync(async record =>
         {
-            if ((await CreateModManager(record).GetInstalledAsync()).Count != 0)
+            if ((await CreateModManager(record).GetInstalledAsync(lifetimeCancellation.Token)).Count != 0)
             {
                 throw new InvalidOperationException(Loc["LoaderUninstallBlockedByMods"]);
             }
-            await CreateLoaderManager(record).UninstallAsync();
-        });
-    }
+            await CreateLoaderManager(record).UninstallAsync(lifetimeCancellation.Token);
+        }, instance);
 
     [RelayCommand]
     private async Task ImportLocalLoaderAsync()
@@ -4832,7 +4835,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             else
             {
-                await RefreshUnselectedInstanceModCountAsync(record, operationCancellation);
+                await RefreshUnselectedInstanceAsync(record, operationCancellation);
             }
             NotifyOperationCompleted();
         }
@@ -4864,9 +4867,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    private async Task RefreshUnselectedInstanceModCountAsync(InstanceRecord record, CancellationToken cancellationToken)
+    private async Task RefreshUnselectedInstanceAsync(InstanceRecord record, CancellationToken cancellationToken)
     {
-        var loaderId = await GetLoaderIdForDiscoveryAsync(CreateLoaderManager(record), cancellationToken);
+        var manager = CreateLoaderManager(record);
+        var inspection = await manager.InspectAsync(cancellationToken);
+        var receipt = await manager.GetReceiptAsync(cancellationToken);
+        var loaderId = inspection.PackageId ?? inspection.State switch
+        {
+            LoaderState.BepInEx => "bepinex-external",
+            LoaderState.ModdingApi => "modding-api-external",
+            _ => inspection.State.ToString()
+        };
         var modCount = (await CreateModManager(record).DiscoverAsync(loaderId, cancellationToken)).Mods.Count;
         cancellationToken.ThrowIfCancellationRequested();
         if (SelectedInstance?.Record == record)
@@ -4874,12 +4885,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             await RefreshAsync();
             return;
         }
+        var loaderDisplay = receipt is null
+            ? inspection.State.ToString()
+            : receipt.IsVerified
+                ? receipt.PackageId
+                : $"{receipt.PackageId} · {Loc["Unverified"]}";
         var existing = Instances.Instances.FirstOrDefault(item => item.Record == record);
-        if (existing is null || existing.ModCount == modCount)
+        if (existing is null || (existing.ModCount == modCount && existing.LoaderDisplay == loaderDisplay))
         {
             return;
         }
-        var updated = existing with { ModCount = modCount };
+        var updated = existing with { ModCount = modCount, LoaderDisplay = loaderDisplay };
         foreach (var collection in new[] { Instances.Instances, Instances.VisibleInstances, Instances.SpeedrunInstances })
         {
             var index = collection.IndexOf(existing);
@@ -4889,7 +4905,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
         }
         lastInstanceProjection = lastInstanceProjection?.Select(item => item.Record == record
-            ? (item.Record, item.LoaderState, item.LoaderReceipt, modCount) : item).ToArray();
+            ? (item.Record, inspection.State, receipt, modCount) : item).ToArray();
     }
 
     private bool IsMutationBlocked()
