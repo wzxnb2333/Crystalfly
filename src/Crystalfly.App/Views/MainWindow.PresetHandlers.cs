@@ -187,7 +187,7 @@ public partial class MainWindow
 
     private async void ImportPresetFile(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel)
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance } viewModel)
         {
             return;
         }
@@ -198,6 +198,10 @@ public partial class MainWindow
             AllowMultiple = false,
             FileTypeFilter = [CreatePresetJsonFileType(viewModel)]
         });
+        if (closeRequested || DataContext != viewModel)
+        {
+            return;
+        }
         var path = files.FirstOrDefault()?.TryGetLocalPath();
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -209,12 +213,12 @@ public partial class MainWindow
             return;
         }
 
-        await viewModel.ImportPresetFromFileAsync(path);
+        await viewModel.ImportPresetFromFileAsync(instance.Record, path);
     }
 
     private async void ExportSelectedPreset(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel { SelectedPreset: { } preset } viewModel)
+        if (DataContext is not MainViewModel { SelectedInstance: { } instance, SelectedPreset: { } preset } viewModel)
         {
             return;
         }
@@ -227,13 +231,17 @@ public partial class MainWindow
             FileTypeChoices = [CreatePresetJsonFileType(viewModel)],
             ShowOverwritePrompt = true
         });
+        if (closeRequested || DataContext != viewModel)
+        {
+            return;
+        }
         var path = file?.TryGetLocalPath();
         if (string.IsNullOrWhiteSpace(path))
         {
             return;
         }
 
-        await viewModel.ExportSelectedPresetToFileAsync(path);
+        await viewModel.ExportPresetToFileAsync(instance.Record, preset.Id, path);
     }
 
     private async Task<bool> TryCopyPresetShareLinkAsync(MainViewModel viewModel)

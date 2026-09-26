@@ -169,43 +169,68 @@ public partial class MainViewModel
     internal Task DeletePresetAsync(InstanceRecord record, string id) =>
         RunPresetMutationAsync(record, (service, cancellationToken) => service.DeleteAsync(id, cancellationToken));
 
-    internal async Task ImportPresetFromFileAsync(string path)
+    internal Task ImportPresetFromFileAsync(string path) => SelectedInstance is { } instance
+        ? ImportPresetFromFileAsync(instance.Record, path)
+        : Task.CompletedTask;
+
+    internal async Task ImportPresetFromFileAsync(InstanceRecord record, string path)
     {
         string? importedId = null;
-        await RunPresetMutationAsync(async (service, cancellationToken) =>
+        await RunPresetMutationAsync(record, async (service, cancellationToken) =>
         {
             importedId = (await service.ImportFileAsync(path, cancellationToken)).Id;
         });
-        SelectedPreset = importedId is null
-            ? SelectedPreset
-            : ModPresets.FirstOrDefault(preset => preset.Id == importedId);
+        if (importedId is not null && SelectedInstance?.Record == record)
+        {
+            SelectedPreset = ModPresets.FirstOrDefault(preset => preset.Id == importedId);
+        }
     }
 
-    internal async Task ExportSelectedPresetToFileAsync(string path)
+    internal Task ExportSelectedPresetToFileAsync(string path) =>
+        SelectedInstance is { } instance && SelectedPreset is { } preset
+            ? ExportPresetToFileAsync(instance.Record, preset.Id, path)
+            : Task.CompletedTask;
+
+    internal async Task ExportPresetToFileAsync(InstanceRecord record, string id, string path)
     {
-        if (SelectedInstance is null || SelectedPreset is null)
-        {
-            return;
-        }
-        var document = await CreateModPresetService(SelectedInstance.Record)
-            .ExportAsync(SelectedPreset.Id, lifetimeCancellation.Token);
-        var target = Path.GetFullPath(path);
-        if (!string.Equals(Path.GetExtension(target), ".json", StringComparison.OrdinalIgnoreCase))
-        {
-            target += ".json";
-        }
-        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-        var temporary = $"{target}.{Guid.NewGuid():N}.tmp";
+        ErrorMessage = null;
+        var cancellationToken = lifetimeCancellation.Token;
         try
         {
-            await File.WriteAllTextAsync(temporary, document, lifetimeCancellation.Token);
-            File.Move(temporary, target, overwrite: true);
+            var document = await CreateModPresetService(record)
+                .ExportAsync(id, cancellationToken);
+            var target = Path.GetFullPath(path);
+            if (!string.Equals(Path.GetExtension(target), ".json", StringComparison.OrdinalIgnoreCase))
+            {
+                target += ".json";
+            }
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            var temporary = $"{target}.{Guid.NewGuid():N}.tmp";
+            try
+            {
+                await File.WriteAllTextAsync(temporary, document, cancellationToken);
+                File.Move(temporary, target, overwrite: true);
+            }
+            finally
+            {
+                File.Delete(temporary);
+            }
+            NotifyToast(Loc["PresetExported"]);
         }
-        finally
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            File.Delete(temporary);
         }
-        NotifyToast(Loc["PresetExported"]);
+        catch (Exception exception) when (exception is IOException
+            or InvalidDataException
+            or UnauthorizedAccessException
+            or KeyNotFoundException
+            or ArgumentException
+            or NotSupportedException
+            or OperationCanceledException
+            or System.Text.Json.JsonException)
+        {
+            ErrorMessage = Loc.ErrorMessageFor(exception);
+        }
     }
 
     [RelayCommand]
@@ -366,6 +391,7 @@ public partial class MainViewModel
         }
         IsBusy = true;
         ErrorMessage = null;
+        var operationCancellation = lifetimeCancellation.Token;
         try
         {
             await instanceOperationCoordinator.RunAsync(record.Id, async cancellationToken =>
@@ -376,9 +402,12 @@ public partial class MainViewModel
                 }
                 await EnsureTransactionsHealthyAsync(cancellationToken, Directory.GetParent(record.RootPath)!.FullName);
                 await operation(CreateModPresetService(record), cancellationToken);
-            }, lifetimeCancellation.Token);
-            await LoadModPresetsAsync(record, lifetimeCancellation.Token);
+            }, operationCancellation);
+            await LoadModPresetsAsync(record, operationCancellation);
             NotifyOperationCompleted();
+        }
+        catch (OperationCanceledException) when (operationCancellation.IsCancellationRequested)
+        {
         }
         catch (Exception exception) when (exception is IOException
             or InvalidDataException

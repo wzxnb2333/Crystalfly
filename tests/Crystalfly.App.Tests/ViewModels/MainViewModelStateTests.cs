@@ -4747,6 +4747,165 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Empty(viewModel.ModPresets);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Preset_export_reports_write_failure_without_replacing_existing_data(bool targetIsDirectory)
+    {
+        var versionRoot = applicationData.CreateDirectory("preset-export-versions");
+        var record = Instance("original", applicationData.CreateDirectory("preset-export-versions", "original"));
+        var source = new ModPreset
+        {
+            Id = "source", Name = "Original", GameBuildId = record.BuildId,
+            LoaderId = "modding-api-77", ApplyMode = ModPresetApplyMode.Append, Entries = []
+        };
+        var presetsRoot = Path.Combine(versionRoot, ".crystalfly", "instances", record.Id, "presets");
+        Directory.CreateDirectory(presetsRoot);
+        var sourcePath = Path.Combine(presetsRoot, PresetFileName(source.Id));
+        var sourceDocument = CrystalflyJson.Serialize(source);
+        await File.WriteAllTextAsync(sourcePath, sourceDocument);
+        var exportRoot = applicationData.CreateDirectory("preset-export-target");
+        var destination = Path.Combine(exportRoot, "export.json");
+        var preservedFile = targetIsDirectory ? Path.Combine(destination, "preserved.txt") : destination;
+        if (targetIsDirectory)
+        {
+            Directory.CreateDirectory(destination);
+        }
+        await File.WriteAllTextAsync(preservedFile, "existing contents");
+        await using var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        viewModel.SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Vanilla", 0);
+        await GetPrivateAssignableField<Task>(viewModel, "detailsLoadTask");
+        viewModel.SelectedPreset = Assert.Single(viewModel.ModPresets);
+        using (var fileLock = targetIsDirectory ? null
+            : new FileStream(destination, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            await viewModel.ExportSelectedPresetToFileAsync(destination);
+        }
+        Assert.False(string.IsNullOrWhiteSpace(viewModel.ErrorMessage));
+        Assert.Equal("existing contents", await File.ReadAllTextAsync(preservedFile));
+        Assert.Equal(sourceDocument, await File.ReadAllTextAsync(sourcePath));
+        Assert.Empty(Directory.GetFiles(exportRoot, "*.tmp", SearchOption.AllDirectories));
+    }
+
+    [Theory]
+    [InlineData("valid", "export")]
+    [InlineData("valid", "export.JSON")]
+    [InlineData("valid", "existing.json")]
+    [InlineData("missing", "existing.json")]
+    [InlineData("corrupt", "existing.json")]
+    [InlineData("cancelled", "existing.json")]
+    public async Task Preset_export_preserves_files_and_reports_source_failure(string sourceState, string fileName)
+    {
+        var versionRoot = applicationData.CreateDirectory("export-source-versions");
+        var record = Instance("original", applicationData.CreateDirectory("export-source-versions", "original"));
+        var source = new ModPreset
+        {
+            Id = "source", Name = "Original", GameBuildId = record.BuildId,
+            LoaderId = "modding-api-77", ApplyMode = ModPresetApplyMode.Append, Entries = []
+        };
+        var presetsRoot = Path.Combine(versionRoot, ".crystalfly", "instances", record.Id, "presets");
+        Directory.CreateDirectory(presetsRoot);
+        var sourcePath = Path.Combine(presetsRoot, PresetFileName(source.Id));
+        var sourceDocument = CrystalflyJson.Serialize(source);
+        await File.WriteAllTextAsync(sourcePath, sourceDocument);
+        var exportRoot = applicationData.CreateDirectory("export-source-target");
+        var destination = Path.Combine(exportRoot, fileName);
+        if (fileName == "existing.json")
+        {
+            await File.WriteAllTextAsync(destination, "existing contents");
+        }
+        await using var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        viewModel.SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Vanilla", 0);
+        await GetPrivateAssignableField<Task>(viewModel, "detailsLoadTask");
+        viewModel.SelectedPreset = Assert.Single(viewModel.ModPresets);
+        viewModel.ErrorMessage = "Previous error";
+        if (sourceState == "missing")
+        {
+            File.Delete(sourcePath);
+        }
+        else if (sourceState == "corrupt")
+        {
+            await File.WriteAllTextAsync(sourcePath, "{invalid preset");
+        }
+        else if (sourceState == "cancelled")
+        {
+            GetPrivateField<CancellationTokenSource>(viewModel, "lifetimeCancellation").Cancel();
+        }
+
+        await viewModel.ExportSelectedPresetToFileAsync(destination);
+
+        var resultPath = Path.HasExtension(destination) ? destination : destination + ".json";
+        if (sourceState == "valid")
+        {
+            Assert.Equal(sourceDocument, await File.ReadAllTextAsync(resultPath));
+        }
+        else
+        {
+            Assert.Equal("existing contents", await File.ReadAllTextAsync(resultPath));
+        }
+        if (sourceState is "missing" or "corrupt")
+        {
+            Assert.False(string.IsNullOrWhiteSpace(viewModel.ErrorMessage));
+            Assert.NotEqual("Previous error", viewModel.ErrorMessage);
+        }
+        else
+        {
+            Assert.Null(viewModel.ErrorMessage);
+            Assert.Equal(sourceDocument, await File.ReadAllTextAsync(sourcePath));
+        }
+        Assert.Single(Directory.GetFiles(exportRoot));
+        Assert.Empty(Directory.GetFiles(exportRoot, "*.tmp"));
+    }
+
+    [Fact]
+    public async Task Preset_file_import_cancels_on_shutdown_while_waiting_without_writing_or_reporting_error()
+    {
+        var versionRoot = applicationData.CreateDirectory("import-cancel-versions");
+        var record = Instance("original", applicationData.CreateDirectory("import-cancel-versions", "original"));
+        var source = new ModPreset
+        {
+            Id = "source", Name = "Original", GameBuildId = record.BuildId,
+            LoaderId = "modding-api-77", ApplyMode = ModPresetApplyMode.Append, Entries = []
+        };
+        var path = Path.Combine(versionRoot, "import.json");
+        var document = CrystalflyJson.Serialize(source);
+        await File.WriteAllTextAsync(path, document);
+        await using var viewModel = CreateViewModel();
+        viewModel.VersionRoot = versionRoot;
+        viewModel.SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Vanilla", 0);
+        await GetPrivateAssignableField<Task>(viewModel, "detailsLoadTask");
+        var coordinator = GetPrivateField<InstanceOperationCoordinator>(viewModel, "instanceOperationCoordinator");
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var blocker = coordinator.RunAsync(record.Id, async _ =>
+        {
+            entered.SetResult();
+            await release.Task;
+        });
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            var import = viewModel.ImportPresetFromFileAsync(path);
+            Assert.False(import.IsCompleted);
+            Assert.True(viewModel.IsBusy);
+            var shutdown = viewModel.DisposeAsync().AsTask();
+            await Task.WhenAll(import, shutdown).WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            release.TrySetResult();
+            await blocker.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        Assert.False(viewModel.IsBusy);
+        Assert.Null(viewModel.ErrorMessage);
+        Assert.Empty(viewModel.ModPresets);
+        var presetsRoot = Path.Combine(versionRoot, ".crystalfly", "instances", record.Id, "presets");
+        Assert.False(Directory.Exists(presetsRoot) && Directory.EnumerateFiles(presetsRoot).Any());
+        Assert.Equal(document, await File.ReadAllTextAsync(path));
+    }
+
     private sealed class DelayedPresetResponseHandler : HttpMessageHandler
     {
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
