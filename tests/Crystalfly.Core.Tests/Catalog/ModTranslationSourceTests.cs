@@ -32,6 +32,35 @@ public sealed class ModTranslationSourceTests : IDisposable
     }
 
     [Fact]
+    public async Task Load_keeps_new_embedded_translations_and_tags_when_remote_is_older()
+    {
+        var embedded = EmbeddedModTranslationCatalog.Load();
+        const string newModId = "hkmod:HallownestWayfinder";
+        const string newTag = "LLM-Assisted";
+        var olderRemote = embedded with
+        {
+            Mods = embedded.Mods.Where(mod => mod.Id != newModId).ToArray(),
+            TagNames = embedded.TagNames
+                .Where(tag => tag.Key != newTag)
+                .ToDictionary(tag => tag.Key, tag => tag.Value)
+        };
+        using var client = ClientFor(olderRemote);
+
+        var result = await ModTranslationSource.LoadAsync(
+            client,
+            Path.Combine(directory, "mod-translations.json"),
+            embedded,
+            new Uri("https://example.test/translations.json"));
+
+        Assert.Equal(ModTranslationLoadStatus.Remote, result.Status);
+        Assert.Equal(embedded.Mods.Count, result.Catalog.Mods.Count);
+        Assert.Equal(
+            "圣巢寻路指南",
+            Assert.Single(result.Catalog.Mods, mod => mod.Id == newModId).DisplayName);
+        Assert.Equal("大语言模型辅助开发", result.Catalog.TagNames[newTag]);
+    }
+
+    [Fact]
     public async Task Load_uses_cached_catalog_when_remote_fails()
     {
         var cachePath = Path.Combine(directory, "mod-translations.json");

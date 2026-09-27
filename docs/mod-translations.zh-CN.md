@@ -8,6 +8,8 @@
 
 ## 维护与校验
 
+2026-09-27 同步的官方 ModLinks 快照共 675 个 Mod。本次补齐此前缺失的 23 个 Mod 的中文名称和说明（包括圣巢寻路指南、快捷即时存档、社区地图图鉴、传送大师等），并新增 `LLM-Assisted` 标签的中文显示“大语言模型辅助开发”。
+
 维护译文时，仅允许依据官方 ModLinks 的当前 `Manifest/Name`、`Description` 和 `Tags` 独立编写中文内容。不得导入第三方翻译表、下载链接、版本、依赖或其他安装元数据。
 
 ```powershell
@@ -17,4 +19,4 @@ pwsh -NoProfile -File .\scripts\validate-mod-translations.ps1 `
   -OfficialModLinksPath "$env:TEMP\ModLinks.xml"
 ```
 
-校验脚本要求译文目录与官方 ModLinks 的当前 Mod ID 一一对应，并验证 schema、标签键和中文字段。中文市场搜索同时匹配中文名称、中文说明、中文标签和官方英文名称、ID、版本、英文说明及原始标签；不提供拼音和人工别名。
+校验脚本要求译文目录与官方 ModLinks 的当前 Mod ID 一一对应，并验证 schema、标签键和中文字段。标签键从传入的官方 XML 提取，以便在上游新增标签时及时发现缺译。中文市场搜索同时匹配中文名称、中文说明、中文标签和官方英文名称、ID、版本、英文说明及原始标签；不提供拼音和人工别名。

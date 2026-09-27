@@ -30,7 +30,9 @@ $translations = Get-Content -Raw -LiteralPath $TranslationCatalogPath | ConvertF
 Assert-Condition ($translations.schemaVersion -eq 1) 'Translation schemaVersion must be 1.'
 Assert-Condition ($translations.language -eq 'zh-CN') 'Translation language must be zh-CN.'
 
-$expectedTags = @('Gameplay', 'Utility', 'Cosmetic', 'Library', 'Expansion', 'Charm', 'Joke', 'Optimization', 'Accessibility', 'Boss')
+$expectedTags = @($official.SelectNodes('/m:ModLinks/m:Manifest/m:Tags/m:Tag', $namespace) |
+    ForEach-Object { $_.InnerText.Trim() } |
+    Sort-Object -Unique)
 $actualTags = @($translations.tagNames.psobject.Properties.Name | Sort-Object)
 Assert-Condition (@(Compare-Object ($expectedTags | Sort-Object) $actualTags).Count -eq 0) 'Translation tag keys do not match the official tag set.'
 

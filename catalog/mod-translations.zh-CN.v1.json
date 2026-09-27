@@ -11,7 +11,8 @@
     "Joke": "整活",
     "Optimization": "优化",
     "Accessibility": "辅助",
-    "Boss": "Boss"
+    "Boss": "Boss",
+    "LLM-Assisted": "大语言模型辅助开发"
   },
   "mods": [
     {
@@ -525,6 +526,11 @@
       "description": "一个核心模块，允许随机器补充模块（如 RandoStats 和 MapModS）从连接获取自定义元数据，而不需要硬依赖。"
     },
     {
+      "id": "hkmod:ConnectionSettingsRando",
+      "displayName": "随机化扩展设置",
+      "description": "为《空洞骑士》的随机化扩展模组提供附加功能。"
+    },
+    {
       "id": "hkmod:ContainerConfig",
       "displayName": "ContainerConfig",
       "description": "ItemChanger 插件用于控制某些检查的呈现方式。"
@@ -1035,6 +1041,11 @@
       "description": "通过改变整个世界（除了你）的速度，让你的圣巢更具挑战性！"
     },
     {
+      "id": "hkmod:FasterAnimators",
+      "displayName": "动画加速",
+      "description": "加快 Animator 动画对象的播放速度，使部分机关和危险物变得更快。"
+    },
+    {
       "id": "hkmod:FasterIntroSkip",
       "displayName": "FasterIntroSkip",
       "description": "使跳过介绍过场动画更快。"
@@ -1210,6 +1221,11 @@
       "description": "记录游戏中的所有吉欧位置。在启动时完成整个游戏。"
     },
     {
+      "id": "hkmod:GeoOverHud",
+      "displayName": "吉欧显示层级",
+      "description": "微调 HUD 界面元素的绘制顺序。"
+    },
+    {
       "id": "hkmod:GeoPots",
       "displayName": "GeoPots",
       "description": "增加了推车和桶在损坏时掉落吉欧的机会。"
@@ -1238,6 +1254,11 @@
       "id": "hkmod:GlassSoul",
       "displayName": "GlassSoul",
       "description": "让你一击必亡。还在 mod 菜单中添加了选项，每增加一个生命值，造成的伤害就会增加 1 点"
+    },
+    {
+      "id": "hkmod:GlobalList Atlas",
+      "displayName": "社区地图图鉴",
+      "description": "连接社区收录自制评级地图的全局表格档案。可按编辑器、标签、评分和验证状态浏览筛选，并在游戏内直接下载、安装和启动地图，包括所需的编辑器及公开模组。"
     },
     {
       "id": "hkmod:GloriousGrimmMusic",
@@ -1278,6 +1299,11 @@
       "id": "hkmod:Godseeker Memory Jump",
       "displayName": "寻神者记忆跳跃",
       "description": "在梦中钉住寻神者以扭曲到隐藏的记忆时面向右，即使你以前去过那里。"
+    },
+    {
+      "id": "hkmod:GodSeeker112",
+      "displayName": "寻神者灵魂配置",
+      "description": "为 Godseeker Plus 的“添加灵魂”选项设置各个 Boss 的独立数值。"
     },
     {
       "id": "hkmod:GodSeekerPlus",
@@ -1370,6 +1396,11 @@
       "description": "Grubs 作为同伴"
     },
     {
+      "id": "hkmod:HalallowKnight",
+      "displayName": "中性叙事文本",
+      "description": "将游戏中神明、崇拜、魔法、灵魂、护符、梦境和逝者等宗教与超自然表述改为中性措辞。仅修改显示文本，不改动玩法、场景或游戏文件。"
+    },
+    {
       "id": "hkmod:Hall of Gods Extras",
       "displayName": "众神大厅额外内容",
       "description": "将空洞骑士和光辉添加到众神大厅。"
@@ -1388,6 +1419,11 @@
       "id": "hkmod:Hallownest-Vocalized-AudioLoader",
       "displayName": "Hallownest-Vocalized-AudioLoader",
       "description": "Hallownest Vocalized 的依赖项。如果您还没有，请与主模组一起下载！"
+    },
+    {
+      "id": "hkmod:HallownestWayfinder",
+      "displayName": "圣巢寻路指南",
+      "description": "提供游戏内路线引导与导航，包括 112% 完成度、五小时速通及存档补全路线，配有进度清单和根据存档状态规划路径的功能。"
     },
     {
       "id": "hkmod:HarderAPSettings",
@@ -1488,6 +1524,11 @@
       "id": "hkmod:HKMP.ModDiff",
       "displayName": "HKMP.ModDiff",
       "description": "HKMP 插件，用于检查客户端和服务器之间的 mod 列表。"
+    },
+    {
+      "id": "hkmod:HKMP.Timer",
+      "displayName": "联机同步计时器",
+      "description": "通过 HKMP 为《空洞骑士》多人联机提供同步计时器。"
     },
     {
       "id": "hkmod:HKMP.VoiceChat",
@@ -1645,9 +1686,19 @@
       "description": "允许缓冲每个骑士动作的输入。"
     },
     {
+      "id": "hkmod:Input Display",
+      "displayName": "输入显示",
+      "description": "在屏幕右下角显示按键输入，同时支持手柄和键盘鼠标。"
+    },
+    {
       "id": "hkmod:Inputs Recheck",
       "displayName": "输入重新检查",
       "description": "在任何骑士状态更改时重新检查按住的按钮，因此即使按钮在可用之前被按下（如果按钮仍然按住），也会触发操作。基于 Phenomenol 的输入缓冲区 mod，但逻辑完全不同。"
+    },
+    {
+      "id": "hkmod:Instawings Helper",
+      "displayName": "Instawings 按键助手",
+      "description": "将备用按键设置为完全模拟已有按键绑定，支持三组按键配对，便于使用 Instawings 技巧。"
     },
     {
       "id": "hkmod:IntangibleShadow",
@@ -1755,6 +1806,11 @@
       "description": "将Quick Slash和Flukenest恢复到旧等级成本（2个等级）的mod。提供选项，使更改在禁用后保留在打开的保存中。"
     },
     {
+      "id": "hkmod:LegacyRando",
+      "displayName": "旧版内容随机化",
+      "description": "为随机化模组接入旧版中已移除的对象。"
+    },
+    {
       "id": "hkmod:Lego Power Bricks",
       "displayName": "乐高动力积木",
       "description": "以免费护符的形式向空洞骑士添加各种标志性的红色乐高动力积木。目前需要调试才能给自己带来护符。"
@@ -1850,6 +1906,11 @@
       "description": "随机化器连接，添加带有游戏内跟踪器的半剧透随机化器游戏模式。"
     },
     {
+      "id": "hkmod:Mana Refill Helper",
+      "displayName": "灵魂补充助手",
+      "description": "存档或重生时补满玩家的灵魂，适合 LHT 和无伤跳跃挑战。"
+    },
+    {
       "id": "hkmod:Mantis Gods",
       "displayName": "螳螂神",
       "description": "显着增强螳螂领主的战斗。"
@@ -1940,6 +2001,11 @@
       "description": "空洞骑士模组，每当骑士挥动指甲时，就会播放金属管掉落的声音。"
     },
     {
+      "id": "hkmod:MidAirHealing",
+      "displayName": "空中回血",
+      "description": "允许在空中或水面上凝聚回血。"
+    },
+    {
       "id": "hkmod:MidasTouch",
       "displayName": "MidasTouch",
       "description": "华丽的外壳会掉落一个将敌人变成金子的护身符"
@@ -1978,6 +2044,11 @@
       "id": "hkmod:ModTerminal",
       "displayName": "ModTerminal",
       "description": "添加一个游戏内终端，用于作为 DebugMod 插件输入命令和作弊。"
+    },
+    {
+      "id": "hkmod:modthatclosesthegamewhenitopens",
+      "displayName": "启动即退出",
+      "description": "游戏一启动就将其关闭。"
     },
     {
       "id": "hkmod:Moonside",
@@ -2063,6 +2134,11 @@
       "id": "hkmod:MurderRando",
       "displayName": "MurderRando",
       "description": "为那些鄙视无辜者的人提供另一个随机联系。"
+    },
+    {
+      "id": "hkmod:MusicShuffle",
+      "displayName": "随机背景音乐",
+      "description": "随机打乱游戏原声音乐的播放安排。"
     },
     {
       "id": "hkmod:MuteBosses",
@@ -2207,6 +2283,11 @@
       "id": "hkmod:Omega Radiance",
       "displayName": "Omega Radiance",
       "description": "面对力量之神，这是 Any Radiance 的修改版本，不是为了变得更难，而是为了成为一场酷炫而独特的战斗。"
+    },
+    {
+      "id": "hkmod:OneShot PvP",
+      "displayName": "一击决胜 PvP",
+      "description": "快节奏的《空洞骑士》玩家对战模组，玩家以 1 点生命值和有限的法术使用次数展开战斗。"
     },
     {
       "id": "hkmod:OnlyBosses",
@@ -2409,6 +2490,11 @@
       "description": "Any Radiance 3.0 的一个版本，经过大量修改，让休闲玩家变得更加有趣和享受，同时仍然提供一定程度的挑战。非常独特的战斗，并不像真实的战斗那样困难。该模组的游戏帧率上限为 300 FPS，因此如果您在较低或较高的帧率下进行游戏，将会比预期更难或更容易。"
     },
     {
+      "id": "hkmod:Quick Save States",
+      "displayName": "快捷即时存档",
+      "description": "使用两个可自定义的快捷键保存并立即恢复游戏内的状态。"
+    },
+    {
       "id": "hkmod:QuickDive",
       "displayName": "QuickDive",
       "description": "将您的“快速投射”按钮重新映射为仅“潜水”的模组"
@@ -2432,6 +2518,11 @@
       "id": "hkmod:RadianceExtras",
       "displayName": "RadianceExtras",
       "description": "为 Abs Rad Fight 添加额外内容"
+    },
+    {
+      "id": "hkmod:RadianceSkin",
+      "displayName": "光辉外观定制",
+      "description": "为绝对光辉提供可选的皮肤、音乐、特效、背景和动画。"
     },
     {
       "id": "hkmod:RadiantMenu",
@@ -2739,6 +2830,11 @@
       "description": "将暗影领主添加为众神殿中的 Boss"
     },
     {
+      "id": "hkmod:Shade Retreat Macro",
+      "displayName": "暗影撤退点显示",
+      "description": "Debug 模组扩展，方便查看暗影的撤退位置。功能位于 Visual（可视化）页面。"
+    },
+    {
       "id": "hkmod:ShadeControl",
       "displayName": "ShadeControl",
       "description": "A DebugAddition 使您可以控制阴影咒语"
@@ -2857,6 +2953,11 @@
       "id": "hkmod:Snom",
       "displayName": "Snom",
       "description": "用 Snoms 替换游戏中 Tiktiks 的化妆品模组"
+    },
+    {
+      "id": "hkmod:SOCD Cleaner",
+      "displayName": "相反方向输入清理",
+      "description": "SOCD 指同时输入相反的基本方向。"
     },
     {
       "id": "hkmod:Soul Nail on Heavy Blow",
@@ -2984,6 +3085,11 @@
       "description": "您的所有吉欧位置意味着您的所有吉欧位置"
     },
     {
+      "id": "hkmod:Teleport Master",
+      "displayName": "传送大师",
+      "description": "高亮显示由 DecorationMaster 或 Architect 记录的房间，并可立即传送；支持完整地图模式，也兼容 Additional Maps。"
+    },
+    {
       "id": "hkmod:TestOfTeamwork",
       "displayName": "TestOfTeamwork",
       "description": "向白宫添加“痛苦之路”风格部分。\n首先与德茅斯及其周边地区的人们交谈。\n这是一个单人模式。 “团队合作”是指游戏中的活动。"
@@ -3097,6 +3203,11 @@
       "id": "hkmod:UnconstrainedRotation",
       "displayName": "无约束旋转",
       "description": "解除方向限制，让小骑士能够任意旋转。"
+    },
+    {
+      "id": "hkmod:UndeadnameJasmine",
+      "displayName": "Jasmine 名称更新",
+      "description": "将 Jasmine Vine 的旧名替换为她现在使用的名字。"
     },
     {
       "id": "hkmod:Uneated Grubs",
@@ -3232,6 +3343,11 @@
       "id": "hkmod:Wingy",
       "displayName": "Wingy",
       "description": "无爪宾吉社区的补充模组"
+    },
+    {
+      "id": "hkmod:Withered Foxy 1 in 10000",
+      "displayName": "万分之一狐狸惊吓",
+      "description": "灵感来自《泰拉瑞亚》的“万分之一概率出现 Withered Foxy 突脸惊吓”模组。"
     },
     {
       "id": "hkmod:WorseSteadyBody",

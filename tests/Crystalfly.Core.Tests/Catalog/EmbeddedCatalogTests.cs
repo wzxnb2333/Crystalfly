@@ -35,10 +35,10 @@ public sealed class EmbeddedCatalogTests
         JsonElement root = document.RootElement;
         Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
         Assert.Equal("zh-CN", root.GetProperty("language").GetString());
-        Assert.Equal(10, root.GetProperty("tagNames").EnumerateObject().Count());
+        Assert.Equal(11, root.GetProperty("tagNames").EnumerateObject().Count());
 
         var mods = root.GetProperty("mods").EnumerateArray().ToArray();
-        Assert.Equal(652, mods.Length);
+        Assert.Equal(675, mods.Length);
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string[] installFields =
         [
@@ -72,8 +72,9 @@ public sealed class EmbeddedCatalogTests
 
         Assert.Equal(1, catalog.SchemaVersion);
         Assert.Equal("zh-CN", catalog.Language);
-        Assert.Equal(652, catalog.Mods.Count);
-        Assert.Equal(10, catalog.TagNames.Count);
+        Assert.Equal(675, catalog.Mods.Count);
+        Assert.Equal(11, catalog.TagNames.Count);
+        Assert.Equal("大语言模型辅助开发", catalog.TagNames["LLM-Assisted"]);
         Assert.All(catalog.Mods, mod => Assert.StartsWith(
             "hkmod:",
             mod.Id,
@@ -88,6 +89,9 @@ public sealed class EmbeddedCatalogTests
         var anotherLocation = catalog.Mods.Single(mod => mod.Id == "hkmod:Another Location");
         Assert.Equal("另一个地点", anotherLocation.DisplayName);
         Assert.Equal("为随机机新增一个地点；可能附带条款与限制。", anotherLocation.Description);
+        var wayfinder = Assert.Single(catalog.Mods, mod => mod.Id == "hkmod:HallownestWayfinder");
+        Assert.Equal("圣巢寻路指南", wayfinder.DisplayName);
+        Assert.Contains("112% 完成度", wayfinder.Description, StringComparison.Ordinal);
     }
 
     [Fact]
