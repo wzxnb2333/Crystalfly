@@ -53,6 +53,44 @@ public sealed class InstanceRenameServiceTests : IDisposable
         Assert.Equal(original, await InstanceSidecar.LoadAsync(source));
     }
 
+    [Fact]
+    public async Task Rename_preserves_official_speedrun_metadata_patches_and_saves()
+    {
+        var source = Directory.CreateDirectory(Path.Combine(root, "Official")).FullName;
+        var original = new InstanceRecord
+        {
+            Id = "official-instance",
+            Name = "Official",
+            RootPath = source,
+            BuildId = "1.5.78.11833",
+            Purpose = InstancePurpose.OfficialSpeedrun,
+            ProvisioningMode = InstanceProvisioningMode.FullCopy,
+            SpeedrunTemplateId = "runtime-patches-1578",
+            SpeedrunRulesRevision = "rules-revision",
+            SpeedrunSaveStatesMode = SpeedrunSaveStatesMode.Multi,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        string[] files = ["hollow_knight_Data/Managed/Assembly-CSharp.dll", "RuntimePatches.json", "saves/user1.dat"];
+        byte[] content = [0, 1, 2, 127, 128, 255];
+        foreach (string relativePath in files)
+        {
+            string path = Path.Combine(source, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllBytesAsync(path, content);
+        }
+        await InstanceSidecar.SaveAsync(original);
+
+        var renamed = await InstanceRenameService.RenameAsync(original, "正式速通练习");
+
+        Assert.Equal(original with { Name = "正式速通练习", RootPath = Path.Combine(root, "正式速通练习") }, renamed);
+        Assert.Equal(renamed, await InstanceSidecar.LoadAsync(renamed.RootPath));
+        Assert.False(Directory.Exists(source));
+        foreach (string relativePath in files)
+        {
+            Assert.Equal(content, await File.ReadAllBytesAsync(Path.Combine(renamed.RootPath, relativePath)));
+        }
+    }
+
     [Theory]
     [InlineData("..")]
     [InlineData("nested/name")]

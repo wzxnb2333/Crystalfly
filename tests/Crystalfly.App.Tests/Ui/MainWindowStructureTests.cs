@@ -214,7 +214,7 @@ public sealed class MainWindowStructureTests
         Assert.Equal("*", (string?)tabSwitch.Parent?.Attribute("RowDefinitions"));
         Assert.Contains(tabSwitch.Parent!.Elements(Avalonia + "Grid"), grid =>
             (string?)grid.Attribute("Grid.Row") == "0"
-            && (string?)grid.Attribute("ColumnDefinitions") == "Auto,*,Auto");
+            && (string?)grid.Attribute("ColumnDefinitions") == "Auto,*");
         Assert.Equal("10", (string?)tabSwitch.Attribute("ZIndex"));
         Assert.Contains(tabSwitch.Descendants(Avalonia + "Border"), border =>
             HasClass(border, "cfp-speedrun-tab-indicator")
@@ -294,8 +294,10 @@ public sealed class MainWindowStructureTests
         var speedrun = FindSectionRoot(document, "IsSpeedrunPage");
         var favorites = speedrun.Descendants(Avalonia + "Border")
             .Single(border => HasClass(border, "cfp-speedrun-favorites"));
-        Assert.Equal("2", (string?)favorites.Attribute("Grid.Column"));
-        Assert.Equal("248", (string?)favorites.Attribute("Width"));
+        Assert.Equal("1", (string?)favorites.Attribute("Grid.Row"));
+        Assert.Null(favorites.Attribute("Width"));
+        Assert.True(HasClass(favorites, "cfp-card"));
+        Assert.True(HasClass(favorites.Parent!, "cfp-workspace"));
         Assert.DoesNotContain(
             speedrun.Descendants(Avalonia + "Border")
                 .Single(border => HasClass(border, "cfp-speedrun-rail"))
@@ -305,8 +307,10 @@ public sealed class MainWindowStructureTests
         Assert.Contains(favorites.Descendants(Avalonia + "Button"), button =>
             (string?)button.Attribute("Click") == "AddLiveSplitFavorite"
             && HasBinding(button, "ToolTip.Tip", "Loc[LiveSplitFavoriteAdd]"));
-        Assert.Contains(favorites.Descendants(Avalonia + "ListBox"), list =>
+        Assert.Contains(favorites.Descendants(Avalonia + "ItemsControl"), list =>
             HasBinding(list, "ItemsSource", "LiveSplitFavorites"));
+        Assert.Contains(favorites.Descendants(Avalonia + "WrapPanel"), panel =>
+            (string?)panel.Attribute("Orientation") == "Horizontal");
         Assert.Contains(favorites.Descendants(Avalonia + "Button"), button =>
             (string?)button.Attribute("Click") == "OpenLiveSplitFavorite"
             && HasBinding(button, "Tag", "Path"));
@@ -322,6 +326,18 @@ public sealed class MainWindowStructureTests
             "MainWindow.SpeedrunHandlers.cs"));
         Assert.Contains("*.lss", code, StringComparison.Ordinal);
         Assert.Contains("UseShellExecute = true", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Speedrun_environment_exposes_a_named_rename_action()
+    {
+        var speedrun = FindSectionRoot(LoadMainWindow(), "IsSpeedrunPage");
+        var summary = speedrun.Descendants(Avalonia + "Border")
+            .Single(border => HasClass(border, "cfp-speedrun-summary"));
+        Assert.Contains(summary.Descendants(Avalonia + "Button"), button =>
+            (string?)button.Attribute("Click") == "RenameSelectedSpeedrunEnvironment"
+            && HasBinding(button, "AutomationProperties.Name", "Loc[SpeedrunRename]")
+            && HasBinding(button, "IsEnabled", "CanNavigate"));
     }
 
     [Fact]

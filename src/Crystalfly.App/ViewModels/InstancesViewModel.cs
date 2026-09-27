@@ -216,9 +216,18 @@ public sealed partial class InstancesViewModel : ViewModelBase
                 dependencies.LifetimeCancellation);
 
             await dependencies.RefreshInstancesQuietly();
-            dependencies.SetSelectedInstance(Instances.FirstOrDefault(instance => instance.Id == instanceId));
-            dependencies.SetCurrentManageTab("Overview");
-            dependencies.SetCurrentPage("Manage");
+            var renamed = Instances.FirstOrDefault(instance => instance.Id == instanceId);
+            dependencies.SetSelectedInstance(renamed);
+            if (selected.Record.Purpose == InstancePurpose.OfficialSpeedrun)
+            {
+                dependencies.SetSelectedSpeedrunInstance(renamed);
+                dependencies.SetCurrentPage("Speedrun");
+            }
+            else
+            {
+                dependencies.SetCurrentManageTab("Overview");
+                dependencies.SetCurrentPage("Manage");
+            }
             dependencies.NotifyOperationCompleted();
         }
         catch (Exception exception) when (exception is IOException

@@ -98,6 +98,14 @@ public partial class MainWindow
         await viewModel.CreateSpeedrunEnvironmentCommand.ExecuteAsync(null);
     }
 
+    private async void RenameSelectedSpeedrunEnvironment(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel { SelectedSpeedrunInstance: { } instance } viewModel)
+        {
+            await ShowRenameInstanceDialogAsync(viewModel, instance);
+        }
+    }
+
     private void OpenSpeedrunReport(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is not MainViewModel { SpeedrunReportPath: { } reportPath } viewModel

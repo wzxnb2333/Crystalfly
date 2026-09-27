@@ -4,6 +4,7 @@ using Avalonia.Platform.Storage;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views.Dialogs;
+using Crystalfly.Core.Models;
 using Ursa.Controls;
 
 namespace Crystalfly.App.Views;
@@ -216,11 +217,21 @@ public partial class MainWindow
         {
             return;
         }
+        await ShowRenameInstanceDialogAsync(viewModel, instance);
+    }
+
+    private async Task ShowRenameInstanceDialogAsync(MainViewModel viewModel, InstanceItemViewModel instance)
+    {
+        if (!viewModel.CanNavigate)
+        {
+            return;
+        }
+        bool isSpeedrun = instance.Record.Purpose == InstancePurpose.OfficialSpeedrun;
         var dialog = new TextInputDialogViewModel(
-            viewModel.Loc["RenameInstance"],
-            viewModel.Loc["RenameInstanceHint"],
+            viewModel.Loc[isSpeedrun ? "SpeedrunRename" : "RenameInstance"],
+            viewModel.Loc[isSpeedrun ? "SpeedrunRenameHint" : "RenameInstanceHint"],
             instance.Name,
-            viewModel.Loc["HistoricalInstanceName"],
+            viewModel.Loc[isSpeedrun ? "SpeedrunEnvironmentName" : "HistoricalInstanceName"],
             viewModel.Loc["Confirm"],
             viewModel.Loc["Cancel"]);
         var name = await OverlayDialog.ShowCustomAsync<
@@ -229,6 +240,7 @@ public partial class MainWindow
             string?>(dialog, OverlayHostId, CreateOverlayOptions());
         if (!string.IsNullOrWhiteSpace(name))
         {
+            viewModel.SelectedInstance = instance;
             await viewModel.Instances.RenameInstanceCommand.ExecuteAsync(name);
         }
     }
