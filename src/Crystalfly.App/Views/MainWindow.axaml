@@ -61,7 +61,7 @@
                IsHitTestVisible="False" />
         <Border Grid.Row="0"
                 Classes="cfp-topbar"
-                PointerPressed="OnWindowChromePointerPressed">
+                WindowDecorationProperties.ElementRole="TitleBar">
             <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="24">
                 <TextBlock Grid.Column="0" Classes="cfp-brand" Text="{Binding Loc[AppName]}" />
 

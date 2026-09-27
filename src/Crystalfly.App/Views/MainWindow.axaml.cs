@@ -84,19 +84,6 @@ public partial class MainWindow : Window
         Closed += OnClosed;
     }
 
-    private void OnWindowChromePointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (e.Handled
-            || e.GetCurrentPoint(this).Properties.PointerUpdateKind != PointerUpdateKind.LeftButtonPressed
-            || e.Source is not Avalonia.Visual visual
-            || visual.FindAncestorOfType<Button>() is not null)
-        {
-            return;
-        }
-
-        BeginMoveDrag(e);
-    }
-
     private void OnWindowMinimizeClick(object? sender, RoutedEventArgs e) =>
         WindowState = WindowState.Minimized;
 
