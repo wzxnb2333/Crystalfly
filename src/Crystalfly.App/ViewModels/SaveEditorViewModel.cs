@@ -8,14 +8,53 @@ namespace Crystalfly.App.ViewModels;
 
 public sealed partial class SaveEntryViewModel : ObservableObject
 {
+    private LocalizationViewModel localization = new();
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayName))]
+    [NotifyPropertyChangedFor(nameof(Description))]
+    [NotifyPropertyChangedFor(nameof(HasLocalizedName))]
+    [NotifyPropertyChangedFor(nameof(FieldToolTip))]
     public partial string Path { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BooleanValue))]
+    [NotifyPropertyChangedFor(nameof(BooleanDisplayValue))]
     public partial string Value { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(KindDisplayName))]
+    [NotifyPropertyChangedFor(nameof(IsBoolean))]
     public partial string Kind { get; set; }
+
+    public string DisplayName => IsChinese ? SaveFieldLocalization.Find(Path)?.Name ?? Path : Path;
+    public string Description => IsChinese
+        ? SaveFieldLocalization.Find(Path)?.Description ?? localization["SaveFieldUntranslated"]
+        : localization["SaveFieldRawHint"];
+    public bool HasLocalizedName => DisplayName != Path;
+    public string FieldToolTip => $"{DisplayName}\n{Description}\n{Path}";
+    public string KindDisplayName => localization[Kind switch
+    {
+        SaveEntry.KindBoolean => "SaveTypeBoolean",
+        SaveEntry.KindNumber => "SaveTypeNumber",
+        SaveEntry.KindString => "SaveTypeString",
+        SaveEntry.KindNull => "SaveTypeNull",
+        _ => "SaveTypeUnknown"
+    }];
+    public bool IsBoolean => Kind == SaveEntry.KindBoolean;
+    public bool BooleanValue
+    {
+        get => string.Equals(Value, "true", StringComparison.OrdinalIgnoreCase);
+        set
+        {
+            if (IsBoolean && BooleanValue != value)
+            {
+                Value = value ? "true" : "false";
+            }
+        }
+    }
+    public string BooleanDisplayValue => localization[BooleanValue ? "SaveBooleanTrue" : "SaveBooleanFalse"];
+    private bool IsChinese => localization.Culture.TwoLetterISOLanguageName == "zh";
 
     public SaveEntryViewModel(SaveEntry entry)
     {
@@ -25,6 +64,17 @@ public sealed partial class SaveEntryViewModel : ObservableObject
     }
 
     public SaveEntry ToEntry() => new(Path, Value, Kind);
+
+    internal void RefreshLocalization(LocalizationViewModel value)
+    {
+        localization = value;
+        OnPropertyChanged(nameof(DisplayName));
+        OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(HasLocalizedName));
+        OnPropertyChanged(nameof(FieldToolTip));
+        OnPropertyChanged(nameof(KindDisplayName));
+        OnPropertyChanged(nameof(BooleanDisplayValue));
+    }
 }
 
 public sealed partial class SaveEditorViewModel : ViewModelBase
@@ -35,9 +85,18 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
     private string originalJson = string.Empty;
     private string currentSlot = string.Empty;
     private int slotLoadVersion;
+    private LocalizationViewModel localization;
 
     [ObservableProperty]
     public partial IReadOnlyList<SaveEntryViewModel> Entries { get; set; } = [];
+
+    [ObservableProperty]
+    public partial IReadOnlyList<SaveEntryViewModel> VisibleEntries { get; set; } = [];
+
+    [ObservableProperty]
+    public partial string SearchText { get; set; } = string.Empty;
+
+    public bool HasNoSearchResults => IsLoaded && Entries.Count > 0 && VisibleEntries.Count == 0;
     public ObservableCollection<string> Slots { get; } = [];
 
     [ObservableProperty]
@@ -62,12 +121,48 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
         NamedSnapshotService snapshotService,
         string instanceId,
         string? snapshotId,
-        string sourceLabel)
+        string sourceLabel,
+        LocalizationViewModel? localization = null)
     {
         this.snapshotService = snapshotService;
         this.instanceId = instanceId;
         this.snapshotId = snapshotId;
         SourceLabel = sourceLabel;
+        this.localization = localization ?? new LocalizationViewModel();
+    }
+
+    public void RefreshLocalization(LocalizationViewModel value)
+    {
+        localization = value;
+        foreach (var entry in Entries)
+        {
+            entry.RefreshLocalization(value);
+        }
+        RefreshVisibleEntries();
+    }
+
+    partial void OnEntriesChanged(IReadOnlyList<SaveEntryViewModel> value)
+    {
+        foreach (var entry in value)
+        {
+            entry.RefreshLocalization(localization);
+        }
+        RefreshVisibleEntries();
+    }
+
+    partial void OnSearchTextChanged(string value) => RefreshVisibleEntries();
+
+    partial void OnIsLoadedChanged(bool value) => OnPropertyChanged(nameof(HasNoSearchResults));
+
+    private void RefreshVisibleEntries()
+    {
+        var query = SearchText?.Trim() ?? string.Empty;
+        VisibleEntries = query.Length == 0
+            ? Entries
+            : Entries.Where(entry => entry.Path.Contains(query, StringComparison.OrdinalIgnoreCase)
+                || entry.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)
+                || entry.Description.Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
+        OnPropertyChanged(nameof(HasNoSearchResults));
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -219,6 +314,11 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
         }
     }
 
-    private void OnEntryPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args) =>
-        IsDirty = true;
+    private void OnEntryPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(SaveEntryViewModel.Value))
+        {
+            IsDirty = true;
+        }
+    }
 }

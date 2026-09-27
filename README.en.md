@@ -50,6 +50,7 @@ Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, S
 - Creates persistent named save snapshots containing only non-log LocalLow data, plus dedicated speedrun copies with template-specific tools and a pre-launch report.
 - Edits the selected instance's isolated `AppConfig.ini` while preserving unknown settings and committing changes through atomic replacement.
 - Edits only `user1.dat` through `user4.dat` from the selected instance or one of its named snapshots. Save decoding and expansion run asynchronously, and empty save sets show an explicit state instead of blocking the window.
+- In Simplified Chinese, the save editor provides localized labels and tooltips for common stats, abilities, spells, charms, maps, and progress fields, alongside original paths and bilingual search. Boolean values use Yes/No controls. Language changes preserve JSON keys, data types, and unsaved edits; unlisted internal or Mod fields retain their original names.
 - Creates append or exact Mod presets bound to one build and Loader, with dependency-ordered apply, local JSON import/export, share codes, and restoration of the pre-apply install and enabled state.
 - Accepts strictly validated `crystalfly://` commands through single-instance forwarding. The installer registers the protocol, and every state-changing external request shows a parsed summary before confirmation.
 - Checks a signed stable update manifest once per day. Settings shows the current and available release notes; the update dialog reports download and verification progress and supports cancellation and retry. Installed mode runs the Inno installer, while portable mode preserves `Data` through same-volume backup and replacement.
@@ -106,20 +107,26 @@ Verification reports are pre-launch integrity snapshots. They do not attest that
 ```powershell
 dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
-dotnet test '.\Crystalfly.slnx' -c Release --no-build
 dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ```
+
+For routine development, run one check scoped to the change, preferably filtered by test name. Documentation and script changes only need their relevant lightweight checks. Reuse passing results while code and inputs remain unchanged; do not automatically repeat full regression, installation acceptance, or another audit round. CI retains the full test suite as the merge gate.
 
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.4'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.5'
 
 # Build and install locally without an update-signing key; no update manifest is emitted.
-pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.3' -UnsignedLocal
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.5' -UnsignedLocal
+
+# Opt into full regression only when needed; both build scripts support -RunTests.
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.5' -RunTests
 ```
 
-The scripts automatically locate Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. Release builds read `CRYSTALFLY_UPDATE_SIGNING_KEY` from the ignored `.env.update-signing` file and use `tools/Crystalfly.ReleaseTool` to sign the update manifest; never commit the private key file. For local verification only, pass `-UnsignedLocal`; this omits `update-manifest.v1.json` and must not be uploaded as a public Release. `build-and-install.ps1` reads the version from `Directory.Build.props`, runs the full Release build and tests, validates the artifacts, then silently updates `D:\Program Files\Crystalfly` with administrator approval and verifies the installed version. It stops when Crystalfly is running and never terminates the process. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, updater helper, portable ZIP, installer, signed `update-manifest.v1.json`, and `SHA256SUMS.txt`. Assets are not Authenticode-signed yet; the client still verifies the Ed25519 manifest signature plus each asset's SHA-256, size, and version.
+Both build scripts skip the test suite by default and build only the projects needed for packaging. Pass `-RunTests` explicitly to build the entire solution and run all tests first. Package consistency, signatures, and checksum checks remain enabled.
+
+The scripts automatically locate Inno Setup 6 from `PATH` or its standard install directories. Pass `-IsccPath '<path to ISCC.exe>'` for a custom location. Release builds read `CRYSTALFLY_UPDATE_SIGNING_KEY` from the ignored `.env.update-signing` file and use `tools/Crystalfly.ReleaseTool` to sign the update manifest; never commit the private key file. For local verification only, pass `-UnsignedLocal`; this omits `update-manifest.v1.json` and must not be uploaded as a public Release. `build-and-install.ps1` reads the version from `Directory.Build.props`, runs the Release build, validates the artifacts, then silently updates `D:\Program Files\Crystalfly` with administrator approval and verifies the installed version. It stops when Crystalfly is running and never terminates the process. The installer defaults to `D:\Program Files\Crystalfly` and requests administrator privileges; the portable ZIP can be extracted elsewhere. Outputs under `artifacts` include the self-contained publish, updater helper, portable ZIP, installer, signed `update-manifest.v1.json`, and `SHA256SUMS.txt`. Assets are not Authenticode-signed yet; the client still verifies the Ed25519 manifest signature plus each asset's SHA-256, size, and version.
 
 Application settings use `%LOCALAPPDATA%\Crystalfly`, or `Data` beside the executable when `portable.flag` exists. Per-instance state stays under the active game directory's `.crystalfly` folder.
 

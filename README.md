@@ -52,6 +52,7 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 - 创建永久命名“存档快照”；快照仅包含实例的非日志 LocalLow，事务临时恢复点成功后自动清理。
 - 在实例设置中编辑当前实例隔离的 `AppConfig.ini`；未知配置项会原样保留，写入采用原子替换。
 - 在当前实例或其命名快照中编辑 `user1.dat` 至 `user4.dat`；解密和展开异步执行，空存档会显示明确状态，不会阻塞主窗口。
+- 简体中文下，存档编辑器提供常用生命、灵魂、吉欧、能力、法术、护符、地图和进度字段的中文名称与悬停说明，保留原始字段名，并支持中英文搜索；布尔值使用“是／否”开关。语言切换不会改变存档键名、数据类型或未保存的修改；未收录的内部及模组字段保留原名。
 - 在实例详情创建追加或精确整合包，支持复制、导入导出、分享码、按依赖顺序应用，以及恢复应用前启停和安装状态；固定 Mod 及其传递依赖不会被精确模式停用。
 - 创建独立速通副本，按模板部署速通工具，并在每次启动前写出验证报告。
 - 支持严格校验的 `crystalfly://` 外部命令和单实例转发；安装包会注册协议，所有修改状态的外部命令均先展示摘要并确认。
@@ -154,15 +155,21 @@ Loader 兼容按精确包 ID 判断，不会把所有 Modding API 或 BepInEx �
 ```powershell
 dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
-dotnet test '.\Crystalfly.slnx' -c Release --no-build
 
 pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.5'
 
 # 无更新签名的本地构建与固定目录覆盖；不会生成 update-manifest.v1.json。
 pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.5' -UnsignedLocal
+
+# 仅在需要完整回归时显式加上 -RunTests；两个构建脚本均支持。
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.5' -RunTests
 ```
 
-脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。发布构建从已忽略的 `.env.update-signing` 读取 `CRYSTALFLY_UPDATE_SIGNING_KEY`，并使用 `tools/Crystalfly.ReleaseTool` 生成签名更新清单；私钥文件不得提交。仅本地验收时可显式传入 `-UnsignedLocal`，此模式不会生成 `update-manifest.v1.json`，不得将其作为公开 Release 上传。`build-and-install.ps1` 会从 `Directory.Build.props` 读取版本号，执行完整 Release 构建和测试，验证产物后以管理员权限静默更新 `D:\Program Files\Crystalfly`，最后核对已安装版本。运行中的 Crystalfly 会使流程停止，不会强制关闭程序。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、独立更新程序、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包、`update-manifest.v1.json` 和 `SHA256SUMS.txt`。产物尚未使用 Authenticode 签名；客户端仍会验证更新清单的 Ed25519 签名及资产 SHA-256、大小和版本。详细设计见 [架构文档](docs/architecture.md)。
+日常开发只执行一次与改动相关的检查，优先按测试名称筛选；文档和脚本改动只运行相应轻量检查。代码与输入未变化时复用已通过的结果，不自动重复全量回归、安装验收或开启下一轮复查。完整测试保留在 CI 合并检查中。
+
+两个构建脚本默认跳过测试套件，只构建发布所需项目；显式传入 `-RunTests` 才会先构建完整解决方案并运行全部测试。打包文件一致性、签名和校验和检查仍然保留。
+
+脚本会自动查找 Inno Setup 6；自定义安装位置可传入 `-IsccPath '<ISCC.exe 路径>'`。发布构建从已忽略的 `.env.update-signing` 读取 `CRYSTALFLY_UPDATE_SIGNING_KEY`，并使用 `tools/Crystalfly.ReleaseTool` 生成签名更新清单；私钥文件不得提交。仅本地验收时可显式传入 `-UnsignedLocal`，此模式不会生成 `update-manifest.v1.json`，不得将其作为公开 Release 上传。`build-and-install.ps1` 会从 `Directory.Build.props` 读取版本号，执行 Release 构建，验证产物后以管理员权限静默更新 `D:\Program Files\Crystalfly`，最后核对已安装版本。运行中的 Crystalfly 会使流程停止，不会强制关闭程序。安装包默认安装到 `D:\Program Files\Crystalfly`，需要管理员权限。便携 ZIP 可直接解压到其他目录。本地输出位于 `artifacts`：self-contained publish、独立更新程序、带 `portable.flag` 的便携 ZIP、Inno Setup 安装包、`update-manifest.v1.json` 和 `SHA256SUMS.txt`。产物尚未使用 Authenticode 签名；客户端仍会验证更新清单的 Ed25519 签名及资产 SHA-256、大小和版本。详细设计见 [架构文档](docs/architecture.md)。
 
 ## 许可证
 

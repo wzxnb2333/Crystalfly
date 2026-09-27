@@ -3024,7 +3024,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             CreateSnapshotService(),
             selected.Id,
             targetSnapshotId,
-            sourceLabel);
+            sourceLabel,
+            Loc);
         editor.OperationErrorChanged += exception =>
         {
             if (ReferenceEquals(SaveEditor, editor))
@@ -3859,6 +3860,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         UpdateSelectedMarketInstallationState();
         Instances.RefreshGameDirectoryLabels();
         DownloadCenter.ApplyLanguage(Loc);
+        SaveEditor?.RefreshLocalization(Loc);
         if (DownloadCenter.DownloadQueueGroups.Count > 0)
         {
             DownloadCenter.QueueDownloadQueueProjection(DownloadCenter.DownloadQueue.Groups);

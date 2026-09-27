@@ -168,7 +168,7 @@
         <Setter Property="Background" Value="{DynamicResource CfChromeBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
-        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="Padding" Value="12,2" />
     </Style>
 
     <Style Selector="Border.cfp-rail">

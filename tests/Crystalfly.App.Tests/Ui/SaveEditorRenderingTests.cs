@@ -1,10 +1,12 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.Views;
+using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Saves;
 using Crystalfly.Core.Snapshots;
 using Ursa.Controls;
@@ -13,6 +15,71 @@ namespace Crystalfly.App.Tests.Ui;
 
 public sealed class SaveEditorRenderingTests
 {
+    [AvaloniaFact]
+    public async Task Save_fields_show_chinese_labels_and_switch_language_without_reloading_values()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "crystalfly-save-localization-ui", Guid.NewGuid().ToString("N"));
+        var viewModel = new MainViewModel(root)
+        {
+            CurrentPage = "Manage",
+            CurrentManageTab = "Snapshots"
+        };
+        viewModel.Settings.SelectedLanguage = new(UiLanguage.SimplifiedChinese, "简体中文");
+        var geo = new SaveEntryViewModel(new SaveEntry("playerData.geo", "1250", SaveEntry.KindNumber));
+        var dash = new SaveEntryViewModel(new SaveEntry("playerData.hasDash", "true", SaveEntry.KindBoolean));
+        var editor = new SaveEditorViewModel(
+            new NamedSnapshotService(root, $"Crystalfly.SaveLocalizationUi.{Guid.NewGuid():N}"),
+            "instance", null, "存档", viewModel.Loc)
+        {
+            Entries = [geo, dash],
+            IsLoaded = true
+        };
+        editor.Slots.Add("user1.dat");
+        viewModel.SaveEditor = editor;
+        var window = new MainWindow { Width = 900, Height = 600, DataContext = viewModel };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        try
+        {
+            var list = window.GetVisualDescendants().OfType<ListBox>()
+                .Single(control => control.Classes.Contains("cfp-save-entry-list"));
+            Assert.Contains(list.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "吉欧");
+            Assert.Contains(list.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "playerData.geo");
+            var boolean = Assert.Single(list.GetVisualDescendants().OfType<CheckBox>(), control => control.IsVisible);
+            Assert.Equal("蛾翼披风（冲刺）", AutomationProperties.GetName(boolean));
+            Assert.Equal("是", boolean.Content);
+            boolean.IsChecked = false;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("false", dash.Value);
+            Assert.Equal("否", boolean.Content);
+
+            viewModel.Settings.SelectedLanguage = new(UiLanguage.English, "English");
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("playerData.hasDash", AutomationProperties.GetName(boolean));
+            Assert.Equal("No", boolean.Content);
+            Assert.Equal("playerData.geo", geo.DisplayName);
+            Assert.Equal("1250", geo.Value);
+
+            viewModel.Settings.SelectedLanguage = new(UiLanguage.SimplifiedChinese, "简体中文");
+            Dispatcher.UIThread.RunJobs();
+            var search = Assert.IsType<TextBox>(window.FindControl<TextBox>("SaveFieldSearchBox"));
+            search.Text = "吉欧";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Same(geo, Assert.Single(editor.VisibleEntries));
+            Assert.Equal(2, editor.Entries.Count);
+            Assert.Equal("false", dash.ToEntry().Value);
+        }
+        finally
+        {
+            window.Close();
+            await viewModel.DisposeAsync();
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     [AvaloniaFact]
     public async Task Config_tab_exposes_accessibility_and_save_controls()
     {

@@ -1285,6 +1285,14 @@
                                                   SelectionChanged="OnSaveSlotSelectionChanged"
                                                   AutomationProperties.Name="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[SaveSlot]}" />
                                     </Grid>
+                                    <TextBox Name="SaveFieldSearchBox"
+                                             Classes="cfp-input"
+                                             Text="{Binding SearchText, Mode=TwoWay}"
+                                             PlaceholderText="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[SaveFieldSearch]}"
+                                             AutomationProperties.Name="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[SaveFieldSearch]}" />
+                                    <TextBlock Classes="cfp-meta"
+                                               TextWrapping="Wrap"
+                                               Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[SaveFieldHelp]}" />
                                     <u:LoadingContainer Name="SaveEditorLoadingHost"
                                                         MinHeight="480"
                                                         IsLoading="{Binding IsLoaded, Converter={x:Static converters:BoolConverters.Not}}"
@@ -1308,7 +1316,7 @@
                                         <Grid IsVisible="{Binding IsLoaded}">
                                             <Border Classes="cfp-list-frame" MaxHeight="480">
                                                 <ListBox Classes="cfp-list cfp-save-entry-list"
-                                                         ItemsSource="{Binding Entries}">
+                                                         ItemsSource="{Binding VisibleEntries}">
                                                     <ListBox.ItemsPanel>
                                                         <ItemsPanelTemplate>
                                                             <VirtualizingStackPanel />
@@ -1319,24 +1327,47 @@
                                                             <Grid ColumnDefinitions="2*,3*,80"
                                                                   ColumnSpacing="8"
                                                                   Margin="0,0,0,4">
-                                                                <TextBlock Classes="cfp-caption"
-                                                                           Text="{Binding Path}"
-                                                                           VerticalAlignment="Center"
-                                                                           TextTrimming="CharacterEllipsis"
-                                                                           ToolTip.Tip="{Binding Path}" />
+                                                                <StackPanel Spacing="2"
+                                                                            VerticalAlignment="Center"
+                                                                            ToolTip.Tip="{Binding FieldToolTip}">
+                                                                    <TextBlock Classes="cfp-caption"
+                                                                               Text="{Binding DisplayName}"
+                                                                               TextTrimming="CharacterEllipsis" />
+                                                                    <TextBlock Classes="cfp-meta"
+                                                                               Text="{Binding Path}"
+                                                                               TextTrimming="CharacterEllipsis"
+                                                                               IsVisible="{Binding HasLocalizedName}" />
+                                                                </StackPanel>
                                                                 <TextBox Grid.Column="1"
                                                                          Classes="cfp-input"
                                                                          Text="{Binding Value, Mode=TwoWay}"
-                                                                         AutomationProperties.Name="{Binding Path}" />
+                                                                         VerticalAlignment="Center"
+                                                                         IsVisible="{Binding IsBoolean, Converter={x:Static converters:BoolConverters.Not}}"
+                                                                         ToolTip.Tip="{Binding FieldToolTip}"
+                                                                         AutomationProperties.Name="{Binding DisplayName}" />
+                                                                <CheckBox Grid.Column="1"
+                                                                          IsVisible="{Binding IsBoolean}"
+                                                                          IsChecked="{Binding BooleanValue, Mode=TwoWay}"
+                                                                          Content="{Binding BooleanDisplayValue}"
+                                                                          VerticalAlignment="Center"
+                                                                          ToolTip.Tip="{Binding FieldToolTip}"
+                                                                          AutomationProperties.Name="{Binding DisplayName}" />
                                                                 <TextBlock Grid.Column="2"
                                                                            Classes="cfp-meta"
-                                                                           Text="{Binding Kind}"
+                                                                           Text="{Binding KindDisplayName}"
                                                                            VerticalAlignment="Center" />
                                                             </Grid>
                                                         </DataTemplate>
                                                     </ListBox.ItemTemplate>
                                                 </ListBox>
                                             </Border>
+                                            <TextBlock Margin="24"
+                                                       Classes="cfp-meta"
+                                                       Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[SaveFieldNoResults]}"
+                                                       TextWrapping="Wrap"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       IsVisible="{Binding HasNoSearchResults}" />
                                             <TextBlock Margin="24"
                                                        Classes="cfp-meta"
                                                        Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[NoSaveSlots]}"
