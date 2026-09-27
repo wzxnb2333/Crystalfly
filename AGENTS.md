@@ -17,11 +17,10 @@ Run commands from the repository root:
 ```powershell
 dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
-dotnet test '.\Crystalfly.slnx' -c Release --no-build
 dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ```
 
-Use `scripts/build-release.ps1` to produce the self-contained ZIP, installer, and checksums. After closing Crystalfly, `scripts/build-and-install.ps1` performs the complete build and updates `D:\Program Files\Crystalfly`.
+Use `scripts/build-release.ps1` to produce the self-contained ZIP, installer, and checksums. After closing Crystalfly, `scripts/build-and-install.ps1` builds and updates `D:\Program Files\Crystalfly`. Both scripts skip the test suite by default; pass `-RunTests` explicitly when a full regression run is wanted.
 
 ## Coding Style & Naming Conventions
 
@@ -29,18 +28,21 @@ Use four-space indentation, file-scoped namespaces, nullable reference types, an
 
 ## Testing Guidelines
 
-Tests use xUnit; UI tests use `Avalonia.Headless.XUnit`. Name tests by behavior, for example `ApplyDirectory_rejects_reparse_point_staging_root`. Add regression coverage for changed behavior, including failure, cancellation, rollback, and path-safety cases where relevant. There is no fixed coverage percentage; the full solution test run is the merge gate.
+Tests use xUnit; UI tests use `Avalonia.Headless.XUnit`. Name tests by behavior, for example `ApplyDirectory_rejects_reparse_point_staging_root`. Add regression coverage for changed behavior, including failure, cancellation, rollback, and path-safety cases where relevant. There is no fixed coverage percentage; CI runs the full solution suite for the merge gate.
+
+For routine development, run the smallest relevant check once. Prefer a focused `--filter` over an entire test project. Reuse passing results while the relevant code and inputs remain unchanged. Documentation and script-only changes need only their relevant lightweight checks. Do not automatically run full regression, rebuild installers, perform desktop acceptance, or start another audit round after a focused check passes.
 
 ### Change-to-Test Routing
 
-Run only the affected test project for faster feedback:
+Choose tests within the affected project; build changed test code before using `--no-build`:
 
 | Changed paths | Test command |
 | --- | --- |
-| `src/Crystalfly.App/**` | `dotnet test tests/Crystalfly.App.Tests -c Release --no-build` |
-| `src/Crystalfly.Core/**` | `dotnet test tests/Crystalfly.Core.Tests -c Release --no-build` |
-| `src/Crystalfly.Steam/**` | `dotnet test tests/Crystalfly.Steam.Tests -c Release --no-build` |
-| Cross-module or `Directory.*.props` changes | Full solution test run |
+| `src/Crystalfly.App/**` | `dotnet test tests/Crystalfly.App.Tests -c Release --filter 'FullyQualifiedName~<affected test>'` |
+| `src/Crystalfly.Core/**` | `dotnet test tests/Crystalfly.Core.Tests -c Release --filter 'FullyQualifiedName~<affected test>'` |
+| `src/Crystalfly.Steam/**` | `dotnet test tests/Crystalfly.Steam.Tests -c Release --filter 'FullyQualifiedName~<affected test>'` |
+| `scripts/build*.ps1` | The corresponding `scripts/test-build*.ps1` check |
+| Cross-module or `Directory.*.props` changes | One build and relevant cross-module tests; full suite stays in CI or an explicit `-RunTests` run |
 
 ## Commit & Pull Request Guidelines
 

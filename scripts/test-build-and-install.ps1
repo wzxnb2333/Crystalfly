@@ -48,6 +48,36 @@ if ($source -notmatch '\[switch\]\$UnsignedLocal' -or $source -notmatch "buildAr
 }
 . $installScript
 
+if ($RunTests) {
+    throw 'Build-and-install must skip full regression by default.'
+}
+$parseErrors = $null
+$installAst = [System.Management.Automation.Language.Parser]::ParseInput($source, [ref]$null, [ref]$parseErrors)
+if ($parseErrors.Count -gt 0) {
+    throw "Install script has syntax errors: $parseErrors"
+}
+$testSwitches = @($installAst.EndBlock.Statements | Where-Object {
+    $_ -is [System.Management.Automation.Language.IfStatementAst] -and
+    $_.Clauses[0].Item1.Extent.Text -eq '$RunTests'
+})
+if ($testSwitches.Count -ne 1) {
+    throw 'Build-and-install must forward RunTests only through its explicit switch.'
+}
+& {
+    $buildArguments = @('build-release.ps1')
+    $testSwitch = [scriptblock]::Create($testSwitches[0].Extent.Text)
+    $RunTests = $false
+    . $testSwitch
+    if ($buildArguments.Count -ne 1) {
+        throw 'Default build-and-install must not enable release tests.'
+    }
+    $RunTests = $true
+    . $testSwitch
+    if ($buildArguments.Count -ne 2 -or $buildArguments[1] -ne '-RunTests') {
+        throw 'Explicit RunTests must be forwarded to the release build.'
+    }
+}
+
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) "Crystalfly.InstallTests\$([Guid]::NewGuid().ToString('N'))"
 try {
     New-Item -ItemType Directory -Path $testRoot -Force | Out-Null

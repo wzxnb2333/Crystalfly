@@ -2,7 +2,8 @@
 param(
     [string]$Version,
     [string]$IsccPath,
-    [switch]$UnsignedLocal
+    [switch]$UnsignedLocal,
+    [switch]$RunTests
 )
 
 $ErrorActionPreference = 'Stop'
@@ -140,6 +141,9 @@ if (-not [string]::IsNullOrWhiteSpace($IsccPath)) {
 
 if ($UnsignedLocal) {
     $buildArguments += '-UnsignedLocal'
+}
+if ($RunTests) {
+    $buildArguments += '-RunTests'
 }
 Assert-CrystalflyIsStopped -TargetDirectory $InstallDirectory
 & pwsh @buildArguments

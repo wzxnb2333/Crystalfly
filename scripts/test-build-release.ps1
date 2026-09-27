@@ -135,6 +135,47 @@ if (
 
 . $buildScript
 
+if ($RunTests) {
+    throw 'Release builds must skip the full test suite by default.'
+}
+$parseErrors = $null
+$buildAst = [System.Management.Automation.Language.Parser]::ParseInput($source, [ref]$null, [ref]$parseErrors)
+if ($parseErrors.Count -gt 0) {
+    throw "Release script has syntax errors: $parseErrors"
+}
+$testStages = @($buildAst.EndBlock.Statements | Where-Object {
+    $_ -is [System.Management.Automation.Language.IfStatementAst] -and
+    $_.Clauses[0].Item1.Extent.Text -eq '$RunTests'
+})
+if ($testStages.Count -ne 1) {
+    throw 'Release regression must have one explicit RunTests gate.'
+}
+& {
+    $calls = [System.Collections.Generic.List[string]]::new()
+    function Invoke-Native {
+        param([string]$Description, [scriptblock]$Command)
+        & $Command
+    }
+    function dotnet { $calls.Add(($args -join ' ')) }
+    $testStage = [scriptblock]::Create($testStages[0].Extent.Text)
+    $RunTests = $false
+    & $testStage
+    if ($calls.Count -ne 0) {
+        throw 'Default packaging must not restore, build, or test the full solution.'
+    }
+    $RunTests = $true
+    & $testStage
+    if ($calls.Count -ne 6 -or $calls[0] -notlike 'restore *Crystalfly.slnx' -or $calls[1] -notlike 'build *Crystalfly.slnx *--no-restore') {
+        throw 'RunTests must restore and build the solution before its four test projects.'
+    }
+    foreach ($project in 'Updater', 'Steam', 'Core', 'App') {
+        $matches = @($calls | Where-Object { $_ -like "test *Crystalfly.$project.Tests.csproj *--no-build *--blame-hang-timeout 3m" })
+        if ($matches.Count -ne 1) {
+            throw "RunTests must run the $project test project exactly once."
+        }
+    }
+}
+
 $symbolTestRoot = Join-Path ([IO.Path]::GetTempPath()) "Crystalfly.SymbolTests\$([Guid]::NewGuid().ToString('N'))"
 try {
     New-Item -ItemType Directory -Path $symbolTestRoot -Force | Out-Null

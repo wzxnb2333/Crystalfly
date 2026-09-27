@@ -9,7 +9,8 @@ param(
     [string]$SigningKeyPath,
     [string]$ReleaseNotesPath,
     [string]$PublishedAt,
-    [switch]$UnsignedLocal
+    [switch]$UnsignedLocal,
+    [switch]$RunTests
 )
 
 $ErrorActionPreference = 'Stop'
@@ -305,29 +306,31 @@ foreach ($requiredFile in $requiredFiles) {
 }
 
 Reset-ReleaseStaging -ArtifactsPath $artifacts -Runtime $Runtime
-Invoke-Native 'Solution restore' {
-    dotnet restore (Join-Path $root 'Crystalfly.slnx')
+if ($RunTests) {
+    Invoke-Native 'Solution restore' {
+        dotnet restore (Join-Path $root 'Crystalfly.slnx')
+    }
+    Invoke-Native 'Release build' {
+        dotnet build (Join-Path $root 'Crystalfly.slnx') -c $Configuration --no-restore
+    }
+    $testProjects = @(
+        (Join-Path $root 'tests\Crystalfly.Updater.Tests\Crystalfly.Updater.Tests.csproj'),
+        (Join-Path $root 'tests\Crystalfly.Steam.Tests\Crystalfly.Steam.Tests.csproj'),
+        (Join-Path $root 'tests\Crystalfly.Core.Tests\Crystalfly.Core.Tests.csproj'),
+        (Join-Path $root 'tests\Crystalfly.App.Tests\Crystalfly.App.Tests.csproj')
+    )
+    foreach ($testProject in $testProjects) {
+        Invoke-Native "Release tests: $(Split-Path -Leaf (Split-Path -Parent $testProject))" {
+            dotnet test $testProject -c $Configuration --no-build `
+                --blame-hang --blame-hang-timeout 3m
+        }
+    }
 }
 Invoke-Native 'Runtime restore' {
     dotnet restore $appProject -r $Runtime
 }
 Invoke-Native 'Updater runtime restore' {
     dotnet restore $updaterProject -r $Runtime
-}
-Invoke-Native 'Release build' {
-    dotnet build (Join-Path $root 'Crystalfly.slnx') -c $Configuration --no-restore
-}
-$testProjects = @(
-    (Join-Path $root 'tests\Crystalfly.Updater.Tests\Crystalfly.Updater.Tests.csproj'),
-    (Join-Path $root 'tests\Crystalfly.Steam.Tests\Crystalfly.Steam.Tests.csproj'),
-    (Join-Path $root 'tests\Crystalfly.Core.Tests\Crystalfly.Core.Tests.csproj'),
-    (Join-Path $root 'tests\Crystalfly.App.Tests\Crystalfly.App.Tests.csproj')
-)
-foreach ($testProject in $testProjects) {
-    Invoke-Native "Release tests: $(Split-Path -Leaf (Split-Path -Parent $testProject))" {
-        dotnet test $testProject -c $Configuration --no-build `
-            --blame-hang --blame-hang-timeout 3m
-    }
 }
 Invoke-Native 'Self-contained publish' {
     dotnet publish $appProject -c $Configuration -r $Runtime --self-contained true `
@@ -370,6 +373,9 @@ if (-not (Test-Path -LiteralPath $installer)) {
 
 $checksumPaths = @($zip, $installer)
 if (-not $UnsignedLocal) {
+    Invoke-Native 'Release tool build' {
+        dotnet build $releaseToolProject -c $Configuration
+    }
     Invoke-Native 'Signed update manifest' {
         dotnet run --project $releaseToolProject -c $Configuration --no-build -- sign `
             --version $Version `
