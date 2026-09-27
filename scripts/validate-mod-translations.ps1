@@ -35,6 +35,9 @@ $expectedTags = @($official.SelectNodes('/m:ModLinks/m:Manifest/m:Tags/m:Tag', $
     Sort-Object -Unique)
 $actualTags = @($translations.tagNames.psobject.Properties.Name | Sort-Object)
 Assert-Condition (@(Compare-Object ($expectedTags | Sort-Object) $actualTags).Count -eq 0) 'Translation tag keys do not match the official tag set.'
+foreach ($tag in $translations.tagNames.psobject.Properties) {
+    Assert-Condition ($tag.Value -match '[一-鿿]') "Tag '$($tag.Name)' display name has no Chinese localization."
+}
 
 $translatedIds = @($translations.mods | ForEach-Object { [string]$_.id } | Sort-Object -Unique)
 Assert-Condition ($translatedIds.Count -eq @($translations.mods).Count) 'Translation catalog contains duplicate Mod IDs.'

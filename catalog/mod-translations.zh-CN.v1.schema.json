@@ -10,7 +10,7 @@
     "language": { "const": "zh-CN" },
     "tagNames": {
       "type": "object",
-      "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 64 }
+      "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "[一-鿿]" }
     },
     "mods": {
       "type": "array",

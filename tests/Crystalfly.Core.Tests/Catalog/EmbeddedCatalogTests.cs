@@ -79,6 +79,19 @@ public sealed class EmbeddedCatalogTests
         Assert.Equal(expectedValid, ModTranslationSchema.Value.Evaluate(document.RootElement).IsValid);
     }
 
+    [Theory]
+    [InlineData("Boss", false)]
+    [InlineData("首领", true)]
+    public void Public_mod_translation_schema_requires_a_Chinese_tag_label(string label, bool expectedValid)
+    {
+        string path = Path.Combine(FindRepositoryRoot(), "catalog", "mod-translations.zh-CN.v1.json");
+        JsonNode catalog = JsonNode.Parse(File.ReadAllText(path))!;
+        catalog["tagNames"]!["Boss"] = label;
+        using var document = JsonDocument.Parse(catalog.ToJsonString());
+
+        Assert.Equal(expectedValid, ModTranslationSchema.Value.Evaluate(document.RootElement).IsValid);
+    }
+
     [Fact]
     public void Embedded_mod_translation_catalog_loads_expected_entries()
     {
@@ -89,6 +102,8 @@ public sealed class EmbeddedCatalogTests
         Assert.Equal(675, catalog.Mods.Count);
         Assert.Equal(11, catalog.TagNames.Count);
         Assert.Equal("大语言模型辅助开发", catalog.TagNames["LLM-Assisted"]);
+        Assert.Equal("首领", catalog.TagNames["Boss"]);
+        Assert.All(catalog.TagNames.Values, label => Assert.Matches("[一-鿿]", label));
         Assert.All(catalog.Mods, mod => Assert.Matches("[一-鿿]", mod.DisplayName!));
         Assert.All(catalog.Mods, mod => Assert.StartsWith(
             "hkmod:",
