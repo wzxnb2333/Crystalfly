@@ -1,10 +1,44 @@
 using Crystalfly.App.ViewModels;
+using Crystalfly.Core.Catalog;
 using Crystalfly.Core.Models;
 
 namespace Crystalfly.App.Tests.ViewModels;
 
 public sealed class MarketModItemViewModelTests
 {
+    [Theory]
+    [InlineData("ModCommon", "ModCommon", "ModCommon 通用开发库")]
+    [InlineData("ModConsole", "ModConsole", "模组交互控制台")]
+    [InlineData("ModScript", "ModScript", "JavaScript 模组脚本")]
+    [InlineData("ModTerminal", "ModTerminal", "模组命令终端")]
+    [InlineData("MoreLocations", "MoreLocations", "更多随机化地点")]
+    [InlineData("MoreMasks", "More Masks", "更多生命面具显示")]
+    [InlineData("MoreStags", "MoreStags", "更多鹿角虫车站")]
+    public void Embedded_names_display_in_Chinese_and_preserve_official_name_search(
+        string modName, string officialDisplayName, string expectedName)
+    {
+        var catalog = EmbeddedModTranslationCatalog.Load();
+        var manifest = Manifest() with
+        {
+            Id = $"hkmod:{modName}",
+            Name = modName,
+            DisplayName = officialDisplayName
+        };
+        var translation = Assert.Single(catalog.Mods, entry => entry.Id == manifest.Id);
+        var item = new MarketModItemViewModel(manifest, translation, catalog.TagNames, chinese: true);
+
+        Assert.Same(manifest, item.Manifest);
+        Assert.Equal(expectedName, item.PrimaryName);
+        Assert.Equal(officialDisplayName, item.SecondaryName);
+        Assert.True(item.MatchesSearch(expectedName));
+        Assert.True(item.MatchesSearch(officialDisplayName));
+        Assert.True(item.MatchesSearch(modName));
+
+        var english = new MarketModItemViewModel(manifest, translation, catalog.TagNames, chinese: false);
+        Assert.Equal(officialDisplayName, english.PrimaryName);
+        Assert.Empty(english.SecondaryName);
+    }
+
     [Fact]
     public void Chinese_projection_keeps_manifest_and_localizes_display_fields()
     {

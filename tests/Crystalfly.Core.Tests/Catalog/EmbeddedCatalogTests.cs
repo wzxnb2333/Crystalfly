@@ -65,6 +65,20 @@ public sealed class EmbeddedCatalogTests
         Assert.Contains("hkmod:Another Location", ids, StringComparer.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    [InlineData("MoreMasks", false)]
+    [InlineData("更多生命面具显示", true)]
+    [InlineData("ModCommon 通用开发库", true)]
+    public void Public_mod_translation_schema_requires_a_Chinese_display_name(string displayName, bool expectedValid)
+    {
+        string path = Path.Combine(FindRepositoryRoot(), "catalog", "mod-translations.zh-CN.v1.json");
+        JsonNode catalog = JsonNode.Parse(File.ReadAllText(path))!;
+        catalog["mods"]![0]!["displayName"] = displayName;
+        using var document = JsonDocument.Parse(catalog.ToJsonString());
+
+        Assert.Equal(expectedValid, ModTranslationSchema.Value.Evaluate(document.RootElement).IsValid);
+    }
+
     [Fact]
     public void Embedded_mod_translation_catalog_loads_expected_entries()
     {
@@ -75,6 +89,7 @@ public sealed class EmbeddedCatalogTests
         Assert.Equal(675, catalog.Mods.Count);
         Assert.Equal(11, catalog.TagNames.Count);
         Assert.Equal("大语言模型辅助开发", catalog.TagNames["LLM-Assisted"]);
+        Assert.All(catalog.Mods, mod => Assert.Matches("[一-鿿]", mod.DisplayName!));
         Assert.All(catalog.Mods, mod => Assert.StartsWith(
             "hkmod:",
             mod.Id,

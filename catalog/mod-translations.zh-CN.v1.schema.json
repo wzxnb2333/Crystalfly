@@ -21,7 +21,7 @@
         "required": ["id", "displayName"],
         "properties": {
           "id": { "type": "string", "pattern": "^hkmod:.+", "maxLength": 256 },
-          "displayName": { "type": "string", "minLength": 1, "maxLength": 160 },
+          "displayName": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "[一-鿿]" },
           "description": { "type": "string", "minLength": 1, "maxLength": 16384 }
         }
       }

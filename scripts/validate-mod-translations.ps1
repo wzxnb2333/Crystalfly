@@ -42,10 +42,11 @@ Assert-Condition (@(Compare-Object $officialIds $translatedIds).Count -eq 0) 'Tr
 
 foreach ($mod in $translations.mods) {
     Assert-Condition (-not [string]::IsNullOrWhiteSpace($mod.displayName)) "Mod '$($mod.id)' is missing a Chinese display name."
+    Assert-Condition ($mod.displayName -match '[一-鿿]') "Mod '$($mod.id)' display name has no Chinese localization."
     Assert-Condition ($mod.displayName.Length -le 160) "Mod '$($mod.id)' has an overly long display name."
     if ($null -ne $mod.description) {
         Assert-Condition ($mod.description.Length -le 16384) "Mod '$($mod.id)' has an overly long description."
     }
 }
 
-Write-Output "Validated $($translatedIds.Count) self-authored translations against $($officialIds.Count) official ModLinks entries."
+Write-Output "Validated $($translatedIds.Count)/$($officialIds.Count) official ModLinks IDs; all $($translatedIds.Count) display names contain Chinese. Translation wording still requires review."
