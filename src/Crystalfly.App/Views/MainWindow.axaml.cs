@@ -59,6 +59,9 @@ public partial class MainWindow : Window
 
     internal bool IsExternalCommandReady => externalCommandReady;
 
+    // Test hook: headless runners report client-area animations as disabled.
+    internal static Func<bool>? ClientAreaAnimationsOverride { get; set; }
+
     public MainWindow()
     {
         InitializeComponent();
@@ -77,7 +80,8 @@ public partial class MainWindow : Window
         motionCoordinator = new MotionCoordinator(
             this,
             () => DataContext is MainViewModel { EffectiveMotionPreference: UiMotionPreference.FollowSystem },
-            () => DataContext is MainViewModel { EffectiveMotionPreference: UiMotionPreference.Reduced });
+            () => DataContext is MainViewModel { EffectiveMotionPreference: UiMotionPreference.Reduced },
+            ClientAreaAnimationsOverride);
         DataContextChanged += OnDataContextChanged;
         OnDataContextChanged(this, EventArgs.Empty);
         Opened += OnOpened;

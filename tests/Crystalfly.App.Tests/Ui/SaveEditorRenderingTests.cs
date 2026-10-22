@@ -25,6 +25,7 @@ public sealed class SaveEditorRenderingTests
             CurrentManageTab = "Snapshots"
         };
         viewModel.Settings.SelectedLanguage = new(UiLanguage.SimplifiedChinese, "简体中文");
+        viewModel.Loc.Apply(UiLanguage.SimplifiedChinese);
         var geo = new SaveEntryViewModel(new SaveEntry("playerData.geo", "1250", SaveEntry.KindNumber));
         var dash = new SaveEntryViewModel(new SaveEntry("playerData.hasDash", "true", SaveEntry.KindBoolean));
         var editor = new SaveEditorViewModel(
@@ -61,6 +62,7 @@ public sealed class SaveEditorRenderingTests
             Assert.Equal("1250", geo.Value);
 
             viewModel.Settings.SelectedLanguage = new(UiLanguage.SimplifiedChinese, "简体中文");
+        viewModel.Loc.Apply(UiLanguage.SimplifiedChinese);
             Dispatcher.UIThread.RunJobs();
             var search = Assert.IsType<TextBox>(window.FindControl<TextBox>("SaveFieldSearchBox"));
             search.Text = "吉欧";
