@@ -120,9 +120,21 @@ public sealed class BackgroundAppearanceViewModelTests : IDisposable
 
         viewModel.BackgroundOpacityPercent = 55;
         viewModel.SelectedInstance = viewModel.Instances.Instances.Single(instance => instance.Id == second.Id);
-        await Task.Delay(700);
 
-        var firstSettings = await InstanceAppearanceSettingsStore.LoadAsync(InstanceAppearancePath(versionRoot, first.Id));
+        // The opacity save is debounced; poll instead of assuming the runner
+        // finishes the 300 ms debounce within a fixed delay.
+        InstanceAppearanceSettings firstSettings = new();
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            firstSettings = await InstanceAppearanceSettingsStore.LoadAsync(
+                InstanceAppearancePath(versionRoot, first.Id));
+            if (firstSettings.BackgroundImage?.OpacityPercent == 55)
+            {
+                break;
+            }
+            await Task.Delay(50);
+        }
         var secondSettings = await InstanceAppearanceSettingsStore.LoadAsync(InstanceAppearancePath(versionRoot, second.Id));
         Assert.Equal(55, firstSettings.BackgroundImage?.OpacityPercent);
         Assert.Equal(80, secondSettings.BackgroundImage?.OpacityPercent);
