@@ -50,7 +50,7 @@ public sealed class ModMarketRenderingTests
         {
             var list = window.GetVisualDescendants()
                 .OfType<ListBox>()
-                .Single(control => control.Classes.Contains("cfp-market-list"));
+                .Single(control => control.Classes.Contains("cfp-market-list") && control.IsEffectivelyVisible);
             var button = list.GetVisualDescendants().OfType<Button>()
                 .First(item => item.IsEffectivelyVisible);
             var center = button.TranslatePoint(
@@ -99,7 +99,7 @@ public sealed class ModMarketRenderingTests
         {
             var list = window.GetVisualDescendants()
                 .OfType<ListBox>()
-                .Single(control => control.Classes.Contains("cfp-market-list"));
+                .Single(control => control.Classes.Contains("cfp-market-list") && control.IsEffectivelyVisible);
             var scroll = list.Scroll!;
             Assert.True(scroll.Extent.Height > scroll.Viewport.Height,
                 "List content must overflow its viewport for the wheel test to be meaningful.");
