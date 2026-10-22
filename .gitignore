@@ -25,7 +25,6 @@ portable.flag
 .superpowers/
 .qoder/
 .claude/
-.mimosa/
 .zcode/
 __pycache__/
 *.pyc
