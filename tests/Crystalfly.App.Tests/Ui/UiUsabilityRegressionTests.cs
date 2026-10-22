@@ -91,6 +91,33 @@ public sealed class UiUsabilityRegressionTests
         finally { Close(window); }
     }
 
+    [AvaloniaFact]
+    public async Task Error_banner_centers_its_message_vertically()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N"));
+        await using var vm = new MainViewModel(root);
+        var window = new MainWindow { Width = 900, Height = 600 };
+        window.Show();
+        window.DataContext = vm;
+        try
+        {
+            vm.ErrorMessage = "No Hollow Knight installation was found in that directory.";
+            Dispatcher.UIThread.RunJobs();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+            var banner = window.GetVisualDescendants().OfType<Border>()
+                .Single(border => border.Classes.Contains("cfp-error") && border.IsEffectivelyVisible);
+            var message = Assert.Single(banner.GetVisualDescendants().OfType<TextBlock>());
+            var origin = Assert.IsType<Point>(message.TranslatePoint(default, banner));
+            var messageCenter = origin.Y + message.Bounds.Height / 2;
+            var bannerCenter = banner.Bounds.Height / 2;
+            Assert.InRange(
+                System.Math.Abs(messageCenter - bannerCenter),
+                0,
+                2);
+        }
+        finally { Close(window); }
+    }
+
     private static void Close(MainWindow window)
     {
         foreach (var dialog in window.GetVisualDescendants().OfType<CustomDialogControl>().ToArray()) dialog.Close();

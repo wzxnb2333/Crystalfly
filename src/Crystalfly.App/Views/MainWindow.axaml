@@ -152,13 +152,15 @@
             <Border Classes="cfp-error"
                     IsVisible="{Binding ErrorMessage, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                    <ScrollViewer MaxHeight="112" HorizontalScrollBarVisibility="Disabled">
+                    <ScrollViewer MaxHeight="112"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  VerticalAlignment="Center">
                         <TextBlock Text="{Binding ErrorMessage}"
                                    Foreground="{DynamicResource CfErrorBrush}"
                                    AutomationProperties.LiveSetting="Polite"
                                    TextWrapping="Wrap" />
                     </ScrollViewer>
-                    <Button Grid.Column="1" Classes="cfp-icon" Click="DismissError" VerticalAlignment="Top"
+                    <Button Grid.Column="1" Classes="cfp-icon" Click="DismissError" VerticalAlignment="Center"
                             ToolTip.Tip="{Binding Loc[DismissError]}"
                             AutomationProperties.Name="{Binding Loc[DismissError]}" Content="{LucideIconContent X, 16}" />
                 </Grid>
