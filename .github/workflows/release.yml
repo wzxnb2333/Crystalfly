@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and publish (for example v1.1.7)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          $tag = if ($env:INPUT_TAG) { $env:INPUT_TAG } else { $env:GITHUB_REF_NAME }
+          if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') {
+            throw "Release tag must look like v1.2.3, got '$tag'."
+          }
+          $version = $Matches[1]
+          $notes = "docs/releases/$version.md"
+          if (-not (Test-Path -LiteralPath $notes -PathType Leaf)) {
+            throw "Missing release notes: $notes"
+          }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Write signing key
+        shell: pwsh
+        env:
+          SIGNING_KEY: ${{ secrets.CRYSTALFLY_UPDATE_SIGNING_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_KEY)) {
+            throw 'Repository secret CRYSTALFLY_UPDATE_SIGNING_KEY is not set.'
+          }
+          "CRYSTALFLY_UPDATE_SIGNING_KEY=$($env:SIGNING_KEY)" |
+            Set-Content -LiteralPath .env.update-signing -Encoding ascii
+
+      - name: Build release
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/build-release.ps1 -Version $env:VERSION -ErrorReportingConfig config/error-reporting.official.json
+
+      # Tests stay in the pull-request CI gate; this job publishes what the tag contains.
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $title = "Crystalfly $env:VERSION"
+          $notes = "docs/releases/$env:VERSION.md"
+          $assets = @(
+            "artifacts/installer/Crystalfly-$env:VERSION-win-x64-setup.exe",
+            "artifacts/Crystalfly-$env:VERSION-win-x64-portable.zip",
+            "artifacts/update-manifest.v1.json",
+            "artifacts/SHA256SUMS.txt"
+          )
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release edit $env:TAG --title $title --notes-file $notes
+            if ($LASTEXITCODE -ne 0) { throw 'Updating the release failed.' }
+            gh release upload $env:TAG @assets --clobber
+            if ($LASTEXITCODE -ne 0) { throw 'Uploading release assets failed.' }
+          }
+          else {
+            gh release create $env:TAG --verify-tag --title $title --notes-file $notes @assets
+            if ($LASTEXITCODE -ne 0) { throw 'Creating the release failed.' }
+          }
