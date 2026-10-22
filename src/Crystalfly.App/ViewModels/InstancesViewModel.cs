@@ -490,16 +490,120 @@ public sealed partial class InstancesViewModel : ViewModelBase
         }
     }
 
-    internal async Task AddCustomGameDirectoryAsync(string path)
+    internal async Task<CustomGameDirectoryScanOutcome> AddCustomGameDirectoryAsync(string path)
     {
         var scanGame = dependencies.GetSettings().SelectedGameId;
         var result = await new GameDirectoryScanner().ScanAsync(path, dependencies.LifetimeCancellation);
-        if (scanGame != dependencies.GetSettings().SelectedGameId) return;
-        AddCandidates(result.Candidates.Where(item => GameDefinition.Detect(item.Path)?.Id == scanGame));
-        if (result.Candidates.Count == 0)
+        if (scanGame != dependencies.GetSettings().SelectedGameId)
+        {
+            return CustomGameDirectoryScanOutcome.GameChanged;
+        }
+        var ownCandidates = result.Candidates
+            .Where(item => GameDefinition.Detect(item.Path)?.Id == scanGame)
+            .ToArray();
+        AddCandidates(ownCandidates);
+        if (ownCandidates.Length > 0)
+        {
+            return CustomGameDirectoryScanOutcome.CandidatesFound;
+        }
+        if (result.Candidates.Count > 0)
         {
             dependencies.SetErrorMessage(dependencies.Loc()["NoGameDirectoryCandidates"]);
+            return CustomGameDirectoryScanOutcome.OtherGameInstallation;
         }
+        if (!InstanceDirectory.IsEmptyVersionRoot(path))
+        {
+            dependencies.SetErrorMessage(dependencies.Loc()["VersionRootFolderMustBeEmpty"]);
+            return CustomGameDirectoryScanOutcome.NotAnEmptyFolder;
+        }
+        if (InstanceDirectory.IsNestedInVersionRoot(path))
+        {
+            dependencies.SetErrorMessage(dependencies.Loc()["VersionRootFolderMustNotBeNested"]);
+            return CustomGameDirectoryScanOutcome.NestedVersionRoot;
+        }
+        dependencies.SetErrorMessage(null);
+        return CustomGameDirectoryScanOutcome.NoGameInstallation;
+    }
+
+    /// <summary>
+    /// Registers the selected empty folder itself as a version root so a folder
+    /// can be managed before any game files exist. Game instances are still
+    /// discovered only from complete installations in its direct subdirectories.
+    /// </summary>
+    internal async Task<bool> AddGameDirectoryAsVersionRootAsync(string path)
+    {
+        string root;
+        try
+        {
+            root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+            InstanceDirectory.PrepareVersionRootRegistration(root);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or InvalidDataException or ArgumentException or NotSupportedException)
+        {
+            dependencies.SetErrorMessage(dependencies.Loc().ErrorMessageFor(exception));
+            return false;
+        }
+
+        var settings = dependencies.GetSettings();
+        var gameId = settings.SelectedGameId;
+        var existing = GameDirectories.FirstOrDefault(directory =>
+            string.Equals(directory.Path, root, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+        {
+            existing = new GameDirectoryItemViewModel(new GameDirectoryRegistration
+            {
+                GameId = gameId,
+                Path = root,
+                DisplayName = DirectoryName(root),
+                Source = GameDirectorySourceKind.Managed
+            })
+            {
+                ScanStatus = dependencies.Loc()["ScanPending"]
+            };
+            GameDirectories.Add(existing);
+        }
+        dependencies.SetSettings(settings with
+        {
+            GameDirectories = settings.GameDirectories
+                .Where(item => item.GameId != settings.SelectedGameId)
+                .Concat(GameDirectories.Select(directory => directory.Registration))
+                .ToArray(),
+            GameDirectoryDiscoveryCompleted = true,
+            VersionRoot = root,
+            CurrentInstanceId = null
+        });
+        // Invalidate a pending activation of the previously selected directory so it
+        // cannot overwrite the version root we are applying here.
+        var selectionVersion = Interlocked.Increment(ref gameDirectorySelectionVersion);
+        suppressGameDirectorySelection = true;
+        SelectedGameDirectory = existing;
+        suppressGameDirectorySelection = false;
+        dependencies.SetVersionRoot(root);
+        dependencies.QueueSettingsSave();
+        try
+        {
+            await dependencies.RefreshInstances();
+        }
+        catch (OperationCanceledException) when (dependencies.LifetimeCancellation.IsCancellationRequested)
+        {
+            return true;
+        }
+        if (selectionVersion != Volatile.Read(ref gameDirectorySelectionVersion)
+            || gameId != dependencies.GetSettings().SelectedGameId
+            || !ReferenceEquals(SelectedGameDirectory, existing))
+        {
+            return true;
+        }
+        if (!string.IsNullOrWhiteSpace(dependencies.GetErrorMessage()))
+        {
+            return false;
+        }
+        existing.InstanceCount = Instances.Count;
+        UpdateActiveDirectoryScanStatus();
+        dependencies.SetStatusMessage(dependencies.Loc()["EmptyGameDirectoryAdded"]);
+        OnPropertyChanged(nameof(IsGameDirectoryDiscoveryRequired));
+        return true;
     }
 
     private void AddCandidates(IEnumerable<GameDirectoryCandidate> candidates)
@@ -631,6 +735,9 @@ public sealed partial class InstancesViewModel : ViewModelBase
             GameDirectories = settings.GameDirectories.Where(item => item.GameId != settings.SelectedGameId).Concat(GameDirectories.Select(item => item.Registration)).ToArray() });
         dependencies.SetVersionRoot(root);
         dependencies.QueueSettingsSave();
+        // Invalidate a pending activation of the previously selected directory so it
+        // cannot overwrite the version root we are applying here.
+        Interlocked.Increment(ref gameDirectorySelectionVersion);
         suppressGameDirectorySelection = true;
         SelectedGameDirectory = existing;
         suppressGameDirectorySelection = false;
@@ -791,4 +898,14 @@ public sealed partial class InstancesViewModel : ViewModelBase
         var name = Path.GetFileName(fullPath);
         return string.IsNullOrWhiteSpace(name) ? fullPath : name;
     }
+}
+
+internal enum CustomGameDirectoryScanOutcome
+{
+    CandidatesFound,
+    NoGameInstallation,
+    NotAnEmptyFolder,
+    NestedVersionRoot,
+    OtherGameInstallation,
+    GameChanged
 }

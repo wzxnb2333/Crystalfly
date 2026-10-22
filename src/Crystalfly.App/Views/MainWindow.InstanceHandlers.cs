@@ -38,10 +38,44 @@ public partial class MainWindow
             AllowMultiple = false
         });
         var path = folders.FirstOrDefault()?.TryGetLocalPath();
-        if (!string.IsNullOrWhiteSpace(path))
+        if (string.IsNullOrWhiteSpace(path))
         {
-            await viewModel.Instances.AddCustomGameDirectoryAsync(path);
-            await ShowGameDirectoryDiscoveryAsync(viewModel);
+            return;
+        }
+        try
+        {
+            var outcome = await viewModel.Instances.AddCustomGameDirectoryAsync(path);
+            if (outcome == CustomGameDirectoryScanOutcome.CandidatesFound)
+            {
+                await ShowGameDirectoryDiscoveryAsync(viewModel);
+                return;
+            }
+            if (outcome != CustomGameDirectoryScanOutcome.NoGameInstallation)
+            {
+                return;
+            }
+            bool addAsVersionRoot = await ShowConfirmationAsync(
+                viewModel.Loc["AddGameDirectoryWithoutInstallTitle"],
+                string.Format(
+                    viewModel.Loc.Culture,
+                    viewModel.Loc["AddGameDirectoryWithoutInstallHint"],
+                    viewModel.SelectedGameName),
+                path,
+                viewModel,
+                confirmText: viewModel.Loc["AddAsVersionLibrary"]);
+            if (addAsVersionRoot)
+            {
+                await viewModel.Instances.AddGameDirectoryAsVersionRootAsync(path);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException
+            or InvalidOperationException or ArgumentException)
+        {
+            viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(error);
         }
     }
 

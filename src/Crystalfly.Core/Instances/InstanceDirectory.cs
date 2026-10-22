@@ -50,6 +50,86 @@ public static class InstanceDirectory
         }
     }
 
+    /// <summary>
+    /// Validates that an empty folder can be registered as a version root and
+    /// prepares its managed metadata directory. Unlike
+    /// <see cref="PrepareRegistration"/>, this does not require the folder itself
+    /// to contain a complete game installation; it must only be empty (an
+    /// existing <c>.crystalfly</c> metadata directory is allowed).
+    /// </summary>
+    public static void PrepareVersionRootRegistration(string versionRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(versionRoot);
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(versionRoot));
+        RejectReparseAncestors(root);
+        if (!Directory.Exists(root))
+        {
+            throw new DirectoryNotFoundException(
+                $"The version root '{root}' does not exist.");
+        }
+        if (GameDirectoryIntegrityChecker.Inspect(root).IsValid)
+        {
+            throw new InvalidDataException(
+                "The selected directory is a complete game installation, not a version root.");
+        }
+        if (!IsEmptyVersionRoot(root))
+        {
+            throw new InvalidDataException(
+                "The selected directory is not empty. A new version root must be an empty folder.");
+        }
+        if (IsNestedInVersionRoot(root))
+        {
+            throw new InvalidDataException(
+                "The selected directory is nested inside an existing version root.");
+        }
+        var metadataRoot = Path.Combine(root, ".crystalfly");
+        RejectReparseAncestors(metadataRoot);
+        Directory.CreateDirectory(metadataRoot);
+        using var probe = new FileStream(
+            Path.Combine(metadataRoot, $".crystalfly-write-check-{Guid.NewGuid():N}"),
+            FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose);
+    }
+
+    /// <summary>
+    /// Returns whether a folder can become a new version root: it must exist and
+    /// contain no entries other than an already present <c>.crystalfly</c>
+    /// metadata directory.
+    /// </summary>
+    public static bool IsEmptyVersionRoot(string versionRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(versionRoot);
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(versionRoot));
+        if (!Directory.Exists(root))
+        {
+            return false;
+        }
+        return !Directory.EnumerateFileSystemEntries(root).Any(entry =>
+            !string.Equals(
+                Path.GetFileName(entry),
+                ".crystalfly",
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Returns whether a folder is nested inside another folder that already has
+    /// Crystalfly metadata, which means it belongs to an existing version root.
+    /// </summary>
+    public static bool IsNestedInVersionRoot(string versionRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(versionRoot);
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(versionRoot));
+        for (var ancestor = Path.GetDirectoryName(root);
+             ancestor is not null;
+             ancestor = Path.GetDirectoryName(ancestor))
+        {
+            if (Directory.Exists(Path.Combine(ancestor, ".crystalfly")))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static void RejectReparseAncestors(string path)
     {
         for (string? current = Path.GetFullPath(path); current is not null; current = Path.GetDirectoryName(current))
