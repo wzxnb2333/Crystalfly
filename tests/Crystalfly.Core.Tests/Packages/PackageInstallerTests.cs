@@ -596,6 +596,24 @@ public sealed class PackageInstallerTests
             return path;
         }
 
-        public void Dispose() => Directory.Delete(_root, recursive: true);
+        public void Dispose()
+        {
+            // Background HTTP/file work can still hold a handle on slow CI runners.
+            for (var attempt = 0; attempt < 50; attempt++)
+            {
+                try
+                {
+                    if (Directory.Exists(_root))
+                    {
+                        Directory.Delete(_root, recursive: true);
+                    }
+                    return;
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    Thread.Sleep(100);
+                }
+            }
+        }
     }
 }

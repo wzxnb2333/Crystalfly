@@ -34,11 +34,10 @@ public sealed partial class DocumentationScreenshotTests
     {
         var previousThemeVariant = Application.Current!.RequestedThemeVariant;
         Application.Current!.RequestedThemeVariant = ThemeVariant.Dark;
-        var root = Path.Combine(Path.GetTempPath(), "crystalfly-screenshots", "fixture");
-        if (Directory.Exists(root))
-        {
-            Directory.Delete(root, recursive: true);
-        }
+        var root = Path.Combine(
+            Path.GetTempPath(),
+            "crystalfly-screenshots",
+            "fixture-" + Guid.NewGuid().ToString("N"));
         var versionRoot = Path.Combine(root, "versions");
         var instanceRoot = Path.Combine(versionRoot, "practice-1578");
         Directory.CreateDirectory(instanceRoot);
@@ -812,9 +811,16 @@ public sealed partial class DocumentationScreenshotTests
             }
             await ViewModel.DisposeAsync();
             Application.Current!.RequestedThemeVariant = previousThemeVariant;
-            if (Directory.Exists(root))
+            for (var attempt = 0; attempt < 50 && Directory.Exists(root); attempt++)
             {
-                Directory.Delete(root, recursive: true);
+                try
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    await Task.Delay(100);
+                }
             }
         }
     }
