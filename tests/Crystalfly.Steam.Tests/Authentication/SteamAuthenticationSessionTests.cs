@@ -58,6 +58,22 @@ public sealed class SteamAuthenticationSessionTests : IDisposable
         Assert.Equal(1, emailRequests);
     }
 
+    [Fact]
+    public async Task Qr_auth_session_does_not_request_a_desktop_device_confirmation()
+    {
+        Directory.CreateDirectory(root);
+        var callback = new RecordingGuardCallback(
+            getDeviceCode: _ => Task.FromResult("12345"),
+            getEmailCode: (_, _) => Task.FromResult("54321"));
+        await using var session = new SteamAuthenticationSession(
+            new DpapiRefreshTokenStore(Path.Combine(root, "steam-token.dat")),
+            guardCallback: callback);
+
+        var details = session.CreateQrAuthSessionDetails();
+
+        Assert.Null(details.Authenticator);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(root))

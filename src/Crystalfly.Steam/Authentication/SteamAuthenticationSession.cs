@@ -89,14 +89,8 @@ public sealed class SteamAuthenticationSession : IAsyncDisposable
         {
             EnsureLoginNotStarted();
             await ConnectAsync(cancellationToken);
-            QrAuthSession authSession = await _client.Authentication.BeginAuthSessionViaQRAsync(new AuthSessionDetails
-            {
-                Authenticator = _authenticator,
-                ClientOSType = EOSType.Windows10,
-                DeviceFriendlyName = "Crystalfly",
-                IsPersistentSession = true,
-                PlatformType = EAuthTokenPlatformType.k_EAuthTokenPlatformType_SteamClient
-            });
+            QrAuthSession authSession = await _client.Authentication.BeginAuthSessionViaQRAsync(
+                CreateQrAuthSessionDetails());
             authSession.ChallengeURLChanged = () => RaiseQrChallenge(authSession.ChallengeURL);
             RaiseQrChallenge(authSession.ChallengeURL);
             AuthPollResult result = await authSession.PollingWaitForResultAsync(cancellationToken);
@@ -116,6 +110,23 @@ public sealed class SteamAuthenticationSession : IAsyncDisposable
             _loginGate.Release();
         }
     }
+
+    /// <summary>
+    /// Builds the auth-session details used for QR sign-in. No authenticator is
+    /// supplied on purpose: when Steam reports the device-confirmation guard
+    /// type, SteamKit2 calls <see cref="IAuthenticator.AcceptDeviceConfirmationAsync"/>
+    /// and waits for the desktop UI before polling again. A QR sign-in is
+    /// already confirmed in the Steam mobile app, so that second prompt only
+    /// covers the QR code and is not needed.
+    /// </summary>
+    internal AuthSessionDetails CreateQrAuthSessionDetails() => new()
+    {
+        Authenticator = null,
+        ClientOSType = EOSType.Windows10,
+        DeviceFriendlyName = "Crystalfly",
+        IsPersistentSession = true,
+        PlatformType = EAuthTokenPlatformType.k_EAuthTokenPlatformType_SteamClient
+    };
 
     public async Task<RefreshTokenCredential> ConnectWithCredentialsAsync(
         string username,
