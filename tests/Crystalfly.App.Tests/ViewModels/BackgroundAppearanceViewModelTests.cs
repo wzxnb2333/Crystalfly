@@ -55,6 +55,8 @@ public sealed class BackgroundAppearanceViewModelTests : IDisposable
 
         File.Delete(Path.Combine(instanceAppearance, "instance.bmp"));
         await viewModel.RefreshBackgroundAppearanceAsync();
+        await viewModel.WaitForBackgroundAppearanceRefreshAsync();
+        await viewModel.RefreshBackgroundAppearanceAsync();
 
         Assert.False(viewModel.HasInstanceBackgroundOverride);
         Assert.Equal(0.25, viewModel.ActiveBackgroundOpacity, 3);

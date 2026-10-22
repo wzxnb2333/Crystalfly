@@ -288,7 +288,38 @@ public sealed partial class SettingsViewModel : ViewModelBase
         }
     }
 
+    internal Task WaitForBackgroundAppearanceRefreshAsync()
+    {
+        lock (backgroundRefreshLock)
+        {
+            return backgroundRefreshTask;
+        }
+    }
+
     internal async Task RefreshBackgroundAppearanceAsync(CancellationToken cancellationToken = default)
+    {
+        // A queued automatic refresh may still be reading the previous state. Let it
+        // finish (and cancel it if it is still waiting) before loading the explicit
+        // refresh, otherwise the two refreshes race and the older state can win.
+        Task pending;
+        lock (backgroundRefreshLock)
+        {
+            backgroundRefreshCancellation?.Cancel();
+            backgroundRefreshCancellation?.Dispose();
+            backgroundRefreshCancellation = null;
+            pending = backgroundRefreshTask;
+        }
+        try
+        {
+            await pending;
+        }
+        catch (Exception)
+        {
+        }
+        await LoadBackgroundAppearanceCoreAsync(cancellationToken);
+    }
+
+    private async Task LoadBackgroundAppearanceCoreAsync(CancellationToken cancellationToken = default)
     {
         var generation = Interlocked.Increment(ref backgroundLoadGeneration);
         var selected = dependencies.GetSelectedInstance();
@@ -540,7 +571,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     {
         try
         {
-            await RefreshBackgroundAppearanceAsync(cancellationToken);
+            await LoadBackgroundAppearanceCoreAsync(cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

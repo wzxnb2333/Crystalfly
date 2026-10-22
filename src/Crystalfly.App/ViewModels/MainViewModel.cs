@@ -1190,6 +1190,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     internal Task RefreshBackgroundAppearanceAsync(CancellationToken cancellationToken = default) =>
         Settings.RefreshBackgroundAppearanceAsync(cancellationToken);
 
+    internal Task WaitForBackgroundAppearanceRefreshAsync() =>
+        Settings.WaitForBackgroundAppearanceRefreshAsync();
+
 
     public Task InitializeAsync()
     {
