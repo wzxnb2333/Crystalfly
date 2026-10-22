@@ -35,7 +35,7 @@ public sealed class PageTransitionMotionTests
         NameScope.SetNameScope(window, new NameScope());
         window.Show();
         Dispatcher.UIThread.RunJobs();
-        var coordinator = new MotionCoordinator(window, () => fullMotion, () => reducedMotion);
+        var coordinator = new MotionCoordinator(window, () => fullMotion, () => reducedMotion, () => true);
         coordinator.Start();
 
         try
@@ -338,7 +338,7 @@ public sealed class PageTransitionMotionTests
         NameScope.SetNameScope(window, new NameScope());
         window.Show();
         Dispatcher.UIThread.RunJobs();
-        var coordinator = new MotionCoordinator(window, () => fullMotion, () => reducedMotion);
+        var coordinator = new MotionCoordinator(window, () => fullMotion, () => reducedMotion, () => true);
         coordinator.Start();
         return (window, coordinator);
     }

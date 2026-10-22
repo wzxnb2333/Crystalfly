@@ -21,6 +21,7 @@ public sealed class MotionCoordinator
     private readonly Window owner;
     private readonly Func<bool> isFollowSystemMotion;
     private readonly Func<bool> isReducedMotion;
+    private readonly Func<bool>? clientAreaAnimationsEnabled;
     private readonly List<TranslateTransform> knightWalkTransforms = [];
     private readonly List<LoadingContainer> knightLoadingHosts = [];
     private readonly List<Control> entranceAnimationTargets = [];
@@ -42,11 +43,13 @@ public sealed class MotionCoordinator
     internal MotionCoordinator(
         Window owner,
         Func<bool> isFollowSystemMotion,
-        Func<bool> isReducedMotion)
+        Func<bool> isReducedMotion,
+        Func<bool>? clientAreaAnimationsEnabled = null)
     {
         this.owner = owner;
         this.isFollowSystemMotion = isFollowSystemMotion;
         this.isReducedMotion = isReducedMotion;
+        this.clientAreaAnimationsEnabled = clientAreaAnimationsEnabled;
     }
 
     internal void Start()
@@ -314,6 +317,11 @@ public sealed class MotionCoordinator
 
     private bool AreClientAreaAnimationsEnabled()
     {
+        if (clientAreaAnimationsEnabled is not null)
+        {
+            return clientAreaAnimationsEnabled();
+        }
+
         if (!OperatingSystem.IsWindows())
         {
             return true;
