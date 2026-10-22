@@ -62,7 +62,7 @@ public sealed class SaveEditorRenderingTests
             Assert.Equal("1250", geo.Value);
 
             viewModel.Settings.SelectedLanguage = new(UiLanguage.SimplifiedChinese, "简体中文");
-        viewModel.Loc.Apply(UiLanguage.SimplifiedChinese);
+            viewModel.Loc.Apply(UiLanguage.SimplifiedChinese);
             Dispatcher.UIThread.RunJobs();
             var search = Assert.IsType<TextBox>(window.FindControl<TextBox>("SaveFieldSearchBox"));
             search.Text = "吉欧";
