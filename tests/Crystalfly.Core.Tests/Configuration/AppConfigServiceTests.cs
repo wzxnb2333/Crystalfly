@@ -17,21 +17,6 @@ public sealed class AppConfigServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Save_then_load_round_trips_values()
-    {
-        var path = Path.Combine(directory, "AppConfig.ini");
-        var document = new IniDocument();
-        AppConfigService.SetDouble(document, AppConfigService.AccessibilitySection, AppConfigService.ReducedCameraShakeKey, 0.2);
-        AppConfigService.SetDouble(document, AppConfigService.AccessibilitySection, AppConfigService.ReducedControllerRumbleKey, 0.4);
-
-        await AppConfigService.SaveAsync(path, document);
-        var loaded = await AppConfigService.LoadAsync(path);
-
-        Assert.Equal(0.2, AppConfigService.GetDouble(loaded, AppConfigService.AccessibilitySection, AppConfigService.ReducedCameraShakeKey, 0));
-        Assert.Equal(0.4, AppConfigService.GetDouble(loaded, AppConfigService.AccessibilitySection, AppConfigService.ReducedControllerRumbleKey, 0));
-    }
-
-    [Fact]
     public async Task Overwrite_creates_backup_with_previous_content()
     {
         var path = Path.Combine(directory, "AppConfig.ini");

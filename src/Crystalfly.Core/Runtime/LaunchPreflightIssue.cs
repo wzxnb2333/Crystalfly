@@ -25,7 +25,8 @@ public enum LaunchIssueCode
     ModHealthIndeterminate,
     ModLoaderMismatch,
     LoaderCompatibilityUnverified,
-    GameDataMissing
+    GameDataMissing,
+    SteamSaveProfileUnavailable
 }
 
 public sealed record LaunchPreflightIssue

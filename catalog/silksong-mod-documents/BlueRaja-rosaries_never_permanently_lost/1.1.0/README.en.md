@@ -1,0 +1,1 @@
+When dying a second time, combines death cocoons instead of permanently losing rosaries

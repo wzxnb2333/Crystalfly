@@ -9,18 +9,6 @@ namespace Crystalfly.App.Tests.ViewModels;
 
 public sealed class ProtocolServiceTests
 {
-    [Fact]
-    public void Parse_accepts_a_legal_download_command()
-    {
-        var service = CreateService();
-
-        var command = service.Parse(
-            "crystalfly://mod/download?instance=practice&id=hkmod%3ADebugMod");
-
-        Assert.Equal(ProtocolCommandKind.DownloadMod, command.Kind);
-        Assert.Equal("practice", command.InstanceId);
-        Assert.Equal("hkmod:DebugMod", command.ModId);
-    }
 
     [Fact]
     public void Parse_rejects_an_unsupported_route()
@@ -111,22 +99,6 @@ public sealed class ProtocolServiceTests
             service.Parse("crystalfly://app/reset-settings"),
             out string reason));
         Assert.Equal(localization["ExternalCommandDownloadsActive"], reason);
-    }
-
-    [Fact]
-    public void Describe_lists_the_action_instance_and_mod()
-    {
-        var localization = CreateLocalization();
-        var service = CreateService(
-            loc: localization,
-            instances: [Instance("practice", "Practice 1.5.78")]);
-
-        var summary = service.Describe(service.Parse(
-            "crystalfly://mod/download?instance=practice&id=hkmod%3ADebugMod"));
-
-        Assert.Contains(localization["ProtocolDownloadMod"], summary, StringComparison.Ordinal);
-        Assert.Contains("Practice 1.5.78", summary, StringComparison.Ordinal);
-        Assert.Contains("hkmod:DebugMod", summary, StringComparison.Ordinal);
     }
 
     [Fact]

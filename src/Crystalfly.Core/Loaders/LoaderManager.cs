@@ -39,6 +39,9 @@ public sealed class LoaderManager
 
     public async Task<InstalledPackageReceipt?> GetReceiptAsync(CancellationToken cancellationToken = default)
     {
+        var thunderstoreReceipt = await Crystalfly.Core.Thunderstore.ThunderstoreReceiptProjection.ReadLoaderAsync(
+            _instanceRoot, cancellationToken);
+        if (thunderstoreReceipt is not null) return thunderstoreReceipt;
         if (!File.Exists(_receiptPath) && !File.Exists(_receiptPath + ".bak"))
         {
             return null;
@@ -281,6 +284,11 @@ public sealed class LoaderManager
         bool isVerified = true,
         IProgress<PackageTransferProgress>? progress = null)
     {
+        var targetGame = GameDefinition.Detect(_instanceRoot);
+        if (targetGame is not null && targetGame.Id != manifest.GameId)
+            throw new InvalidDataException("Loader package belongs to another game.");
+        if (targetGame?.Id == GameId.Silksong)
+            throw new InvalidDataException("Use the approved Silksong Thunderstore loader adapter.");
         var size = manifest.SizeBytes;
         if (previousReceipt is not null)
         {
@@ -356,6 +364,7 @@ public sealed class LoaderManager
 
         var receipt = new InstalledPackageReceipt
         {
+            GameId = manifest.GameId,
             PackageId = manifest.Id,
             LoaderState = loaderState,
             IsVerified = isVerified,

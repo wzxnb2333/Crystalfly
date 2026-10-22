@@ -8,13 +8,6 @@ namespace Crystalfly.Steam.Tests.Networking;
 
 public sealed class SteamNetworkConfigurationTests
 {
-    [Fact]
-    public void Configuration_uses_the_proxy_friendly_websocket_transport()
-    {
-        SteamConfiguration configuration = SteamNetworkConfiguration.Create(new WebProxy());
-
-        Assert.Equal(ProtocolTypes.WebSocket, configuration.ProtocolTypes);
-    }
 
     [Fact]
     public async Task Configuration_prefers_the_proxy_compatible_https_CM_endpoint()

@@ -1,3 +1,4 @@
+using Crystalfly.Core.Models;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -9,6 +10,8 @@ namespace Crystalfly.App.ViewModels;
 public sealed partial class SaveEntryViewModel : ObservableObject
 {
     private LocalizationViewModel localization = new();
+    private readonly GameId gameId;
+    private SaveFieldLocalization.Field? LocalizedField => gameId == GameId.Silksong ? SilksongSaveFieldLocalization.Find(Path) : SaveFieldLocalization.Find(Path);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayName))]
@@ -27,9 +30,9 @@ public sealed partial class SaveEntryViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsBoolean))]
     public partial string Kind { get; set; }
 
-    public string DisplayName => IsChinese ? SaveFieldLocalization.Find(Path)?.Name ?? Path : Path;
+    public string DisplayName => IsChinese ? LocalizedField?.Name ?? Path : Path;
     public string Description => IsChinese
-        ? SaveFieldLocalization.Find(Path)?.Description ?? localization["SaveFieldUntranslated"]
+        ? LocalizedField?.Description ?? localization["SaveFieldUntranslated"]
         : localization["SaveFieldRawHint"];
     public bool HasLocalizedName => DisplayName != Path;
     public string FieldToolTip => $"{DisplayName}\n{Description}\n{Path}";
@@ -56,8 +59,9 @@ public sealed partial class SaveEntryViewModel : ObservableObject
     public string BooleanDisplayValue => localization[BooleanValue ? "SaveBooleanTrue" : "SaveBooleanFalse"];
     private bool IsChinese => localization.Culture.TwoLetterISOLanguageName == "zh";
 
-    public SaveEntryViewModel(SaveEntry entry)
+    public SaveEntryViewModel(SaveEntry entry, GameId gameId = GameId.HollowKnight)
     {
+        this.gameId = gameId;
         Path = entry.Path;
         Value = entry.Value;
         Kind = entry.Kind;
@@ -81,6 +85,8 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
 {
     private readonly NamedSnapshotService snapshotService;
     private readonly string instanceId;
+    private readonly GameId gameId;
+    private readonly string? targetVersion;
     private readonly string? snapshotId;
     private string originalJson = string.Empty;
     private string currentSlot = string.Empty;
@@ -105,6 +111,7 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanSave))]
+    [NotifyPropertyChangedFor(nameof(CanImport))]
     public partial bool IsDirty { get; set; }
 
     [ObservableProperty]
@@ -113,7 +120,28 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
     [ObservableProperty]
     public partial string? SelectedSlot { get; set; }
 
-    public bool CanSave => IsLoaded && IsDirty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSave))]
+    public partial bool IsReadOnly { get; set; }
+    public string ReadOnlyReason => localization["SaveReadOnlyFormat"];
+    public bool CanSave => IsLoaded && IsDirty && !IsReadOnly;
+
+    public IReadOnlyList<string> ImportSlots => gameId == GameId.Silksong
+        ? Slots.Select(slot => slot.Replace('\\', '/').Contains('/') ? slot.Split('/')[0] + "/" : "")
+            .Append("default/").Distinct(StringComparer.OrdinalIgnoreCase)
+            .SelectMany(profile => Enumerable.Range(1, 4).Select(slot => $"{profile}user{slot}.dat")).ToArray()
+        : ["user1.dat", "user2.dat", "user3.dat", "user4.dat"];
+    [ObservableProperty] public partial string ImportSlot { get; set; } = "user1.dat";
+    public bool CanImport => snapshotId is null && !IsDirty;
+    public Task<bool> ImportNeedsWarningAsync(string path) => snapshotService.ImportNeedsVersionWarningAsync(path, targetVersion);
+    public Task ImportFileAsync(string path, string slot) => RunCommandAsync(async () =>
+    {
+        if (!CanImport) throw new InvalidOperationException(localization["SaveBeforeGameSwitch"]);
+        await snapshotService.ImportSaveAsync(instanceId, slot, path, targetVersion, acceptVersionRisk: true);
+        await InitializeAsync();
+        await SelectSlotAsync(slot);
+    }, default);
+    public Task ExportFileAsync(string path) => RunCommandAsync(() => snapshotService.ExportSaveAsync(instanceId, snapshotId, currentSlot, path), default);
 
     public event Action<Exception?>? OperationErrorChanged;
 
@@ -122,8 +150,10 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
         string instanceId,
         string? snapshotId,
         string sourceLabel,
-        LocalizationViewModel? localization = null)
+        LocalizationViewModel? localization = null, GameId gameId = GameId.HollowKnight, string? targetVersion = null)
     {
+        this.gameId = gameId;
+        this.targetVersion = targetVersion;
         this.snapshotService = snapshotService;
         this.instanceId = instanceId;
         this.snapshotId = snapshotId;
@@ -138,6 +168,7 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
         {
             entry.RefreshLocalization(value);
         }
+        OnPropertyChanged(nameof(ReadOnlyReason));
         RefreshVisibleEntries();
     }
 
@@ -179,6 +210,8 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
         {
             Slots.Add(slot);
         }
+        OnPropertyChanged(nameof(ImportSlots));
+        if (!ImportSlots.Contains(ImportSlot)) ImportSlot = ImportSlots[0];
 
         if (Slots.Count > 0)
         {
@@ -250,6 +283,7 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
             or InvalidDataException
             or UnauthorizedAccessException
             or FormatException
+            or System.Text.Json.JsonException
             or InvalidOperationException
             or System.Security.Cryptography.CryptographicException)
         {
@@ -266,7 +300,7 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
         var snapId = snapshotId;
         try
         {
-            var (json, viewModels) = await Task.Run(() =>
+            var (json, viewModels, canEdit) = await Task.Run(() =>
             {
                 var decrypted = service.DecryptSaveAsync(instId, snapId, slot, cancellationToken)
                     .GetAwaiter().GetResult();
@@ -274,10 +308,11 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
                 var vms = new SaveEntryViewModel[flattened.Count];
                 for (var i = 0; i < flattened.Count; i++)
                 {
-                    vms[i] = new SaveEntryViewModel(flattened[i]);
+                    vms[i] = new SaveEntryViewModel(flattened[i], gameId);
                 }
 
-                return (decrypted, vms);
+                var editable = service.CanEditSaveAsync(instId, snapId, slot, cancellationToken).GetAwaiter().GetResult();
+                return (decrypted, vms, editable);
             }, cancellationToken);
             if (version != slotLoadVersion)
             {
@@ -287,6 +322,7 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
             {
                 vm.PropertyChanged -= OnEntryPropertyChanged;
             }
+            IsReadOnly = !canEdit;
             currentSlot = slot;
             originalJson = json;
             foreach (var vm in viewModels)
@@ -295,13 +331,19 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
             }
             Entries = viewModels;
             SelectedSlot = slot;
+            ImportSlot = slot;
             IsDirty = false;
         }
-        catch
+        catch (Exception error) when (error is IOException or InvalidDataException or FormatException or System.Text.Json.JsonException
+            or System.Security.Cryptography.CryptographicException or System.Text.DecoderFallbackException)
         {
-            if (version == slotLoadVersion)
+            if (version == slotLoadVersion && string.IsNullOrEmpty(currentSlot))
             {
-                SelectedSlot = string.IsNullOrEmpty(currentSlot) ? null : currentSlot;
+                currentSlot = slot;
+                SelectedSlot = slot;
+                Entries = [];
+                IsReadOnly = true;
+                IsDirty = false;
             }
             throw;
         }
@@ -309,6 +351,7 @@ public sealed partial class SaveEditorViewModel : ViewModelBase
         {
             if (version == slotLoadVersion)
             {
+                SelectedSlot = currentSlot;
                 IsLoaded = !string.IsNullOrEmpty(currentSlot);
             }
         }

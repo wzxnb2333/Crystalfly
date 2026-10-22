@@ -1,0 +1,1 @@
+Mod for me and my friends. Something about re-fight bosses and balance changes (in future) without UI

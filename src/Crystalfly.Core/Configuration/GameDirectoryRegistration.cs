@@ -1,3 +1,5 @@
+using Crystalfly.Core.Models;
+
 namespace Crystalfly.Core.Configuration;
 
 public enum GameDirectorySourceKind
@@ -9,6 +11,8 @@ public enum GameDirectorySourceKind
 
 public sealed record GameDirectoryRegistration
 {
+    public GameId GameId { get; init; } = GameId.HollowKnight;
+
     public required string Path { get; init; }
 
     public required string DisplayName { get; init; }

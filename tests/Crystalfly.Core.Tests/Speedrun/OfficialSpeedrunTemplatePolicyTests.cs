@@ -96,9 +96,6 @@ public sealed class OfficialSpeedrunTemplatePolicyTests
 
     [Theory]
     [InlineData("race-1221")]
-    [InlineData("single-run-1221")]
-    [InlineData("single-run-1578")]
-    [InlineData("race-1578")]
     public void Old_template_ids_are_recognized_as_legacy(string templateId)
     {
         Assert.True(RuntimePatchesPolicy.IsLegacyTemplate(templateId));

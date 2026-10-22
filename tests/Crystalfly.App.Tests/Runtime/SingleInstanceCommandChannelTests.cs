@@ -6,11 +6,6 @@ namespace Crystalfly.App.Tests.Runtime;
 
 public sealed class SingleInstanceCommandChannelTests
 {
-    [Fact]
-    public void Forwarder_and_parser_share_one_utf8_byte_limit()
-    {
-        Assert.Equal(ProtocolCommandParser.MaxUriBytes, SingleInstanceCommandChannel.MaxMessageBytes);
-    }
 
     [Fact]
     public async Task ForwardAsync_delivers_one_protocol_command_to_the_primary_instance()

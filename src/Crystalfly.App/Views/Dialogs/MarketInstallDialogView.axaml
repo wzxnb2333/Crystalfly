@@ -12,8 +12,8 @@
         <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
     </UserControl.KeyBindings>
 
-    <Grid Margin="24"
-          RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="16">
+    <Grid Margin="16"
+          RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="12">
         <TextBlock Classes="cfp-section-title"
                    Text="{Binding Main.Loc[InstallToInstance]}"
                    TextWrapping="Wrap" />
@@ -24,7 +24,7 @@
                    TextWrapping="Wrap" />
         <ScrollViewer Grid.Row="2"
                       VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="16">
+            <StackPanel Spacing="12">
                 <ItemsControl ItemsSource="{Binding Targets}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:MarketInstallTargetOptionViewModel">

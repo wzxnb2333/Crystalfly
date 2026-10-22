@@ -9,6 +9,8 @@ public enum ModOwnership
 
 public sealed record InstalledModReceipt
 {
+    public GameId GameId { get; init; } = GameId.HollowKnight;
+
     public const int CurrentSchemaVersion = 2;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;

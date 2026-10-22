@@ -3,7 +3,8 @@ using Crystalfly.Core.Models;
 
 namespace Crystalfly.Core.Runtime;
 
-public sealed record LaunchCompatibilityContext(string BuildId, LoaderInspection Loader);
+public sealed record LaunchCompatibilityContext(
+    string BuildId, LoaderInspection Loader, string? FileFingerprint = null, string? DeclaredVersion = null);
 
 public sealed record LaunchPreflightResult(
     bool GameFilesReady,
@@ -86,7 +87,8 @@ public static class LaunchPreflightEvaluator
         IReadOnlyList<ModHealthReport> modHealthReports,
         IReadOnlyList<ModHealthAcknowledgement>? acknowledgements = null,
         bool gameProcessRunning = false,
-        LaunchCompatibilityContext? compatibility = null)
+        LaunchCompatibilityContext? compatibility = null,
+        bool steamSaveProfileUnavailable = false)
     {
         ArgumentNullException.ThrowIfNull(installedMods);
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
@@ -104,17 +106,33 @@ public static class LaunchPreflightEvaluator
             localLowReady,
             gameProcessRunning);
         AddDependencyIssues(issues, installedMods, installedById);
+        if (steamSaveProfileUnavailable)
+            issues.Add(Forceable(LaunchIssueCode.SteamSaveProfileUnavailable));
         AddModHealthIssues(issues, modHealthReports, installedById);
         AddCompatibilityIssues(issues, installedMods, compatibility);
+        if (!isKnownBuild && loaderState == LoaderState.BepInEx
+            && !issues.Any(issue => issue.Code == LaunchIssueCode.LoaderCompatibilityUnverified))
+        {
+            issues.Add(new LaunchPreflightIssue
+            {
+                Code = LaunchIssueCode.LoaderCompatibilityUnverified,
+                Severity = LaunchIssueSeverity.Warning,
+                SubjectLoaderId = compatibility?.Loader.PackageId ?? "bepinex",
+                CurrentFileSha256 = compatibility?.FileFingerprint,
+                Arguments = [compatibility?.BuildId ?? "unknown", compatibility?.Loader.PackageId ?? "BepInEx", compatibility?.DeclaredVersion ?? ""]
+            });
+        }
 
         var evaluatedIssues = issues.Select(issue => issue.Severity == LaunchIssueSeverity.Warning
+            && (issue.SubjectModId is not null || issue.SubjectLoaderId is not null)
+            && (issue.Code != LaunchIssueCode.LoaderCompatibilityUnverified || issue.CurrentFileSha256 is not null)
             && acknowledgements.Any(acknowledgement => acknowledgement.Matches(instanceId, issue))
                 ? issue with { IsAcknowledged = true }
                 : issue).ToArray();
         bool dependenciesReady = !issues.Any(issue => issue.Code is
             LaunchIssueCode.MissingDependency or LaunchIssueCode.DisabledDependency or LaunchIssueCode.ModLoaderMismatch);
         bool loaderReady = loaderState is not LoaderState.Conflict and not LoaderState.Drifted
-            && (isKnownBuild || loaderState == LoaderState.Vanilla)
+            && (isKnownBuild || loaderState is LoaderState.Vanilla or LoaderState.BepInEx)
             && !issues.Any(issue => issue.Code == LaunchIssueCode.UnsupportedBuildLoaderCombination);
 
         return new LaunchPreflightResult(
@@ -156,7 +174,7 @@ public static class LaunchPreflightEvaluator
                 Severity = LaunchIssueSeverity.Forceable
             });
         }
-        if (!isKnownBuild && loaderState != LoaderState.Vanilla)
+        if (!isKnownBuild && loaderState is not (LoaderState.Vanilla or LoaderState.BepInEx))
         {
             issues.Add(new LaunchPreflightIssue
             {
@@ -187,7 +205,8 @@ public static class LaunchPreflightEvaluator
         var loader = compatibility.Loader;
         if (loader.State != LoaderState.Vanilla)
         {
-            if (loader.SupportedBuildIds.Count > 0
+            if (loader.State != LoaderState.BepInEx
+                && loader.SupportedBuildIds.Count > 0
                 && !loader.SupportedBuildIds.Contains(compatibility.BuildId, StringComparer.OrdinalIgnoreCase)
                 && !issues.Any(issue => issue.Code == LaunchIssueCode.UnsupportedBuildLoaderCombination))
             {
@@ -205,7 +224,8 @@ public static class LaunchPreflightEvaluator
                     Code = LaunchIssueCode.LoaderCompatibilityUnverified,
                     Severity = LaunchIssueSeverity.Warning,
                     SubjectLoaderId = loader.PackageId ?? loader.State.ToString(),
-                    Arguments = [compatibility.BuildId, loader.PackageId ?? loader.State.ToString()]
+                    CurrentFileSha256 = compatibility.FileFingerprint,
+                    Arguments = [compatibility.BuildId, loader.PackageId ?? loader.State.ToString(), compatibility.DeclaredVersion ?? ""]
                 });
             }
         }

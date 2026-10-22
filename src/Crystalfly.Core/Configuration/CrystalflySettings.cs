@@ -1,3 +1,4 @@
+using Crystalfly.Core.Models;
 using Crystalfly.Core.Runtime;
 
 namespace Crystalfly.Core.Configuration;
@@ -104,6 +105,9 @@ public sealed record BackgroundImageSettings
 
 public sealed record CrystalflySettings
 {
+    public GameId SelectedGameId { get; init; } = GameId.HollowKnight;
+    public IReadOnlyList<GameWorkspaceSettings> GameWorkspaces { get; init; } = [];
+
     public const int CurrentSchemaVersion = 1;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
@@ -136,6 +140,10 @@ public sealed record CrystalflySettings
     public GitHubDownloadRoute GitHubDownloadRoute { get; init; } = GitHubDownloadRoute.Direct;
 
     public bool OfflineMode { get; init; }
+
+    public bool ErrorReportingEnabled { get; init; } = true;
+
+    public int ErrorReportingNoticeVersion { get; init; }
 
     public bool CheckForUpdates { get; init; } = true;
 

@@ -11,13 +11,13 @@
         <KeyBinding Gesture="Escape" Command="{Binding DismissCommand}" />
     </UserControl.KeyBindings>
 
-    <Grid Margin="24" RowDefinitions="Auto,*,Auto" RowSpacing="16">
+    <Grid Margin="16" RowDefinitions="Auto,*,Auto" RowSpacing="12">
         <StackPanel Spacing="4">
             <TextBlock Classes="cfp-section-title" Text="{Binding CurrentTitle}" TextWrapping="Wrap" />
             <TextBlock Classes="cfp-caption" Text="{Binding CurrentStatusText}" />
         </StackPanel>
 
-        <Grid Grid.Row="1" ColumnDefinitions="220,*" ColumnSpacing="16" MinHeight="300">
+        <Grid Grid.Row="1" ColumnDefinitions="220,*" ColumnSpacing="12" MinHeight="300">
             <Border Classes="cfp-card" Padding="8">
                 <ListBox ItemsSource="{Binding Tasks}"
                          SelectedItem="{Binding SelectedTask, Mode=TwoWay}"
@@ -41,7 +41,7 @@
                 </ListBox>
             </Border>
 
-            <Border Grid.Column="1" Classes="cfp-card" Padding="20">
+            <Border Grid.Column="1" Classes="cfp-card" Padding="12">
                 <Grid RowDefinitions="Auto,*,Auto" RowSpacing="14">
                     <StackPanel Spacing="6">
                         <TextBlock Classes="cfp-section-title" Text="{Binding CurrentTitle}" TextWrapping="Wrap" />

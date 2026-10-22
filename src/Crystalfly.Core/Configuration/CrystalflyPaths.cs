@@ -14,6 +14,10 @@ public sealed record CrystalflyPaths(string ApplicationDataRoot, bool IsPortable
             portable);
     }
 
+    public string GetVersionDataRoot(string versionRoot, Crystalfly.Core.Models.GameId gameId) =>
+        gameId == Crystalfly.Core.Models.GameId.HollowKnight ? GetVersionDataRoot(versionRoot)
+        : Path.Combine(GetVersionDataRoot(versionRoot), "games", "silksong");
+
     public string GetVersionDataRoot(string versionRoot) =>
         Path.Combine(Path.GetFullPath(versionRoot), ".crystalfly");
 }

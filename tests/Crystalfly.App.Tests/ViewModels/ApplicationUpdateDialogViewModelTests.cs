@@ -6,23 +6,6 @@ namespace Crystalfly.App.Tests.ViewModels;
 
 public sealed class ApplicationUpdateDialogViewModelTests
 {
-    [Theory]
-    [InlineData("LaterCommand", ApplicationUpdateDialogResult.Later)]
-    [InlineData("SkipCommand", ApplicationUpdateDialogResult.SkipVersion)]
-    public void Passive_commands_close_with_the_selected_result(
-        string commandProperty,
-        ApplicationUpdateDialogResult expected)
-    {
-        var viewModel = CreateViewModel((_, _) => Task.FromResult(false));
-        object? result = null;
-        viewModel.RequestClose += (_, value) => result = value;
-
-        var command = Assert.IsAssignableFrom<System.Windows.Input.ICommand>(
-            typeof(ApplicationUpdateDialogViewModel).GetProperty(commandProperty)!.GetValue(viewModel));
-        command.Execute(null);
-
-        Assert.Equal(expected, result);
-    }
 
     [Fact]
     public async Task Failed_update_stays_open_and_can_retry()

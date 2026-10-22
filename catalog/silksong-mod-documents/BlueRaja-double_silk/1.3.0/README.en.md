@@ -1,0 +1,1 @@
+Doubles silk (MP used for healing and abilities) from all sources

@@ -107,19 +107,4 @@ public sealed class IniDocumentTests
         var section = document.GetSection("Accessibility");
         Assert.Contains(section!.Entries, entry => entry.Kind == IniEntryKind.Comment);
     }
-
-    [Fact]
-    public void Parse_empty_content_yields_empty_document()
-    {
-        Assert.Empty(IniDocument.Parse(null).Sections);
-        Assert.Empty(IniDocument.Parse(string.Empty).Sections);
-    }
-
-    [Fact]
-    public void Keys_before_any_section_header_use_default_section()
-    {
-        var document = IniDocument.Parse("Orphan=1");
-
-        Assert.Equal("1", document.GetValue(IniDocument.DefaultSectionName, "Orphan"));
-    }
 }

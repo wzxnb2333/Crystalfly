@@ -1,0 +1,1 @@
+受同名模组 tModLoader 的启发：https://steamcommunity.com/sharedfiles/filedetails/?id=3481943642

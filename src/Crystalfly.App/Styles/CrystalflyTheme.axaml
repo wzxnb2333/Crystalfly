@@ -123,10 +123,29 @@
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
+    <Style Selector="Button.cfp-game-avatar">
+        <Setter Property="Width" Value="80" />
+        <Setter Property="Height" Value="80" />
+        <Setter Property="Padding" Value="8" />
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.cfp-game-avatar:pointerover">
+        <Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}" />
+    </Style>
+    <Style Selector="Button.cfp-game-avatar:focus-visible">
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
+    </Style>
+
     <Style Selector="TextBlock.cfp-page-title">
-        <Setter Property="FontSize" Value="22" />
+        <Setter Property="FontSize" Value="20" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="LineHeight" Value="28" />
+        <Setter Property="LineHeight" Value="26" />
     </Style>
 
     <Style Selector="TextBlock.cfp-section-title">
@@ -182,7 +201,7 @@
         <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="12" />
-        <Setter Property="Padding" Value="16" />
+        <Setter Property="Padding" Value="12" />
         <Setter Property="BoxShadow" Value="{DynamicResource CfCardShadow}" />
     </Style>
 
@@ -666,6 +685,35 @@
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
+    <Style Selector="Button.cfp-launch-action">
+        <Setter Property="Width" Value="160" />
+        <Setter Property="Height" Value="36" />
+        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="Padding" Value="10,5" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Border.cfp-launch-check-row">
+        <Setter Property="Padding" Value="0,6" />
+        <Setter Property="MinHeight" Value="36" />
+    </Style>
+
+    <Style Selector="Border.cfp-launch-check-row TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style Selector="Border.cfp-launch-check-row TextBlock.cfp-meta">
+        <Setter Property="TextAlignment" Value="Right" />
+    </Style>
+
+    <Style Selector="Grid.cfp-launch-page Button.cfp-community-link">
+        <Setter Property="MinHeight" Value="48" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+    </Style>
+
     <Style Selector="Button.cfp-danger:pointerover,
                      Button.cfp-danger:pressed">
         <Setter Property="Background" Value="{DynamicResource CfDangerHoverBrush}" />
@@ -756,9 +804,9 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
-        <Setter Property="Padding" Value="10" />
+        <Setter Property="Padding" Value="8,6" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-        <Setter Property="MinHeight" Value="44" />
+        <Setter Property="MinHeight" Value="40" />
     </Style>
 
     <Style Selector="ListBox.cfp-list > ListBoxItem:last-child">
@@ -770,7 +818,7 @@
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
         <Setter Property="BorderThickness" Value="3,0,0,0" />
-        <Setter Property="Padding" Value="7,10,10,10" />
+        <Setter Property="Padding" Value="5,6,8,6" />
     </Style>
 
     <Style Selector="ListBox.cfp-list > ListBoxItem:pointerover">
@@ -778,7 +826,7 @@
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfSurfaceSelectedHoverBrush}" />
         <Setter Property="BorderThickness" Value="2,0,0,0" />
-        <Setter Property="Padding" Value="8,10,10,10" />
+        <Setter Property="Padding" Value="6,6,8,6" />
     </Style>
 
     <Style Selector="ListBox.cfp-list > ListBoxItem:selected:pointerover,
@@ -787,7 +835,7 @@
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfAccentHoverBrush}" />
         <Setter Property="BorderThickness" Value="3,0,0,0" />
-        <Setter Property="Padding" Value="7,10,10,10" />
+        <Setter Property="Padding" Value="5,6,8,6" />
     </Style>
 
     <Style Selector="ListBox.cfp-list > ListBoxItem:disabled">
@@ -855,21 +903,11 @@
         <Setter Property="Height" Value="3" />
     </Style>
 
-    <Style Selector="Border.cfp-download-account">
-        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="10,8" />
-    </Style>
-
     <Style Selector="Border.cfp-download-qr">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
         <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Padding" Value="12" />
         <Setter Property="HorizontalAlignment" Value="Left" />
-    </Style>
-
-    <Style Selector="ComboBox.cfp-download-build-filter">
-        <Setter Property="MinWidth" Value="84" />
     </Style>
 
     <Style Selector="ListBox.cfp-download-build-list">
@@ -879,8 +917,8 @@
     </Style>
 
     <Style Selector="ListBox.cfp-download-build-list > ListBoxItem">
-        <Setter Property="MinHeight" Value="38" />
-        <Setter Property="Padding" Value="8,3" />
+        <Setter Property="MinHeight" Value="46" />
+        <Setter Property="Padding" Value="8,4" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     </Style>
 
@@ -888,14 +926,14 @@
         <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
         <Setter Property="BorderThickness" Value="3,0,0,0" />
-        <Setter Property="Padding" Value="5,3,8,3" />
+        <Setter Property="Padding" Value="5,4,8,4" />
     </Style>
 
     <Style Selector="ListBox.cfp-download-build-list > ListBoxItem:pointerover">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfSurfaceSelectedHoverBrush}" />
         <Setter Property="BorderThickness" Value="2,0,0,0" />
-        <Setter Property="Padding" Value="6,3,8,3" />
+        <Setter Property="Padding" Value="6,4,8,4" />
     </Style>
 
     <Style Selector="ListBox.cfp-download-build-list > ListBoxItem:selected:pointerover,
@@ -903,12 +941,13 @@
         <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedHoverBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfAccentHoverBrush}" />
         <Setter Property="BorderThickness" Value="3,0,0,0" />
-        <Setter Property="Padding" Value="5,3,8,3" />
+        <Setter Property="Padding" Value="5,4,8,4" />
     </Style>
 
     <Style Selector="ListBox.cfp-download-build-list > ListBoxItem:focus-visible">
         <Setter Property="BorderBrush" Value="{DynamicResource CfAccentTextBrush}" />
         <Setter Property="BorderThickness" Value="2" />
+        <Setter Property="Padding" Value="6,2" />
     </Style>
 
     <Style Selector="ListBox.cfp-download-build-list > ListBoxItem:disabled">

@@ -1,0 +1,1 @@
+Doubles the amount of rosaries (currency used to buy items at shops) you pick up

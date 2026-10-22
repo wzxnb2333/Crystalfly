@@ -12,7 +12,7 @@
         <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
     </UserControl.KeyBindings>
 
-    <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="16">
+    <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="12">
         <TextBlock Classes="cfp-section-title" Text="{Binding Title}" TextWrapping="Wrap" />
         <TextBlock Grid.Row="1" Text="{Binding Message}" TextWrapping="Wrap" />
         <TextBox Grid.Row="2"
@@ -25,7 +25,7 @@
             <TextBox Text="{Binding InstanceName, Mode=TwoWay}"
                      PlaceholderText="{Binding InstanceNamePlaceholder}"
                      AutomationProperties.Name="{Binding InstanceNamePlaceholder}" />
-            <TextBlock Classes="cfp-caption" Text="AppID 367520 · Windows Depot 367521" />
+            <TextBlock Classes="cfp-caption" Text="{Binding DepotIdentity}" />
         </StackPanel>
         <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
             <Button Classes="cfp-secondary" Command="{Binding CancelCommand}" Content="{Binding CancelText}" MinWidth="96" />

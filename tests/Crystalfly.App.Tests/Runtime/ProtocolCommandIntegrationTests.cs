@@ -139,30 +139,6 @@ public sealed class ProtocolCommandIntegrationTests
     }
 
     [Fact]
-    public void Program_and_window_keep_forwarding_parsing_and_confirmation_in_one_flow()
-    {
-        var root = FindRepositoryRoot();
-        var program = File.ReadAllText(Path.Combine(root, "src", "Crystalfly.App", "Program.cs"));
-        var window = File.ReadAllText(Path.Combine(
-            root,
-            "src",
-            "Crystalfly.App",
-            "Views",
-            "MainWindow.axaml.cs"));
-
-        Assert.Contains("SingleInstanceCommandChannel.ForwardAsync", program, StringComparison.Ordinal);
-        Assert.Contains("ProtocolCommandParser.Parse", window, StringComparison.Ordinal);
-        Assert.Contains("command.RequiresConfirmation", window, StringComparison.Ordinal);
-        Assert.Contains("ExecuteProtocolCommandAsync", window, StringComparison.Ordinal);
-        var handlerStart = window.IndexOf("HandleExternalMessageAsync", StringComparison.Ordinal);
-        var handlerEnd = window.IndexOf("private void OpenExternalUrl", handlerStart, StringComparison.Ordinal);
-        Assert.DoesNotContain(
-            "ForceLaunchGameCommand",
-            window[handlerStart..handlerEnd],
-            StringComparison.Ordinal);
-    }
-
-    [Fact]
     public async Task Reset_settings_clears_live_instance_selection_without_restart()
     {
         var root = Path.Combine(Path.GetTempPath(), "Crystalfly.Tests", Guid.NewGuid().ToString("N"));

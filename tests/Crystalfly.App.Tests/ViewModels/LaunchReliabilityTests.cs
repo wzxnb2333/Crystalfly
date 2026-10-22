@@ -4,6 +4,8 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using Crystalfly.Core.LocalLow;
+using Crystalfly.Core.Configuration;
+using Crystalfly.Core.Instances;
 using Crystalfly.App.ViewModels;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Serialization;
@@ -154,6 +156,78 @@ public sealed class LaunchReliabilityTests : IDisposable
     }
 
     [Fact]
+    public async Task Silksong_unknown_build_shows_declared_version_and_remembers_only_unchanged_launch_files()
+    {
+        var record = await CreateSilksongInstanceAsync();
+        var launched = 0;
+        await using var viewModel = CreateViewModel(record, () => { launched++; return Task.CompletedTask; });
+        await viewModel.LaunchGameCommand.ExecuteAsync(null);
+        var detail = Assert.Single(viewModel.CreateLaunchIssueItems()).Detail;
+        Assert.Contains("1.0.28324", detail);
+        Assert.Contains("BepInEx 5.4.23.4", detail);
+        Assert.DoesNotContain("unknown", detail, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("bepinex-silksong-", detail, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, launched);
+
+        var projected = (InstanceItemViewModel)typeof(MainViewModel)
+            .GetMethod("ProjectInstanceItem", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(viewModel, [(record, LoaderState.BepInEx, (InstalledPackageReceipt?)null, 0), new CrystalflySettings()])!;
+        Assert.Contains("1.0.28324", projected.DisplayVersion);
+        Assert.Contains(viewModel.Loc["Unverified"], projected.DisplayVersion);
+
+        await viewModel.AcknowledgeLaunchWarningsCommand.ExecuteAsync(null);
+        Assert.False(viewModel.HasLaunchIssues);
+        Assert.Empty(viewModel.CreateLaunchIssueItems());
+        var persisted = await CrystalflySettingsStore.LoadAsync(Path.Combine(root, "app-data", "settings.json"));
+        Assert.Single(persisted.ModHealthAcknowledgements);
+        await viewModel.LaunchGameCommand.ExecuteAsync(null);
+        Assert.Equal(1, launched);
+        Assert.True(Assert.Single(viewModel.LaunchPreflight.Issues).IsAcknowledged);
+
+        await File.AppendAllTextAsync(Path.Combine(record.RootPath, GameDefinition.Silksong.DataDirectoryName, "Managed", "Assembly-CSharp.dll"), "changed game code");
+        await viewModel.LaunchGameCommand.ExecuteAsync(null);
+        Assert.Equal(1, launched);
+        Assert.True(viewModel.HasLaunchIssues);
+        Assert.False(Assert.Single(viewModel.LaunchPreflight.Issues).IsAcknowledged);
+    }
+
+    [Fact]
+    public async Task Failed_warning_persistence_keeps_compatibility_warning_unacknowledged()
+    {
+        var record = await CreateSilksongInstanceAsync();
+        await using var viewModel = CreateViewModel(record, () => Task.CompletedTask);
+        await viewModel.LaunchGameCommand.ExecuteAsync(null);
+        var settingsPath = Path.Combine(root, "app-data", "settings.json");
+        await CrystalflySettingsStore.SaveAsync(settingsPath, new CrystalflySettings());
+        using var lockedSettings = new FileStream(settingsPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        await viewModel.AcknowledgeLaunchWarningsCommand.ExecuteAsync(null);
+        Assert.True(viewModel.HasLaunchIssues);
+        Assert.False(Assert.Single(viewModel.LaunchPreflight.Issues).IsAcknowledged);
+        Assert.False(string.IsNullOrWhiteSpace(viewModel.ErrorMessage));
+    }
+
+    private async Task<InstanceRecord> CreateSilksongInstanceAsync()
+    {
+        var game = Path.Combine(root, "versions", "silksong");
+        var managed = Path.Combine(game, GameDefinition.Silksong.DataDirectoryName, "Managed");
+        Directory.CreateDirectory(managed);
+        File.Copy(typeof(LaunchReliabilityTests).Assembly.Location, Path.Combine(managed, "Assembly-CSharp.dll"));
+        await File.WriteAllTextAsync(Path.Combine(game, GameDefinition.Silksong.ExecutableName), "game");
+        await File.WriteAllTextAsync(Path.Combine(game, GameDefinition.Silksong.GlobalGameManagersPath), "data");
+        var record = Assert.Single(await InstanceImportService.DiscoverAsync(Path.GetDirectoryName(game)!, new GameCatalog()));
+        Directory.CreateDirectory(Path.Combine(GetStateRoot(record), "local-low"));
+        Directory.CreateDirectory(Path.Combine(game, "BepInEx", "core"));
+        await File.WriteAllTextAsync(Path.Combine(game, "BepInEx", "core", "BepInEx.dll"), "loader");
+        var loaderReceiptPath = Path.Combine(Path.GetDirectoryName(InstanceSidecar.GetMetadataPath(game, record.Id))!, "loader.json");
+        await AtomicJsonStore.WriteAsync(loaderReceiptPath, new InstalledPackageReceipt
+        {
+            GameId = GameId.Silksong, PackageId = "bepinex-silksong-5.4.23.4", LoaderState = LoaderState.BepInEx,
+            IsVerified = false, Files = [new() { RelativePath = "BepInEx/core/BepInEx.dll", Sha256 = Hash("loader") }]
+        });
+        return record;
+    }
+
+    [Fact]
     public async Task Launch_rechecks_game_fingerprint_after_an_external_update()
     {
         var record = CreateInstance() with { BuildId = "build-a" };
@@ -259,13 +333,17 @@ public sealed class LaunchReliabilityTests : IDisposable
         {
             VersionRoot = Path.GetDirectoryName(record.RootPath)!
         };
+        if (record.GameId == GameId.Silksong)
+            typeof(MainViewModel).GetField("settings", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .SetValue(viewModel, new CrystalflySettings { SelectedGameId = GameId.Silksong, OfflineMode = true });
         typeof(MainViewModel).GetField("<SelectedInstance>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!
             .SetValue(viewModel, new InstanceItemViewModel(record, record.BuildId, "Vanilla", 0));
         return viewModel;
     }
 
     private static string GetStateRoot(InstanceRecord record) =>
-        Path.Combine(Path.GetDirectoryName(record.RootPath)!, ".crystalfly", "instances", record.Id);
+        Path.Combine(Path.GetDirectoryName(record.RootPath)!, ".crystalfly",
+            record.GameId == GameId.Silksong ? "games/silksong/instances" : "instances", record.Id);
 
     public void Dispose()
     {

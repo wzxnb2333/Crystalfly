@@ -44,17 +44,25 @@ public sealed class WindowsSteamInstallPathProvider : ISteamInstallPathProvider
 
 public sealed class SteamLibraryDiscoveryService
 {
-    private const string AppManifestFileName = "appmanifest_367520.acf";
+    private readonly uint appId;
+    private readonly string executableName;
+    private readonly string dataDirectoryName;
+    private string AppManifestFileName => $"appmanifest_{appId}.acf";
     private readonly ISteamInstallPathProvider _pathProvider;
     private readonly Func<string, Stream> _openRead;
 
-    public SteamLibraryDiscoveryService(ISteamInstallPathProvider pathProvider)
-        : this(pathProvider, File.OpenRead)
+    public SteamLibraryDiscoveryService(ISteamInstallPathProvider pathProvider, uint appId = 367520,
+        string executableName = "hollow_knight.exe", string dataDirectoryName = "hollow_knight_Data")
+        : this(pathProvider, File.OpenRead, appId, executableName, dataDirectoryName)
     {
     }
 
-    internal SteamLibraryDiscoveryService(ISteamInstallPathProvider pathProvider, Func<string, Stream> openRead)
+    internal SteamLibraryDiscoveryService(ISteamInstallPathProvider pathProvider, Func<string, Stream> openRead,
+        uint appId = 367520, string executableName = "hollow_knight.exe", string dataDirectoryName = "hollow_knight_Data")
     {
+        this.appId = appId;
+        this.executableName = executableName;
+        this.dataDirectoryName = dataDirectoryName;
         _pathProvider = pathProvider ?? throw new ArgumentNullException(nameof(pathProvider));
         _openRead = openRead ?? throw new ArgumentNullException(nameof(openRead));
     }
@@ -123,7 +131,7 @@ public sealed class SteamLibraryDiscoveryService
             KeyValue appState = string.Equals(root.Name, "AppState", StringComparison.OrdinalIgnoreCase)
                 ? root
                 : root["AppState"];
-            if (!string.Equals(appState["appid"].AsString(), "367520", StringComparison.Ordinal))
+            if (!string.Equals(appState["appid"].AsString(), appId.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal))
                 return null;
 
             string? installDirectory = appState["installdir"].AsString();
@@ -131,8 +139,8 @@ public sealed class SteamLibraryDiscoveryService
                 return null;
 
             string gamePath = Path.GetFullPath(Path.Combine(library, "steamapps", "common", installDirectory!));
-            if (!File.Exists(Path.Combine(gamePath, "hollow_knight.exe")) ||
-                !File.Exists(Path.Combine(gamePath, "hollow_knight_Data", "globalgamemanagers")))
+            if (!File.Exists(Path.Combine(gamePath, executableName)) ||
+                !File.Exists(Path.Combine(gamePath, dataDirectoryName, "globalgamemanagers")))
             {
                 return null;
             }

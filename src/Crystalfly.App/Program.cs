@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Media;
 using Crystalfly.App.Runtime;
+using Crystalfly.App.Diagnostics;
+using Crystalfly.Core.Diagnostics;
 
 namespace Crystalfly.App;
 
@@ -38,20 +40,27 @@ internal sealed class Program
             return;
         }
 
+        ErrorReportingRuntime.Start();
         var commandChannel = new SingleInstanceCommandChannel(CommandPipeName);
         commandChannel.MessageReceived += App.EnqueueExternalMessage;
-        commandChannel.Start();
-        if (FindProtocolCommand(args) is { } startupCommand)
-        {
-            App.EnqueueExternalMessage(startupCommand);
-        }
         try
         {
+            commandChannel.Start();
+            if (FindProtocolCommand(args) is { } startupCommand)
+            {
+                App.EnqueueExternalMessage(startupCommand);
+            }
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+        catch (Exception exception)
+        {
+            ErrorReportingRuntime.Reporter.Capture(exception, ErrorOperation.Startup, fatal: true);
+            throw;
         }
         finally
         {
-            commandChannel.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            try { commandChannel.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
+            finally { ErrorReportingRuntime.Stop(); }
         }
     }
 

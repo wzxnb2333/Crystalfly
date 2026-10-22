@@ -1,8 +1,12 @@
 # Crystalfly
 
+Error reporting and privacy: [sanitized fields, opt-out, hosting and fork configuration](docs/error-reporting.md#english-notice).
+
 [简体中文](README.md) | **English**
 
-Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, Steam depot downloads, and dedicated speedrun environments on Windows 10/11 x64. The Launch page is the only entry point for selecting and managing launchable instances; actual game downloads live under Download → Game Versions.
+Crystalfly manages Hollow Knight and Hollow Knight: Silksong builds, loaders, mods, saves, snapshots, and Steam depot downloads on Windows 10/11 x64, while retaining Hollow Knight's dedicated speedrun environments. Click the Knight or Hornet portrait on Launch to switch games; each game's libraries, instance, and filters are remembered separately. Select instances on Launch and download game builds under Download → Game Versions.
+
+Silksong includes local imports, Thunderstore dependency installation and mod lifecycle management, isolated saves, and Chinese save-field descriptions. See the [feature and migration guide](docs/silksong-thunderstore.md) and [verification report and known limitations](docs/silksong-verification.md) (Chinese).
 
 > Current version: `1.1.4`. This release provides Windows x64 portable and installer artifacts. Release notes are available in Settings, and the signed update dialog supports progress, cancellation, and retry.
 
@@ -30,7 +34,7 @@ Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, S
 - Manages multiple game directories while keeping one active root for existing operations. It discovers a selected directory itself or its direct children, and finds verified Hollow Knight installs from Steam libraries without taking ownership until confirmation.
 - Scans instance and build files in the background at startup without waiting for the remote catalog or Steam reconnect. Settings is a top text tab, the instance entry is named Select Instance, and pages, cards, and actions use fast spring motion that can follow the system, reduce motion, or turn off.
 - Uses custom title-bar controls with a native resize border and explicitly requests system-rounded corners on Windows 11 while remaining compatible with Windows 10.
-- Recognizes `1.2.2.1`, `1.4.3.2`, `1.5.78.11833`, and a dynamic stable `latest` channel.
+- Recognizes `1.2.2.1`, `1.4.3.2`, `1.5.78.11833`, `1.5.12459`, and a dynamic stable `latest` channel.
 - Uses the Launch-page instance entry to select, open settings, clone a full copy, or permanently delete an instance. Deletion first checks running games, queued downloads, and file transactions, then removes both game and instance state directories after confirmation.
 - Installs, switches, repairs, and removes mutually exclusive loaders through recoverable file transactions.
 - Discovers online mods under Download → Mod Market, then installs them to a selected compatible instance. Installed Mods provides information, open-folder, enable/disable, and uninstall shortcuts plus multi-select batch actions.
@@ -55,18 +59,21 @@ Crystalfly manages Hollow Knight game builds, loaders, mods, saves, snapshots, S
 - Accepts strictly validated `crystalfly://` commands through single-instance forwarding. The installer registers the protocol, and every state-changing external request shows a parsed summary before confirmation.
 - Checks a signed stable update manifest once per day. Settings shows the current and available release notes; the update dialog reports download and verification progress and supports cancellation and retry. Installed mode runs the Inno installer, while portable mode preserves `Data` through same-volume backup and replacement.
 
-The current built-in speedrun templates are intentionally unverified because the catalog does not yet contain a trusted rules revision and complete Steam file allowlist. Unknown new public manifests remain launchable as vanilla, but loader installation stays locked until the catalog verifies the build.
+The current built-in speedrun templates are intentionally unverified because the catalog does not yet contain a trusted rules revision and complete Steam file allowlist. Unknown new public manifests remain launchable as vanilla and allow BepInEx installation in general instances; Modding API and mod compatibility checks remain in place.
 
 ### Compatibility
 
 | Game build | Loader | DebugMod |
 | --- | --- | --- |
-| `1.2.2.1` | Modding API v37 | `legacy/1.2.2.1` |
-| `1.4.3.2` | Modding API v60 | `legacy/1.4.3.2` |
-| `1.5.78.11833` | Modding API v77 | `legacy/1.5.78` |
+| `1.2.2.1` | Modding API v37 or BepInEx 5.4.23.4 | `legacy/1.2.2.1` |
+| `1.4.3.2` | Modding API v60 or BepInEx 5.4.23.4 | `legacy/1.4.3.2` |
+| `1.5.78.11833` | Modding API v77 or BepInEx 5.4.23.4 | `legacy/1.5.78` |
+| `1.5.12459` | BepInEx 5.4.23.4; no matching Modding API package | — |
 | Current verified stable | Modding API v78 or BepInEx 5.4.23.4 | `latest` |
 
-The current stable build is decided by the remote catalog's Steam public manifest, never hard-coded. Unknown new manifests can be downloaded and launched as vanilla, but Crystalfly locks Loader installation until the catalog ships a new build fingerprint and compatibility list.
+The `1.5.12459` identity was verified against its original Steam manifest and file hashes on 2026-09-27; it is no longer offered as an unverified, vanilla-only download. See the [verification evidence](docs/build-verification-1.5.12459.md). This does not establish Modding API compatibility: v77 targets `1.5.78.11833`, and the current v78 release targets `1.5.12620.0`; neither is offered for `1.5.12459`.
+
+The current stable build is decided by the remote catalog's Steam public manifest, never hard-coded. General instances allow BepInEx installation and repair on every game build, including custom builds and unknown Steam manifests, even if an older remote catalog still lists a narrow build allowlist. Modding API and individual mods retain their compatibility checks, and official speedrun instances remain protected. Launching an unknown build with a loader still requires compatibility confirmation; allowing installation does not guarantee that every plugin will work.
 
 - DebugMod: <https://github.com/wzxnb2333/New.HK.Debug/releases/tag/v1.4.10.5-r2>
 - Modding API v78: <https://github.com/wzxnb2333/api/releases/tag/1.5.12620.0-78>

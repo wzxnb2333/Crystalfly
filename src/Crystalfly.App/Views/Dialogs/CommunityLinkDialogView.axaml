@@ -9,7 +9,7 @@
         <KeyBinding Gesture="Enter" Command="{Binding SaveCommand}" />
         <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
     </UserControl.KeyBindings>
-    <Grid Margin="24" RowDefinitions="Auto,*,Auto" RowSpacing="16">
+    <Grid Margin="16" RowDefinitions="Auto,*,Auto" RowSpacing="12">
         <TextBlock Classes="cfp-section-title" Text="{Binding Title}" />
         <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="12">

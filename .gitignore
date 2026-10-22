@@ -27,3 +27,5 @@ portable.flag
 .claude/
 .mimosa/
 .zcode/
+__pycache__/
+*.pyc

@@ -20,6 +20,7 @@ Verified on 2026-07-16.
 - `1.2.2.1` manifest: `648876203478229944`.
 - `1.4.3.2` manifest: `7100970131266256005`.
 - `1.5.78.11833` manifest: `4539921744901848404`.
+- `1.5.12459` manifest: `4709992615819941531` (original Steam file identity verified on 2026-09-27; see [evidence](build-verification-1.5.12459.md)).
 - Public manifest at verification time: `257781644874438846`.
 
 The public manifest is runtime catalog data, not a hard-coded definition of
@@ -30,10 +31,17 @@ The public manifest is runtime catalog data, not a hard-coded definition of
 - `1.2.2.1`: Modding API v37.
 - `1.4.3.2`: Modding API v60.
 - `1.5.78.11833`: Modding API v77.
+- `1.5.12459`: BepInEx 5.4.23.4; no matching Modding API or verified DebugMod package as of 2026-09-27. Game identity verification does not imply API compatibility.
 - Verified public build `1.5.12620.0`: Modding API v78 or BepInEx 5.4.23.4.
 
-Unknown new public builds are vanilla-only until a catalog revision adds their
-fingerprints and loader manifests.
+BepInEx 5.4.23.4 may also be installed and repaired on every other game build
+in general instances, including unknown or custom builds. Older catalog
+allowlists do not restrict BepInEx installation.
+
+Modding API and individual mods keep their build restrictions. Unknown builds
+with loaders still require launch compatibility confirmation; installation
+availability is not a guarantee of plugin compatibility. Official speedrun
+instances remain protected from loader installation.
 
 ## Speedrun tools
 

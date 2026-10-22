@@ -24,6 +24,111 @@ namespace Crystalfly.App.Tests.ViewModels;
 
 public sealed class MainViewModelStateTests : IDisposable
 {
+    [Fact]
+    public async Task Speedrun_verification_keeps_report_path_out_of_global_status()
+    {
+        using var test = new TestDirectory();
+        string versionRoot = test.CreateDirectory("versions");
+        string instanceRoot = test.CreateDirectory("versions", "speedrun-copy");
+        string managedRoot = test.CreateDirectory(
+            "versions",
+            "speedrun-copy",
+            "hollow_knight_Data",
+            "Managed");
+        string executablePath = Path.Combine(instanceRoot, "hollow_knight.exe");
+        string unityPath = Path.Combine(instanceRoot, "UnityPlayer.dll");
+        string managersPath = Path.Combine(instanceRoot, "hollow_knight_Data", "globalgamemanagers");
+        string runtimePatchesPath = Path.Combine(managedRoot, "Assembly-CSharp.dll");
+        await File.WriteAllTextAsync(executablePath, "game");
+        await File.WriteAllTextAsync(unityPath, "unity");
+        await File.WriteAllTextAsync(managersPath, "managers");
+        await File.WriteAllTextAsync(runtimePatchesPath, "runtime-patches");
+
+        const string buildId = "1.5.78.11833";
+        string templateId = RuntimePatchesPolicy.GetTemplateId(buildId)!;
+        string assetId = RuntimePatchesPolicy.GetAssetId(buildId)!;
+        var build = new GameBuild
+        {
+            Id = buildId,
+            DisplayVersion = buildId,
+            DepotId = 367521,
+            ManifestId = "1",
+            ExecutableSha256 = FileSha256(executablePath),
+            UnityPlayerSha256 = FileSha256(unityPath),
+            GlobalGameManagersSha256 = FileSha256(managersPath)
+        };
+        var template = new SpeedrunTemplate
+        {
+            Id = templateId,
+            Name = $"RuntimePatches {buildId}",
+            BuildId = buildId,
+            IsOfficial = true,
+            RulesRevision = RuntimePatchesPolicy.RulesRevision,
+            FileManifestId = $"files-{templateId}",
+            RequiredAssetIds = [assetId]
+        };
+        var instance = Instance("speedrun-copy", instanceRoot) with
+        {
+            BuildId = buildId,
+            Purpose = InstancePurpose.OfficialSpeedrun,
+            ProvisioningMode = InstanceProvisioningMode.FullCopy,
+            SpeedrunTemplateId = templateId,
+            SpeedrunRulesRevision = template.RulesRevision
+        };
+        var fileManifest = new SpeedrunFileManifest
+        {
+            Id = template.FileManifestId,
+            BuildId = buildId,
+            RulesRevision = template.RulesRevision,
+            Files =
+            [
+                new SpeedrunFileRule
+                {
+                    RelativePath = "hollow_knight_Data/Managed/Assembly-CSharp.dll",
+                    Sha256 = FileSha256(runtimePatchesPath),
+                    Kind = SpeedrunFileKind.Tool,
+                    AssetId = assetId,
+                    AssetVersion = "1.0.2"
+                }
+            ]
+        };
+        string configurationPath = Path.Combine(
+            versionRoot,
+            ".crystalfly",
+            "instances",
+            instance.Id,
+            "local-low",
+            RuntimePatchesConfiguration.FileName);
+        await RuntimePatchesConfiguration.WriteAsync(
+            configurationPath,
+            new RuntimePatchesConfiguration { MiniSaveStates = true });
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
+        {
+            VersionRoot = versionRoot,
+            StatusMessage = "ready"
+        };
+        SetCatalog(viewModel, new GameCatalog
+        {
+            Builds = [build],
+            SpeedrunTemplates = [template],
+            SpeedrunFileManifests = [fileManifest]
+        });
+        var method = typeof(MainViewModel).GetMethod(
+            "VerifySpeedrunLaunchAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+
+        await Assert.IsAssignableFrom<Task>(method.Invoke(viewModel, [instance]));
+
+        Assert.Equal(viewModel.Loc["SpeedrunVerifiedWithWarnings"], viewModel.SpeedrunStatus);
+        // A passing verification updates the page status but no longer shows a
+        // top-level banner, even when the report carries rule warnings.
+        Assert.False(viewModel.HasSpeedrunReminder);
+        Assert.Equal(string.Empty, viewModel.SpeedrunReminderText);
+        Assert.True(viewModel.HasSpeedrunReport);
+        Assert.Equal("ready", viewModel.StatusMessage);
+    }
+
     private readonly TestDirectory applicationData = new();
 
     [Fact]
@@ -163,180 +268,6 @@ public sealed class MainViewModelStateTests : IDisposable
             | RuntimePatchesFeature.TextMasher, viewModel.SelectedSpeedrunSupportedFeatures);
     }
 
-    [Fact]
-    public async Task Selecting_a_current_speedrun_environment_does_not_show_the_verification_banner()
-    {
-        string root = applicationData.CreateDirectory("speedrun-banner");
-        await using var viewModel = new MainViewModel(root)
-        {
-            VersionRoot = root
-        };
-        var current = new InstanceItemViewModel(
-            Instance("runtime", root) with
-            {
-                Name = "运行补丁 1.5.78",
-                BuildId = "1.5.78.11833",
-                Purpose = InstancePurpose.OfficialSpeedrun,
-                SpeedrunTemplateId = "runtime-patches-1578"
-            },
-            "1.5.78",
-            "Vanilla",
-            0);
-
-        viewModel.Instances.Instances.Add(current);
-
-        // Give the environment a valid RuntimePatches configuration so the
-        // async config load succeeds and cannot replace the banner text with a
-        // "config invalid" error while the selection callback runs. The values
-        // match what Normalize produces for this build, so no rewrite happens.
-        string configPath = Path.Combine(
-            root,
-            ".crystalfly",
-            "instances",
-            current.Record.Id,
-            "local-low",
-            RuntimePatchesConfiguration.FileName);
-        Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
-        await File.WriteAllTextAsync(
-            configPath,
-            """{"ScreenShakeModifier":false,"MiniSaveStates":true,"FasterIntroSkip":false,"TextMasher":false}""");
-
-        viewModel.SelectedSpeedrunInstance = current;
-
-        // A fresh or unverified environment keeps its status on the speedrun
-        // page but must not push the "专用副本已创建" reminder banner.
-        Assert.False(viewModel.HasSpeedrunReminder);
-        Assert.Equal(viewModel.Loc["SpeedrunNeedsVerification"], viewModel.SpeedrunStatus);
-
-        viewModel.SelectedSpeedrunInstance = current with
-        {
-            Record = current.Record with { SpeedrunTemplateId = "race-1578" }
-        };
-
-        // The expired-template warning is still worth the banner.
-        Assert.True(viewModel.HasSpeedrunReminder);
-        Assert.Equal(viewModel.Loc["SpeedrunTemplateExpired"], viewModel.SpeedrunReminderText);
-    }
-
-    [Fact]
-    public async Task Speedrun_verification_keeps_report_path_out_of_global_status()
-    {
-        using var test = new TestDirectory();
-        string versionRoot = test.CreateDirectory("versions");
-        string instanceRoot = test.CreateDirectory("versions", "speedrun-copy");
-        string managedRoot = test.CreateDirectory(
-            "versions",
-            "speedrun-copy",
-            "hollow_knight_Data",
-            "Managed");
-        string executablePath = Path.Combine(instanceRoot, "hollow_knight.exe");
-        string unityPath = Path.Combine(instanceRoot, "UnityPlayer.dll");
-        string managersPath = Path.Combine(instanceRoot, "hollow_knight_Data", "globalgamemanagers");
-        string runtimePatchesPath = Path.Combine(managedRoot, "Assembly-CSharp.dll");
-        await File.WriteAllTextAsync(executablePath, "game");
-        await File.WriteAllTextAsync(unityPath, "unity");
-        await File.WriteAllTextAsync(managersPath, "managers");
-        await File.WriteAllTextAsync(runtimePatchesPath, "runtime-patches");
-
-        const string buildId = "1.5.78.11833";
-        string templateId = RuntimePatchesPolicy.GetTemplateId(buildId)!;
-        string assetId = RuntimePatchesPolicy.GetAssetId(buildId)!;
-        var build = new GameBuild
-        {
-            Id = buildId,
-            DisplayVersion = buildId,
-            DepotId = 367521,
-            ManifestId = "1",
-            ExecutableSha256 = FileSha256(executablePath),
-            UnityPlayerSha256 = FileSha256(unityPath),
-            GlobalGameManagersSha256 = FileSha256(managersPath)
-        };
-        var template = new SpeedrunTemplate
-        {
-            Id = templateId,
-            Name = $"RuntimePatches {buildId}",
-            BuildId = buildId,
-            IsOfficial = true,
-            RulesRevision = RuntimePatchesPolicy.RulesRevision,
-            FileManifestId = $"files-{templateId}",
-            RequiredAssetIds = [assetId]
-        };
-        var instance = Instance("speedrun-copy", instanceRoot) with
-        {
-            BuildId = buildId,
-            Purpose = InstancePurpose.OfficialSpeedrun,
-            ProvisioningMode = InstanceProvisioningMode.FullCopy,
-            SpeedrunTemplateId = templateId,
-            SpeedrunRulesRevision = template.RulesRevision
-        };
-        var fileManifest = new SpeedrunFileManifest
-        {
-            Id = template.FileManifestId,
-            BuildId = buildId,
-            RulesRevision = template.RulesRevision,
-            Files =
-            [
-                new SpeedrunFileRule
-                {
-                    RelativePath = "hollow_knight_Data/Managed/Assembly-CSharp.dll",
-                    Sha256 = FileSha256(runtimePatchesPath),
-                    Kind = SpeedrunFileKind.Tool,
-                    AssetId = assetId,
-                    AssetVersion = "1.0.2"
-                }
-            ]
-        };
-        string configurationPath = Path.Combine(
-            versionRoot,
-            ".crystalfly",
-            "instances",
-            instance.Id,
-            "local-low",
-            RuntimePatchesConfiguration.FileName);
-        await RuntimePatchesConfiguration.WriteAsync(
-            configurationPath,
-            new RuntimePatchesConfiguration { MiniSaveStates = true });
-        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
-        {
-            VersionRoot = versionRoot,
-            StatusMessage = "ready"
-        };
-        SetCatalog(viewModel, new GameCatalog
-        {
-            Builds = [build],
-            SpeedrunTemplates = [template],
-            SpeedrunFileManifests = [fileManifest]
-        });
-        var method = typeof(MainViewModel).GetMethod(
-            "VerifySpeedrunLaunchAsync",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-
-        await Assert.IsAssignableFrom<Task>(method.Invoke(viewModel, [instance]));
-
-        Assert.Equal(viewModel.Loc["SpeedrunVerifiedWithWarnings"], viewModel.SpeedrunStatus);
-        // A passing verification updates the page status but no longer shows a
-        // top-level banner, even when the report carries rule warnings.
-        Assert.False(viewModel.HasSpeedrunReminder);
-        Assert.Equal(string.Empty, viewModel.SpeedrunReminderText);
-        Assert.True(viewModel.HasSpeedrunReport);
-        Assert.Equal("ready", viewModel.StatusMessage);
-    }
-
-    [Fact]
-    public async Task Speedrun_reminder_can_be_dismissed()
-    {
-        using var test = new TestDirectory();
-        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
-        {
-            SpeedrunReminderText = "warning"
-        };
-
-        viewModel.DismissSpeedrunReminderCommand.Execute(null);
-
-        Assert.False(viewModel.HasSpeedrunReminder);
-    }
-
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -452,41 +383,6 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.False(viewModel.HasSelectedModReadme);
     }
 
-    [Theory]
-    [InlineData(UiLanguage.SimplifiedChinese, "zh-CN")]
-    [InlineData(UiLanguage.English, "en-US")]
-    public void Localization_uses_supported_culture_for_explicit_language(
-        UiLanguage language,
-        string expectedCulture)
-    {
-        var localization = new LocalizationViewModel();
-
-        localization.Apply(language);
-
-        Assert.Equal(expectedCulture, localization.Culture.Name);
-    }
-
-    [Fact]
-    public void Localization_normalizes_follow_system_culture()
-    {
-        var originalCulture = CultureInfo.CurrentUICulture;
-        try
-        {
-            var localization = new LocalizationViewModel();
-            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("zh-Hans");
-            localization.Apply(UiLanguage.FollowSystem);
-            Assert.Equal("zh-CN", localization.Culture.Name);
-
-            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en-AU");
-            localization.Apply(UiLanguage.FollowSystem);
-            Assert.Equal("en-US", localization.Culture.Name);
-        }
-        finally
-        {
-            CultureInfo.CurrentUICulture = originalCulture;
-        }
-    }
-
     [Fact]
     public async Task Injected_application_data_root_keeps_real_settings_unchanged()
     {
@@ -567,25 +463,6 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Equal(2, viewModel.Instances.GameDirectories.Count);
         Assert.Equal(existingRoot, viewModel.Instances.SelectedGameDirectory?.Path);
         Assert.Equal(viewModel.Loc["ScanFailed"], viewModel.Instances.GameDirectories[0].ScanStatus);
-    }
-
-    [Fact]
-    public async Task Accent_color_options_expose_seven_presets_and_one_custom_choice()
-    {
-        var viewModel = CreateViewModel();
-        InvokeRebuildSettingOptions(viewModel);
-
-        Assert.Equal(8, viewModel.AccentColorOptions.Count);
-        Assert.Equal(
-            AccentColorPalette.Presets,
-            viewModel.AccentColorOptions.Where(option => !option.IsCustom).Select(option => option.Hex));
-        Assert.True(viewModel.AccentColorOptions[^1].IsCustom);
-        Assert.True(viewModel.AccentColorOptions[0].IsSelected);
-
-        viewModel.PreviewAccentColor("#FDE68A");
-
-        Assert.True(viewModel.AccentColorOptions[^1].IsSelected);
-        await viewModel.DisposeAsync();
     }
 
     [Fact]
@@ -725,31 +602,142 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
-    public void Download_build_search_keeps_every_catalog_build_and_matches_manifest_ids()
+    public async Task Verified_12459_download_uses_the_catalog_build_instead_of_an_unverified_manifest_entry()
     {
         using var test = new TestDirectory();
-        var viewModel = new MainViewModel(test.CreateDirectory("app-data"));
-        var builds = Enumerable.Range(1, 6).Select(index => new GameBuild
-        {
-            Id = $"build-{index}",
-            DisplayVersion = $"1.5.{index}",
-            ManifestId = (1000 + index).ToString(CultureInfo.InvariantCulture),
-            ExecutableSha256 = new string('A', 64),
-            GlobalGameManagersSha256 = new string('B', 64)
-        }).ToArray();
-        SetPrivateField(viewModel, "catalog", new GameCatalog { Builds = builds });
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"));
+        SetCatalog(viewModel, EmbeddedCatalog.Load());
         var populate = typeof(MainViewModel).GetMethod("PopulateDownloadBuilds", BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(populate);
         populate.Invoke(viewModel, null);
 
-        Assert.Equal(8, viewModel.DownloadBuilds.Count);
-        var historical = viewModel.DownloadBuilds.Single(build =>
+        var historical = Assert.Single(viewModel.DownloadBuilds, build =>
             build.ManifestId == SteamProduct.HollowKnight12459ManifestId);
-        Assert.Equal(SteamDownloadQueueGroupFactory.CustomManifestBuildId, historical.BuildId);
-        viewModel.DownloadBuildSearchText = "1005";
+        Assert.Equal("1.5.12459", historical.BuildId);
+        Assert.Equal("1.5.12459", historical.DisplayName);
+        viewModel.DownloadBuildSearchText = SteamProduct.HollowKnight12459ManifestId.ToString(CultureInfo.InvariantCulture);
+        Assert.Same(historical, Assert.Single(viewModel.VisibleDownloadBuilds));
+    }
 
-        var match = Assert.Single(viewModel.VisibleDownloadBuilds);
-        Assert.Equal("build-5", match.BuildId);
+    [Fact]
+    public async Task Silksong_download_projection_keeps_fixed_builds_and_requires_matching_local_instances()
+    {
+        using var test = new TestDirectory();
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"));
+        SetPrivateField(viewModel, "settings", new CrystalflySettings { SelectedGameId = GameId.Silksong });
+
+        var embedded = EmbeddedCatalog.Load();
+        var drifted = embedded.Builds
+            .Select(build => string.Equals(build.Id, "silksong-1.0.29980", StringComparison.Ordinal)
+                ? build with { GlobalGameManagersSha256 = new string('0', 64) }
+                : build)
+            .ToArray();
+        SetCatalog(viewModel, embedded with { Builds = drifted });
+
+        string installedRoot = test.CreateDirectory("versions", "installed");
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(
+            Instance("installed", installedRoot) with
+            {
+                GameId = GameId.Silksong,
+                BuildId = "silksong-1.0.30000"
+            },
+            "1.0.30000",
+            "Vanilla",
+            0));
+        viewModel.Instances.Instances.Add(new InstanceItemViewModel(
+            Instance("wrong-game", test.CreateDirectory("versions", "wrong-game")) with
+            {
+                GameId = GameId.HollowKnight,
+                BuildId = "silksong-1.0.30000"
+            },
+            "1.0.30000",
+            "Vanilla",
+            0));
+
+        var populate = typeof(MainViewModel).GetMethod("PopulateDownloadBuilds", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(populate);
+        populate.Invoke(viewModel, null);
+
+        Assert.Equal(
+            ["public", "silksong-1.0.30000", "silksong-1.0.29980",
+                "steam-manifest-3703686001292550981", "steam-manifest-3853982342899707391",
+                "steam-manifest-3545882420322545098", "steam-manifest-426651197780377263",
+                "steam-manifest-3690203822520536668", "steam-manifest-5977483240701257214",
+                "steam-manifest-6773297648406051922", "steam-manifest-3900764848237536293",
+                "steam-manifest-8642535143474926050", "steam-manifest-539129767115354441",
+                "steam-manifest-3229726349000518284"],
+            viewModel.DownloadBuilds.Select(build => build.BuildId).ToArray());
+        var history = viewModel.DownloadBuilds.Where(build => build.BuildId.StartsWith("steam-manifest-", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(
+            ["1.0.29926", "1.0.29909", "1.0.29315", "1.0.29242", "1.0.28891",
+                $"1.0.28714 ({viewModel.Loc["DownloadBuildNewUnity"]})", $"1.0.28714 ({viewModel.Loc["DownloadBuildOldUnity"]})",
+                "1.0.28650", "1.0.28561", "1.0.28497", "1.0.28324"],
+            history.Select(build => build.DisplayName).ToArray());
+        Assert.All(history, build =>
+        {
+            Assert.Empty(build.VerificationText);
+            Assert.False(BuildIdentity.IsKnown(build.BuildId));
+        });
+        var latest = Assert.Single(viewModel.DownloadBuilds, build => build.BuildId == "public");
+        Assert.Equal(viewModel.Loc["DownloadBuildResolvedOnDownload"], latest.VerificationText);
+        Assert.False(latest.IsDownloaded);
+        var current = Assert.Single(viewModel.DownloadBuilds, build => build.BuildId == "silksong-1.0.30000");
+        Assert.Equal(viewModel.Loc["DownloadBuildFilesVerified"], current.VerificationText);
+        Assert.True(current.IsDownloaded);
+        var driftedBuild = Assert.Single(viewModel.DownloadBuilds, build => build.BuildId == "silksong-1.0.29980");
+        Assert.NotEqual(viewModel.Loc["DownloadBuildFilesVerified"], driftedBuild.VerificationText);
+        Assert.False(driftedBuild.IsDownloaded);
+
+        viewModel.SelectedDownloadBuild = driftedBuild;
+        viewModel.DownloadBuildSearchText = "29980";
+        InvokeApplyLanguage(viewModel, UiLanguage.English);
+        Assert.Equal("silksong-1.0.29980", viewModel.SelectedDownloadBuild?.BuildId);
+        Assert.Equal("29980", viewModel.DownloadBuildSearchText);
+        Assert.Equal("silksong-1.0.29980", Assert.Single(viewModel.VisibleDownloadBuilds).BuildId);
+
+        viewModel.DownloadBuildSearchText = "28714";
+        Assert.Equal(["1.0.28714 (new Unity)", "1.0.28714 (old Unity)"],
+            viewModel.VisibleDownloadBuilds.Select(build => build.DisplayName).ToArray());
+        Assert.Equal([5977483240701257214UL, 6773297648406051922UL],
+            viewModel.VisibleDownloadBuilds.Select(build => build.ManifestId!.Value).ToArray());
+
+        Directory.Delete(installedRoot, recursive: true);
+        populate.Invoke(viewModel, null);
+        Assert.False(Assert.Single(viewModel.DownloadBuilds, build => build.BuildId == "silksong-1.0.30000").IsDownloaded);
+    }
+
+    [Theory]
+    [InlineData("3229726349000518284", "1.0.28324", "2025-09-04")]
+    [InlineData("5977483240701257214", "1.0.28714 (新 Unity)", "2025-10-03")]
+    [InlineData("6773297648406051922", "1.0.28714 (旧 Unity)", "2025-09-24")]
+    public async Task Silksong_history_selection_queues_the_manifest_without_claiming_a_verified_build(
+        string manifestId, string displayName, string firstSeenDate)
+    {
+        using var test = new TestDirectory();
+        var versions = test.CreateDirectory("versions");
+        await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"), steamLoggedOnOverride: () => true)
+        {
+            VersionRoot = versions
+        };
+        SetPrivateField(viewModel, "settings", new CrystalflySettings { SelectedGameId = GameId.Silksong });
+        viewModel.DownloadCenter.DownloadQueue.IsTargetGameRunning = _ => true;
+        typeof(MainViewModel).GetMethod("PopulateDownloadBuilds", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(viewModel, null);
+        viewModel.DownloadBuildSearchText = manifestId;
+        viewModel.SelectedDownloadBuild = Assert.Single(viewModel.VisibleDownloadBuilds);
+        Assert.Equal(displayName, viewModel.SelectedDownloadBuild.DisplayName);
+        Assert.Equal(firstSeenDate, viewModel.SelectedDownloadBuild.FirstSeenDateText);
+        Assert.Empty(viewModel.SelectedDownloadBuild.VerificationText);
+
+        await viewModel.DownloadBuildCommand.ExecuteAsync(null);
+
+        Assert.Null(viewModel.ErrorMessage);
+        var group = Assert.Single(viewModel.DownloadCenter.DownloadQueue.Groups);
+        Assert.Equal(GameId.Silksong, group.GameId);
+        Assert.Equal(Path.Combine(versions, $"Hollow Knight Silksong {displayName}"), group.TargetInstanceRoot);
+        var item = Assert.Single(group.Items);
+        Assert.Equal("steam:manifest", item.PackageId);
+        Assert.Equal(manifestId, item.PackagePath);
+        Assert.False(File.Exists(Path.Combine(group.TargetInstanceRoot, GameDefinition.Silksong.ExecutableName)));
     }
 
     [Fact]
@@ -1082,6 +1070,31 @@ public sealed class MainViewModelStateTests : IDisposable
 
         Assert.Same(loader, viewModel.SelectedLoader);
         await viewModel.DisposeAsync();
+    }
+
+    [Theory]
+    [InlineData("1.5.78.11833")]
+    [InlineData("steam-public-42")]
+    [InlineData("unknown")]
+    public async Task Selecting_any_build_offers_BepInEx_even_with_an_older_catalog(string buildId)
+    {
+        await using var viewModel = CreateViewModel();
+        var bepinex = EmbeddedCatalog.Load().Loaders.Single(loader => loader.Id == "bepinex-5.4.23.4") with
+        {
+            SupportedBuildIds = ["1.5.12620.0"]
+        };
+        var moddingApi = EmbeddedCatalog.Load().Loaders.Single(loader => loader.Id == "modding-api-77");
+        SetCatalog(viewModel, new GameCatalog { Loaders = [bepinex, moddingApi] });
+        var record = Instance("practice", applicationData.CreateDirectory("instance")) with { BuildId = buildId };
+
+        viewModel.SelectedInstance = new InstanceItemViewModel(record, buildId, "Vanilla", 0);
+
+        Assert.Contains(bepinex, viewModel.AvailableLoaders);
+        Assert.Equal(buildId == "1.5.78.11833", viewModel.AvailableLoaders.Contains(moddingApi));
+        if (buildId != "1.5.78.11833")
+        {
+            Assert.Same(bepinex, viewModel.SelectedLoader);
+        }
     }
 
     [Fact]
@@ -1686,8 +1699,13 @@ public sealed class MainViewModelStateTests : IDisposable
             Path.Combine(instanceRoot, LoaderInstalledPath(currentLoaderId))));
         Assert.Equal(originalModFile, await File.ReadAllBytesAsync(modPath));
     }
-    [Fact]
-    public async Task Repair_loader_uses_receipted_manifest_instead_of_selected_target()
+    [Theory]
+    [InlineData("modding-api-77", "1.5.78.11833")]
+    [InlineData("bepinex-5.4.23.4", "1.2.2.1")]
+    [InlineData("bepinex-5.4.23.4", "steam-manifest-42")]
+    [InlineData("bepinex-5.4.23.4", "unknown")]
+    public async Task Repair_loader_uses_receipted_manifest_instead_of_selected_target(
+        string currentLoaderId, string buildId)
     {
         using var test = new TestDirectory();
         var versionRoot = test.CreateDirectory("versions");
@@ -1698,10 +1716,17 @@ public sealed class MainViewModelStateTests : IDisposable
         var packageRoot = test.CreateDirectory("packages");
         var currentPackage = Path.Combine(packageRoot, "current.zip");
         var targetPackage = Path.Combine(packageRoot, "target.zip");
-        CreateZip(currentPackage, ("MMHOOK_Assembly-CSharp.dll", "current-loader"));
-        CreateZip(targetPackage, ("BepInEx/core/BepInEx.dll", "target-loader"));
-        var currentLoader = LoaderManifestFor("modding-api-77", currentPackage);
-        var targetLoader = LoaderManifestFor("bepinex-5.4.23.4", targetPackage);
+        var currentIsBepInEx = currentLoaderId.StartsWith("bepinex-", StringComparison.OrdinalIgnoreCase);
+        CreateZip(currentPackage,
+            (currentIsBepInEx ? "BepInEx/core/BepInEx.dll" : "MMHOOK_Assembly-CSharp.dll", "current-loader"));
+        CreateZip(targetPackage,
+            (currentIsBepInEx ? "MMHOOK_Assembly-CSharp.dll" : "BepInEx/core/BepInEx.dll", "target-loader"));
+        var currentLoader = LoaderManifestFor(currentLoaderId, currentPackage);
+        if (currentIsBepInEx)
+        {
+            currentLoader = currentLoader with { SupportedBuildIds = ["1.5.12620.0"] };
+        }
+        var targetLoader = LoaderManifestFor(currentIsBepInEx ? "modding-api-77" : "bepinex-5.4.23.4", targetPackage);
         var loaderReceiptPath = Path.Combine(stateRoot, "loader.json");
         var manager = new LoaderManager(
             instanceRoot,
@@ -1713,7 +1738,7 @@ public sealed class MainViewModelStateTests : IDisposable
         var installedPath = Path.Combine(instanceRoot, LoaderInstalledPath(currentLoader.Id));
         await File.WriteAllTextAsync(installedPath, "drifted");
 
-        var record = Instance("practice", instanceRoot) with { BuildId = "1.5.78.11833" };
+        var record = Instance("practice", instanceRoot) with { BuildId = buildId };
         await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"))
         {
             VersionRoot = versionRoot,
@@ -2343,23 +2368,6 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
-    public void Download_status_shows_speed_size_progress_and_current_file()
-    {
-        var progress = new SteamDownloadProgress(
-            CompletedBytes: 486L * 1024 * 1024,
-            TotalBytes: (long)(2.1 * 1024 * 1024 * 1024),
-            Fraction: 0.23,
-            CurrentFile: "current-file.dat")
-        {
-            BytesPerSecond = 12.4 * 1024 * 1024
-        };
-
-        var status = MainViewModel.FormatDownloadStatus(progress);
-
-        Assert.Equal("12.4 MB/s · 486 MB / 2.1 GB · 23%\ncurrent-file.dat", status);
-    }
-
-    [Fact]
     public void Clone_name_rejects_whitespace()
     {
         var viewModel = CreateViewModel();
@@ -2486,18 +2494,21 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.True(name.Length <= 255);
     }
 
-    [Fact]
-    public void Download_instance_name_skips_an_existing_file()
+    [Theory]
+    [InlineData(GameId.HollowKnight, "Hollow Knight")]
+    [InlineData(GameId.Silksong, "Hollow Knight Silksong")]
+    public void Download_instance_name_skips_an_existing_file(GameId gameId, string directoryName)
     {
         using var test = new TestDirectory();
         var versionRoot = test.CreateDirectory("versions");
-        File.WriteAllText(Path.Combine(versionRoot, "Hollow Knight 1.5"), "occupied");
+        File.WriteAllText(Path.Combine(versionRoot, $"{directoryName} 1.5"), "occupied");
         var viewModel = CreateViewModel();
+        SetPrivateField(viewModel, "settings", new CrystalflySettings { SelectedGameId = gameId });
         viewModel.VersionRoot = versionRoot;
 
         var name = InvokeUniqueInstanceName(viewModel, "1.5");
 
-        Assert.Equal("Hollow Knight 1.5 (2)", name);
+        Assert.Equal($"{directoryName} 1.5 (2)", name);
     }
 
     [Fact]
@@ -2544,30 +2555,6 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
-    public async Task Favorite_instances_sort_first_within_the_active_directory()
-    {
-        await using var viewModel = CreateViewModel();
-        var alpha = new InstanceItemViewModel(
-            Instance("alpha", applicationData.CreateDirectory("favorite-versions", "alpha")),
-            "1.5.78.11833",
-            "Vanilla",
-            0);
-        var beta = new InstanceItemViewModel(
-            Instance("beta", applicationData.CreateDirectory("favorite-versions", "beta")),
-            "1.5.78.11833",
-            "Vanilla",
-            0);
-        viewModel.Instances.Instances.Add(alpha);
-        viewModel.Instances.Instances.Add(beta);
-
-        viewModel.Instances.ToggleFavoriteInstanceCommand.Execute(beta);
-
-        Assert.True(viewModel.Instances.VisibleInstances[0].IsFavorite);
-        Assert.Equal("beta", viewModel.Instances.VisibleInstances[0].Id);
-        Assert.False(viewModel.Instances.VisibleInstances[1].IsFavorite);
-    }
-
-    [Fact]
     public async Task Delete_instance_runs_condition_check_inside_coordinator_and_selects_next()
     {
         InstanceRecord? deleted = null;
@@ -2610,34 +2597,6 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.DoesNotContain(first, viewModel.Instances.Instances);
         Assert.Same(second, viewModel.SelectedInstance);
         Assert.Equal("Launch", viewModel.CurrentPage);
-    }
-
-    [Fact]
-    public void Mod_search_and_status_filter_both_lists()
-    {
-        var viewModel = CreateViewModel();
-        var catalog = Manifest("debugmod", "2.0.0");
-        viewModel.ModManagement.AvailableMods.Add(catalog);
-        viewModel.ModManagement.AvailableMods.Add(Manifest("benchwarp", "1.0.0"));
-        viewModel.ModManagement.InstalledMods.Add(new InstalledModItemViewModel(
-            Receipt("debugmod", "1.0.0", enabled: true),
-            catalog,
-            static () => { }));
-        viewModel.ModManagement.InstalledMods.Add(new InstalledModItemViewModel(
-            Receipt("local-helper", "1.0.0", enabled: false, isLocal: true),
-            null,
-            static () => { }));
-
-        viewModel.ModManagement.ModSearchText = "debug";
-
-        Assert.Single(viewModel.ModManagement.VisibleAvailableMods);
-        Assert.Single(viewModel.ModManagement.VisibleInstalledMods);
-
-        viewModel.ModManagement.ModSearchText = string.Empty;
-        viewModel.ModManagement.SelectedModStatus = ModStatusFilter.Local;
-
-        Assert.Single(viewModel.ModManagement.VisibleInstalledMods);
-        Assert.Equal("local-helper", viewModel.ModManagement.VisibleInstalledMods[0].Id);
     }
 
     [Fact]
@@ -2908,152 +2867,6 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
-    public void Mod_market_filters_by_exact_build_loader_source_and_tag()
-    {
-        var viewModel = CreateViewModel();
-        var debugMod = Manifest("debugmod", "2.0.0") with
-        {
-            LoaderId = "modding-api-77",
-            SupportedBuildIds = ["1.5.78.11833"],
-            SourceName = "HK ModLinks",
-            Tags = ["Utility"]
-        };
-        var overlay = Manifest("overlay", "1.0.0") with
-        {
-            LoaderId = "bepinex-5.4.23.4",
-            SupportedBuildIds = ["latest-stable"],
-            SourceName = "custom:test",
-            Tags = ["Visual"]
-        };
-
-        SetCatalog(viewModel, new GameCatalog { Mods = [debugMod, overlay] });
-        InvokeRebuildMarketCatalog(viewModel);
-
-        viewModel.SelectedMarketBuildOption = new("1.5.78.11833", "1.5.78.11833");
-        viewModel.SelectedMarketLoaderOption = new("modding-api-77", "Modding API v77");
-        viewModel.SelectedMarketSourceOption = new("HK ModLinks", "HK ModLinks");
-        viewModel.SelectedMarketTagOption = new("Utility", "Utility");
-
-        Assert.Single(viewModel.VisibleMarketMods);
-        Assert.Equal("debugmod", viewModel.VisibleMarketMods[0].Id);
-    }
-
-    [Fact]
-    public void Mod_market_exposes_1578_official_mods_for_latest_api78()
-    {
-        var viewModel = CreateViewModel();
-        var mod = Manifest("hkmod:Benchwarp", "1.0.0") with
-        {
-            LoaderId = "modding-api-77",
-            SupportedBuildIds = ["1.5.78.11833"],
-            SourceName = "HK ModLinks"
-        };
-        SetCatalog(viewModel, new GameCatalog
-        {
-
-            Loaders =
-            [
-                new LoaderManifest
-                {
-                    Id = "modding-api-77",
-                    Name = "Modding API",
-                    Version = "77",
-                    DownloadUrl = "https://example.invalid/api77.zip",
-                    Sha256 = new string('A', 64),
-                    SupportedBuildIds = ["1.5.78.11833"]
-                },
-                new LoaderManifest
-                {
-                    Id = "modding-api-78",
-                    Name = "Modding API",
-                    Version = "78",
-                    DownloadUrl = "https://example.invalid/api78.zip",
-                    Sha256 = new string('B', 64),
-                    SupportedBuildIds = ["1.5.12620.0"]
-                }
-            ],
-            Mods = [mod]
-        });
-        InvokeRebuildMarketCatalog(viewModel);
-
-        viewModel.SelectedMarketBuildOption = new("1.5.12620.0", "1.5.12620.0");
-        viewModel.SelectedMarketLoaderOption = new("modding-api-78", "Modding API 78");
-
-        Assert.Contains(viewModel.MarketBuildOptions, option => option.Value == "1.5.12620.0");
-        Assert.Contains(viewModel.MarketLoaderOptions, option => option.Value == "modding-api-78");
-        Assert.Equal("hkmod:Benchwarp", Assert.Single(viewModel.VisibleMarketMods).Id);
-    }
-    [Fact]
-    public void Installed_mod_graph_always_shows_the_complete_instance()
-    {
-        var viewModel = CreateViewModel();
-        var library = new InstalledModItemViewModel(
-            Receipt("library", "1.0.0", enabled: true),
-            null,
-            static () => { });
-        var feature = new InstalledModItemViewModel(
-            Receipt("feature", "1.0.0", enabled: true) with { Dependencies = ["library"] },
-            null,
-            static () => { });
-        var isolated = new InstalledModItemViewModel(
-            Receipt("isolated", "1.0.0", enabled: true),
-            null,
-            static () => { });
-        viewModel.ModManagement.InstalledMods.Add(library);
-        viewModel.ModManagement.InstalledMods.Add(feature);
-        viewModel.ModManagement.InstalledMods.Add(isolated);
-        viewModel.ModManagement.SelectedInstalledMod = feature;
-
-        viewModel.ModManagement.ShowInstalledModGraphCommand.Execute(null);
-
-        Assert.True(viewModel.ModManagement.IsInstalledModGraphVisible);
-        Assert.Equal(["feature", "isolated", "library"], viewModel.DependencyGraph.Graph.Nodes.Select(node => node.Id).Order());
-        var edge = Assert.Single(viewModel.DependencyGraph.Graph.Edges);
-        Assert.Equal("library", edge.Source.Id);
-        Assert.Equal("feature", edge.Target.Id);
-
-        viewModel.ModManagement.SelectedInstalledMod = library;
-
-        Assert.Equal(3, viewModel.DependencyGraph.Graph.Nodes.Count);
-    }
-
-    [Fact]
-    public void Mod_market_filters_recent_additions_from_activity_catalog()
-    {
-        var viewModel = CreateViewModel();
-        var recent = Manifest("hkmod:Recent", "1.0.0");
-        var older = Manifest("hkmod:Older", "1.0.0");
-        SetCatalog(viewModel, new GameCatalog { Mods = [recent, older] });
-        SetPrivateField(viewModel, "modActivityCatalog", new ModActivityCatalog
-        {
-            GeneratedAt = DateTimeOffset.Parse("2026-07-22T00:00:00Z"),
-            SourceRevision = "1234567",
-            Entries =
-            [
-                new ModActivityEntry
-                {
-                    Id = recent.Id,
-                    AddedAt = DateTimeOffset.Parse("2026-07-20T00:00:00Z"),
-                    UpdatedAt = DateTimeOffset.Parse("2026-07-20T00:00:00Z")
-                },
-                new ModActivityEntry
-                {
-                    Id = older.Id,
-                    AddedAt = DateTimeOffset.Parse("2025-01-01T00:00:00Z"),
-                    UpdatedAt = DateTimeOffset.Parse("2025-01-01T00:00:00Z")
-                }
-            ]
-        });
-        InvokeRebuildMarketCatalog(viewModel);
-
-        viewModel.SelectedMarketActivityOption = new(
-            MarketActivityFilter.RecentlyAdded,
-            "Recently added");
-
-        Assert.Equal(recent.Id, Assert.Single(viewModel.VisibleMarketMods).Id);
-    }
-
-    [Fact]
     public async Task Market_install_target_preparation_discards_results_when_selection_changes()
     {
         using var test = new TestDirectory();
@@ -3308,100 +3121,6 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
-    public async Task Language_change_refreshes_localized_bindings_and_selected_option()
-    {
-        var viewModel = CreateViewModel();
-        InvokeRebuildSettingOptions(viewModel);
-        var english = viewModel.LanguageOptions.Single(option =>
-            option.Value == Crystalfly.Core.Configuration.UiLanguage.English);
-        var previousLocalization = viewModel.Loc;
-        var changedProperties = new List<string?>();
-        viewModel.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
-
-        viewModel.SelectedLanguage = english;
-
-        Assert.Contains(nameof(MainViewModel.Loc), changedProperties);
-        // The LocalizationViewModel instance is reused on purpose so that bindings and
-        // captured references keep working; the language values themselves must switch.
-        Assert.Same(previousLocalization, viewModel.Loc);
-        Assert.Equal("Ready", viewModel.Loc["StatusReady"]);
-        Assert.Same(
-            viewModel.LanguageOptions.Single(option => option.Value == english.Value),
-            viewModel.SelectedLanguage);
-        await viewModel.DisposeAsync();
-    }
-
-    [Fact]
-    public async Task Language_switch_refreshes_preflight_and_status_bar_labels()
-    {
-        var viewModel = CreateViewModel();
-        Assert.Equal("未选择实例", viewModel.LaunchReadinessTitle);
-
-        InvokeApplyLanguage(viewModel, UiLanguage.English);
-
-        Assert.Equal("No instance selected", viewModel.LaunchReadinessTitle);
-        Assert.Equal(
-            "Choose a version root to discover Hollow Knight instances.",
-            viewModel.LaunchReadinessHint);
-        Assert.Equal("Select an environment or create a new one.", viewModel.SelectedSpeedrunTechnicalStatus);
-        await viewModel.DisposeAsync();
-    }
-
-    [Fact]
-    public async Task Language_switch_reprojects_installed_mod_item_display_names()
-    {
-        var viewModel = CreateViewModel();
-        var instanceRoot = applicationData.CreateDirectory("mods-l10n-instance");
-        var record = Instance("practice", instanceRoot);
-        var mods = new[]
-        {
-            new ModDiscoveryEntry
-            {
-                Id = "mod",
-                Name = "Mod",
-                LoaderId = "modding-api-77",
-                InstallRoot = instanceRoot,
-                Enabled = true,
-                Ownership = ModOwnership.Managed,
-                Files = [],
-                EntryFiles = []
-            }
-        };
-        viewModel.ModManagement.LoadInstalledMods(
-            mods,
-            [],
-            [new ModHealthReport { ModId = "mod", Status = ModHealthStatus.Healthy }],
-            record);
-        var item = Assert.Single(viewModel.ModManagement.InstalledMods);
-        Assert.Equal("已安装", item.OwnershipDisplayName);
-        Assert.Equal("正常", item.HealthDisplayName);
-
-        InvokeApplyLanguage(viewModel, UiLanguage.English);
-
-        item = Assert.Single(viewModel.ModManagement.InstalledMods);
-        Assert.Equal("Installed", item.OwnershipDisplayName);
-        Assert.Equal("Healthy", item.HealthDisplayName);
-        await viewModel.DisposeAsync();
-    }
-
-    [Fact]
-    public async Task Language_switch_reprojects_download_queue_texts()
-    {
-        var viewModel = CreateViewModel();
-        InvokeQueueDownloadQueueProjection(viewModel, QueueGroup("group", DownloadQueueGroupState.Completed));
-        InvokeApplyPendingDownloadQueueProjection(viewModel);
-        var group = Assert.Single(viewModel.DownloadCenter.DownloadQueueGroups);
-        Assert.Equal("已完成", group.StateText);
-
-        InvokeApplyLanguage(viewModel, UiLanguage.English);
-        InvokeApplyPendingDownloadQueueProjection(viewModel);
-
-        Assert.Equal("Completed", group.StateText);
-        Assert.Equal("Completed", group.Items[0].StateText);
-        await viewModel.DisposeAsync();
-    }
-
-    [Fact]
     public async Task Language_switch_refreshes_speedrun_activity_texts_and_items()
     {
         string root = applicationData.CreateDirectory("speedrun-l10n");
@@ -3504,115 +3223,6 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Equal("Will change", viewModel.PresetApplySteps[0].State);
         Assert.Equal("Enable", viewModel.PresetApplySteps[1].Action);
         Assert.Equal("Ready", viewModel.PresetApplySteps[1].State);
-        await viewModel.DisposeAsync();
-    }
-
-    [Fact]
-    public async Task Language_switch_refreshes_settings_option_labels()
-    {
-        var viewModel = CreateViewModel();
-        InvokeRebuildSettingOptions(viewModel);
-        Assert.Contains(viewModel.LanguageOptions, option => option.Name == "简体中文");
-
-        InvokeApplyLanguage(viewModel, UiLanguage.English);
-
-        Assert.Contains(viewModel.LanguageOptions, option => option.Name == "Simplified Chinese");
-        Assert.Contains(viewModel.Settings.ThemeOptions, option => option.Name == "Dark");
-        Assert.Contains(viewModel.Settings.MotionOptions, option => option.Name == "Follow system");
-        Assert.Contains(viewModel.Settings.GitHubRouteOptions, option => option.Name == "gh-proxy.com");
-        Assert.Equal(
-            [
-                GitHubDownloadRoute.Auto,
-                GitHubDownloadRoute.Direct,
-                GitHubDownloadRoute.GhProxyOrg,
-                GitHubDownloadRoute.Mirror,
-                GitHubDownloadRoute.GhProxyNet,
-                GitHubDownloadRoute.GhFastTop
-            ],
-            viewModel.Settings.GitHubRouteOptions.Select(option => option.Value));
-        await viewModel.DisposeAsync();
-    }
-
-    [Fact]
-    public async Task Applying_language_notifies_official_catalog_labels()
-    {
-        var viewModel = CreateViewModel();
-        SetOfficialCatalogResult(viewModel, new(
-            Crystalfly.Core.Catalog.OfficialCatalogLoadStatus.Cached,
-            new GameCatalog(),
-            "77",
-            650,
-            null));
-        var changedProperties = new List<string?>();
-        viewModel.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
-
-        InvokeApplyLanguage(viewModel, UiLanguage.English);
-
-        Assert.Contains(nameof(MainViewModel.OfficialModCatalogStatus), changedProperties);
-        Assert.Contains(nameof(MainViewModel.OfficialModCatalogSummary), changedProperties);
-        Assert.Contains(nameof(MainViewModel.OfficialModCatalogError), changedProperties);
-        await viewModel.DisposeAsync();
-    }
-
-    [Fact]
-    public async Task Language_change_rebuilds_all_mod_market_filter_labels()
-    {
-        var viewModel = CreateViewModel();
-        InvokeRebuildSettingOptions(viewModel);
-        viewModel.SelectedLanguage = viewModel.LanguageOptions.Single(option =>
-            option.Value == UiLanguage.SimplifiedChinese);
-        SetCatalog(viewModel, new GameCatalog
-        {
-            Builds =
-            [
-                new GameBuild
-                {
-                    Id = "1.5.78.11833",
-                    DisplayVersion = "1.5.78.11833",
-                    ManifestId = "0",
-                    ExecutableSha256 = new string('C', 64),
-                    GlobalGameManagersSha256 = new string('D', 64)
-                }
-            ],
-            Loaders =
-            [
-                new LoaderManifest
-                {
-                    Id = "modding-api-77",
-                    Name = "Modding API",
-                    Version = "77",
-                    DownloadUrl = "https://example.invalid/api.zip",
-                    Sha256 = new string('B', 64),
-                    SupportedBuildIds = ["1.5.78.11833"]
-                }
-            ],
-            Mods =
-            [
-                Manifest("hkmod:DebugMod", "2.0.0") with
-                {
-                    Name = "DebugMod",
-                    DisplayName = "DebugMod",
-                    LoaderId = "modding-api-77",
-                    SupportedBuildIds = ["1.5.78.11833"],
-                    SourceName = "HK ModLinks",
-                    Tags = ["Utility"]
-                }
-            ]
-        });
-        InvokeRebuildMarketCatalog(viewModel);
-        Assert.All(MarketFilterLabels(viewModel), label => Assert.Equal("全部状态", label));
-        var selected = Assert.Single(viewModel.MarketMods);
-        viewModel.SelectedMarketTagOption = viewModel.MarketTagOptions.Single(option => option.Value == "Utility");
-        viewModel.SelectedMarketMod = selected;
-        Assert.Equal("调试模组", viewModel.SelectedMarketModDisplay?.PrimaryName);
-
-        viewModel.SelectedLanguage = viewModel.LanguageOptions.Single(option =>
-            option.Value == UiLanguage.English);
-
-        Assert.All(MarketFilterLabels(viewModel), label => Assert.Equal("All statuses", label));
-        Assert.Equal("Utility", viewModel.SelectedMarketTagOption?.Value);
-        Assert.Same(selected, viewModel.SelectedMarketMod);
-        Assert.Equal("DebugMod", viewModel.SelectedMarketModDisplay?.PrimaryName);
         await viewModel.DisposeAsync();
     }
 

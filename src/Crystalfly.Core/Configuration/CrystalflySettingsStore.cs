@@ -10,7 +10,7 @@ public static class CrystalflySettingsStore
         CancellationToken cancellationToken = default) =>
         AtomicJsonStore.WriteAsync(
             path,
-            Normalize(settings),
+            GameWorkspaceMigration.Capture(Normalize(settings)),
             cancellationToken);
 
     public static async Task<CrystalflySettings> LoadAsync(
@@ -23,7 +23,15 @@ public static class CrystalflySettingsStore
         }
 
         var settings = await AtomicJsonStore.ReadAsync<CrystalflySettings>(path, cancellationToken);
-        return MigrateLegacyVersionRoot(Normalize(settings));
+        var migrated = MigrateLegacyVersionRoot(Normalize(settings));
+        if (migrated.GameWorkspaces.Count == 0)
+        {
+            if (File.Exists(path) && !File.Exists(path + ".pre-multigame.bak"))
+                File.Copy(path, path + ".pre-multigame.bak");
+            migrated = GameWorkspaceMigration.Capture(migrated);
+            await SaveAsync(path, migrated, cancellationToken);
+        }
+        return migrated;
     }
 
     private static CrystalflySettings MigrateLegacyVersionRoot(CrystalflySettings settings)
@@ -59,6 +67,7 @@ public static class CrystalflySettingsStore
             [
                 new GameDirectoryRegistration
                 {
+                    GameId = settings.SelectedGameId,
                     Path = root,
                     DisplayName = string.IsNullOrWhiteSpace(displayName) ? root : displayName,
                     Source = GameDirectorySourceKind.Managed

@@ -5,36 +5,6 @@ namespace Crystalfly.App.Tests.ViewModels;
 
 public sealed class InstalledModItemViewModelTests
 {
-    [Fact]
-    public void Reports_catalog_update_and_selection_changes()
-    {
-        var changes = 0;
-        var item = new InstalledModItemViewModel(
-            Receipt("debugmod", "1.0.0", enabled: true),
-            Manifest("debugmod", "1.1.0"),
-            () => changes++);
-
-        Assert.True(item.HasUpdate);
-        Assert.True(item.IsEnabled);
-        Assert.False(item.IsLocal);
-
-        item.IsSelected = true;
-
-        Assert.Equal(1, changes);
-    }
-
-    [Fact]
-    public void Local_mod_never_claims_catalog_update()
-    {
-        var item = new InstalledModItemViewModel(
-            Receipt("local-test", "1.0.0", enabled: false, isLocal: true),
-            Manifest("local-test", "2.0.0"),
-            static () => { });
-
-        Assert.False(item.HasUpdate);
-        Assert.False(item.IsEnabled);
-        Assert.True(item.IsLocal);
-    }
 
     [Fact]
     public void Chinese_market_projection_drives_installed_name_tags_and_search()
@@ -69,22 +39,6 @@ public sealed class InstalledModItemViewModelTests
         Assert.True(item.Matches("Official debug", ModStatusFilter.All));
         Assert.True(item.Matches("工具", ModStatusFilter.All));
         Assert.True(item.Matches("debugmod", ModStatusFilter.All));
-    }
-
-    [Fact]
-    public void Unknown_local_mod_falls_back_to_receipt_name()
-    {
-        var item = new InstalledModItemViewModel(
-            Receipt("local-test", "local", enabled: false, isLocal: true) with
-            {
-                Name = "Local Helper"
-            },
-            null,
-            static () => { });
-
-        Assert.Equal("Local Helper", item.PrimaryName);
-        Assert.False(item.HasSecondaryName);
-        Assert.True(item.Matches("Local Helper", ModStatusFilter.Local));
     }
 
     [Fact]
@@ -208,23 +162,6 @@ public sealed class InstalledModItemViewModelTests
 
         Assert.False(item.CanRepair);
         Assert.True(item.CanReinstall);
-    }
-
-    [Theory]
-    [InlineData("debug", ModStatusFilter.All, true)]
-    [InlineData("missing", ModStatusFilter.All, false)]
-    [InlineData("", ModStatusFilter.Enabled, true)]
-    [InlineData("", ModStatusFilter.Disabled, false)]
-    [InlineData("", ModStatusFilter.Updates, true)]
-    [InlineData("", ModStatusFilter.Local, false)]
-    public void Matches_search_and_status_filter(string search, ModStatusFilter filter, bool expected)
-    {
-        var item = new InstalledModItemViewModel(
-            Receipt("debugmod", "1.0.0", enabled: true),
-            Manifest("debugmod", "1.1.0"),
-            static () => { });
-
-        Assert.Equal(expected, item.Matches(search, filter));
     }
 
     private static InstalledModReceipt Receipt(

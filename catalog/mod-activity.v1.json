@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-19T02:03:05.0000000+00:00",
-  "sourceRevision": "0e02c640bdd7b35bd8b6c610f1e710a4cd557dcb",
+  "generatedAt": "2026-09-18T21:11:09.0000000+00:00",
+  "sourceRevision": "5e3e993d5fec9b783752d0e700025718832a5375",
   "entries": [
     {
       "id": "hkmod:AbsRad Configurable Attacks",
@@ -106,7 +106,7 @@
     {
       "id": "hkmod:Another Location",
       "addedAt": "2026-07-16T17:38:47.0000000+00:00",
-      "updatedAt": "2026-09-26T06:04:40.0000000+00:00"
+      "updatedAt": "2026-07-16T18:07:08.0000000+00:00"
     },
     {
       "id": "hkmod:Any Radiance 3.0",
@@ -136,7 +136,7 @@
     {
       "id": "hkmod:Architect",
       "addedAt": "2025-06-17T15:45:52.0000000+00:00",
-      "updatedAt": "2026-10-17T14:31:39.0000000+00:00"
+      "updatedAt": "2026-09-17T15:09:10.0000000+00:00"
     },
     {
       "id": "hkmod:ArchitectLegacy",
@@ -234,16 +234,6 @@
       "updatedAt": "2024-12-06T16:04:13.0000000+00:00"
     },
     {
-      "id": "hkmod:BetterParrying",
-      "addedAt": "2026-09-27T11:49:34.0000000+00:00",
-      "updatedAt": "2026-09-27T11:49:34.0000000+00:00"
-    },
-    {
-      "id": "hkmod:BetterScreenShot",
-      "addedAt": "2026-10-09T02:03:59.0000000+00:00",
-      "updatedAt": "2026-10-09T02:03:59.0000000+00:00"
-    },
-    {
       "id": "hkmod:Biblically Accurate Lasers",
       "addedAt": "2024-07-02T20:24:50.0000000+00:00",
       "updatedAt": "2024-07-03T17:33:24.0000000+00:00"
@@ -251,7 +241,7 @@
     {
       "id": "hkmod:BingoAdvancedCustomGeneration",
       "addedAt": "2026-03-16T01:13:36.0000000+00:00",
-      "updatedAt": "2026-10-12T17:37:32.0000000+00:00"
+      "updatedAt": "2026-04-23T21:36:39.0000000+00:00"
     },
     {
       "id": "hkmod:BingoBoard",
@@ -261,32 +251,32 @@
     {
       "id": "hkmod:BingoBoardReplay",
       "addedAt": "2025-05-07T15:30:13.0000000+00:00",
-      "updatedAt": "2026-10-12T17:37:32.0000000+00:00"
+      "updatedAt": "2026-04-23T03:53:57.0000000+00:00"
     },
     {
       "id": "hkmod:BingoGoalPack1",
       "addedAt": "2024-04-20T10:13:30.0000000+00:00",
-      "updatedAt": "2026-10-12T17:37:32.0000000+00:00"
+      "updatedAt": "2026-03-16T01:13:36.0000000+00:00"
     },
     {
       "id": "hkmod:BingoGoalPack2",
       "addedAt": "2024-10-30T09:34:57.0000000+00:00",
-      "updatedAt": "2026-10-12T17:37:32.0000000+00:00"
+      "updatedAt": "2026-03-16T01:13:36.0000000+00:00"
     },
     {
       "id": "hkmod:BingoGoalPackGrubDay",
       "addedAt": "2026-06-12T21:23:02.0000000+00:00",
-      "updatedAt": "2026-10-12T17:37:32.0000000+00:00"
+      "updatedAt": "2026-06-12T21:23:02.0000000+00:00"
     },
     {
       "id": "hkmod:BingoGoalPackSpleengy",
       "addedAt": "2026-04-24T08:08:25.0000000+00:00",
-      "updatedAt": "2026-10-12T17:37:32.0000000+00:00"
+      "updatedAt": "2026-04-24T08:08:25.0000000+00:00"
     },
     {
       "id": "hkmod:BingoSync",
       "addedAt": "2023-06-09T13:45:54.0000000+00:00",
-      "updatedAt": "2026-10-12T17:37:32.0000000+00:00"
+      "updatedAt": "2026-04-23T03:53:57.0000000+00:00"
     },
     {
       "id": "hkmod:BingoSyncExtension",
@@ -361,12 +351,7 @@
     {
       "id": "hkmod:BugPrince",
       "addedAt": "2025-06-11T19:04:42.0000000+00:00",
-      "updatedAt": "2026-09-29T04:24:13.0000000+00:00"
-    },
-    {
-      "id": "hkmod:Bullshittery",
-      "addedAt": "2026-10-19T02:03:05.0000000+00:00",
-      "updatedAt": "2026-10-19T02:03:05.0000000+00:00"
+      "updatedAt": "2026-08-28T18:01:05.0000000+00:00"
     },
     {
       "id": "hkmod:CabbyCodes",
@@ -456,7 +441,7 @@
     {
       "id": "hkmod:Charm Rebalanced",
       "addedAt": "2026-05-15T17:48:07.0000000+00:00",
-      "updatedAt": "2026-09-26T06:11:34.0000000+00:00"
+      "updatedAt": "2026-07-23T15:44:40.0000000+00:00"
     },
     {
       "id": "hkmod:CharmPatch",
@@ -736,7 +721,7 @@
     {
       "id": "hkmod:DarknessRandomizer",
       "addedAt": "2022-09-04T05:23:53.0000000+00:00",
-      "updatedAt": "2026-09-29T04:24:13.0000000+00:00"
+      "updatedAt": "2026-08-07T15:30:00.0000000+00:00"
     },
     {
       "id": "hkmod:Dash Slash Plus",
@@ -981,7 +966,7 @@
     {
       "id": "hkmod:EverySceneUtil",
       "addedAt": "2026-03-13T09:15:44.0000000+00:00",
-      "updatedAt": "2026-09-27T11:47:04.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:Exaltation",
@@ -1251,7 +1236,7 @@
     {
       "id": "hkmod:Ghost Macro",
       "addedAt": "2026-06-01T21:23:03.0000000+00:00",
-      "updatedAt": "2026-09-26T06:08:25.0000000+00:00"
+      "updatedAt": "2026-06-01T21:23:03.0000000+00:00"
     },
     {
       "id": "hkmod:GhostHunter",
@@ -1271,7 +1256,7 @@
     {
       "id": "hkmod:GlobalList Atlas",
       "addedAt": "2026-08-28T17:46:14.0000000+00:00",
-      "updatedAt": "2026-10-11T20:24:04.0000000+00:00"
+      "updatedAt": "2026-08-28T17:46:14.0000000+00:00"
     },
     {
       "id": "hkmod:GloriousGrimmMusic",
@@ -1311,7 +1296,7 @@
     {
       "id": "hkmod:GodhomeQoL",
       "addedAt": "2025-12-19T11:29:37.0000000+00:00",
-      "updatedAt": "2026-09-27T11:50:43.0000000+00:00"
+      "updatedAt": "2026-06-25T15:11:17.0000000+00:00"
     },
     {
       "id": "hkmod:GodhomeRandomizer",
@@ -1362,11 +1347,6 @@
       "id": "hkmod:GreatChampion",
       "addedAt": "2022-04-04T14:37:10.0000000+00:00",
       "updatedAt": "2022-05-21T06:54:56.0000000+00:00"
-    },
-    {
-      "id": "hkmod:GreenKnight",
-      "addedAt": "2026-10-19T02:03:05.0000000+00:00",
-      "updatedAt": "2026-10-19T02:03:05.0000000+00:00"
     },
     {
       "id": "hkmod:Grimmchild Anywhere",
@@ -1439,24 +1419,14 @@
       "updatedAt": "2025-03-31T15:42:47.0000000+00:00"
     },
     {
-      "id": "hkmod:HKMP.List",
-      "addedAt": "2026-10-17T14:37:05.0000000+00:00",
-      "updatedAt": "2026-10-17T14:37:05.0000000+00:00"
-    },
-    {
       "id": "hkmod:HKMP.ModDiff",
       "addedAt": "2022-04-15T03:07:09.0000000+00:00",
       "updatedAt": "2022-10-07T15:27:40.0000000+00:00"
     },
     {
-      "id": "hkmod:HKMP.Rounds",
-      "addedAt": "2026-10-06T19:03:11.0000000+00:00",
-      "updatedAt": "2026-10-06T19:03:11.0000000+00:00"
-    },
-    {
       "id": "hkmod:HKMP.Timer",
       "addedAt": "2026-09-15T20:34:33.0000000+00:00",
-      "updatedAt": "2026-10-06T18:36:15.0000000+00:00"
+      "updatedAt": "2026-09-15T20:34:33.0000000+00:00"
     },
     {
       "id": "hkmod:HKMP.VoiceChat",
@@ -1604,11 +1574,6 @@
       "updatedAt": "2025-02-28T16:03:30.0000000+00:00"
     },
     {
-      "id": "hkmod:Hollow Knight 8-Player Co-op",
-      "addedAt": "2026-10-09T02:06:40.0000000+00:00",
-      "updatedAt": "2026-10-17T14:32:51.0000000+00:00"
-    },
-    {
       "id": "hkmod:Hollow Knight ACTS",
       "addedAt": "2026-05-10T13:33:12.0000000+00:00",
       "updatedAt": "2026-06-19T15:19:40.0000000+00:00"
@@ -1617,11 +1582,6 @@
       "id": "hkmod:HollowKnightAchievementManager",
       "addedAt": "2025-05-01T15:21:07.0000000+00:00",
       "updatedAt": "2025-05-01T15:21:07.0000000+00:00"
-    },
-    {
-      "id": "hkmod:HollowKnightTAS",
-      "addedAt": "2026-10-02T18:56:21.0000000+00:00",
-      "updatedAt": "2026-10-11T20:41:03.0000000+00:00"
     },
     {
       "id": "hkmod:HollowPoint",
@@ -1801,7 +1761,7 @@
     {
       "id": "hkmod:Knight of Nights",
       "addedAt": "2026-01-12T09:20:40.0000000+00:00",
-      "updatedAt": "2026-09-29T04:24:13.0000000+00:00"
+      "updatedAt": "2026-09-15T20:42:20.0000000+00:00"
     },
     {
       "id": "hkmod:Konpanion",
@@ -1836,7 +1796,7 @@
     {
       "id": "hkmod:LegacyRando",
       "addedAt": "2026-09-07T02:06:49.0000000+00:00",
-      "updatedAt": "2026-10-04T10:10:40.0000000+00:00"
+      "updatedAt": "2026-09-07T02:06:49.0000000+00:00"
     },
     {
       "id": "hkmod:Lego Power Bricks",
@@ -1996,7 +1956,7 @@
     {
       "id": "hkmod:MendBreakables",
       "addedAt": "2026-03-15T15:25:59.0000000+00:00",
-      "updatedAt": "2026-10-04T10:07:23.0000000+00:00"
+      "updatedAt": "2026-03-15T15:25:59.0000000+00:00"
     },
     {
       "id": "hkmod:Menderbug Options",
@@ -2027,11 +1987,6 @@
       "id": "hkmod:MetalPipeHM",
       "addedAt": "2024-04-18T14:07:21.0000000+00:00",
       "updatedAt": "2024-04-18T14:07:21.0000000+00:00"
-    },
-    {
-      "id": "hkmod:MidAirHealing",
-      "addedAt": "2026-09-26T06:15:33.0000000+00:00",
-      "updatedAt": "2026-09-26T06:15:33.0000000+00:00"
     },
     {
       "id": "hkmod:MidasTouch",
@@ -2091,7 +2046,7 @@
     {
       "id": "hkmod:MoreDoors",
       "addedAt": "2022-09-22T04:44:55.0000000+00:00",
-      "updatedAt": "2026-09-29T04:24:13.0000000+00:00"
+      "updatedAt": "2026-09-10T07:51:17.0000000+00:00"
     },
     {
       "id": "hkmod:MoreHealing",
@@ -2126,7 +2081,7 @@
     {
       "id": "hkmod:MoreStags",
       "addedAt": "2026-02-22T00:17:04.0000000+00:00",
-      "updatedAt": "2026-09-26T06:00:42.0000000+00:00"
+      "updatedAt": "2026-09-18T21:11:09.0000000+00:00"
     },
     {
       "id": "hkmod:MossBeast",
@@ -2157,11 +2112,6 @@
       "id": "hkmod:MurderRando",
       "addedAt": "2026-02-26T20:42:30.0000000+00:00",
       "updatedAt": "2026-08-06T15:11:31.0000000+00:00"
-    },
-    {
-      "id": "hkmod:MusicShuffle",
-      "addedAt": "2026-09-26T06:13:16.0000000+00:00",
-      "updatedAt": "2026-10-15T12:34:56.0000000+00:00"
     },
     {
       "id": "hkmod:MuteBosses",
@@ -2301,7 +2251,7 @@
     {
       "id": "hkmod:OWO_HollowKnight",
       "addedAt": "2025-07-11T14:30:12.0000000+00:00",
-      "updatedAt": "2026-10-03T11:31:17.0000000+00:00"
+      "updatedAt": "2025-07-11T14:30:12.0000000+00:00"
     },
     {
       "id": "hkmod:Omega Radiance",
@@ -2361,7 +2311,7 @@
     {
       "id": "hkmod:PantheonArchitect",
       "addedAt": "2026-02-01T04:05:46.0000000+00:00",
-      "updatedAt": "2026-09-29T04:27:30.0000000+00:00"
+      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
     },
     {
       "id": "hkmod:PantheonOfRegions",
@@ -2386,7 +2336,7 @@
     {
       "id": "hkmod:PathOfPureVessel",
       "addedAt": "2022-05-08T01:24:05.0000000+00:00",
-      "updatedAt": "2026-10-13T15:48:29.0000000+00:00"
+      "updatedAt": "2022-05-21T06:54:56.0000000+00:00"
     },
     {
       "id": "hkmod:PeakingPeekingPeaks",
@@ -2476,7 +2426,7 @@
     {
       "id": "hkmod:PurenailCore",
       "addedAt": "2022-09-27T05:20:59.0000000+00:00",
-      "updatedAt": "2026-09-29T18:20:38.0000000+00:00"
+      "updatedAt": "2026-08-10T07:13:38.0000000+00:00"
     },
     {
       "id": "hkmod:PvpArena",
@@ -2701,7 +2651,7 @@
     {
       "id": "hkmod:ReplayLogger",
       "addedAt": "2025-07-14T17:31:29.0000000+00:00",
-      "updatedAt": "2026-10-12T18:25:55.0000000+00:00"
+      "updatedAt": "2026-09-02T15:39:26.0000000+00:00"
     },
     {
       "id": "hkmod:ReplayTimerMod",
@@ -2716,7 +2666,7 @@
     {
       "id": "hkmod:RespawnPoint Manager",
       "addedAt": "2026-06-01T21:23:03.0000000+00:00",
-      "updatedAt": "2026-10-02T18:54:12.0000000+00:00"
+      "updatedAt": "2026-09-13T16:02:44.0000000+00:00"
     },
     {
       "id": "hkmod:Restore NKG Title Card",
@@ -2796,7 +2746,7 @@
     {
       "id": "hkmod:Scattered and Lost",
       "addedAt": "2025-03-08T22:17:44.0000000+00:00",
-      "updatedAt": "2026-09-29T04:24:13.0000000+00:00"
+      "updatedAt": "2026-09-11T17:58:01.0000000+00:00"
     },
     {
       "id": "hkmod:Scatternest",
@@ -2891,7 +2841,7 @@
     {
       "id": "hkmod:ShuffledCharmEffects",
       "addedAt": "2025-04-16T21:32:35.0000000+00:00",
-      "updatedAt": "2026-09-26T06:06:16.0000000+00:00"
+      "updatedAt": "2026-08-19T15:22:20.0000000+00:00"
     },
     {
       "id": "hkmod:ShyKnight",
@@ -3021,7 +2971,7 @@
     {
       "id": "hkmod:SpoilerViewerMod",
       "addedAt": "2022-08-09T13:38:38.0000000+00:00",
-      "updatedAt": "2026-09-29T04:24:13.0000000+00:00"
+      "updatedAt": "2026-02-05T20:28:44.0000000+00:00"
     },
     {
       "id": "hkmod:SpriteDumper",
@@ -3096,12 +3046,7 @@
     {
       "id": "hkmod:Teleport Master",
       "addedAt": "2026-08-22T17:54:08.0000000+00:00",
-      "updatedAt": "2026-10-06T18:50:13.0000000+00:00"
-    },
-    {
-      "id": "hkmod:TerrariaArsenal",
-      "addedAt": "2026-10-17T14:34:21.0000000+00:00",
-      "updatedAt": "2026-10-17T14:34:21.0000000+00:00"
+      "updatedAt": "2026-08-22T17:54:08.0000000+00:00"
     },
     {
       "id": "hkmod:TestOfTeamwork",
@@ -3141,7 +3086,7 @@
     {
       "id": "hkmod:TheHuntIsOn",
       "addedAt": "2024-04-21T19:28:01.0000000+00:00",
-      "updatedAt": "2026-09-29T04:24:13.0000000+00:00"
+      "updatedAt": "2025-10-25T19:53:06.0000000+00:00"
     },
     {
       "id": "hkmod:TheRealJournalRando",
@@ -3186,7 +3131,7 @@
     {
       "id": "hkmod:TreasureHunt",
       "addedAt": "2025-03-20T21:06:16.0000000+00:00",
-      "updatedAt": "2026-09-29T04:24:13.0000000+00:00"
+      "updatedAt": "2026-08-28T18:01:05.0000000+00:00"
     },
     {
       "id": "hkmod:Trial of Crusaders",
@@ -3291,7 +3236,7 @@
     {
       "id": "hkmod:VendorRando",
       "addedAt": "2025-07-21T08:36:49.0000000+00:00",
-      "updatedAt": "2026-10-04T10:36:02.0000000+00:00"
+      "updatedAt": "2026-08-11T05:04:24.0000000+00:00"
     },
     {
       "id": "hkmod:VengeflyBombardier",
@@ -3307,11 +3252,6 @@
       "id": "hkmod:Vietnamese Lang",
       "addedAt": "2026-04-12T11:32:31.0000000+00:00",
       "updatedAt": "2026-06-08T15:25:49.0000000+00:00"
-    },
-    {
-      "id": "hkmod:VocesDelVacio",
-      "addedAt": "2026-10-04T06:27:36.0000000+00:00",
-      "updatedAt": "2026-10-04T06:27:36.0000000+00:00"
     },
     {
       "id": "hkmod:VoiceToCrySuffering",
@@ -3407,11 +3347,6 @@
       "id": "hkmod:ZoteCollectorHelper",
       "addedAt": "2023-08-04T18:58:47.0000000+00:00",
       "updatedAt": "2025-08-26T08:25:41.0000000+00:00"
-    },
-    {
-      "id": "hkmod:mahoraga-wheel",
-      "addedAt": "2026-10-06T18:46:38.0000000+00:00",
-      "updatedAt": "2026-10-06T18:46:38.0000000+00:00"
     },
     {
       "id": "hkmod:modthatclosesthegamewhenitopens",

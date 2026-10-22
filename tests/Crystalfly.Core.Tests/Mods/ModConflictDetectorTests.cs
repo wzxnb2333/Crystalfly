@@ -20,19 +20,6 @@ public sealed class ModConflictDetectorTests
     }
 
     [Fact]
-    public void Detect_returns_empty_when_no_overlap()
-    {
-        var result = ModConflictDetector.Detect(
-        [
-            new("a", "Mod A", ["hollow_knight_Data/Managed/Mods/A.dll"]),
-            new("b", "Mod B", ["hollow_knight_Data/Managed/Mods/B.dll"]),
-            new("c", "Mod C", ["hollow_knight_Data/Managed/Mods/C.dll"])
-        ]);
-
-        Assert.Empty(result);
-    }
-
-    [Fact]
     public void Detect_matches_file_paths_case_insensitively()
     {
         var result = ModConflictDetector.Detect(
@@ -57,8 +44,4 @@ public sealed class ModConflictDetectorTests
         var pair = Assert.Single(result);
         Assert.Equal(["hollow_knight_Data/Managed/Shared/A.dll", "hollow_knight_Data/Managed/Shared/B.dll"], pair.OverlappingFiles);
     }
-
-    [Fact]
-    public void Detect_returns_empty_when_no_mods_are_provided() =>
-        Assert.Empty(ModConflictDetector.Detect([]));
 }

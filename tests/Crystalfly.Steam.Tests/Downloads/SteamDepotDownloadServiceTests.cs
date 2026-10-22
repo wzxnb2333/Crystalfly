@@ -185,6 +185,22 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Silksong_download_uses_explicit_app_depot_branch_and_launch_identity()
+    {
+        byte[] content = "silksong"u8.ToArray();
+        var source = new MemoryContentClient(CreateManifest(content), content);
+        var result = await new SteamDepotDownloadService(source).DownloadAsync(new SteamDownloadRequest(
+            _staging, 123, Branch: "public", AppId: 1030300, DepotId: 1030301));
+        Assert.Equal(1030300U, source.AppId);
+        Assert.Equal(1030301U, source.DepotId);
+        Assert.Equal("public", source.Branch);
+        Assert.Equal(123UL, source.RequestedManifestId);
+        Assert.Equal(1030300U, result.AppId);
+        Assert.Equal(1030301U, result.DepotId);
+        Assert.Equal("1030300", (await File.ReadAllTextAsync(Path.Combine(_staging, "steam_appid.txt"))).Trim());
+    }
+
+    [Fact]
     public async Task VerifiedChunkCacheIsSharedAcrossSeparateDownloads()
     {
         byte[] content = "shared steam chunk"u8.ToArray();

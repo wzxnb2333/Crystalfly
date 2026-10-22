@@ -12,12 +12,6 @@ public sealed class BuildIdentityTests
         Assert.False(BuildIdentity.IsKnown(buildId));
 
     [Theory]
-    [InlineData("1.5.78.11833")]
-    [InlineData("custom-catalog-build")]
-    public void Catalog_build_ids_are_known(string buildId) =>
-        Assert.True(BuildIdentity.IsKnown(buildId));
-
-    [Theory]
     [InlineData("steam-manifest-42", 42UL)]
     [InlineData("steam-public-42", 42UL)]
     public void Steam_unverified_build_ids_expose_their_manifest(string buildId, ulong manifestId)

@@ -1,0 +1,3 @@
+# Translation digests describe exact document bytes on every checkout platform.
+catalog/silksong-mod-documents/** -text
+catalog/silksong*.json text eol=lf

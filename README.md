@@ -2,7 +2,11 @@
 
 **简体中文** | [English](README.en.md)
 
-Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loader、Mod、存档与速通环境管理器。启动页是实例选择与管理的唯一入口；真正的游戏版本下载位于“下载 → 游戏版本”。界面采用单实例上下文，避免把不同实例的 Loader、Mod 和存档状态混在一起。
+错误上报与隐私：[脱敏字段、关闭方法、托管地区和开源构建配置](docs/error-reporting.md)。
+
+Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》和《丝之歌》游戏版本、Loader、Mod 与存档管理器，并保留《空洞骑士》的正式速通环境。在启动页点击小骑士／大黄蜂头像即可切换游戏，分别记住两款游戏的目录、实例和筛选；启动页选择实例，游戏版本下载位于“下载 → 游戏版本”。
+
+丝之歌支持 Steam 多版本下载、本地导入、Thunderstore 依赖安装与完整模组生命周期，以及独立存档和中文字段编辑。参见[功能与迁移说明](docs/silksong-thunderstore.md)及[验证结果与已知限制](docs/silksong-verification.md)。
 
 > 当前版本：`1.1.5`。提供 Windows x64 便携包与安装包；设置页可查看发行说明，签名更新弹窗支持下载进度、取消和失败重试。
 
@@ -30,7 +34,7 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 - 管理多个游戏目录，并把活动目录自身或其直接子目录识别为独立实例；Steam 安装通过库目录自动发现，确认后才登记或迁移。
 - 启动时在后台扫描实例与版本文件，不等待远程目录或 Steam 自动重连；顶部设置使用文字 Tab，“选择实例”入口与页面、卡片和操作反馈采用快速弹簧动效，并支持跟随系统、减少动效或关闭。
 - 使用自绘标题栏和原生可缩放边框；Windows 11 明确请求系统圆角，Windows 10 保持兼容。
-- 识别 `1.2.2.1`、`1.4.3.2`、`1.5.78.11833` 和动态 `latest` 稳定通道。
+- 识别 `1.2.2.1`、`1.4.3.2`、`1.5.78.11833`、`1.5.12459` 和动态 `latest` 稳定通道。
 - 启动页的实例入口可直接选择、进入设置、完整克隆或永久删除实例；删除会先检查游戏进程、下载任务与文件事务，确认后同时移除游戏目录和实例状态。
 - 事务化安装、切换、修复和卸载 Loader，检测冲突及文件漂移。
 - 支持带 Crystalfly 清单的高级本地 Loader 导入，并永久标记为“未验证”。
@@ -62,12 +66,15 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》游戏版本、Loade
 
 | 游戏版本 | Loader | DebugMod |
 | --- | --- | --- |
-| `1.2.2.1` | Modding API v37 | `legacy/1.2.2.1` |
-| `1.4.3.2` | Modding API v60 | `legacy/1.4.3.2` |
-| `1.5.78.11833` | Modding API v77 | `legacy/1.5.78` |
+| `1.2.2.1` | Modding API v37 或 BepInEx 5.4.23.4 | `legacy/1.2.2.1` |
+| `1.4.3.2` | Modding API v60 或 BepInEx 5.4.23.4 | `legacy/1.4.3.2` |
+| `1.5.78.11833` | Modding API v77 或 BepInEx 5.4.23.4 | `legacy/1.5.78` |
+| `1.5.12459` | BepInEx 5.4.23.4；暂无匹配的 Modding API | — |
 | 当前已验证稳定版 | Modding API v78 或 BepInEx 5.4.23.4 | `latest` |
 
-“当前稳定版”由远程 catalog 的 Steam public manifest 决定，不在界面或兼容逻辑中写死版本号。未知的新 manifest 可以下载并以原版启动，但 Crystalfly 会锁定 Loader 安装，直到 catalog 提供新的构建指纹和兼容清单。
+`1.5.12459` 已于 2026-09-27 根据 Steam 原版 manifest 和文件哈希完成身份校验，不再作为“未验证，仅限原版”下载项。参见[校验证据](docs/build-verification-1.5.12459.md)。这不表示 Modding API 兼容：v77 对应 `1.5.78.11833`，当前 v78 发布包对应 `1.5.12620.0`，均不能套用于 `1.5.12459`。
+
+“当前稳定版”由远程 catalog 的 Steam public manifest 决定，不在界面或兼容逻辑中写死版本号。普通实例的所有游戏版本均可安装和修复 BepInEx，包括自定义版本和未知 Steam manifest；旧远程目录的版本白名单不会重新锁定 BepInEx。Modding API 和具体模组仍按各自兼容清单检查，正式速通环境保持不可安装模组加载器。未知构建使用加载器启动时仍提示兼容性未经验证，允许安装不代表所有插件都可运行。
 
 - DebugMod：<https://github.com/wzxnb2333/New.HK.Debug/releases/tag/v1.4.10.5-r2>
 - Modding API v78：<https://github.com/wzxnb2333/api/releases/tag/1.5.12620.0-78>

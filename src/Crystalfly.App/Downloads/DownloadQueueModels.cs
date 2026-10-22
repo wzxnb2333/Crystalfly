@@ -51,6 +51,11 @@ public enum DownloadQueueItemState
 
 public sealed record DownloadQueueGroup
 {
+    public Crystalfly.Core.Thunderstore.ThunderstoreInstallPlan? ThunderstorePlan { get; init; }
+    public bool ThunderstoreRepair { get; init; }
+
+    public Crystalfly.Core.Models.GameId GameId { get; init; } = Crystalfly.Core.Models.GameId.HollowKnight;
+
     public string Id { get; init; } = string.Empty;
 
     public string DeduplicationKey { get; init; } = string.Empty;

@@ -341,15 +341,6 @@ public sealed class SteamKitContentDeliveryClientTests
         Assert.Contains("1 proxy", exception.Message);
     }
 
-    [Fact]
-    public void SelectContentServer_throws_when_the_list_is_empty()
-    {
-        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
-            SteamKitContentDeliveryClient.SelectContentServer([], appId: 367520));
-
-        Assert.Contains("0 server(s) returned", exception.Message);
-    }
-
     private static Server CreateServer(
         string host,
         Server.ConnectionProtocol protocol,

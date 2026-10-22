@@ -1,0 +1,231 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:converters="using:Avalonia.Data.Converters" xmlns:vm="using:Crystalfly.App.ViewModels" xmlns:views="using:Crystalfly.App.Views" xmlns:ts="using:Crystalfly.Core.Thunderstore" xmlns:mv="using:MarkView.Avalonia" x:Class="Crystalfly.App.Views.ThunderstoreView" x:DataType="vm:ThunderstoreViewModel" x:Name="Root">
+    <UserControl.Resources>
+        <x:Int32 x:Key="TsZero">0</x:Int32>
+    </UserControl.Resources>
+    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8" Margin="16">
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <StackPanel Spacing="2">
+                <TextBlock x:Name="WorkspaceTitle" Classes="cfp-page-title"/>
+                <TextBlock x:Name="WorkspaceHint" Classes="cfp-meta" TextWrapping="Wrap"/>
+            </StackPanel>
+            <Button Name="SelectTargetInstance" Grid.Column="1" Classes="cfp-secondary" Content="{Binding Loc[SelectInstance]}" AutomationProperties.Name="{Binding Loc[SelectInstance]}" Command="{Binding ChooseInstanceCommand}" ToolTip.Tip="{Binding TargetName}" VerticalAlignment="Top"/>
+            <Button Grid.Column="2" Classes="cfp-secondary" Content="{Binding Loc[Refresh]}" Command="{Binding RefreshCommand}" VerticalAlignment="Top"/>
+        </Grid>
+        <Grid Grid.Row="1" IsVisible="{Binding !HasConfirmation}">
+            <Grid x:Name="MarketWorkspace" RowDefinitions="Auto,*" RowSpacing="8">
+                <StackPanel Spacing="6">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox Name="MarketSearch" Classes="cfp-input" Text="{Binding SearchText}" PlaceholderText="{Binding Loc[TsSearchOrLocate]}" AutomationProperties.Name="{Binding Loc[TsSearchOrLocate]}"/>
+                        <Button Grid.Column="1" Classes="cfp-secondary" Content="{Binding Loc[TsImportZip]}" Click="ImportZip" IsEnabled="{Binding CanManage}"/>
+                    </Grid>
+                    <WrapPanel>
+                        <ComboBox Name="CategoryPicker" Width="160" Margin="0,0,6,4" Classes="cfp-input" ItemsSource="{Binding Categories}" SelectedItem="{Binding Category}" AutomationProperties.Name="{Binding Loc[TsCategory]}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:CompileBindings="False">
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <ComboBox Width="156" Margin="0,0,10,4" Classes="cfp-input" ItemsSource="{Binding SortOptions}" SelectedItem="{Binding Sort}" AutomationProperties.Name="{Binding Loc[TsSort]}"/>
+                        <CheckBox Content="{Binding Loc[TsShowDeprecated]}" IsChecked="{Binding ShowDeprecated}" Margin="0,0,0,4"/>
+                    </WrapPanel>
+                </StackPanel>
+                <Border Name="CatalogPane" Grid.Row="1" Classes="cfp-list-frame cfp-market-subpage">
+                        <Grid>
+                            <ListBox Name="CatalogList" Classes="cfp-list cfp-market-list" ItemsSource="{Binding PackageDisplayItems}" SelectedItem="{Binding SelectedDisplayPackage}" SelectionChanged="SelectCatalogPackage" AutomationProperties.Name="{Binding Loc[ModMarket]}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ThunderstorePackageDisplayItem">
+                                        <Grid ColumnDefinitions="40,*" ColumnSpacing="10" Height="44" Margin="8,6">
+                                            <Border Width="40" Height="40" Classes="cfp-icon-tile" CornerRadius="6" ClipToBounds="True" VerticalAlignment="Center">
+                                                <Grid>
+                                                    <LucideIcon Kind="Package" Size="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    <views:ThunderstorePackageIconImage Width="40" Height="40" Classes="cfp-market-cover" IconUrl="{Binding IconUrl}" Stretch="UniformToFill"/>
+                                                </Grid>
+                                            </Border>
+                                            <Grid Grid.Column="1" RowDefinitions="*,*" RowSpacing="1" VerticalAlignment="Center">
+                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                    <TextBlock Text="{Binding PrimaryName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding PrimaryName}"/>
+                                                    <TextBlock Grid.Column="1" Classes="cfp-meta" Text="{Binding Version}"/>
+                                                </Grid>
+                                                <TextBlock Grid.Row="1" Text="{Binding Description}" Classes="cfp-meta" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <StackPanel Name="CatalogEmptyState" Margin="16" Spacing="6" VerticalAlignment="Center" IsVisible="{Binding Packages.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource TsZero}}">
+                                <TextBlock Text="{Binding CatalogEmptyTitle}" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding CatalogEmptyHint}" Classes="cfp-meta" TextAlignment="Center" TextWrapping="Wrap"/>
+                                <Button Classes="cfp-secondary" Content="{Binding Loc[Refresh]}" Command="{Binding RefreshCommand}" HorizontalAlignment="Center" IsVisible="{Binding !HasCatalog}"/>
+                                <Button Classes="cfp-secondary" Content="{Binding Loc[TsClearFilters]}" Command="{Binding ClearFiltersCommand}" HorizontalAlignment="Center" IsVisible="{Binding HasCatalog}"/>
+                            </StackPanel>
+                        </Grid>
+                </Border>
+            </Grid>
+            <Grid Name="PackageDetailWorkspace" Classes="cfp-market-subpage" RowDefinitions="Auto,*" RowSpacing="8">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                    <Button Name="BackToCatalog" Classes="cfp-secondary" Content="{Binding Loc[TsBackToResults]}" Click="ShowCatalog"/>
+                    <TextBlock Grid.Column="1" Text="{Binding SelectedPackage.FullName}" Classes="cfp-meta" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                </Grid>
+                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Spacing="8">
+                        <Border Name="PackageDetailPane" Classes="cfp-card cfp-market-detail" Padding="12">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="{Binding SelectedPackageName}" Classes="cfp-section-title" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding SelectedPackageOriginalName}" Classes="cfp-caption" IsVisible="{Binding HasSelectedOriginalName}" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding SelectedPackage.Owner}" Classes="cfp-meta"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Classes="cfp-accent" Content="{Binding Loc[TsPreviewInstall]}" Command="{Binding PreviewInstallCommand}" VerticalAlignment="Center"/>
+                                </Grid>
+                                <TextBlock Text="{Binding SelectedDescription}" TextWrapping="Wrap"/>
+                                <Expander Name="OriginalDescription" Header="{Binding Loc[TsOriginalDescription]}" IsVisible="{Binding HasSelectedOriginalDescription}">
+                                    <TextBlock Text="{Binding SelectedOriginalDescription}" Classes="cfp-meta" TextWrapping="Wrap"/>
+                                </Expander>
+                                <TextBlock Text="{Binding TranslationNotice}" Classes="cfp-caption" TextWrapping="Wrap" IsVisible="{Binding TranslationNotice, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"/>
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                    <TextBlock Classes="cfp-caption" Text="{Binding Loc[TsVersion]}" VerticalAlignment="Center"/>
+                                    <ComboBox Grid.Column="1" ItemsSource="{Binding Versions}" SelectedItem="{Binding SelectedVersion}" HorizontalAlignment="Stretch" AutomationProperties.Name="{Binding Loc[TsVersion]}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="ts:ThunderstoreVersion">
+                                                <TextBlock Text="{Binding VersionNumber}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </Grid>
+                                <WrapPanel>
+                                    <Button Classes="cfp-secondary" Content="README" Command="{Binding ReadDocumentCommand}" CommandParameter="README.md" Margin="0,0,8,4"/>
+                                    <Button Classes="cfp-secondary" Content="{Binding Loc[TsChangelog]}" Command="{Binding ReadDocumentCommand}" CommandParameter="CHANGELOG.md" Margin="0,0,0,4"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Classes="cfp-card cfp-market-detail" Padding="12" IsVisible="{Binding HasDocument}">
+                            <StackPanel Spacing="8">
+                                <WrapPanel>
+                                    <Button Name="ChineseDocumentButton" Classes="cfp-secondary" Classes.cfp-accent="{Binding ChineseDocumentSelected}" Width="80" Content="{Binding Loc[TsDocumentChinese]}" Command="{Binding SetDocumentLanguageCommand}" CommandParameter="chinese" IsEnabled="{Binding HasDocumentTranslation}" Margin="0,0,6,0"/>
+                                    <Button Name="OriginalDocumentButton" Classes="cfp-secondary" Classes.cfp-accent="{Binding OriginalDocumentSelected}" Width="80" Content="{Binding Loc[TsDocumentOriginal]}" Command="{Binding SetDocumentLanguageCommand}" CommandParameter="original"/>
+                                </WrapPanel>
+                                <TextBlock Text="{Binding DocumentNotice}" Classes="cfp-caption" TextWrapping="Wrap" IsVisible="{Binding HasDocumentNotice}"/>
+                                <mv:MarkdownViewer Markdown="{Binding DocumentMarkdown}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+            <Grid Name="InstalledWorkspace" RowDefinitions="Auto,*,Auto" RowSpacing="8">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <TextBox Classes="cfp-input" Text="{Binding InstalledSearchText}" PlaceholderText="{Binding Loc[SearchMods]}" AutomationProperties.Name="{Binding Loc[SearchMods]}"/>
+                    <Button Grid.Column="1" Classes="cfp-accent" Content="{Binding Loc[TsBrowseMods]}" Command="{Binding BrowseMarketCommand}"/>
+                </Grid>
+                <Border Grid.Row="1" Classes="cfp-list-frame">
+                    <Grid>
+                        <ListBox Name="InstalledList" Classes="cfp-list cfp-market-list" ItemsSource="{Binding InstalledDisplayItems}" SelectedItem="{Binding SelectedInstalledDisplay}" AutomationProperties.Name="{Binding Loc[InstalledMods]}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ThunderstoreInstalledDisplayItem">
+                                    <StackPanel Spacing="2" Margin="8,6">
+                                        <TextBlock Text="{Binding PrimaryName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding FullName}" Classes="cfp-caption" TextTrimming="CharacterEllipsis"/>
+                                        <WrapPanel>
+                                            <TextBlock Text="{Binding Version}" Classes="cfp-meta" Margin="0,0,12,0"/>
+                                            <TextBlock Text="{Binding #Root.DataContext.Loc[TsEnabled]}" Classes="cfp-meta" IsVisible="{Binding Enabled}" Margin="0,0,12,0"/>
+                                            <TextBlock Text="{Binding #Root.DataContext.Loc[TsDisabled]}" Classes="cfp-meta" IsVisible="{Binding !Enabled}" Margin="0,0,12,0"/>
+                                            <TextBlock Text="{Binding #Root.DataContext.Loc[TsPinned]}" Classes="cfp-meta" IsVisible="{Binding Pinned}"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <StackPanel Margin="16" Spacing="6" VerticalAlignment="Center" IsVisible="{Binding InstalledMods.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource TsZero}}">
+                            <TextBlock Text="{Binding Loc[TsInstalledEmpty]}" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center"/>
+                            <TextBlock Text="{Binding Loc[TsInstalledEmptyHint]}" Classes="cfp-meta" TextWrapping="Wrap" TextAlignment="Center"/>
+                            <Button Classes="cfp-secondary" Content="{Binding Loc[TsBrowseMods]}" Command="{Binding BrowseMarketCommand}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                <Border Grid.Row="2" Classes="cfp-card" Padding="10" IsVisible="{Binding HasInstalledSelection}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="{Binding SelectedInstalledName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding SelectedInstalled.FullName}" Classes="cfp-caption" TextTrimming="CharacterEllipsis"/>
+                        <WrapPanel>
+                            <Button Classes="cfp-secondary" Content="{Binding EnableActionLabel}" Command="{Binding ToggleEnabledCommand}" Margin="0,0,8,4"/>
+                            <Button Classes="cfp-secondary" Content="{Binding PinActionLabel}" Command="{Binding TogglePinnedCommand}" Margin="0,0,8,4"/>
+                            <Button Classes="cfp-secondary" Content="{Binding Loc[TsUpdate]}" Command="{Binding PreviewInstalledUpdateCommand}" Margin="0,0,8,4"/>
+                            <Button Classes="cfp-secondary" Content="{Binding Loc[TsRepair]}" Command="{Binding PreviewRepairCommand}" Margin="0,0,8,4"/>
+                            <Button Classes="cfp-secondary" Content="{Binding Loc[Uninstall]}" Command="{Binding RequestUninstallCommand}" Margin="0,0,0,4"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+            <ScrollViewer Name="LoaderWorkspace" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="8">
+                    <Border Classes="cfp-card">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="BepInExPack Silksong" Classes="cfp-section-title"/>
+                            <TextBlock Text="{Binding Loc[TsLoaderHint]}" Classes="cfp-meta" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding Loc[TsLoaderMissing]}" IsVisible="{Binding !HasLoader}"/>
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6" IsVisible="{Binding HasLoader}">
+                                <TextBlock Text="{Binding Loc[TsVersion]}" Classes="cfp-meta"/>
+                                <TextBlock Grid.Column="1" Text="{Binding InstalledLoader.Version}"/>
+                                <TextBlock Grid.Row="1" Text="{Binding Loc[TsRuntimeVersion]}" Classes="cfp-meta"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding InstalledLoader.RuntimeVersion}"/>
+                            </Grid>
+                            <WrapPanel>
+                                <Button Classes="cfp-accent" Content="{Binding Loc[TsSetupLoader]}" Command="{Binding PreviewLoaderCommand}" Margin="0,0,8,8"/>
+                                <Button Classes="cfp-secondary" Content="{Binding Loc[Uninstall]}" Command="{Binding RequestLoaderUninstallCommand}" IsVisible="{Binding HasLoader}" Margin="0,0,0,8"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+            <ScrollViewer Name="PresetsWorkspace" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="8">
+                    <Border Classes="cfp-card">
+                        <StackPanel Spacing="8">
+                            <TextBlock Classes="cfp-section-title" Text="{Binding Loc[TsExportPreset]}"/>
+                            <TextBlock Classes="cfp-meta" Text="{Binding Loc[TsExportPresetHint]}" TextWrapping="Wrap"/>
+                            <Button Classes="cfp-secondary" Content="{Binding Loc[TsExportPreset]}" Click="ExportPreset" IsEnabled="{Binding CanManage}" HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Classes="cfp-card">
+                        <StackPanel Spacing="8">
+                            <TextBlock Classes="cfp-section-title" Text="{Binding Loc[TsImportPreset]}"/>
+                            <TextBlock Classes="cfp-meta" Text="{Binding Loc[TsImportPresetHint]}" TextWrapping="Wrap"/>
+                            <Button Classes="cfp-accent" Content="{Binding Loc[TsImportPreset]}" Click="ImportPreset" IsEnabled="{Binding CanManage}" HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+        <Border Name="InstallConfirmation" Grid.Row="1" Classes="cfp-card" Padding="12" IsVisible="{Binding HasPlan}">
+            <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="8">
+                <TextBlock Text="{Binding Loc[TsInstallPreview]}" FontWeight="SemiBold"/>
+                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+                    <TextBlock Text="{Binding PreviewText}" TextWrapping="Wrap"/>
+                </ScrollViewer>
+                <CheckBox Grid.Row="2" IsChecked="{Binding AcceptUnverified}" IsVisible="{Binding NeedsCompatibilityConfirmation}">
+                    <TextBlock Text="{Binding Loc[TsCompatibilityNotice]}" TextWrapping="Wrap"/>
+                </CheckBox>
+                <WrapPanel Grid.Row="3">
+                    <Button Content="{Binding Loc[TsConfirmInstall]}" Command="{Binding ConfirmInstallCommand}" Classes="cfp-accent" Margin="0,0,8,0"/>
+                    <Button Content="{Binding Loc[Cancel]}" Command="{Binding CancelPreviewCommand}" Classes="cfp-secondary"/>
+                </WrapPanel>
+            </Grid>
+        </Border>
+        <Border Name="UninstallConfirmation" Grid.Row="1" Classes="cfp-card" Padding="12" IsVisible="{Binding HasUninstallConfirmation}">
+            <StackPanel Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="{Binding PendingUninstallDisplay}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding Loc[TsUninstallNotice]}" TextWrapping="Wrap"/>
+                <WrapPanel>
+                    <Button Content="{Binding Loc[Uninstall]}" Command="{Binding ConfirmUninstallCommand}" Classes="cfp-secondary" Margin="0,0,8,0"/>
+                    <Button Content="{Binding Loc[Cancel]}" Command="{Binding CancelUninstallCommand}" Classes="cfp-secondary"/>
+                </WrapPanel>
+            </StackPanel>
+        </Border>
+        <StackPanel Grid.Row="2" Spacing="2">
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" Height="3"/>
+            <TextBlock Text="{Binding Status}" Classes="cfp-meta" TextWrapping="Wrap" MaxLines="2" IsVisible="{Binding Status, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"/>
+            <TextBlock Text="{Binding Error}" Classes="cfp-error-text" TextWrapping="Wrap" MaxLines="3" IsVisible="{Binding Error, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

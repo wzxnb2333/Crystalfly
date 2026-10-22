@@ -640,6 +640,47 @@ public sealed class CatalogPackageQueueExecutorTests : IDisposable
     }
 
     [Theory]
+    [InlineData("1.5.78.11833")]
+    [InlineData("unknown")]
+    [InlineData("steam-manifest-42")]
+    public async Task Standalone_BepInEx_installs_on_any_game_build(string buildId)
+    {
+        using var fixture = await CreateFixtureAsync(useBepInEx: true);
+        var record = (await InstanceSidecar.LoadAsync(fixture.InstanceRoot))!;
+        await InstanceSidecar.SaveAsync(record with { BuildId = buildId });
+        var item = fixture.Group.Items.Single(candidate => candidate.Kind == DownloadQueueItemKind.Loader);
+        var group = fixture.Group with { Kind = DownloadQueueGroupKind.LoaderInstall, Items = [item] };
+
+        await fixture.Executor.TransferAsync(
+            group, item, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+        await fixture.Executor.InstallAsync(group, item, CancellationToken.None);
+
+        Assert.Equal("loader", await File.ReadAllTextAsync(
+            Path.Combine(fixture.InstanceRoot, "BepInEx", "core", "BepInEx.dll")));
+        var receipt = await AtomicJsonStore.ReadAsync<InstalledPackageReceipt>(Path.Combine(
+            fixture.VersionRoot, ".crystalfly", "instances", "practice", "loader.json"));
+        Assert.Equal(LoaderState.BepInEx, receipt.LoaderState);
+        Assert.Equal("bepinex-5.4.23.4", receipt.PackageId);
+    }
+
+    [Fact]
+    public async Task Standalone_BepInEx_still_rejects_official_speedrun_instances()
+    {
+        using var fixture = await CreateFixtureAsync(useBepInEx: true);
+        var record = (await InstanceSidecar.LoadAsync(fixture.InstanceRoot))!;
+        await InstanceSidecar.SaveAsync(record with { Purpose = InstancePurpose.OfficialSpeedrun });
+        var item = fixture.Group.Items.Single(candidate => candidate.Kind == DownloadQueueItemKind.Loader);
+        var group = fixture.Group with { Kind = DownloadQueueGroupKind.LoaderInstall, Items = [item] };
+        await fixture.Executor.TransferAsync(
+            group, item, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            fixture.Executor.InstallAsync(group, item, CancellationToken.None));
+
+        Assert.False(Directory.Exists(Path.Combine(fixture.InstanceRoot, "BepInEx")));
+    }
+
+    [Theory]
     [InlineData(InstancePurpose.OfficialSpeedrun, BuildId)]
     [InlineData(InstancePurpose.General, "unknown")]
     [InlineData(InstancePurpose.General, "unsupported-build")]
@@ -696,7 +737,7 @@ public sealed class CatalogPackageQueueExecutorTests : IDisposable
         Assert.False(executor.IsTransient(new OperationCanceledException()));
     }
 
-    private async Task<Fixture> CreateFixtureAsync()
+    private async Task<Fixture> CreateFixtureAsync(bool useBepInEx = false)
     {
         var versionRoot = Path.Combine(root, "versions");
         var instanceRoot = Path.Combine(versionRoot, "practice");
@@ -711,14 +752,23 @@ public sealed class CatalogPackageQueueExecutorTests : IDisposable
         };
         await InstanceSidecar.SaveAsync(record);
 
-        var loaderPackage = CreateZip("loader.zip", ("MMHOOK_Assembly-CSharp.dll", "loader"));
+        var loaderPackage = CreateZip("loader.zip",
+            (useBepInEx ? "BepInEx/core/BepInEx.dll" : "MMHOOK_Assembly-CSharp.dll", "loader"));
         var libraryPackage = CreateZip("library.zip", ("library.dll", "library"));
         var bridgePackage = CreateZip("bridge.zip", ("bridge.dll", "bridge"));
         var featurePackage = CreateZip("feature.zip", ("feature.dll", "feature"));
         var loader = Loader(loaderPackage);
-        var library = Mod("library", "Library", libraryPackage);
-        var bridge = Mod("bridge", "Bridge", bridgePackage, ["library"]);
-        var feature = Mod("feature", "Feature", featurePackage, ["bridge"]);
+        if (useBepInEx)
+        {
+            loader = loader with
+            {
+                Id = "bepinex-5.4.23.4", Name = "BepInEx", Version = "5.4.23.4",
+                SupportedBuildIds = ["1.5.12620.0"]
+            };
+        }
+        var library = Mod("library", "Library", libraryPackage) with { LoaderId = loader.Id };
+        var bridge = Mod("bridge", "Bridge", bridgePackage, ["library"]) with { LoaderId = loader.Id };
+        var feature = Mod("feature", "Feature", featurePackage, ["bridge"]) with { LoaderId = loader.Id };
         var catalog = new GameCatalog { Loaders = [loader], Mods = [library, bridge, feature] };
         var handler = new PackageHandler(new Dictionary<string, byte[]>
         {

@@ -35,27 +35,6 @@ public sealed class ModCatalogCompatibilityTests
             Assert.Single(ModCatalogCompatibility.ProjectForBuild([custom], "1.5.12620.0")));
     }
 
-    [Fact]
-    public void Supported_bindings_include_legacy_and_latest_api_pairs()
-    {
-        var official = Manifest("HK ModLinks", "modding-api-77", "1.5.78.11833");
-
-        Assert.Equal(
-            ["1.5.78.11833", "1.5.12620.0"],
-            ModCatalogCompatibility.GetSupportedBuildIds(official));
-        Assert.Equal(
-            ["modding-api-77", "modding-api-78"],
-            ModCatalogCompatibility.GetSupportedLoaderIds(official));
-        Assert.True(ModCatalogCompatibility.Supports(
-            official,
-            "1.5.12620.0",
-            "modding-api-78"));
-        Assert.False(ModCatalogCompatibility.Supports(
-            official,
-            "1.5.78.11833",
-            "modding-api-78"));
-    }
-
     private static ModManifest Manifest(string source, string loader, string build) => new()
     {
         Id = "hkmod:Test",

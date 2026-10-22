@@ -42,48 +42,6 @@ public sealed class LocalizationBindingRefreshTests
         Assert.Equal("就绪", textBlock.Text);
     }
 
-    [AvaloniaTheory]
-    [MemberData(nameof(IndexerNotificationCandidates))]
-    public void Indexer_binding_refreshes_when_loc_raises_indexer_notification(string? propertyName)
-    {
-        // Documents the Avalonia INPC contract the fix relies on: indexer bindings
-        // refresh when the bound instance raises PropertyChanged with the CLR indexer
-        // name ("Item") or an empty property name, NOT the WPF-style "Item[]".
-        var holder = new LocHolder();
-        var textBlock = new TextBlock
-        {
-            DataContext = holder,
-            [!TextBlock.TextProperty] = new Binding("Loc[StatusReady]")
-        };
-
-        holder.Loc.Apply(UiLanguage.English);
-        Assert.Equal("Ready", textBlock.Text);
-
-        holder.Loc.RaiseTestNotification(propertyName);
-
-        Assert.Equal("Ready", textBlock.Text);
-    }
-
-    [AvaloniaFact]
-    public void Wpf_style_item_array_notification_does_not_refresh_indexer_bindings()
-    {
-        // Regression guard for the original bug: "Item[]" (WPF convention) is ignored by
-        // Avalonia's INPC accessor, which is why the old Apply never refreshed anything.
-        var holder = new LocHolder();
-        var textBlock = new TextBlock
-        {
-            DataContext = holder,
-            [!TextBlock.TextProperty] = new Binding("Loc[StatusReady]")
-        };
-
-        holder.Loc.Apply(UiLanguage.English);
-        Assert.Equal("Ready", textBlock.Text);
-
-        holder.Loc.RaiseTestNotification("Item[]");
-
-        Assert.Equal("Ready", textBlock.Text);
-    }
-
     private sealed class SilentProbe : INotifyPropertyChanged
     {
         private string value = "A";

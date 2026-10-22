@@ -48,7 +48,7 @@ public static class SaveFileCodec
         var offset = Header.Length;
         var contentLength = ReadVarint(data, ref offset);
         var available = data.Length - offset - 1; // exclude footer
-        if (contentLength > available)
+        if (contentLength < 0 || contentLength != available)
         {
             throw new InvalidDataException(
                 $"Save file content length {contentLength} exceeds available bytes {available}.");
@@ -71,7 +71,7 @@ public static class SaveFileCodec
         aes.Padding = PaddingMode.PKCS7;
         using var decryptor = aes.CreateDecryptor();
         var json = decryptor.TransformFinalBlock(encrypted, 0, encrypted.Length);
-        return Encoding.UTF8.GetString(json);
+        return new UTF8Encoding(false, true).GetString(json);
     }
 
     public static async Task EncryptAsync(string path, string json, CancellationToken cancellationToken = default)
@@ -107,6 +107,7 @@ public static class SaveFileCodec
         while (offset < data.Length)
         {
             var b = data[offset++];
+            if (shift == 28 && (b & 0xF8) != 0) throw new InvalidDataException("Save file length overflows Int32.");
             result |= (b & 0x7F) << shift;
             if ((b & 0x80) == 0)
             {

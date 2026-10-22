@@ -29,7 +29,7 @@ public sealed class InstanceDeletionService
     private const string JournalFileName = "delete.json";
     private readonly string versionRoot;
     private readonly string pendingRoot;
-    private readonly IHollowKnightProcessProbe processProbe;
+    private readonly IHollowKnightProcessProbe? processProbe;
     private readonly Func<string> operationIdFactory;
     private readonly Action<string, string> moveDirectory;
     private readonly Action<string> deleteDirectory;
@@ -39,7 +39,7 @@ public sealed class InstanceDeletionService
         IHollowKnightProcessProbe? processProbe = null)
         : this(
             versionRoot,
-            processProbe ?? new SystemHollowKnightProcessProbe(),
+            processProbe,
             () => Guid.NewGuid().ToString("N"),
             Directory.Move,
             path => Directory.Delete(path, recursive: true))
@@ -48,13 +48,12 @@ public sealed class InstanceDeletionService
 
     internal InstanceDeletionService(
         string versionRoot,
-        IHollowKnightProcessProbe processProbe,
+        IHollowKnightProcessProbe? processProbe,
         Func<string> operationIdFactory,
         Action<string, string> moveDirectory,
         Action<string> deleteDirectory)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(versionRoot);
-        ArgumentNullException.ThrowIfNull(processProbe);
         ArgumentNullException.ThrowIfNull(operationIdFactory);
         ArgumentNullException.ThrowIfNull(moveDirectory);
         ArgumentNullException.ThrowIfNull(deleteDirectory);
@@ -83,13 +82,13 @@ public sealed class InstanceDeletionService
         ArgumentNullException.ThrowIfNull(instance);
         ArgumentNullException.ThrowIfNull(evaluateConditions);
         var instanceRoot = ValidateInstanceRoot(instance.RootPath);
-        ValidateConditions(await evaluateConditions(cancellationToken));
+        ValidateConditions(await evaluateConditions(cancellationToken), instance.GameId);
 
         var sidecar = await InstanceSidecar.LoadAsync(instanceRoot, cancellationToken)
             ?? throw new InvalidDataException(
                 $"Instance sidecar metadata is missing; expected '{InstanceSidecar.GetMarkerPath(instanceRoot)}'. "
                 + "The instance may be corrupted.");
-        if (!string.Equals(sidecar.Id, instance.Id, StringComparison.Ordinal))
+        if (!string.Equals(sidecar.Id, instance.Id, StringComparison.Ordinal) || sidecar.GameId != instance.GameId)
         {
             throw new InvalidDataException("Instance sidecar ID does not match the selected instance.");
         }
@@ -115,6 +114,7 @@ public sealed class InstanceDeletionService
         var journalPath = Path.Combine(operationRoot, JournalFileName);
         var journal = new InstanceDeletionJournal
         {
+            GameId = instance.GameId,
             OperationId = operationId,
             InstanceId = instance.Id,
             State = TransactionState.Prepared,
@@ -130,7 +130,7 @@ public sealed class InstanceDeletionService
         {
             journal = journal with { State = TransactionState.Applying };
             await AtomicJsonStore.WriteAsync(journalPath, journal, cancellationToken);
-            ValidateConditions(await evaluateConditions(cancellationToken));
+            ValidateConditions(await evaluateConditions(cancellationToken), instance.GameId);
             moveDirectory(instanceRoot, pendingGameRoot);
             gameMoved = true;
             moveDirectory(stateRoot, pendingStateRoot);
@@ -174,7 +174,7 @@ public sealed class InstanceDeletionService
             throw;
         }
 
-        var cleanupError = TryDelete(operationRoot);
+        var cleanupError = TryCleanupCommitted(journal);
         return new InstanceDeletionResult(
             instance.Id,
             instanceRoot,
@@ -214,6 +214,7 @@ public sealed class InstanceDeletionService
                     Path.Combine(operationRoot, JournalFileName),
                     cancellationToken);
                 ValidateJournal(journal, operationRoot);
+                if (IsRunning(journal.GameId)) throw new InvalidOperationException("Close the target game before recovering instance deletion.");
                 var pendingGameRoot = Path.Combine(operationRoot, "game");
                 var pendingStateRoot = Path.Combine(operationRoot, "instance-state");
                 var originalGameExists = PathExists(journal.InstanceRoot);
@@ -271,7 +272,7 @@ public sealed class InstanceDeletionService
                     or TransactionState.Committed
                     or TransactionState.RolledBack)
                 {
-                    error = TryDelete(operationRoot);
+                    error = journal.State == TransactionState.Committed ? TryCleanupCommitted(journal) : TryDelete(operationRoot);
                 }
                 else if (journal.State == TransactionState.NeedsAttention)
                 {
@@ -282,6 +283,7 @@ public sealed class InstanceDeletionService
             catch (Exception exception) when (exception is IOException
                 or UnauthorizedAccessException
                 or InvalidDataException
+                or InvalidOperationException
                 or ArgumentException
                 or System.Text.Json.JsonException)
             {
@@ -297,12 +299,15 @@ public sealed class InstanceDeletionService
         return results;
     }
 
-    private void ValidateConditions(InstanceDeletionConditions conditions)
+    private bool IsRunning(GameId game) => processProbe?.IsRunning()
+        ?? new SystemHollowKnightProcessProbe(GameDefinition.Get(game).ProcessName).IsRunning();
+
+    private void ValidateConditions(InstanceDeletionConditions conditions, GameId game)
     {
         ArgumentNullException.ThrowIfNull(conditions);
-        if (processProbe.IsRunning())
+        if (IsRunning(game))
         {
-            throw new InvalidOperationException("A Hollow Knight process is running.");
+            throw new InvalidOperationException("The target game is running.");
         }
         if (conditions.HasBlockingQueueTasks)
         {
@@ -391,9 +396,32 @@ public sealed class InstanceDeletionService
         }
     }
 
+    private Exception? TryCleanupCommitted(InstanceDeletionJournal journal)
+    {
+        try
+        {
+            if (journal.GameId == GameId.Silksong)
+            {
+                var gameState = InstanceDirectory.ResolveUnderRoot(
+                    Path.Combine(versionRoot, ".crystalfly", "games", "silksong", "instances"), journal.InstanceId);
+                InstanceDirectory.RejectReparseAncestors(gameState);
+                if (Directory.Exists(gameState))
+                {
+                    var pending = Path.Combine(journal.PendingRoot, "game-state");
+                    if (Directory.Exists(pending)) throw new IOException("Ambiguous pending game state.");
+                    moveDirectory(gameState, pending);
+                }
+            }
+            return TryDelete(journal.PendingRoot);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException)
+        { return error; }
+    }
+
     private void ValidateJournal(InstanceDeletionJournal journal, string operationRoot)
     {
         if (journal.SchemaVersion != InstanceDeletionJournal.CurrentSchemaVersion
+            || !Enum.IsDefined(journal.GameId)
             || string.IsNullOrWhiteSpace(journal.InstanceId)
             || !string.Equals(
                 Path.TrimEndingDirectorySeparator(Path.GetFullPath(journal.PendingRoot)),
@@ -443,6 +471,7 @@ public sealed class InstanceDeletionService
 
     private sealed record InstanceDeletionJournal
     {
+        public GameId GameId { get; init; } = GameId.HollowKnight;
         public const int CurrentSchemaVersion = 1;
 
         public int SchemaVersion { get; init; } = CurrentSchemaVersion;

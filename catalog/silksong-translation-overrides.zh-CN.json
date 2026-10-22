@@ -1,0 +1,1854 @@
+{
+  "ebkr-r2modman": {
+    "displayName": "r2modman 模组管理器",
+    "description": "简单易用的模组管理器，通过 Thunderstore 管理多款游戏的模组。"
+  },
+  "silksong_modding-BepInExPack_Silksong": {
+    "displayName": "BepInEx 丝之歌加载器",
+    "description": "已为丝之歌预先配置、安装后即可使用的 BepInEx 模组加载器。"
+  },
+  "LIFELAN-RandomCrestMod": {
+    "displayName": "随机纹章",
+    "description": "新增“纷乱”纹章；装备后攻击、缚丝、工具和法术均会随机变化。开局解锁，可在任意长椅切换。"
+  },
+  "BatAtVideoGames-SilksongArchipelagoRandomizer": {
+    "displayName": "Archipelago 丝之歌随机器",
+    "description": "丝之歌的 Archipelago 多世界随机化客户端，需要配套的 Silksong APWorld。"
+  },
+  "NordicMods-SilkSoarDash": {
+    "displayName": "丝线飞跃冲刺",
+    "description": "丝翔的横向飞行变体，效果类似超级冲刺。"
+  },
+  "Kesomannen-GaleModManager": {
+    "displayName": "Gale 模组管理器",
+    "description": "适用于 Thunderstore 的现代、轻量模组管理器。"
+  },
+  "you_exe666-Clown_Hornet_Skin": {
+    "displayName": "小丑大黄蜂皮肤",
+    "description": "像梗图一样的小丑大黄蜂皮肤！作者称其质量糟糕，是纯粹的恶搞。"
+  },
+  "AtlasOfSouls-VogsBingoMod": {
+    "displayName": "Vogs 宾果挑战",
+    "description": "为丝之歌添加 Bingo 模式，支持多人游戏和自定义目标集自动标记；详见 GitHub README。"
+  },
+  "mochasippadev-Boss_Rush_for_Silksong_Pantheon_mod": {
+    "displayName": "丝之歌万神殿首领连战",
+    "description": "万神殿式首领连战：连续挑战全部 49 位首领或单独挑战，支持自选装备、难度、速通计时和统计，不改动存档。"
+  },
+  "cometcake575-Architect": {
+    "displayName": "Architect 场景编辑器",
+    "description": "丝之歌关卡编辑器，支持在游戏内制作、分享自定义关卡。"
+  },
+  "SkongGauntletGuy-GauntletSong": {
+    "displayName": "GauntletSong 连战挑战",
+    "description": "新增大量战斗试炼、敌人和首领，并重做推进流程。"
+  },
+  "jakobhellermann-SpeedrunGym": {
+    "displayName": "速通练习场",
+    "description": "用于速通练习的实用工具。"
+  },
+  "CampDJC-Sans": {
+    "displayName": "Sans 主题模组",
+    "description": "Sans 恶搞模组。"
+  },
+  "elesanren-Hard_Item_Randomizer": {
+    "displayName": "困难物品随机器",
+    "description": "丝之歌硬核随机：房间、物品、陷阱和敌人随机化。目前仅为粗糙的临时尝试，勉强可用。"
+  },
+  "ManthisCo-Void_Crest_Compatibility": {
+    "displayName": "虚空纹章兼容补丁",
+    "description": "扩展虚空纹章：基础纹章功能、被动效果、新 Voidmass 机制、音效、动画、着色及 ModMenu 兼容。"
+  },
+  "FireFish-FarGaze": {
+    "displayName": "远望镜头",
+    "description": "站立时转身远眺背景，并以短暂渐变解除或恢复背景虚化。"
+  },
+  "went_to_the_optometrist-MJ_SR": {
+    "displayName": "MJ SR 模组",
+    "description": "Michael Jackson／BlueSR 主题的自定义声音与文本。"
+  },
+  "Riggola-BasicEnemySyncAddonsFix": {
+    "displayName": "基础敌人同步扩展修复",
+    "description": "独立的 BasicEnemySync 扩展，修复丝茧复活、敌人死亡同步和环境伤害问题。"
+  },
+  "Michael4d45-HornetCloakColor": {
+    "displayName": "大黄蜂披风配色",
+    "description": "更改大黄蜂披风颜色，并与其他 SSMP 玩家完整同步。"
+  },
+  "thecodeflayer-SilksongLoadoutRandomizer": {
+    "displayName": "装备随机器",
+    "description": "在长椅休息、按下快捷键或击败首领时，随机更换大黄蜂的纹章和工具配置。"
+  },
+  "silksong_modding-ModMenu": {
+    "displayName": "模组设置菜单",
+    "description": "用于扩展丝之歌菜单的 API。"
+  },
+  "al3ks1s-al3ks1sCore": {
+    "displayName": "al3ks1s 核心依赖库",
+    "description": "示例模组说明。"
+  },
+  "spacemonkeyy-CyclesMod": {
+    "displayName": "循环机制模组",
+    "description": "速通工具，使精确周期不受加载耗时影响。"
+  },
+  "faarisaahmed-VoidHornet": {
+    "displayName": "虚空大黄蜂",
+    "description": "丝之歌的漆黑虚空大黄蜂皮肤。"
+  },
+  "Threewood-LostkinButEsmy_stitchwork": {
+    "displayName": "Esmy 失落近亲皮肤（Stitchwork）",
+    "description": "替换大黄蜂及其他内容的皮肤。"
+  },
+  "Threewood-LostkinButEsmy_customizer": {
+    "displayName": "Esmy 失落近亲皮肤（Customizer）",
+    "description": "替换大黄蜂及其他内容的皮肤。"
+  },
+  "faarisaahmed-EnemyBehaviorApi": {
+    "displayName": "敌人行为 API",
+    "description": "通过反射读取敌人的 PlayMaker FSM，为其他模组提供可观察、调整和驱动的结构化描述，无须预设敌人清单。开发依赖库，其他模组要求时再安装。"
+  },
+  "faarisaahmed-SpawnEnemyOnHit": {
+    "displayName": "受击生成敌人",
+    "description": "每次受击都会召唤一种你已经遇见的敌人；探索越多，失误越危险。"
+  },
+  "json_commits-DoubleDamageConfigurator": {
+    "displayName": "双倍伤害配置器",
+    "description": "开发中，尚未完成。菜单列出造成 2 格伤害的敌人；开启可限制为 1 格，关闭则保留原版。重建列表不会忘记关闭选项。"
+  },
+  "capitalists-Rebalance": {
+    "displayName": "平衡调整",
+    "description": "重新平衡大黄蜂。"
+  },
+  "faarisaahmed-CustomGauntlet": {
+    "displayName": "自定义连战",
+    "description": "在 Grand Forum 自建波次竞技场，选择敌人与波次后进入挑战。开发中，只有部分敌人可生成。"
+  },
+  "faarisaahmed-SSMPEnemySync": {
+    "displayName": "SSMP 敌人同步",
+    "description": "SSMP 敌人同步扩展：两名玩家共享同一敌人和生命池，任意一人均可击杀，包含首领。"
+  },
+  "faarisaahmed-EnemyPuppeteer": {
+    "displayName": "敌人操控器",
+    "description": "手动操控任意敌人：点击选中后控制移动并使用其真实攻击。实验性测试工具。"
+  },
+  "Eylonsh-NuclearBomb": {
+    "displayName": "核弹模组",
+    "description": "按 N 投下一枚核弹。"
+  },
+  "Dalias-OriSkinForHornet": {
+    "displayName": "奥日大黄蜂皮肤",
+    "description": "将大黄蜂外观替换为白色小精灵。"
+  },
+  "OrionBonnie-Build_Your_Own_Bench": {
+    "displayName": "自建长椅",
+    "description": "允许玩家在任意位置创建长椅以保存游戏。"
+  },
+  "CampDJC-A_Damage_Gambling_Mod": {
+    "displayName": "伤害抽奖",
+    "description": "示例模组说明。"
+  },
+  "MonoDetour-MonoDetour_BepInEx_5": {
+    "displayName": "MonoDetour BepInEx 5 适配库",
+    "description": "为 MonoDetour 提供 HarmonyX 互操作及 BepInEx 5 日志集成，同时会提前初始化 MonoDetour。"
+  },
+  "MonoDetour-MonoDetour": {
+    "displayName": "MonoDetour 方法钩子库",
+    "description": "基于 MonoMod.RuntimeDetour 的易用 .NET 方法重定向库。"
+  },
+  "fireb0rn-AccessibilityMod": {
+    "displayName": "无障碍辅助",
+    "description": "自动赋予 Dive-dash 和 Neutral Pogo 的移动速度，可配置速度数值。"
+  },
+  "cometcake575-CrestShuffler": {
+    "displayName": "纹章洗牌",
+    "description": "按计时、切换场景、死亡或受击条件重新随机选择纹章。"
+  },
+  "stratos_sucks-StratosTweaks": {
+    "displayName": "Stratos 调整合集",
+    "description": "Stratos 的调整集合。"
+  },
+  "CardiaDarkhill-LegacyoftheAbyss": {
+    "displayName": "深渊遗产",
+    "description": "丝之歌的完整合作体验，加入第二名可玩角色：阴影或圣巢的小骑士。"
+  },
+  "XiaohaiMod-ShowDamage_HealthBar": {
+    "displayName": "伤害与血条显示",
+    "description": "显示敌人血条与玩家实际伤害数字，包含首领血条和可配置的自定义纹理。"
+  },
+  "BobbyTheCatfish-BasicItemSync": {
+    "displayName": "基础物品同步",
+    "description": "通过 SSMP 同步物品、进度与捷径。"
+  },
+  "ambershadow-SilksongArchiDisplay": {
+    "displayName": "Archipelago 信息显示",
+    "description": "修补 RecentItemsDisplay，使其适配丝之歌 Archipelago 随机化。"
+  },
+  "hk_speedrunning-DebugMod": {
+    "displayName": "丝之歌调试工具",
+    "description": "丝之歌练习工具，提供完整即时存档、作弊和其他功能，基于空洞骑士 DebugMod。"
+  },
+  "ForgottenKingdoms-ForgottenKingdoms": {
+    "displayName": "遗忘王国",
+    "description": "探索 Kimera 王国，解开沙之诅咒，发现秘密、收集卷轴并调查过去与未来。与 Nameless town 的朝圣者交谈开始冒险。"
+  },
+  "MorningRain-NightmareHornet": {
+    "displayName": "梦魇大黄蜂",
+    "description": "以格林剧团为灵感的丝之歌大黄蜂皮肤。"
+  },
+  "panafrescos-AlwayCompassOn": {
+    "displayName": "常驻指南针",
+    "description": "让指南针始终保持启用。"
+  },
+  "panafrescos-jsonMultiversar": {
+    "displayName": "JSON 多元配置",
+    "description": "json multiversar，作者表示用来避免别人反复打扰；原简介未解释具体功能。"
+  },
+  "TheWeirdo931-Final_Judge": {
+    "displayName": "最终审判者",
+    "description": "大幅提高 Last Judge 首领战的难度。"
+  },
+  "lagerthon-Troll_Trobbio": {
+    "displayName": "恶作剧 Trobbio",
+    "description": "让 Trobbio 的战斗逐渐升级。"
+  },
+  "Vitaxses-NoRoarStun": {
+    "displayName": "取消吼叫眩晕",
+    "description": "防止首领吼叫造成眩晕。"
+  },
+  "TheWeirdo931-Furious_Trobbio": {
+    "displayName": "狂怒 Trobbio",
+    "description": "大幅提高第三幕 Tormented Trobbio 首领战的难度。"
+  },
+  "SilksongSkinCreators-Stitchwork": {
+    "displayName": "Stitchwork 皮肤框架",
+    "description": "丝之歌资源替换工具，支持精灵、纹理、音频、视频和文本。基于 Ashiepaws 的 Patchwork，扩展 T2D 处理、硬件光标替换、性能记录与热重载。"
+  },
+  "Danny752786-RebelliousSecondSentinel": {
+    "displayName": "叛逆第二哨兵",
+    "description": "强化 Second Sentinel，增加两个阶段并提高战斗难度。"
+  },
+  "danatron1-Buttplug_Song": {
+    "displayName": "Buttplug 外设联动",
+    "description": "为丝之歌加入振动器支持，让大黄蜂更加性感。"
+  },
+  "fabbeyond-StartNeedleStab": {
+    "displayName": "开局针刺技能",
+    "description": "开局有 50% 的概率被针刺中。"
+  },
+  "Vitaxses-QoL": {
+    "displayName": "体验优化合集",
+    "description": "游戏体验改善模组。"
+  },
+  "Brothergaming52-BasicEnemySync": {
+    "displayName": "基础敌人同步",
+    "description": "为 SSMP 提供敌人、首领及丝茧复活同步。开发中，可能存在破坏游戏流程的错误。"
+  },
+  "hgcbvf-easy_checkpoints": {
+    "displayName": "便捷检查点",
+    "description": "按 P 设置检查点，Shift + P 删除检查点，L 开启或关闭简单模式。"
+  },
+  "Me_and_me_also_me-WispHornet": {
+    "displayName": "幽光大黄蜂皮肤",
+    "description": "将大黄蜂替换为 Wisp Ticket 风格的大黄蜂精灵图包。"
+  },
+  "Kilvy-CrestsEvolve": {
+    "displayName": "纹章进化",
+    "description": "组合 LegendsNeverDie、InsectsMayCry、RageOfTheGoner 和 ToolsAscension。"
+  },
+  "BatAtVideoGames-CustomMusicRandomizer": {
+    "displayName": "自定义音乐随机器",
+    "description": "用自有音频随机替换区域、战斗、首领、菜单及庆祝音乐，也可加入原版曲目。"
+  },
+  "BatAtVideoGames-CrestWheel": {
+    "displayName": "纹章轮盘",
+    "description": "支持手柄和键盘的可配置纹章轮盘，可离开长椅切换已解锁纹章。"
+  },
+  "BlueSR-BlueSR_Ultra_Steel_Soul_Challenge": {
+    "displayName": "BlueSR 超级钢魂挑战",
+    "description": "大幅提高难度，包含一些惊喜；详见 README。"
+  },
+  "BlueSR-BlueSR_Ultra_Steel_Soul": {
+    "displayName": "BlueSR 超级钢魂",
+    "description": "大幅提高难度，包含一些惊喜；详见 README。"
+  },
+  "SSEMODS-SSManager": {
+    "displayName": "SS 模组管理工具",
+    "description": "便捷的丝之歌角色编辑管理工具，通常使用数字小键盘 5，可在设置中更改。"
+  },
+  "SSEMODS-ShawHpOnDeath": {
+    "displayName": "死亡血量显示",
+    "description": "死亡后显示首领的剩余生命值。"
+  },
+  "SSEMODS-GodOfPharloom": {
+    "displayName": "纺络之神",
+    "description": "按 F6 进入万神殿，按 B 打开装备更换菜单。"
+  },
+  "ant_of_doom-ResurrectMinigames": {
+    "displayName": "恢复小游戏",
+    "description": "恢复 Lumble 和 Loddie，并给予他们 999999 念珠。"
+  },
+  "RaincloudTheDragon-MerchantStacker": {
+    "displayName": "商人物品堆叠",
+    "description": "在商店批量购买可叠加的补充物品，通过数量选择器实时显示费用。"
+  },
+  "danielstegink-SilkAndSong": {
+    "displayName": "丝与歌",
+    "description": "加入 RPG 风格的升级机制。"
+  },
+  "kaycodes13-EdgeDetection": {
+    "displayName": "边缘检测",
+    "description": "为重要游戏对象添加可自定义的边缘描绘。"
+  },
+  "kaycodes13-QueenCrest": {
+    "displayName": "女王纹章",
+    "description": "白色夫人主题的自定义纹章，提供灵巧攻击、快速产丝与大量丝技使用。"
+  },
+  "kaycodes13-ILLine": {
+    "displayName": "IL 路线标记",
+    "description": "模组调试工具：无法取得源码行号时，在堆栈打印 IL 偏移，便于追踪原版游戏代码中的错误。"
+  },
+  "kaycodes13-ToastyBrew": {
+    "displayName": "热饮酿造",
+    "description": "使 Flea Brew 与 Flintslate 一样有效抵御 Mount Fay 的寒冷，仅此一项改动。"
+  },
+  "kaycodes13-Cogwork_Waltz": {
+    "displayName": "齿轮华尔兹",
+    "description": "将 Cogwork Dancers 的战斗音乐替换为 Joe Zeng 改编的 3/8 拍 Cogwork Waltz。"
+  },
+  "kaycodes13-Glissando": {
+    "displayName": "Glissando 滑音模组",
+    "description": "将跳跃替换为重力翻转。"
+  },
+  "dloizides-SilksongTweaks": {
+    "displayName": "丝之歌调整合集",
+    "description": "返回死亡位置、不永久丢失念珠，并设置最大面具和所受伤害；提供手柄友好的面板，显示各项调整是否实际生效。"
+  },
+  "DatUub-QuestMod": {
+    "displayName": "任务模组",
+    "description": "丝之歌任务管理工具，使用完整调试界面接受、完成任务并自定义任务目标。"
+  },
+  "Maskedcreeper10_RYS-MetalOST": {
+    "displayName": "金属风格配乐",
+    "description": "使用 RYS 手工制作的金属乐翻奏替换丝之歌的全部原版音乐。"
+  },
+  "Scrimas-IntelligentAutoHideHUD": {
+    "displayName": "智能隐藏 HUD",
+    "description": "类似艾尔登法环的动态 HUD：探索时隐藏，战斗、受伤或资源变化时立即显示。"
+  },
+  "lagerthon-Slapsong": {
+    "displayName": "Slapsong 模组",
+    "description": "扇Pharloom 王国虫子的耳光。"
+  },
+  "elesanren-ShakaraAlwaysOnsite": {
+    "displayName": "Shakara 常驻场景",
+    "description": "沙克拉商人常驻：14 个区域的沙克拉商人始终在场且可交互。"
+  },
+  "Ericky1694-CustomDifficulty": {
+    "displayName": "自定义难度",
+    "description": "自定义难度 3.0.0，支持逐项开关、针升级缩放、生命、伤害、奖励与价格调整。"
+  },
+  "CarrieForle-AllNeedolin": {
+    "displayName": "全针琴曲目",
+    "description": "同时显示所有丝弦琴信息。"
+  },
+  "kyleanderror13-No_Dying": {
+    "displayName": "禁止死亡",
+    "description": "阻止大黄蜂死亡。"
+  },
+  "Fabulator_K-CM_Scaler": {
+    "displayName": "CM 比例调整器",
+    "description": "缩放 Configuration Manager 界面，以适配高分辨率屏幕。"
+  },
+  "Fabulator_K-SilkSuture": {
+    "displayName": "丝线缝合",
+    "description": "调整缚丝治疗时机：开始时恢复 1 格，完成时恢复其余生命；保持各纹章、工具和状态下的原版治疗总量，每项均可配置。"
+  },
+  "jakobhellermann-MapWarp": {
+    "displayName": "地图传送",
+    "description": "右键点击地图任意位置即可传送，支持鼠标平移与缩放；可揭示全图、始终显示指南针及房间轮廓。"
+  },
+  "Amachan229-Amachan_skin": {
+    "displayName": "Amachan 大黄蜂皮肤",
+    "description": "将大黄蜂替换为原创角色 Amachan，请务必手动下载！"
+  },
+  "Amachan229-Kasane_Teto_SynthV_Customizer": {
+    "displayName": "重音 Teto SynthV 皮肤",
+    "description": "将大黄蜂替换为 SynthV 版重音 Teto，请务必手动下载！"
+  },
+  "elesanren-NativeUIMaker": {
+    "displayName": "原生界面构建库",
+    "description": "丝之歌原生 UI 组件库 NativeUI。"
+  },
+  "Fabulator_K-MonorReaperBalance": {
+    "displayName": "Monor 收割者平衡调整",
+    "description": "Monor 的收割者纹章平衡方案，详见 README。"
+  },
+  "Amachan229-Hatsune_Miku_skin_Skarrsinger_Karmelita": {
+    "displayName": "初音未来 Karmelita 皮肤",
+    "description": "将 Skarrsinger Karmelita 替换为初音未来，请务必手动下载！"
+  },
+  "ConstructiveCynicism-FsmMaster": {
+    "displayName": "FSM 状态机管理器",
+    "description": "用于检查、实时编辑和调试丝之歌 PlayMaker FSM 的可视化图形工具，建议配合 DebugMod。"
+  },
+  "mich101mich-SaveFileManagerMod": {
+    "displayName": "存档文件管理器",
+    "description": "在游戏内命名和归档存档。"
+  },
+  "silksong_modding-FsmUtil": {
+    "displayName": "FSM 状态机工具库",
+    "description": "方便其他模组修改 PlayMakerFSM 的依赖库。"
+  },
+  "CarrieForle-CustomFont": {
+    "displayName": "自定义字体",
+    "description": "使用 OpenType 或 TrueType 字体文件替换字体。"
+  },
+  "SSMP-SSMP": {
+    "displayName": "SSMP 丝之歌多人联机",
+    "description": "丝之歌多人模组，允许玩家创建房间，让其他人加入冒险。"
+  },
+  "NeelixTeam-Ice_Cloak_Tool": {
+    "displayName": "冰霜披风工具",
+    "description": "说明。"
+  },
+  "Ashilstraza-Smol_Randomizer": {
+    "displayName": "轻量随机器",
+    "description": "对杂项内容进行随机化。"
+  },
+  "Fiendlords-FiendlordsPureVessel": {
+    "displayName": "Fiendlords 纯粹容器",
+    "description": "丝之歌的纯粹容器皮肤。"
+  },
+  "Bloatroach-ToRemainCalm": {
+    "displayName": "保持冷静",
+    "description": "使大多数投射物的轨迹难以预测、难以躲避。"
+  },
+  "SaigoNoTanuki-MOREDamage": {
+    "displayName": "更多伤害",
+    "description": "允许设置所受伤害的倍率。"
+  },
+  "Jigglypuffs-KnightBlueHUD_for_Patchwork": {
+    "displayName": "蓝色小骑士 HUD（Patchwork）",
+    "description": "将 HUD 重新着色为小骑士蓝。"
+  },
+  "shownyoung-KnightInSilksong": {
+    "displayName": "丝之歌中的小骑士",
+    "description": "允许在丝之歌中操控小骑士。"
+  },
+  "silksong_modding-I18N": {
+    "displayName": "I18N 国际化支持库",
+    "description": "自动为其他丝之歌模组加载本地化文本。"
+  },
+  "hampther-SilkbornHornet": {
+    "displayName": "丝裔大黄蜂",
+    "description": "一张 Architect 地图，使大黄蜂周期性失去丝线或生命。"
+  },
+  "EpsilonDelta-MitosisDancers": {
+    "displayName": "分裂舞者",
+    "description": "挑战不断复制的 Cogwork Dancers。"
+  },
+  "EpsilonDelta-FraudLace": {
+    "displayName": "Fraud Lace 首领模组",
+    "description": "让 Lost Lace 极其困难，亦称 Any Lace。"
+  },
+  "Team_apple-Custom_DLC_Boss_Mod": {
+    "displayName": "自定义 DLC 首领",
+    "description": "在游戏引擎中加入残酷的自定义 DLC 风格首领战。"
+  },
+  "ant_of_doom-NectarAllergic": {
+    "displayName": "花蜜过敏",
+    "description": "搞笑且无用的模组：大黄蜂在 Halfway Home 向 Creige 买花蜜后，需要承担后果。"
+  },
+  "homothety-Benchwarp": {
+    "displayName": "长椅传送",
+    "description": "在游戏内调整长椅重生位置。"
+  },
+  "dplochcoder-TheHuntIsOn": {
+    "displayName": "狩猎开始",
+    "description": "用于速通玩家对抗猎人的 SSMP 模组。"
+  },
+  "dplochcoder-PurenailUtil": {
+    "displayName": "Purenail 工具库",
+    "description": "为 C#／丝之歌模组提供多种实用工具。"
+  },
+  "dplochcoder-InvincibilityMonitor": {
+    "displayName": "无敌状态监视器",
+    "description": "让大黄蜂在特定状态下无敌。"
+  },
+  "ant_of_doom-WalkButton": {
+    "displayName": "步行按键",
+    "description": "外观动作模组：按住或切换自定义按键，缓慢行走。"
+  },
+  "tetriscat66-ForceAttackDirection": {
+    "displayName": "强制攻击方向",
+    "description": "强制攻击方向为上、下或水平，也可禁用地面冲刺攻击。"
+  },
+  "aZsfaf-Disable_Fog_and_Blur": {
+    "displayName": "关闭雾气与模糊",
+    "description": "禁用雾与背景模糊的模组转载版，针对 BepInEx 和 Cogfly 优化。"
+  },
+  "JasonForNian-RainbowHealth": {
+    "displayName": "彩虹血条",
+    "description": "彩虹生命面具，可选滚动动画。"
+  },
+  "duckling9191-RosaryCannonCraftBind": {
+    "displayName": "念珠炮合成与恢复",
+    "description": "允许用念珠串作为材料，为念珠炮重新装填。"
+  },
+  "itsschwer-NeedleSwapper": {
+    "displayName": "织针切换器",
+    "description": "允许降级或更换大黄蜂使用的针升级；请阅读 README。"
+  },
+  "cometcake575-UltimateChickenSpider": {
+    "displayName": "终极鸡蛛",
+    "description": "通过 SSMP 与 Architect，在丝之歌中实现 Ultimate Chicken Horse 风格玩法。"
+  },
+  "silksong_modding-Modlist": {
+    "displayName": "已加载模组列表",
+    "description": "丝之歌模组清单。"
+  },
+  "dreamfactory-InfiniteTools": {
+    "displayName": "无限工具",
+    "description": "按选择为工具提供无限资源。"
+  },
+  "chewchewhorizon-Mango_Puppy_Skin_WIP": {
+    "displayName": "芒果小狗皮肤（制作中）",
+    "description": "芒果小狗主题的丝之歌皮肤，完成度 95%。"
+  },
+  "hk_speedrunning-GlitchDebug": {
+    "displayName": "漏洞调试工具",
+    "description": "扩展 DebugMod，用于 Glitched 速通练习。"
+  },
+  "Snek44-MaidHornet": {
+    "displayName": "女仆大黄蜂皮肤",
+    "description": "拿起掸子，开始清扫Pharloom 王国！"
+  },
+  "NarrowsProjects-ReplenishTools": {
+    "displayName": "补充工具",
+    "description": "游玩时工具随时间补充，无须在长椅休息。"
+  },
+  "rinsoko-SilksongAnimals": {
+    "displayName": "丝之歌动物模组",
+    "description": "野兽缚丝时自动播放 Animals。"
+  },
+  "KikuGie-ToolKeybinds": {
+    "displayName": "工具快捷键",
+    "description": "为工具设置独立按键，不再依赖朝向。"
+  },
+  "reinzer-FastGameLoad": {
+    "displayName": "快速游戏加载",
+    "description": "加快游戏启动。"
+  },
+  "Krezon-Silksong_theme_but_Crull_and_Benjin": {
+    "displayName": "Crull 与 Benjin 版丝之歌主题曲",
+    "description": "Ey ta no ey tu mah（作者的拟声简介）。"
+  },
+  "cometcake575-Blahaj": {
+    "displayName": "鲨鱼玩偶皮肤",
+    "description": "将 Plasmids 重新绘制为 Blåhaj，并修改图鉴条目；精灵图由 Antgl 制作。"
+  },
+  "AstrumNova-Pale_Automaton": {
+    "displayName": "苍白机关首领",
+    "description": "将 Second Sentinel 改为四阶段、注重格挡的战斗。"
+  },
+  "alexkiri-BackgroundBlurImproved": {
+    "displayName": "背景模糊优化",
+    "description": "改善背景模糊质量，并提供部分自定义选项。"
+  },
+  "Krezon-Strive_but_everything_is_my_voice": {
+    "displayName": "人声版 Strive 配乐",
+    "description": "Dzeng dzin-dzun-dzing dzang（作者的拟声简介）。"
+  },
+  "Aesteralias-SilkShock": {
+    "displayName": "SilkShock 模组",
+    "description": "通过 v4 MultiShock 插件 DynamicShock 接入 PiShock。"
+  },
+  "Resolve-The_Festival_of_Fools": {
+    "displayName": "愚者节庆",
+    "description": "包含新试炼和首领的 Architect 自定义地图；附带替换存档槽 4 的自定义存档，须从模组文件夹手动下载。"
+  },
+  "Vitaxses-FixedMistRNG": {
+    "displayName": "固定迷雾随机结果",
+    "description": "SSMP 扩展，为所有玩家同步迷雾。"
+  },
+  "Kokomi-Silken_Impact": {
+    "displayName": "Silken Impact 模组",
+    "description": "原神风格的动画血条与受击提示，增强战斗反馈。"
+  },
+  "BobbyTheCatfish-SSMPVoiceChat": {
+    "displayName": "SSMP 语音聊天",
+    "description": "使用 SSMP 语音聊天与其他玩家交流，支持距离语音和队伍语音。"
+  },
+  "the_cool_fedora_guy-MoreLockets": {
+    "displayName": "更多吊坠",
+    "description": "在世界各处添加更多记忆挂坠，供新增纹章的模组使用。"
+  },
+  "SFGrenade-WavLib": {
+    "displayName": "WavLib 音频依赖库",
+    "description": "适用于 .NET Framework、.NET Standard 和 .NET Core 的轻量 RIFF WAVE 依赖库。"
+  },
+  "Foxyrobo-CameraExtras": {
+    "displayName": "镜头扩展",
+    "description": "冻结摄像机并隐藏界面元素。"
+  },
+  "PimpasPimpinela-StartCrestSelector": {
+    "displayName": "初始纹章选择器",
+    "description": "选择开局使用的纹章。"
+  },
+  "the_cool_fedora_guy-main_area_music_in_subrooms": {
+    "displayName": "子房间使用主区域配乐",
+    "description": "在子房间播放主区域的音乐。"
+  },
+  "lagerthon-Tag_The_Fleas": {
+    "displayName": "标记跳蚤",
+    "description": "与跳蚤玩追逐游戏。"
+  },
+  "chunniunai-AnySilkBoss": {
+    "displayName": "任意首领挑战",
+    "description": "修改 Silk 的战斗模式，提供两种模式及数十种额外攻击形式。"
+  },
+  "Foxyrobo-ZoomFix": {
+    "displayName": "镜头缩放修复",
+    "description": "支持缩放画面，同时避免背景显示错乱。"
+  },
+  "Krezon-High_Halls_theme_but_everything_is_my_voice": {
+    "displayName": "人声版高殿主题曲",
+    "description": "Ting ta tu ting（作者的拟声简介）。"
+  },
+  "JasonForNian-TripleJump": {
+    "displayName": "三段跳",
+    "description": "新增三段跳工具。"
+  },
+  "Hamunii-AutoHookGenPatcher": {
+    "displayName": "自动钩子生成补丁",
+    "description": "在 BepInEx 预加载阶段，自动生成 MonoMod.RuntimeDetour.HookGen 的 MMHOOK 文件。"
+  },
+  "Hamunii-DetourContext_Dispose_Fix": {
+    "displayName": "DetourContext 释放修复",
+    "description": "BepInEx 修补器，修复 MonoMod.RuntimeDetour 的 DetourContext.Dispose 不生效的问题。"
+  },
+  "coderCleric-ThatFrogIHate": {
+    "displayName": "那只讨厌的青蛙",
+    "description": "消灭某一只青蛙。"
+  },
+  "the_cool_fedora_guy-Ultimate_Architect_Modpack": {
+    "displayName": "Architect 编辑器整合包",
+    "description": "Architect 整合包，收录多种辅助地图搭建的模组。"
+  },
+  "ant_of_doom-LieButton": {
+    "displayName": "躺下按键",
+    "description": "外观动作模组：按下可自定义的按键，让角色躺下。"
+  },
+  "Woven_Together_Dev_team-Woven_Together": {
+    "displayName": "交织同行",
+    "description": "扩展部分游戏区域，并加入全新区域。"
+  },
+  "AstrumNova-Aeternal_Everwatcher": {
+    "displayName": "Aeternal Everwatcher 首领模组",
+    "description": "重做 Watcher At The Edge，使战斗侧重格挡。"
+  },
+  "CarrieForle-RandomPing": {
+    "displayName": "随机延迟",
+    "description": "随机播放 Discord 提示音。"
+  },
+  "danielstegink-LongerFleaBrew": {
+    "displayName": "延长跳蚤饮剂效果",
+    "description": "自定义 Flea Brew 的持续时间。"
+  },
+  "the_cool_fedora_guy-AlwaysPoshanka": {
+    "displayName": "常驻 Poshanka",
+    "description": "无须 Throwing Rings 也能 Poshanka。"
+  },
+  "tetriscat66-ShamanDiveBind": {
+    "displayName": "萨满俯冲与恢复",
+    "description": "使萨满纹章的缚丝功能更接近荒芜俯冲。"
+  },
+  "CC_Collection-WhiteKnightLace": {
+    "displayName": "白骑士蕾丝",
+    "description": "为蕾丝第二次战斗加入未使用及原创攻击，提高难度。"
+  },
+  "archdodo-Extra_Tool_Colors": {
+    "displayName": "更多工具颜色",
+    "description": "新增组合工具颜色与工具颜色幻化。"
+  },
+  "Clungo-Skeleton_Jumpscare": {
+    "displayName": "骷髅惊吓",
+    "description": "奔跑骷髅的突然惊吓。"
+  },
+  "Launfer-AwakenedGrandMotherSilk": {
+    "displayName": "觉醒丝之祖母",
+    "description": "精心调整 Grand Mother Silk 首领战，将难度提高到作者期望的水平。"
+  },
+  "silksong_modding-AssetHelperMenu": {
+    "displayName": "资源辅助菜单",
+    "description": "AssetHelper 扩展，加入面向开发者的工具菜单。"
+  },
+  "silksong_modding-AssetHelper": {
+    "displayName": "资源辅助库",
+    "description": "辅助加载原版游戏资源的依赖库。"
+  },
+  "al3ks1s-SilkenSisters": {
+    "displayName": "丝之姐妹",
+    "description": "加入蕾丝／Phantom 双人记忆战。测试版，可能存在错误和异常；反馈地址 https://github.com/al3ks1s/SilkenSisters/issues。"
+  },
+  "DerVorce-Void_Crest": {
+    "displayName": "虚空纹章",
+    "description": "加入基于整个深渊而非主要基于小骑士的新纹章。"
+  },
+  "chunniunai-ReaperBalance": {
+    "displayName": "收割者平衡调整",
+    "description": "修改收割者的战斗模式，提供数十种额外攻击形式。"
+  },
+  "CheezyPants12-SilksongAdaptiveTriggers": {
+    "displayName": "丝之歌自适应扳机",
+    "description": "通过外部应用启用 DualSense 自适应扳机。"
+  },
+  "al3ks1s-Clawline360": {
+    "displayName": "全方向钩爪线",
+    "description": "向任意方向投出 Clawline！"
+  },
+  "ink_YSY-Echoes_of_Starlight": {
+    "displayName": "星光回响",
+    "description": "用于 KnightInSilksong 的小骑士皮肤。"
+  },
+  "AstrumNova-Nail_Parry_Everything": {
+    "displayName": "织针格挡一切",
+    "description": "尝试让针的格挡抵御丝之歌中的所有伤害类型。"
+  },
+  "BobbyTheCatfish-SSMPEssentials": {
+    "displayName": "SSMP 实用扩展",
+    "description": "改善多人体验的工具集合，包含传送、血条、玩家观战与死亡消息。"
+  },
+  "CarrieForle-CustomTranslation": {
+    "displayName": "自定义翻译",
+    "description": "为尚未支持的语言添加自定义翻译。"
+  },
+  "PimpasPimpinela-HueShifter": {
+    "displayName": "色相调整",
+    "description": "通过着色器改变地图颜色，也可将所有内容变为彩虹色。"
+  },
+  "flibber-BingoUI": {
+    "displayName": "宾果挑战界面",
+    "description": "显示适用于 Bingo 比赛的界面。"
+  },
+  "cometcake575-SimpleEnemyRando": {
+    "displayName": "简易敌人随机器",
+    "description": "使用 Architect 制作的敌人和首领随机化，支持有种子与无种子随机。"
+  },
+  "chunniunai-FleasRadiance": {
+    "displayName": "跳蚤辐光",
+    "description": "辐光的自定义皮肤。"
+  },
+  "chunniunai-Radiance": {
+    "displayName": "辐光模组",
+    "description": "在 BellTown 左上区域加入挑战房间，可以从新入口挑战辐光。"
+  },
+  "silksong_modding-DataManager": {
+    "displayName": "数据管理依赖库",
+    "description": "代其他模组保存和加载数据，包括全局及各存档槽独立的数据。"
+  },
+  "Samihamer1-LostAndChained": {
+    "displayName": "迷失与束缚",
+    "description": "重新设计 Lost Lace 的最终战斗，包含 Grand Mother Silk。"
+  },
+  "cometcake575-AnimSeer": {
+    "displayName": "动画查看器",
+    "description": "按 F4 在对象上方显示当前动画片段名。"
+  },
+  "silksong_modding-UnityHelper": {
+    "displayName": "Unity 辅助依赖库",
+    "description": "包含 Unity 对象相关实用函数的依赖库。"
+  },
+  "hk_speedrunning-QuickWarp": {
+    "displayName": "快捷传送",
+    "description": "传送至游戏中任意场景的基础模组。"
+  },
+  "MikeyMods-SilksongFaah": {
+    "displayName": "Faah 音效模组",
+    "description": "大黄蜂死亡时播放 FAAH 音效。"
+  },
+  "Voidlings-Needleforge": {
+    "displayName": "织针锻造",
+    "description": "用于添加纹章和工具的 API。"
+  },
+  "BobbyTheCatfish-Prop_Hunt": {
+    "displayName": "道具躲猫猫",
+    "description": "与朋友玩躲猫猫，伪装成地图中的物件；几乎每个房间都有丰富道具可供藏身。"
+  },
+  "silksong_modding-SilksongPrepatcher": {
+    "displayName": "丝之歌预补丁库",
+    "description": "丝之歌模组通用预加载修补器。"
+  },
+  "spacemonkeyy-MasterMode": {
+    "displayName": "大师模式",
+    "description": "因为原版游戏还不够难。"
+  },
+  "Lucaspl-SilksongRandomizer": {
+    "displayName": "丝之歌随机器",
+    "description": "目前仅为第六版，可能存在错误和流程卡死。"
+  },
+  "CarrieForle-SwapLogo": {
+    "displayName": "替换标题标志",
+    "description": "用另一张图片替换开场标志。"
+  },
+  "Eylonsh-NoDefenceValues": {
+    "displayName": "移除防御数值",
+    "description": "禁用敌人的伤害修正。"
+  },
+  "CarrieForle-HitlessMode": {
+    "displayName": "无伤模式",
+    "description": "新增两种无伤游戏模式。"
+  },
+  "jadedbay-NeedleArts": {
+    "displayName": "织针技艺",
+    "description": "允许从任意纹章装备多种针击。"
+  },
+  "Voidlings-TuneWeaver": {
+    "displayName": "织曲者",
+    "description": "添加和修改新的丝弦琴曲目。"
+  },
+  "Syncinfl0ow-HornetSings": {
+    "displayName": "大黄蜂唱歌",
+    "description": "演奏 Sherma 的铃，并与他一起歌唱。"
+  },
+  "danielstegink-CustomTitleCards": {
+    "displayName": "自定义场景标题",
+    "description": "自定义首领、区域与 NPC 的标题卡。"
+  },
+  "danielstegink-VoidSlayer": {
+    "displayName": "虚空斩杀者",
+    "description": "使 Everbloom 对虚空敌人提供额外伤害。"
+  },
+  "danielstegink-CrestOptimizer": {
+    "displayName": "纹章优化器",
+    "description": "自定义纹章设置。"
+  },
+  "xrroman-GravityFlux": {
+    "displayName": "重力变化",
+    "description": "加入重力调整菜单、自定义跳跃逻辑，以及随时间变化的可配置随机重力模式。"
+  },
+  "shownyoung-StubbornHornet": {
+    "displayName": "顽强大黄蜂",
+    "description": "示例模组说明。"
+  },
+  "Eylonsh-ClawmaidensReturn": {
+    "displayName": "爪之少女归来",
+    "description": "通过配置重新开启或关闭 Clawmaidens。"
+  },
+  "fabbeyond-RandomTeleport": {
+    "displayName": "随机传送",
+    "description": "每隔指定秒数，将大黄蜂传送到随机房间。"
+  },
+  "flibber-FilteredLogs": {
+    "displayName": "日志过滤",
+    "description": "丝之歌日志筛选工具。"
+  },
+  "Supersonicsalt-Patched_Up_Glooms": {
+    "displayName": "Gloom 外观修补",
+    "description": "为 Gargant Gloom 和 Gloomsac 身上的孔洞贴上创可贴。"
+  },
+  "Supersonicsalt-Transtrans": {
+    "displayName": "Transtrans 模组",
+    "description": "将 Mossgrubs 替换为空洞骑士模组中的 Transtrans。"
+  },
+  "danielstegink-AutoLoot": {
+    "displayName": "自动拾取",
+    "description": "使磁石胸针自动拾取念珠。"
+  },
+  "danielstegink-SwapTools": {
+    "displayName": "切换工具",
+    "description": "允许随时切换工具。"
+  },
+  "Supersonicsalt-CheapEva": {
+    "displayName": "低价 Eva",
+    "description": "为 Eva 的费用添加自定义选项。"
+  },
+  "danielstegink-SilklessSkills": {
+    "displayName": "技能不耗丝线",
+    "description": "取消多种工具与能力的丝线消耗。"
+  },
+  "BobbyTheCatfish-FleaFestivalDifficulty": {
+    "displayName": "跳蚤节难度调整",
+    "description": "添加设置，使跳蚤庆典小游戏更简单或更困难。"
+  },
+  "danielstegink-WishUtil": {
+    "displayName": "Wish 工具库",
+    "description": "用于创建自定义愿望的依赖库。"
+  },
+  "hk_speedrunning-TimerMod": {
+    "displayName": "速通计时器",
+    "description": "基于触发条件的简单丝之歌计时器。"
+  },
+  "Eylonsh-IncreaseShards": {
+    "displayName": "增加贝壳碎片",
+    "description": "提高贝壳碎片掉落率与上限，默认乘以 3，可在配置中修改。"
+  },
+  "Eylonsh-SeparateFloating": {
+    "displayName": "独立漂浮机制",
+    "description": "为漂浮动作分配独立按键，代价是占用物品栏的任务面板按键。"
+  },
+  "danatron1-Maggot_Every_Hit": {
+    "displayName": "每次命中生成蛆虫",
+    "description": "每次受伤时施加蛆虫负面状态。"
+  },
+  "danielstegink-SellShards": {
+    "displayName": "出售贝壳碎片",
+    "description": "增加将贝壳碎片出售为念珠的选项。"
+  },
+  "CC_Collection-ForsakenSentinels": {
+    "displayName": "被遗弃的哨兵",
+    "description": "为 Phantom 战加入 Second Sentinel 和新攻击；任一首领生命降至指定阈值时，另一位首领的生命也会减少。"
+  },
+  "CC_Collection-ThreadspunWraithPhantomOverhaul": {
+    "displayName": "Threadspun Wraith 幽灵重制",
+    "description": "重做 Phantom 首领战，加入新阶段与设计。"
+  },
+  "spacemonkeyy-DisableAchievements": {
+    "displayName": "禁用成就",
+    "description": "阻止解锁成就、菜单样式及额外游戏模式。"
+  },
+  "Norrie_Boy-Pharlooms_Glory": {
+    "displayName": "纺络荣光",
+    "description": "修改特定区域的游戏资源，体验这些区域过去的样貌。"
+  },
+  "lagerthon-CorruptedHealth": {
+    "displayName": "腐化生命值",
+    "description": "大黄蜂生命充足时速度更快，周围的世界也随之加速。"
+  },
+  "lagerthon-NonStopHallsGauntlet": {
+    "displayName": "高殿无间连战",
+    "description": "在 High Halls 进行永不停息的战斗试炼。"
+  },
+  "Kilvy-InsectsMayCry": {
+    "displayName": "虫泣",
+    "description": "使用嘲讽键加方向输入切换纹章。"
+  },
+  "danielstegink-NeedolinArsenal": {
+    "displayName": "针琴武器库",
+    "description": "加入丝弦琴与工具之间的战斗协同效果。"
+  },
+  "Lordloss-True_Steelsoul": {
+    "displayName": "真正的钢魂模式",
+    "description": "禁止在战斗中退出。迎接挑战，决不退缩，体验作者心目中的真正钢魂。"
+  },
+  "Yukikaco-Cinematic_Unity_Explorer": {
+    "displayName": "电影镜头 Unity 浏览器",
+    "description": "用于探索、调试和修改 Unity 游戏的游戏内界面。"
+  },
+  "danielstegink-LootLogger": {
+    "displayName": "掉落记录器",
+    "description": "记录可拾取物件与敌人。"
+  },
+  "danielstegink-UnluckyLumble": {
+    "displayName": "倒霉的 Lumble",
+    "description": "提高战胜 Lumble 的概率。"
+  },
+  "shownyoung-CUEP": {
+    "displayName": "CUEP Unity 浏览工具",
+    "description": "为 Cinematic_Unity_Explorer 添加更多功能。"
+  },
+  "al3ks1s-SprintAndThrow": {
+    "displayName": "奔跑与投掷",
+    "description": "允许大黄蜂冲刺时投掷工具并使用丝技，目前不会保留冲刺状态。"
+  },
+  "flibber-MusicRando": {
+    "displayName": "音乐随机器",
+    "description": "音乐随机化模组。"
+  },
+  "Arbaz9234-AlwaysLongClaw": {
+    "displayName": "常驻长爪",
+    "description": "让工具永久获得 Longclaw 效果。"
+  },
+  "cometcake575-FSMSeer": {
+    "displayName": "FSM 状态机查看器",
+    "description": "按 F3 在对象上方显示当前 FSM 名称和状态。"
+  },
+  "spacemonkeyy-MetalPipeSound": {
+    "displayName": "金属管音效",
+    "description": "将所有撞铃音效替换为金属管音效。"
+  },
+  "Arbaz9234-Refund_Silk_On_Failed_Cross_Stitch": {
+    "displayName": "交叉缝合失败返还丝线",
+    "description": "Cross Stitch 失败时返还丝线，取消未成功格挡的惩罚。"
+  },
+  "Arbaz9234-AllCrestWillCrit": {
+    "displayName": "所有纹章均可暴击",
+    "description": "让所有纹章都能造成暴击。"
+  },
+  "lagerthon-SuperhotSilkSongMod": {
+    "displayName": "SUPERHOT 时间机制",
+    "description": "将 Superhot VR 的玩法理念融入丝之歌。"
+  },
+  "DerVorce-BoundSoul": {
+    "displayName": "束缚之魂",
+    "description": "新增 3 种游戏模式，按 H 激活束缚；原简介另称“其中两种”，表述存在不一致。"
+  },
+  "adwamogus-TripleProjectiles": {
+    "displayName": "三倍投射物",
+    "description": "可配置的投射物数量倍率，包含智能筛选。"
+  },
+  "danielstegink-CustomNeedolin": {
+    "displayName": "自定义针琴",
+    "description": "使用用户选择的音乐文件替换丝弦琴音乐。"
+  },
+  "Lingkong-Snapshot": {
+    "displayName": "快照工具",
+    "description": "即时存档模组，按键保存玩家、敌人与地图的当前状态，并可稍后恢复。"
+  },
+  "dr1-Im_Teto": {
+    "displayName": "我是重音 Teto",
+    "description": "将文本中的 Hornet 替换为 Teto。"
+  },
+  "dr1-Text_Modder": {
+    "displayName": "文本修改器",
+    "description": "编辑、覆盖和创建丝之歌内部文本，用于对话、名称、教程及菜单等。"
+  },
+  "Krezon-Cogwork_Dancers_but_everything_is_my_voice": {
+    "displayName": "人声版齿轮舞者配乐",
+    "description": "Ting tiang ting ting ting（作者的拟声简介）。"
+  },
+  "PimpasPimpinela-RomanNumerals": {
+    "displayName": "罗马数字",
+    "description": "将所有数字显示为罗马数字。"
+  },
+  "Amachan229-Kasane_Teto_skin_Cogwork_Defender": {
+    "displayName": "重音 Teto 齿轮守卫皮肤",
+    "description": "将 Cogwork Defender 替换为重音 Teto，请务必手动下载！"
+  },
+  "Amachan229-Amachan_Custom_Skin_Cogfly": {
+    "displayName": "Amachan 齿轮飞虫皮肤",
+    "description": "替换 Cogfly，请务必手动下载！"
+  },
+  "ChrisMzz-SwapCrestOnHit": {
+    "displayName": "受击切换纹章",
+    "description": "大黄蜂每次受伤时切换纹章。"
+  },
+  "citacritta-Aknid_Continuity_Recolour": {
+    "displayName": "Aknid 连贯配色",
+    "description": "为 Aknids 重新着色，使它们不再适配未完成开发的区域。"
+  },
+  "citacritta-Trypophobia_Friendly_Glooms": {
+    "displayName": "Gloom 密集恐惧友好外观",
+    "description": "移除 Gargant Gloom 和 Gloomsac 敌人身上的全部孔洞。"
+  },
+  "fabbeyond-HornetAddict": {
+    "displayName": "Hornet Addict 模组",
+    "description": "将大黄蜂变为瘾君子，可向敌人投掷空瓶攻击。"
+  },
+  "Biou-NoMoreGettingOverIt": {
+    "displayName": "移除 Getting Over It 内容",
+    "description": "按 F2 回退时间；每 10 秒自动保存，保留 2 分钟历史。"
+  },
+  "randomscorp-DPSMod": {
+    "displayName": "每秒伤害显示",
+    "description": "显示每秒伤害。"
+  },
+  "randomscorp-SkipKarmelitaArena": {
+    "displayName": "跳过 Karmelita 竞技场",
+    "description": "跳过大多数首领竞技场。"
+  },
+  "danielstegink-DanielSteginkUtils": {
+    "displayName": "DanielStegink 工具库",
+    "description": "包含多种辅助函数和工具的依赖库。"
+  },
+  "AstrumNova-Revolt_And_Devotion": {
+    "displayName": "反叛与奉献",
+    "description": "First Sinner 与 Widow 的双首领战。"
+  },
+  "danielstegink-NoShardCap": {
+    "displayName": "贝壳碎片无上限",
+    "description": "移除贝壳碎片数量上限。"
+  },
+  "xTruesX-SilkPhial": {
+    "displayName": "丝线药瓶",
+    "description": "加入新工具 Silk Phial，使用后根据纹章获得 1 至 3 轴丝线。"
+  },
+  "AstrumNova-King_Of_The_Coral_Kin": {
+    "displayName": "珊瑚族之王",
+    "description": "强化 Crust King Khann，让它获得应有实力。原文修复标识：11.57.26.12.2025 FIX。"
+  },
+  "ChrisMzz-MenderbugsHaunting": {
+    "displayName": "修补虫的幽影",
+    "description": "大黄蜂每次破坏背景物件时都会死亡。"
+  },
+  "Yukikaco-GoDump": {
+    "displayName": "游戏对象导出器",
+    "description": "导出 TK2D 精灵图供 Custom Knight Creator 使用。"
+  },
+  "danielstegink-WitchBindExtended": {
+    "displayName": "延长女巫恢复",
+    "description": "调整巫师纹章缚丝的范围。"
+  },
+  "flibber-RecentItemsDisplay": {
+    "displayName": "近期物品显示",
+    "description": "在右上角显示最近获得的物品。"
+  },
+  "EpsilonDelta-SilkGoddess": {
+    "displayName": "丝线女神",
+    "description": "挑战强化版 Grand Mother Silk。"
+  },
+  "danielstegink-ScavengerOfPharloom": {
+    "displayName": "纺络拾荒者",
+    "description": "加入搜集贝壳碎片、念珠和丝线的拾荒机制。"
+  },
+  "danielstegink-GenerousLoddie": {
+    "displayName": "慷慨的 Loddie",
+    "description": "增加 Loddie 在第三个小游戏中给予的念珠。"
+  },
+  "EchoLinger-FarewellSteelSoul": {
+    "displayName": "告别钢魂",
+    "description": "钢魂模式的死亡值得一场盛大的葬礼。"
+  },
+  "Cmdpro-CrossStitchMadness": {
+    "displayName": "疯狂交叉缝合",
+    "description": "将丝之歌变为以 Cross Stitch 格挡为核心的游戏。"
+  },
+  "Ashiepaws-Patchwork": {
+    "displayName": "Patchwork 皮肤框架",
+    "description": "注重制作便利性的丝之歌自定义资源模组。"
+  },
+  "spaet1s-Faded_Phantom": {
+    "displayName": "褪色幽灵",
+    "description": "重做 Phantom 首领，提高难度。"
+  },
+  "Nitefury-UnambiguousFrost": {
+    "displayName": "Unambiguous Frost 模组",
+    "description": "在屏幕显示 Mount Fay 的寒冷效果数值。"
+  },
+  "tetriscat66-MoreConsumablesInShop": {
+    "displayName": "商店增加消耗品",
+    "description": "为商店加入更多念珠和贝壳碎片消耗品，部分物品需先满足条件才能解锁。"
+  },
+  "taffy520-GameAdjustments": {
+    "displayName": "游戏参数调整",
+    "description": "丝之歌的全能增强模组，一站式整合经济、战斗、随机化、开发者工具等上百项功能，通过强大的 GUI 实现自定义。"
+  },
+  "fireb0rn-CameraTools": {
+    "displayName": "镜头工具",
+    "description": "支持平移、缩放和旋转摄像机，具有视差效果。"
+  },
+  "syyePhenomenol-GameObjectDump": {
+    "displayName": "游戏对象导出",
+    "description": "将 GameObject 导出为文本文件的辅助工具。"
+  },
+  "jupiters_forest-SteelMaskTint": {
+    "displayName": "钢魂面具配色",
+    "description": "为钢魂模式 HUD 面具着色，使其更贴合纹章。"
+  },
+  "AlphaLul-HornetAudioEditor": {
+    "displayName": "大黄蜂音频编辑器",
+    "description": "使用自有 .wav 文件自定义游戏音频。"
+  },
+  "CarrieForle-DisableSaving": {
+    "displayName": "禁止保存",
+    "description": "增加禁止保存游戏进度的选项。"
+  },
+  "flibber-Moorlap": {
+    "displayName": "Moorlap 模组",
+    "description": "将Pharloom 王国左右镜像翻转。"
+  },
+  "adwamogus-DoubleEnemiesMod": {
+    "displayName": "双倍敌人",
+    "description": "将敌人、竞技场和首领数量加倍，提供倍率、筛选及额外功能设置。"
+  },
+  "nityammm-shermaInbellhome": {
+    "displayName": "Sherma 入住钟心镇",
+    "description": "第三幕将 Sherma 移至 Bellhome。"
+  },
+  "capitalists-GamepadUISwitcher": {
+    "displayName": "手柄界面切换器",
+    "description": "切换手柄界面，显示正确或故意错误的按键提示。"
+  },
+  "Yanbi414-Laughing_Jack_skin_Second_Sentinel": {
+    "displayName": "Laughing Jack 第二哨兵皮肤",
+    "description": "将 Second Sentinel 替换为 Laughing Jack，请务必手动下载。"
+  },
+  "flibber-FlibberDependencyPack": {
+    "displayName": "Flibber 依赖整合包",
+    "description": "丝之歌模组开发常用依赖集合。"
+  },
+  "flibber-RotatingLogs": {
+    "displayName": "轮转日志",
+    "description": "自动保存旧 BepInEx 日志。"
+  },
+  "Fabulator_K-SilksongTrueAim": {
+    "displayName": "精准瞄准",
+    "description": "左摇杆输入瞄准显示层，支持动画、自定义和八种语言；手柄按 L3，键盘按 F8* 切换。"
+  },
+  "Bergbok-Voicelines": {
+    "displayName": "语音台词",
+    "description": "大黄蜂执行特定动作时播放音效，可配置。"
+  },
+  "akino3151-RevengeOfShalame": {
+    "displayName": "Shalame 的复仇",
+    "description": "向 Shalame 忏悔。"
+  },
+  "Teamwiththisnamealreadyexists-Voidsong": {
+    "displayName": "虚空之歌",
+    "description": "将大多数敌人替换为第三幕的 threaded 变体。"
+  },
+  "flibber-CanvasUtil": {
+    "displayName": "Canvas 界面工具库",
+    "description": "创建游戏内界面的基础工具库。"
+  },
+  "orian34-Eternal_Torment": {
+    "displayName": "永恒折磨",
+    "description": "任何伤害都会立即致死，需要无伤通关或反复重试；死亡不会结束本次流程。"
+  },
+  "Teamwiththisnamealreadyexists-SSVoidsong": {
+    "displayName": "丝之歌虚空之歌",
+    "description": "已弃用，改名为 Voidsong。"
+  },
+  "Emo_Bike_Mate-Horent_is_Link": {
+    "displayName": "林克大黄蜂皮肤",
+    "description": "将林克的 AHYYAA 和 HHA 叫声赋予大黄蜂，看看会发生什么。"
+  },
+  "Emo_Bike_Mate-wii_hornet": {
+    "displayName": "Wii 大黄蜂模组",
+    "description": "更换多种游戏音效，重温 Wii 时光。"
+  },
+  "Clazex-MoreSaves": {
+    "displayName": "更多存档槽位",
+    "description": "允许使用更多存档。"
+  },
+  "Clazex-StunDisplay": {
+    "displayName": "眩晕状态显示",
+    "description": "显示首领的眩晕状态。"
+  },
+  "plonk-Architect_Pogo_QOL": {
+    "displayName": "Architect 下劈体验优化",
+    "description": "改善建筑师纹章的下劈攻击，使跑酷更容易操作。"
+  },
+  "vice-AlternateCrests": {
+    "displayName": "替代纹章",
+    "description": "保存备用纹章，随时在当前纹章与备用纹章之间切换。"
+  },
+  "flibber-KeybindChaos": {
+    "displayName": "按键混乱",
+    "description": "用于挑战流程的按键随机化。"
+  },
+  "Esper89-ToolRefund": {
+    "displayName": "工具返还",
+    "description": "死亡时恢复已经消耗的工具。"
+  },
+  "MicheliniDev-KarmelitaPrime": {
+    "displayName": "Karmelita Prime 首领模组",
+    "description": "极大提高 Skarrsinger Karmelita 战斗难度的重做模组。"
+  },
+  "Clazex-BetterReaper": {
+    "displayName": "收割者优化",
+    "description": "在多个方面强化收割者纹章。"
+  },
+  "Esper89-PlasteelSoul": {
+    "displayName": "塑钢魂模式",
+    "description": "在非钢魂模式中体验钢魂专属内容。"
+  },
+  "MicheliniDev-Always_Act_3": {
+    "displayName": "始终处于第三幕",
+    "description": "始终激活 Soul Snare，无须完成 Silk and Soul 任务。"
+  },
+  "ProdiGG-FifthChorus": {
+    "displayName": "第五合唱",
+    "description": "重做 Fourth Chorus 首领战。"
+  },
+  "Zhorox-Phantom_Of_The_Organ": {
+    "displayName": "管风琴幽灵",
+    "description": "调整 Phantom 首领，使其整体更具挑战性。"
+  },
+  "vice-ScuttleAttacks": {
+    "displayName": "爬行攻击",
+    "description": "爬行时也能使用冲刺攻击，空中同样有效，可进行空中连招。"
+  },
+  "AZander48-MapUnlocker": {
+    "displayName": "地图解锁器",
+    "description": "无须购买即可解锁任意地图。"
+  },
+  "alexkiri-ParticleOverdrive": {
+    "displayName": "粒子特效增强",
+    "description": "允许将粒子数量提高到极高水平。"
+  },
+  "momochi003-Pantheon_Of_Pharloom": {
+    "displayName": "纺络万神殿",
+    "description": "像神居一样重新挑战首领和首领连战。"
+  },
+  "EpsilonDown-SkarrQueen": {
+    "displayName": "Skarr 女王",
+    "description": "挑战强化版 Skarrsinger Karmelita。"
+  },
+  "unniisme-MultiCustomizer": {
+    "displayName": "多角色皮肤定制器",
+    "description": "加载多个纹理包，并根据条件切换。"
+  },
+  "bananastudio-Quicksong": {
+    "displayName": "Quicksong 快捷模组",
+    "description": "速度极快的敌人。"
+  },
+  "Ashiepaws-NiceShot": {
+    "displayName": "漂亮一击",
+    "description": "暴击时播放 Wii Sports 的“Nice Shot!”音效。"
+  },
+  "BugWeldingInc-NoFlashMod": {
+    "displayName": "移除闪光",
+    "description": "减少可见闪光，缓解对闪光敏感玩家的眼睛疲劳。"
+  },
+  "PixelCraig-ModdedTools_ThreadsOfTheFlame": {
+    "displayName": "火焰之丝工具扩展",
+    "description": "加入受 Wisp Thicket 与 Father of the Flame 启发的幽火工具，包含火焰特效、实验武器与背景故事融合。"
+  },
+  "adwamogus-Maggoted": {
+    "displayName": "蛆虫化",
+    "description": "永久赋予玩家 Maggoted 状态。"
+  },
+  "DemoJameson-Switch_Language_in_Game": {
+    "displayName": "游戏内切换语言",
+    "description": "支持在游戏内切换语言。"
+  },
+  "DemoJameson-ScreenshotMarker": {
+    "displayName": "截图标记工具",
+    "description": "截图并在地图上标记。"
+  },
+  "Nitefury-1_in_10000_Chance_for_Withered_Foxy_Jumpscare_Every_Second": {
+    "displayName": "每秒万分之一概率凋零 Foxy 惊吓",
+    "description": "可配置触发概率与音量。"
+  },
+  "DemoJameson-Make_Float_Great_Again": {
+    "displayName": "漂浮能力调整",
+    "description": "恢复漂浮优先输入：获得 Faydown Cloak 后按下方向加跳跃，提供丰富自定义选项。"
+  },
+  "Ruttie-PetDatDawg": {
+    "displayName": "摸摸小狗",
+    "description": "允许抚摸钟兽。"
+  },
+  "xlhans77-GhostOfPharloom_for_Patchwork": {
+    "displayName": "纺络幽灵皮肤（Patchwork）",
+    "description": "为大黄蜂穿上特殊披风与面具，纪念逝去的兄弟：圣巢的幽灵。"
+  },
+  "xlhans77-GhostOfPharloom_for_Customizer": {
+    "displayName": "纺络幽灵皮肤（Customizer）",
+    "description": "为大黄蜂穿上特殊披风与面具，纪念逝去的兄弟：圣巢的幽灵。"
+  },
+  "Clazex-FleaBrewCooldownFix": {
+    "displayName": "跳蚤饮剂冷却修复",
+    "description": "Flea Brew 生效时，攻击冷却下限使用其缩短后的攻击时长，而非原始时长。"
+  },
+  "Clazex-FleaBrewInfRefill": {
+    "displayName": "跳蚤饮剂无限补充",
+    "description": "跳蚤庆典开始后，可在物品栏无限补充 Flea Brew。"
+  },
+  "ygsbzr-SSEnemyHPBar": {
+    "displayName": "丝之歌敌人血条",
+    "description": "移植自空洞骑士 EnemyHPBar。"
+  },
+  "Yoraiz0r-Completionist_Map": {
+    "displayName": "全收集地图",
+    "description": "自动跟踪几乎所有物品、交互对象与敌人，并在地图添加标记。"
+  },
+  "a2659802-Darkness": {
+    "displayName": "黑暗模式",
+    "description": "将玩家视野限制在极近范围。"
+  },
+  "adwamogus-Infinite_Tools_and_Rosaries_Mod": {
+    "displayName": "无限工具与念珠",
+    "description": "提供无限贝壳碎片、念珠与液体补充，每种资源均可单独开启或关闭。"
+  },
+  "ykysnk-BepinExUtils": {
+    "displayName": "BepInEx 工具库",
+    "description": "BepInEx 实用工具库。"
+  },
+  "DemoJameson-Return_to_Bench": {
+    "displayName": "返回长椅",
+    "description": "增加返回长椅的菜单选项。"
+  },
+  "Ashiepaws-Tiktik": {
+    "displayName": "Tiktik 模组",
+    "description": "将 Mossgrubs 替换为空洞骑士的 Tiktiks。"
+  },
+  "Someone_Else-HKS_Item_Randomizer": {
+    "displayName": "丝之歌物品随机器",
+    "description": "随机化每个位置获得的物品。"
+  },
+  "AZander48-BellHomeColourChanger": {
+    "displayName": "钟心镇颜色修改",
+    "description": "更改 Bellhome 房屋的颜色。"
+  },
+  "AZander48-BarbedWireUnlocker": {
+    "displayName": "铁丝工具解锁",
+    "description": "解锁、装备和修改 Barbed Wire 工具。"
+  },
+  "TC8Silk-SilkRoomUtils": {
+    "displayName": "SilkRoom 场景工具库",
+    "description": "丝之歌的房间加载工具，适用于 BepInEx。"
+  },
+  "fabbeyond-InfiniteCogflies": {
+    "displayName": "无限齿轮飞虫",
+    "description": "移除 Cogfly 数量上限。"
+  },
+  "slimybonesjones-Last_Arbiter": {
+    "displayName": "最后仲裁者",
+    "description": "重做 Last Judge，使其配得上守护 Citadel of Song。"
+  },
+  "AquaEther-NoTelegraphCogwork": {
+    "displayName": "齿轮首领移除攻击预兆",
+    "description": "移除 Cogwork／Clover Dancer 的攻击预兆。"
+  },
+  "ykysnk-Show_Hitbox": {
+    "displayName": "显示碰撞箱",
+    "description": "启用默认的调试碰撞箱。"
+  },
+  "ykysnk-AlwaysMist": {
+    "displayName": "常驻迷雾",
+    "description": "允许再次进入迷雾区域。"
+  },
+  "ykysnk-No_Enemies": {
+    "displayName": "移除敌人",
+    "description": "空洞骑士：丝之歌里什么也没发生。"
+  },
+  "ykysnk-HKS_NoClip": {
+    "displayName": "丝之歌穿墙",
+    "description": "按 B 切换穿墙，兼容手柄。"
+  },
+  "fabbeyond-ZaZaInBellhome": {
+    "displayName": "钟心镇 ZaZa",
+    "description": "在 Bellhome 加入 ZaZa。"
+  },
+  "RunHello-Up_To_Faydown": {
+    "displayName": "前往 Faydown",
+    "description": "使用 Faydown Cloak 时，要求按键同时按住上方向。"
+  },
+  "EliHoyt-BonekiniBottom": {
+    "displayName": "Bonekini Bottom 主题模组",
+    "description": "使用比奇堡主题资源替换 Bone Bottom 纹理。"
+  },
+  "AstrumNova-AuricAegis": {
+    "displayName": "金辉之盾",
+    "description": "重做 Second Sentinel，修改每种攻击，设置两个阶段并侧重格挡。"
+  },
+  "danh-phantheon_of_silksong": {
+    "displayName": "丝之歌万神殿",
+    "description": "丝之歌万神殿。"
+  },
+  "AstrumNova-SistersOfSin": {
+    "displayName": "罪之姐妹",
+    "description": "基本上是三位 First Sinner 同时作战，并带有部分调整。"
+  },
+  "capitalists-SimpleSilksongLocalizer": {
+    "displayName": "简易丝之歌本地化工具",
+    "description": "简单的文本替换插件与依赖库。"
+  },
+  "BurningPhoenix-Poshanka": {
+    "displayName": "Poshanka 模组",
+    "description": "将每一种声音都替换为 Poshanka。"
+  },
+  "slimybonesjones-Regenerate_Shards": {
+    "displayName": "恢复贝壳碎片",
+    "description": "通过再生贝壳碎片，鼓励探索而非反复刷念珠购买碎片。"
+  },
+  "MicheliniDev-AutoQuestEnder": {
+    "displayName": "自动完成任务",
+    "description": "开始枯燥的任务或愿望后自动完成，改善游戏体验。"
+  },
+  "Cmdpro-GitGudDeath": {
+    "displayName": "Git Gud 死亡提示",
+    "description": "死亡时播放大黄蜂的 Git Gud 叫声。"
+  },
+  "Bergbok-Guts": {
+    "displayName": "Guts 主题模组",
+    "description": "允许调整针的大小。"
+  },
+  "DerVorce-SkongGamemodes": {
+    "displayName": "丝之歌游戏模式",
+    "description": "只需几行代码即可创建新游戏模式的依赖库。"
+  },
+  "tetriscat66-AllToolsUnlockable": {
+    "displayName": "所有工具可解锁",
+    "description": "允许在正常流程中解锁全部工具。"
+  },
+  "Voidlings-ExtraSaves": {
+    "displayName": "额外存档槽位",
+    "description": "使用超过 4 个存档。"
+  },
+  "bloodtrial-RosariesAndShellStaySafeFromSpikes": {
+    "displayName": "尖刺保留念珠与贝壳",
+    "description": "防止尖刺破坏念珠与贝壳碎片，效果类似空洞骑士。"
+  },
+  "Xneal-BestHealthBar": {
+    "displayName": "增强血条",
+    "description": "测试模组。"
+  },
+  "zlq-SilksongFocusQoL": {
+    "displayName": "丝之歌恢复体验优化",
+    "description": "窗口失去焦点时暂停并静音，在可配置时间范围内自动恢复。"
+  },
+  "Vitaxses-CutEnding": {
+    "displayName": "跳过结局",
+    "description": "将废弃结局恢复至游戏。"
+  },
+  "Bigfootmech-Silksong_Mouse_Inventory_Use": {
+    "displayName": "鼠标操作物品栏",
+    "description": "使用鼠标操作物品栏，开发中。"
+  },
+  "jakobhellermann-BepInExConfigurationManager": {
+    "displayName": "BepInEx 配置管理器",
+    "description": "BepInEx 游戏内插件配置管理器。"
+  },
+  "jakobhellermann-BepinExScriptEngine": {
+    "displayName": "BepInEx 脚本引擎",
+    "description": "热重载安装在 `BepinEx/scripts/` 文件夹中的模组。"
+  },
+  "Wagyu-SilksongMinimapWithCocoonCompass": {
+    "displayName": "茧指南针与小地图",
+    "description": "加入原版风格的区域小地图与丝茧指南针。"
+  },
+  "OrderOfTheGoons-Immortal_Architect": {
+    "displayName": "不朽 Architect 场景",
+    "description": "即使购买全部商品，建筑师也不会死亡，并增加对话。"
+  },
+  "Bigfootmech-Silksong_Reduce_Motion": {
+    "displayName": "减少镜头运动",
+    "description": "减少吸引注意的静态界面元素，改善无障碍体验。"
+  },
+  "Bigfootmech-Silksong_Keyboard_Inventory_Fix": {
+    "displayName": "键盘物品栏修复",
+    "description": "修复键盘的物品栏按键，但会破坏手柄操作。"
+  },
+  "JngoCreates-LostSinner": {
+    "displayName": "迷失罪人",
+    "description": "略微提高 First Sinner 首领的难度。"
+  },
+  "JngoCreates-MuckedBeastfly": {
+    "displayName": "污泥兽蝇",
+    "description": "在 Bilehaven 加入第三次 Savage Beastfly 战斗。"
+  },
+  "Esper89-ToggleSprint": {
+    "displayName": "切换奔跑",
+    "description": "不必持续按住冲刺键也能保持冲刺。"
+  },
+  "Bergbok-GunZ": {
+    "displayName": "GunZ 模组",
+    "description": "允许取消多数动作的动画。"
+  },
+  "Bergbok-Scuttlebraced": {
+    "displayName": "爬行强化",
+    "description": "始终启用 Scuttlebrace。"
+  },
+  "JonathanCordero-MagnetiteBroochPlus": {
+    "displayName": "磁石胸针增强",
+    "description": "让磁石胸针将贝壳碎片吸向玩家。"
+  },
+  "chinccw-SilksongDeathSoundMod": {
+    "displayName": "丝之歌死亡音效",
+    "description": "玩家死亡时添加死亡音效。"
+  },
+  "Unavailable-EndingIndicators": {
+    "displayName": "结局条件指示器",
+    "description": "显示每个存档槽已经完成的结局。"
+  },
+  "cometcake575-HeartlessBellhome": {
+    "displayName": "无情钟心镇",
+    "description": "禁用 Bellhome 内部分物件产生的心跳声。"
+  },
+  "coderCleric-Handwarmer": {
+    "displayName": "暖手器",
+    "description": "防止 Mount Fay 的寒冷效果造成伤害。"
+  },
+  "tisawesomeness-ShutUpGMS": {
+    "displayName": "关闭丝之祖母语音",
+    "description": "禁用最终幕中频繁出现的尖叫、隆隆声与画面变暗。"
+  },
+  "KnotSora-OriginalHornetVoiceLines": {
+    "displayName": "原版大黄蜂语音",
+    "description": "使用丝技时，让大黄蜂说出空洞骑士中的原版台词。"
+  },
+  "cometcake575-NoWingsDip": {
+    "displayName": "移除展翼下沉",
+    "description": "移除二段跳开始时无法向上移动的几帧。"
+  },
+  "Mhz-FlintSlatePlus": {
+    "displayName": "燧石板增强",
+    "description": "延长 FlintSlate 的火焰强化时间，强化燧石板，追着小怪砍。"
+  },
+  "Mhz-Teleport": {
+    "displayName": "传送工具",
+    "description": "简单传送，随时掌控。"
+  },
+  "TheWackyKnight-Crest_Selector": {
+    "displayName": "纹章选择器",
+    "description": "随时使用游戏中的任意纹章；按 F1 打开配置菜单选择纹章。"
+  },
+  "TheWackyKnight-Cursed_Crest_mode": {
+    "displayName": "诅咒纹章模式",
+    "description": "以永久诅咒纹章开局，无法使用工具、技能或治疗；按 F9 开关。"
+  },
+  "TheBeastUnleashed-BEYOND_INFINITE_for_Act_3_Final_Boss": {
+    "displayName": "第三幕最终首领无限挑战",
+    "description": "将秘密最终首领的音乐替换为 batman arkham vengeance tm 的 BEYOND INFINITE 混音。"
+  },
+  "Cuckson-Godhome": {
+    "displayName": "神居",
+    "description": "丝之歌首领场景加载器。"
+  },
+  "NordLandeW-Nail1ATK": {
+    "displayName": "织针攻击力调整",
+    "description": "将针的伤害设为 1。"
+  },
+  "Mhz-HPFlashColor": {
+    "displayName": "血量闪光配色",
+    "description": "根据敌人剩余生命百分比改变受击闪烁颜色。"
+  },
+  "TheWackyKnight-Hollow_Knight_Death_Swap_for_Silksong": {
+    "displayName": "替换为空洞骑士死亡效果",
+    "description": "同时游玩空洞骑士和丝之歌，一款游戏死亡时立即切到另一款；两款游戏均须运行并安装各自对应模组。"
+  },
+  "Mhz-FreeEquip": {
+    "displayName": "自由装备",
+    "description": "允许蓝色和黄色工具互相装备到对方的槽位。"
+  },
+  "Cuckson-HarderSong": {
+    "displayName": "更困难的丝之歌",
+    "description": "将缚丝治疗降为 2 格，全部首领生命加倍。"
+  },
+  "RatherChaotic-SilksongCustomizer": {
+    "displayName": "丝之歌皮肤定制器",
+    "description": "允许编辑丝之歌的大多数、乃至全部纹理。"
+  },
+  "Cuckson-EarlyCompletionist": {
+    "displayName": "提前解锁全收集",
+    "description": "从开局即可查看存档完成百分比。"
+  },
+  "Cuckson-CheapBind": {
+    "displayName": "低耗恢复",
+    "description": "自定义缚丝所需的丝线数量。"
+  },
+  "Cuckson-BuffBind": {
+    "displayName": "强化恢复",
+    "description": "缚丝恢复全部生命或指定生命量，适用于特殊纹章。"
+  },
+  "Muco-SilksongLite": {
+    "displayName": "丝之歌轻量模式",
+    "description": "UltimateEasyMode 的轻量替代方案。"
+  },
+  "Muco-UltimateEasyMode": {
+    "displayName": "终极简单模式",
+    "description": "让丝之歌游玩尽可能轻松的整合包。"
+  },
+  "BlueRaja-double_shards": {
+    "displayName": "双倍贝壳碎片",
+    "description": "所有来源获得的贝壳碎片加倍。"
+  },
+  "Bigfootmech-Silksong_Remove_Atmosphere_Aka_Myopia_Filter": {
+    "displayName": "移除氛围模糊滤镜",
+    "description": "使画面更清晰，减轻眼睛疲劳。"
+  },
+  "BlueRaja-double_silk": {
+    "displayName": "双倍丝线",
+    "description": "所有来源获得的丝线加倍；丝线用于治疗与能力。"
+  },
+  "BlueRaja-double_rosaries": {
+    "displayName": "双倍念珠",
+    "description": "所有来源获得的念珠加倍。"
+  },
+  "BlueRaja-rosaries_never_permanently_lost": {
+    "displayName": "念珠永不永久丢失",
+    "description": "第二次死亡时合并死亡丝茧，避免永久丢失念珠。"
+  },
+  "XiaohaiMod-ReBack": {
+    "displayName": "ReBack 回退工具",
+    "description": "重生后自动返回死亡位置，节省折返时间。"
+  },
+  "Nordbo-SimpleDeathCounter": {
+    "displayName": "简易死亡计数器",
+    "description": "小巧的屏幕死亡计数器，死亡时带动画，配置实时生效而无须重启游戏。"
+  },
+  "Bigfootmech-Silksong_Skip_Intro": {
+    "displayName": "跳过开场",
+    "description": "每次启动时跳过 Team Cherry 标志和加载符号说明，适合频繁启动游戏的模组开发者等用户。"
+  },
+  "Mhz-ArchitectDrill": {
+    "displayName": "Architect 钻孔工具",
+    "description": "将建筑师向下攻击替换为掘洞钻效果，无限钻取，随时启动。"
+  },
+  "nonpolynomial-SilkSchlong": {
+    "displayName": "SilkSchlong 模组",
+    "description": "通过 Buttplug.io 控制成人玩具的丝之歌模组。"
+  },
+  "Skydorm-AbilitiesUnlocked": {
+    "displayName": "解锁能力",
+    "description": "新游戏开始时解锁全部或指定能力。"
+  },
+  "pseudopulse-ToolRefund": {
+    "displayName": "工具返还",
+    "description": "死亡时返还工具使用次数；成功使用长椅后，待返还次数失效。"
+  },
+  "x753-Easy_Journal": {
+    "displayName": "简易日志收集",
+    "description": "每种敌人只需击杀一次即可完成猎人图鉴条目。"
+  },
+  "stebars-IncreasePlayerDamage": {
+    "displayName": "增加玩家伤害",
+    "description": "玩家伤害加倍，倍率可配置，默认 2；适用于 BepInEx。"
+  },
+  "EtheraelEspeon-CombatBalance": {
+    "displayName": "战斗平衡调整",
+    "description": "将全部伤害限制为 1，并延长无敌帧，以防连续受到双重打击。"
+  },
+  "Skydorm-DamageReduction": {
+    "displayName": "降低受伤伤害",
+    "description": "降低多数敌人与首领的伤害，但部分重复触发的攻击仍会造成双倍伤害。"
+  },
+  "EtheraelEspeon-Invincibility": {
+    "displayName": "无敌模式",
+    "description": "每帧恢复 1 格生命以实现无敌；作者调侃这肯定很高效。"
+  },
+  "Phoebe-ClownHornet": {
+    "displayName": "小丑大黄蜂",
+    "description": "加入漂浮的小丑帽及指向大黄蜂的箭头。"
+  },
+  "Zekai-NoVignettePlugin": {
+    "displayName": "移除暗角",
+    "description": "禁用跟随玩家的暗色晕影。"
+  },
+  "x753-FreeCompass": {
+    "displayName": "免费指南针",
+    "description": "指南针费用为 0，无须装备即可使用；可配置。"
+  },
+  "mochasippadev-Boss_Rush": {
+    "displayName": "首领连战",
+    "description": "万神殿式首领连战：连续挑战全部 49 位首领或单独挑战，支持自选装备、难度、速通计时和统计，不改动存档。"
+  },
+  "Riggola-BasicEnemySyncCocoonsReviveFix": {
+    "displayName": "基础敌人同步茧复活修复",
+    "description": "尝试修复 BasicEnemySync 丝茧复活后被残留伤害立即再次击杀的问题，涉及封闭竞技场与首领战；实验性修复，不保证有效，后续可能加入相关修复。"
+  },
+  "Trypophobia-Silksong_Trypophobia_Remover": {
+    "displayName": "丝之歌密集恐惧友好处理",
+    "description": "移除第三幕部分敌人中可能引发密集恐惧的元素。"
+  },
+  "Threewood-LostkinButEsmy": {
+    "displayName": "Esmy 失落近亲皮肤",
+    "description": "替换大黄蜂及其他内容的皮肤。"
+  },
+  "Dalseds-A_Damage_Gambling_Mod": {
+    "displayName": "伤害抽奖",
+    "description": "示例模组说明。"
+  },
+  "WarperSan-Silksong_BingoSync": {
+    "displayName": "丝之歌 BingoSync 联动",
+    "description": "将丝之歌连接至 BingoSync，可直接在游戏内玩 Bingo。"
+  },
+  "SSEMODS-GodsOfPharloom": {
+    "displayName": "纺络诸神",
+    "description": "将空洞骑士的万神殿加入丝之歌。"
+  },
+  "Blueys_Kitchen-Clover_and_Gloom_Menus": {
+    "displayName": "Clover 与 Gloom 菜单",
+    "description": "加入 Clover 与 Gloom 自定义主菜单。"
+  },
+  "aroarrow-PantheonOfPharloom": {
+    "displayName": "纺络万神殿",
+    "description": "进入万神殿之地，挑战敌人连战，以及可能出现的试炼。"
+  },
+  "BepInEx-BepInExPack_Silksong": {
+    "displayName": "BepInEx 丝之歌加载器（旧包）",
+    "description": "BepInExPack_Silksong 已迁移至 silksong_modding 团队。"
+  },
+  "gauntletGang-GauntletSong": {
+    "displayName": "GauntletSong 连战挑战（旧包）",
+    "description": "新增大量战斗试炼、敌人和首领，并重做推进流程。"
+  },
+  "memeem27-SSMPEnemyHealthSync": {
+    "displayName": "SSMP 敌人血量同步",
+    "description": "使用 SSMP 时同步敌人生命。"
+  },
+  "the_cool_fedora_guy-main_music_in_subrooms": {
+    "displayName": "子房间使用主区域音乐",
+    "description": "在子房间播放主区域音乐。"
+  },
+  "JasonForNian-TripleJumpTool": {
+    "displayName": "三段跳工具",
+    "description": "示例模组说明。"
+  },
+  "LostLands-SILKSONG_LOST_LANDS": {
+    "displayName": "丝之歌失落之地",
+    "description": "多人制作的地图，大幅扩展Pharloom 王国，加入区域、工具、首领及更多内容。"
+  },
+  "elesanren-Hard_Item_Randomizer_w_SceneRandom_Config": {
+    "displayName": "困难物品与场景随机配置",
+    "description": "将 Hard_Item_Randomizer 与 Scene Randomizer 整合的配置包，随机化房间与物品。"
+  },
+  "timothymarriott-Rando": {
+    "displayName": "随机器",
+    "description": "丝之歌随机化。"
+  },
+  "cometcake575-EternalNight": {
+    "displayName": "永恒之夜",
+    "description": "让每一幕的所有敌人获得虚空攻击与强化。"
+  },
+  "silksong_modding-Silksong_FsmUtil": {
+    "displayName": "丝之歌 FSM 工具库（旧包）",
+    "description": "方便其他模组修改 PlayMakerFSM 的依赖库。"
+  },
+  "Clazex-FastFastTravel": {
+    "displayName": "加速快速旅行",
+    "description": "跳过快速旅行动画，让钟兽在所有位置待命。"
+  },
+  "Silkysong-Silkysong_ReloadRosaryCannon": {
+    "displayName": "念珠炮装填",
+    "description": "允许通过建筑师纹章重新装填念珠炮。"
+  },
+  "badmagic-SilksongTemplateTester": {
+    "displayName": "丝之歌模板测试工具",
+    "description": "示例模组说明。"
+  },
+  "Vitaxses-Vitax_Quality_of_Life": {
+    "displayName": "Vitax 体验优化合集",
+    "description": "已弃用，加入大量游戏体验改善选项。"
+  },
+  "TheEliCorner-BonekiniBottom": {
+    "displayName": "Bonekini Bottom 主题模组（旧包）",
+    "description": "使用比奇堡主题资源替换 Bone Bottom 纹理。"
+  },
+  "PixelCraig-ModdedTools_FatherOfTheFlame": {
+    "displayName": "火焰之父工具扩展",
+    "description": "加入受 Wisp Thicket 与 Father of the Flame 启发的幽火工具包，包含火焰特效、实验武器与背景故事融合。"
+  },
+  "danh-silksong": {
+    "displayName": "丝之歌扩展模组",
+    "description": "丝之歌万神殿。"
+  },
+  "Nsky-Fanteon": {
+    "displayName": "Fanteon 首领挑战",
+    "description": "作者与朋友自用的模组，涉及再次挑战首领及未来的平衡调整，没有界面。"
+  },
+  "Zekai-DebugMod": {
+    "displayName": "调试工具（旧包）",
+    "description": "开发中，向玩家显示部分实用数据，主要用于速通。"
+  },
+  "Starshooter-NoWingsDip": {
+    "displayName": "移除展翼下沉（旧包）",
+    "description": "移除二段跳开始时无法向上移动的几帧。"
+  },
+  "Yukikaco-CustomSprite": {
+    "displayName": "自定义精灵图",
+    "description": "自定义精灵图。"
+  },
+  "TheWackyKnight-Hollow_Knight_Death_Swap___Silksong": {
+    "displayName": "空洞骑士死亡效果替换",
+    "description": "同时游玩空洞骑士和丝之歌，一款游戏死亡时立即切到另一款；两款游戏均须运行并安装各自对应模组。"
+  },
+  "TheWackyKnight-Hallow_Knight_Death_Swap___Silksong": {
+    "displayName": "空洞骑士死亡效果替换（旧包）",
+    "description": "同时游玩空洞骑士和丝之歌，一款游戏死亡时立即切到另一款；两款游戏均须运行并安装各自对应模组。"
+  },
+  "Yukikaco-BepinExConfigurationManager": {
+    "displayName": "BepInEx 配置管理器（旧包）",
+    "description": "BepInEx 插件配置管理器。"
+  },
+  "TheWackyKnight-HallowKnightDeathSwap_Silksong": {
+    "displayName": "空洞骑士死亡效果替换（早期包）",
+    "description": "同时游玩空洞骑士和丝之歌，一款游戏死亡时立即切到另一款；两款游戏均须运行并安装各自对应模组。"
+  },
+  "TEST1239-SimpleCheats": {
+    "displayName": "简易辅助功能",
+    "description": "SimpleCheats（原简介仅提供此名称）。"
+  }
+}

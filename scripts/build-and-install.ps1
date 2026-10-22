@@ -2,6 +2,7 @@
 param(
     [string]$Version,
     [string]$IsccPath,
+    [string]$ErrorReportingConfig,
     [switch]$UnsignedLocal,
     [switch]$RunTests
 )
@@ -137,6 +138,9 @@ if (-not (Test-Path -LiteralPath $buildScript -PathType Leaf)) {
 $buildArguments = @('-NoProfile', '-File', $buildScript, '-Version', $Version)
 if (-not [string]::IsNullOrWhiteSpace($IsccPath)) {
     $buildArguments += @('-IsccPath', $IsccPath)
+}
+if (-not [string]::IsNullOrWhiteSpace($ErrorReportingConfig)) {
+    $buildArguments += @('-ErrorReportingConfig', [IO.Path]::GetFullPath($ErrorReportingConfig))
 }
 
 if ($UnsignedLocal) {

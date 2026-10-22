@@ -1,0 +1,1 @@
+Disables the heartbeat sound in the Bellhome caused by some objects

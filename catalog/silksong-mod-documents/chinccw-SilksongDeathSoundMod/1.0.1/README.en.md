@@ -1,0 +1,1 @@
+Plays a sound when player is dead.

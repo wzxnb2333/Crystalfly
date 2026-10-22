@@ -1,0 +1,2021 @@
+{
+  "capturedAt": "2026-10-05T09:36:10.036352+00:00",
+  "sourceSha256": "9D1DFACF0576CE37BFE7797809C86323C294C4CBF72A960536E32D735E89C747",
+  "packages": 463,
+  "catalogPackages": 463,
+  "categories": 14,
+  "documents": {
+    "README.md": 460,
+    "CHANGELOG.md": 133
+  },
+  "documentFiles": {
+    "README.md": 463,
+    "CHANGELOG.md": 135
+  },
+  "translatedDocuments": 593,
+  "upstreamMissingDocuments": [
+    {
+      "fullName": "silksong_modding-BepInExPack_Silksong",
+      "version": "1.0.3",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "BatAtVideoGames-SilksongArchipelagoRandomizer",
+      "version": "0.5.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "NordicMods-SilkSoarDash",
+      "version": "1.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "AtlasOfSouls-VogsBingoMod",
+      "version": "1.4.3",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "cometcake575-Architect",
+      "version": "3.39.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "CampDJC-Sans",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "went_to_the_optometrist-MJ_SR",
+      "version": "2.6.3",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Michael4d45-HornetCloakColor",
+      "version": "1.16.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "thecodeflayer-SilksongLoadoutRandomizer",
+      "version": "1.0.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "silksong_modding-ModMenu",
+      "version": "0.8.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "al3ks1s-al3ks1sCore",
+      "version": "0.1.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Threewood-LostkinButEsmy_stitchwork",
+      "version": "1.1.3",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Threewood-LostkinButEsmy_customizer",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "json_commits-DoubleDamageConfigurator",
+      "version": "0.5.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "capitalists-Rebalance",
+      "version": "0.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Eylonsh-NuclearBomb",
+      "version": "1.2.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "CampDJC-A_Damage_Gambling_Mod",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "fireb0rn-AccessibilityMod",
+      "version": "1.1.3",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "cometcake575-CrestShuffler",
+      "version": "1.2.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "stratos_sucks-StratosTweaks",
+      "version": "0.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "CardiaDarkhill-LegacyoftheAbyss",
+      "version": "2.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "ambershadow-SilksongArchiDisplay",
+      "version": "1.2.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "panafrescos-AlwayCompassOn",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "panafrescos-jsonMultiversar",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "TheWeirdo931-Final_Judge",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "lagerthon-Troll_Trobbio",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "TheWeirdo931-Furious_Trobbio",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "SilksongSkinCreators-Stitchwork",
+      "version": "0.8.6",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Danny752786-RebelliousSecondSentinel",
+      "version": "0.1.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "danatron1-Buttplug_Song",
+      "version": "1.2.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "fabbeyond-StartNeedleStab",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Vitaxses-QoL",
+      "version": "6.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "hgcbvf-easy_checkpoints",
+      "version": "0.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Me_and_me_also_me-WispHornet",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Kilvy-CrestsEvolve",
+      "version": "0.58.9",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "BatAtVideoGames-CustomMusicRandomizer",
+      "version": "0.1.15",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "BatAtVideoGames-CrestWheel",
+      "version": "1.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "BlueSR-BlueSR_Ultra_Steel_Soul_Challenge",
+      "version": "0.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "BlueSR-BlueSR_Ultra_Steel_Soul",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "SSEMODS-SSManager",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "SSEMODS-ShawHpOnDeath",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "SSEMODS-GodOfPharloom",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "ant_of_doom-ResurrectMinigames",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "RaincloudTheDragon-MerchantStacker",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "DatUub-QuestMod",
+      "version": "2.2.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Maskedcreeper10_RYS-MetalOST",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Scrimas-IntelligentAutoHideHUD",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "lagerthon-Slapsong",
+      "version": "2.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Ericky1694-CustomDifficulty",
+      "version": "3.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "CarrieForle-AllNeedolin",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "kyleanderror13-No_Dying",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Fabulator_K-CM_Scaler",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "jakobhellermann-MapWarp",
+      "version": "1.2.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Amachan229-Amachan_skin",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Amachan229-Kasane_Teto_SynthV_Customizer",
+      "version": "1.1.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Fabulator_K-MonorReaperBalance",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Amachan229-Hatsune_Miku_skin_Skarrsinger_Karmelita",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "ConstructiveCynicism-FsmMaster",
+      "version": "0.3.6",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "silksong_modding-FsmUtil",
+      "version": "0.3.17",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "SSMP-SSMP",
+      "version": "0.3.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "NeelixTeam-Ice_Cloak_Tool",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Fiendlords-FiendlordsPureVessel",
+      "version": "0.2.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Bloatroach-ToRemainCalm",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "SaigoNoTanuki-MOREDamage",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Jigglypuffs-KnightBlueHUD_for_Patchwork",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "silksong_modding-I18N",
+      "version": "1.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "EpsilonDelta-MitosisDancers",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "EpsilonDelta-FraudLace",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Team_apple-Custom_DLC_Boss_Mod",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "ant_of_doom-NectarAllergic",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "homothety-Benchwarp",
+      "version": "1.2.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "dplochcoder-TheHuntIsOn",
+      "version": "1.0.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "dplochcoder-PurenailUtil",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "dplochcoder-InvincibilityMonitor",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "ant_of_doom-WalkButton",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "tetriscat66-ForceAttackDirection",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "aZsfaf-Disable_Fog_and_Blur",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "JasonForNian-RainbowHealth",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "cometcake575-UltimateChickenSpider",
+      "version": "1.0.12",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "silksong_modding-Modlist",
+      "version": "0.3.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "dreamfactory-InfiniteTools",
+      "version": "1.3.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "chewchewhorizon-Mango_Puppy_Skin_WIP",
+      "version": "0.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "hk_speedrunning-GlitchDebug",
+      "version": "0.2.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Snek44-MaidHornet",
+      "version": "2.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "NarrowsProjects-ReplenishTools",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "rinsoko-SilksongAnimals",
+      "version": "0.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "KikuGie-ToolKeybinds",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "reinzer-FastGameLoad",
+      "version": "0.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Krezon-Silksong_theme_but_Crull_and_Benjin",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "cometcake575-Blahaj",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "AstrumNova-Pale_Automaton",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Krezon-Strive_but_everything_is_my_voice",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Aesteralias-SilkShock",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Resolve-The_Festival_of_Fools",
+      "version": "1.0.6",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Vitaxses-FixedMistRNG",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "SFGrenade-WavLib",
+      "version": "1.1.9",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Foxyrobo-CameraExtras",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "PimpasPimpinela-StartCrestSelector",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "lagerthon-Tag_The_Fleas",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "chunniunai-AnySilkBoss",
+      "version": "0.2.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Foxyrobo-ZoomFix",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Krezon-High_Halls_theme_but_everything_is_my_voice",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "JasonForNian-TripleJump",
+      "version": "0.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "coderCleric-ThatFrogIHate",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "the_cool_fedora_guy-Ultimate_Architect_Modpack",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "ant_of_doom-LieButton",
+      "version": "1.0.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Woven_Together_Dev_team-Woven_Together",
+      "version": "0.4.6",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "AstrumNova-Aeternal_Everwatcher",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "CarrieForle-RandomPing",
+      "version": "0.1.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "CC_Collection-WhiteKnightLace",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "archdodo-Extra_Tool_Colors",
+      "version": "1.0.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Clungo-Skeleton_Jumpscare",
+      "version": "1.0.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "silksong_modding-AssetHelperMenu",
+      "version": "1.3.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "chunniunai-ReaperBalance",
+      "version": "0.2.3",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "CheezyPants12-SilksongAdaptiveTriggers",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "al3ks1s-Clawline360",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "ink_YSY-Echoes_of_Starlight",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "AstrumNova-Nail_Parry_Everything",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "BobbyTheCatfish-SSMPEssentials",
+      "version": "0.1.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "PimpasPimpinela-HueShifter",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "flibber-BingoUI",
+      "version": "1.3.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "cometcake575-SimpleEnemyRando",
+      "version": "0.7.33",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "chunniunai-FleasRadiance",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "silksong_modding-DataManager",
+      "version": "1.2.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Samihamer1-LostAndChained",
+      "version": "0.1.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "cometcake575-AnimSeer",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "silksong_modding-UnityHelper",
+      "version": "1.2.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "hk_speedrunning-QuickWarp",
+      "version": "1.1.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "MikeyMods-SilksongFaah",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Voidlings-Needleforge",
+      "version": "0.9.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "silksong_modding-SilksongPrepatcher",
+      "version": "1.4.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "CarrieForle-SwapLogo",
+      "version": "0.1.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Eylonsh-NoDefenceValues",
+      "version": "1.0.3",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "CarrieForle-HitlessMode",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Voidlings-TuneWeaver",
+      "version": "0.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Syncinfl0ow-HornetSings",
+      "version": "0.2.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "xrroman-GravityFlux",
+      "version": "1.0.3",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "shownyoung-StubbornHornet",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Eylonsh-ClawmaidensReturn",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "fabbeyond-RandomTeleport",
+      "version": "1.3.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "flibber-FilteredLogs",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Supersonicsalt-Patched_Up_Glooms",
+      "version": "1.0.3",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Supersonicsalt-Transtrans",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Supersonicsalt-CheapEva",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "BobbyTheCatfish-FleaFestivalDifficulty",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "hk_speedrunning-TimerMod",
+      "version": "0.4.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Eylonsh-IncreaseShards",
+      "version": "1.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Eylonsh-SeparateFloating",
+      "version": "1.0.5",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "danatron1-Maggot_Every_Hit",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "CC_Collection-ForsakenSentinels",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "CC_Collection-ThreadspunWraithPhantomOverhaul",
+      "version": "0.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "spacemonkeyy-DisableAchievements",
+      "version": "1.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "lagerthon-CorruptedHealth",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Kilvy-InsectsMayCry",
+      "version": "1.7.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Lordloss-True_Steelsoul",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Yukikaco-Cinematic_Unity_Explorer",
+      "version": "1.3.5",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "shownyoung-CUEP",
+      "version": "0.5.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "al3ks1s-SprintAndThrow",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "flibber-MusicRando",
+      "version": "0.1.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Arbaz9234-AlwaysLongClaw",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "cometcake575-FSMSeer",
+      "version": "1.1.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "spacemonkeyy-MetalPipeSound",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Arbaz9234-Refund_Silk_On_Failed_Cross_Stitch",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Arbaz9234-AllCrestWillCrit",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "lagerthon-SuperhotSilkSongMod",
+      "version": "2.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "DerVorce-BoundSoul",
+      "version": "1.2.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "adwamogus-TripleProjectiles",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Lingkong-Snapshot",
+      "version": "1.3.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "dr1-Im_Teto",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "dr1-Text_Modder",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Krezon-Cogwork_Dancers_but_everything_is_my_voice",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "PimpasPimpinela-RomanNumerals",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Amachan229-Kasane_Teto_skin_Cogwork_Defender",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Amachan229-Amachan_Custom_Skin_Cogfly",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "citacritta-Aknid_Continuity_Recolour",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "citacritta-Trypophobia_Friendly_Glooms",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Biou-NoMoreGettingOverIt",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "randomscorp-DPSMod",
+      "version": "1.2.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "randomscorp-SkipKarmelitaArena",
+      "version": "1.2.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "AstrumNova-Revolt_And_Devotion",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "xTruesX-SilkPhial",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "AstrumNova-King_Of_The_Coral_Kin",
+      "version": "1.0.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "ChrisMzz-MenderbugsHaunting",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Yukikaco-GoDump",
+      "version": "0.1.6",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "flibber-RecentItemsDisplay",
+      "version": "0.2.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "EpsilonDelta-SilkGoddess",
+      "version": "1.0.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "EchoLinger-FarewellSteelSoul",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Cmdpro-CrossStitchMadness",
+      "version": "1.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "spaet1s-Faded_Phantom",
+      "version": "0.1.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Nitefury-UnambiguousFrost",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "tetriscat66-MoreConsumablesInShop",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "fireb0rn-CameraTools",
+      "version": "0.0.21",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "syyePhenomenol-GameObjectDump",
+      "version": "1.0.3",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "jupiters_forest-SteelMaskTint",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "AlphaLul-HornetAudioEditor",
+      "version": "1.2.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "CarrieForle-DisableSaving",
+      "version": "0.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "flibber-Moorlap",
+      "version": "0.6.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "adwamogus-DoubleEnemiesMod",
+      "version": "0.7.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "nityammm-shermaInbellhome",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Yanbi414-Laughing_Jack_skin_Second_Sentinel",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "flibber-FlibberDependencyPack",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "flibber-RotatingLogs",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Fabulator_K-SilksongTrueAim",
+      "version": "1.0.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "akino3151-RevengeOfShalame",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Teamwiththisnamealreadyexists-Voidsong",
+      "version": "1.3.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "flibber-CanvasUtil",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "orian34-Eternal_Torment",
+      "version": "1.3.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Teamwiththisnamealreadyexists-SSVoidsong",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Emo_Bike_Mate-Horent_is_Link",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Emo_Bike_Mate-wii_hornet",
+      "version": "1.0.5",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "flibber-KeybindChaos",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Esper89-ToolRefund",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "MicheliniDev-KarmelitaPrime",
+      "version": "1.3.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Clazex-BetterReaper",
+      "version": "0.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "MicheliniDev-Always_Act_3",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "ProdiGG-FifthChorus",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Zhorox-Phantom_Of_The_Organ",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "vice-ScuttleAttacks",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "AZander48-MapUnlocker",
+      "version": "1.2.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "EpsilonDown-SkarrQueen",
+      "version": "1.0.5",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "unniisme-MultiCustomizer",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Ashiepaws-NiceShot",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "BugWeldingInc-NoFlashMod",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "PixelCraig-ModdedTools_ThreadsOfTheFlame",
+      "version": "1.5.6",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "adwamogus-Maggoted",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Nitefury-1_in_10000_Chance_for_Withered_Foxy_Jumpscare_Every_Second",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Ruttie-PetDatDawg",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "xlhans77-GhostOfPharloom_for_Patchwork",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "xlhans77-GhostOfPharloom_for_Customizer",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Clazex-FleaBrewCooldownFix",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Clazex-FleaBrewInfRefill",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "ygsbzr-SSEnemyHPBar",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "a2659802-Darkness",
+      "version": "0.1.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "adwamogus-Infinite_Tools_and_Rosaries_Mod",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Ashiepaws-Tiktik",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Someone_Else-HKS_Item_Randomizer",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "AZander48-BellHomeColourChanger",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "AZander48-BarbedWireUnlocker",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "TC8Silk-SilkRoomUtils",
+      "version": "0.0.23",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "slimybonesjones-Last_Arbiter",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "AquaEther-NoTelegraphCogwork",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "RunHello-Up_To_Faydown",
+      "version": "1.2.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "EliHoyt-BonekiniBottom",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "AstrumNova-AuricAegis",
+      "version": "1.1.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "danh-phantheon_of_silksong",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "AstrumNova-SistersOfSin",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "capitalists-SimpleSilksongLocalizer",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "BurningPhoenix-Poshanka",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "slimybonesjones-Regenerate_Shards",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "MicheliniDev-AutoQuestEnder",
+      "version": "1.4.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Cmdpro-GitGudDeath",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "DerVorce-SkongGamemodes",
+      "version": "1.2.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "tetriscat66-AllToolsUnlockable",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Voidlings-ExtraSaves",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "bloodtrial-RosariesAndShellStaySafeFromSpikes",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Xneal-BestHealthBar",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "zlq-SilksongFocusQoL",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Vitaxses-CutEnding",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Bigfootmech-Silksong_Mouse_Inventory_Use",
+      "version": "0.1.7",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "jakobhellermann-BepInExConfigurationManager",
+      "version": "18.4.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "jakobhellermann-BepinExScriptEngine",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Wagyu-SilksongMinimapWithCocoonCompass",
+      "version": "0.8.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "OrderOfTheGoons-Immortal_Architect",
+      "version": "1.1.3",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Bigfootmech-Silksong_Reduce_Motion",
+      "version": "0.3.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Bigfootmech-Silksong_Keyboard_Inventory_Fix",
+      "version": "0.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Esper89-ToggleSprint",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "JonathanCordero-MagnetiteBroochPlus",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "chinccw-SilksongDeathSoundMod",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "cometcake575-HeartlessBellhome",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "cometcake575-NoWingsDip",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "TheWackyKnight-Crest_Selector",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "TheWackyKnight-Cursed_Crest_mode",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "TheBeastUnleashed-BEYOND_INFINITE_for_Act_3_Final_Boss",
+      "version": "1.0.5",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Cuckson-Godhome",
+      "version": "1.0.3",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "NordLandeW-Nail1ATK",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "TheWackyKnight-Hollow_Knight_Death_Swap_for_Silksong",
+      "version": "1.2.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Cuckson-HarderSong",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "RatherChaotic-SilksongCustomizer",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Cuckson-EarlyCompletionist",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Cuckson-CheapBind",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Cuckson-BuffBind",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "BlueRaja-double_shards",
+      "version": "1.4.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Bigfootmech-Silksong_Remove_Atmosphere_Aka_Myopia_Filter",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "BlueRaja-double_silk",
+      "version": "1.3.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "BlueRaja-double_rosaries",
+      "version": "1.4.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "BlueRaja-rosaries_never_permanently_lost",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "XiaohaiMod-ReBack",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Nordbo-SimpleDeathCounter",
+      "version": "0.2.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Bigfootmech-Silksong_Skip_Intro",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "nonpolynomial-SilkSchlong",
+      "version": "0.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "pseudopulse-ToolRefund",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "x753-Easy_Journal",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "stebars-IncreasePlayerDamage",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "EtheraelEspeon-CombatBalance",
+      "version": "1.0.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "EtheraelEspeon-Invincibility",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Phoebe-ClownHornet",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Zekai-NoVignettePlugin",
+      "version": "0.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "x753-FreeCompass",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Trypophobia-Silksong_Trypophobia_Remover",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Threewood-LostkinButEsmy",
+      "version": "1.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Dalseds-A_Damage_Gambling_Mod",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "SSEMODS-GodsOfPharloom",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Blueys_Kitchen-Clover_and_Gloom_Menus",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "aroarrow-PantheonOfPharloom",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "BepInEx-BepInExPack_Silksong",
+      "version": "5.4.75304",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "gauntletGang-GauntletSong",
+      "version": "0.6.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "memeem27-SSMPEnemyHealthSync",
+      "version": "1.0.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "JasonForNian-TripleJumpTool",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "LostLands-SILKSONG_LOST_LANDS",
+      "version": "0.0.3",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "elesanren-Hard_Item_Randomizer_w_SceneRandom_Config",
+      "version": "1.0.4",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "timothymarriott-Rando",
+      "version": "0.1.3",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "cometcake575-EternalNight",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "silksong_modding-Silksong_FsmUtil",
+      "version": "0.3.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Silkysong-Silkysong_ReloadRosaryCannon",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "badmagic-SilksongTemplateTester",
+      "version": "0.1.5",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Vitaxses-Vitax_Quality_of_Life",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "TheEliCorner-BonekiniBottom",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "PixelCraig-ModdedTools_FatherOfTheFlame",
+      "version": "1.4.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "danh-silksong",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Nsky-Fanteon",
+      "version": "0.5.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Zekai-DebugMod",
+      "version": "0.1.65",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Starshooter-NoWingsDip",
+      "version": "1.0.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Yukikaco-CustomSprite",
+      "version": "0.1.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "TheWackyKnight-Hollow_Knight_Death_Swap___Silksong",
+      "version": "1.1.2",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "TheWackyKnight-Hallow_Knight_Death_Swap___Silksong",
+      "version": "1.1.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "Yukikaco-BepinExConfigurationManager",
+      "version": "18.4.1",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "TheWackyKnight-HallowKnightDeathSwap_Silksong",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    },
+    {
+      "fullName": "TEST1239-SimpleCheats",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Absent in the official version ZIP"
+    }
+  ],
+  "upstreamEmptyDocuments": [
+    {
+      "fullName": "Muco-SilksongLite",
+      "version": "1.0.0",
+      "document": "README.md",
+      "reason": "Empty document in the official version ZIP"
+    },
+    {
+      "fullName": "Muco-SilksongLite",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Empty document in the official version ZIP"
+    },
+    {
+      "fullName": "Muco-UltimateEasyMode",
+      "version": "1.0.0",
+      "document": "README.md",
+      "reason": "Empty document in the official version ZIP"
+    },
+    {
+      "fullName": "Muco-UltimateEasyMode",
+      "version": "1.0.0",
+      "document": "CHANGELOG.md",
+      "reason": "Empty document in the official version ZIP"
+    },
+    {
+      "fullName": "Phoebe-ClownHornet",
+      "version": "1.0.0",
+      "document": "README.md",
+      "reason": "Empty document in the official version ZIP"
+    }
+  ],
+  "originalFallbackDocuments": [],
+  "errors": [],
+  "quality": "Repository-maintained, locally assisted drafts; not all documents have been manually reviewed"
+}

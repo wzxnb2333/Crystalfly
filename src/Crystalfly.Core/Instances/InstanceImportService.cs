@@ -116,10 +116,12 @@ public static class InstanceImportService
         var build = BuildFingerprintService.FindBuild(catalog.Builds, fingerprint);
         var record = new InstanceRecord
         {
+            GameId = fingerprint.GameId,
             Id = instanceId ?? Guid.NewGuid().ToString("N"),
             Name = Path.GetFileName(path),
             RootPath = path,
             BuildId = build?.Id ?? "unknown",
+            DeclaredVersion = BuildFingerprintService.ReadDeclaredVersion(path, fingerprint.GameId),
             CreatedAt = DateTimeOffset.UtcNow
         };
         await InstanceSidecar.SaveAsync(record, cancellationToken);
@@ -131,20 +133,22 @@ public static class InstanceImportService
         GameCatalog catalog,
         CancellationToken cancellationToken)
     {
-        if (catalog.Builds.Count == 0)
+        var gameId = GameDefinition.Detect(record.RootPath)?.Id ?? record.GameId;
+        var declaredVersion = BuildFingerprintService.ReadDeclaredVersion(record.RootPath, gameId);
+        var buildId = record.BuildId;
+        if (catalog.Builds.Count > 0)
         {
-            return record;
+            var fingerprint = await BuildFingerprintService.CalculateAsync(record.RootPath, gameId, cancellationToken);
+            buildId = BuildFingerprintService.FindBuild(catalog.Builds, fingerprint)?.Id
+                ?? (BuildIdentity.TryGetSteamManifestId(record.BuildId, out _) ? record.BuildId : "unknown");
         }
-        var fingerprint = await BuildFingerprintService.CalculateAsync(record.RootPath, cancellationToken);
-        var verified = BuildFingerprintService.FindBuild(catalog.Builds, fingerprint);
-        var buildId = verified?.Id
-            ?? (BuildIdentity.TryGetSteamManifestId(record.BuildId, out _) ? record.BuildId : "unknown");
-        if (string.Equals(record.BuildId, buildId, StringComparison.Ordinal))
+        if (record.GameId == gameId && string.Equals(record.BuildId, buildId, StringComparison.Ordinal)
+            && string.Equals(record.DeclaredVersion, declaredVersion, StringComparison.Ordinal))
         {
             return record;
         }
 
-        var upgraded = record with { BuildId = buildId };
+        var upgraded = record with { BuildId = buildId, GameId = gameId, DeclaredVersion = declaredVersion };
         await InstanceSidecar.SaveAsync(upgraded, cancellationToken);
         return upgraded;
     }

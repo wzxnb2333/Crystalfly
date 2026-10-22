@@ -46,21 +46,36 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
     }
 
     [Fact]
-    public void Factory_creates_a_stable_custom_manifest_item()
+    public async Task Silksong_queue_keeps_game_identity_and_manual_manifest_unverified()
     {
         Directory.CreateDirectory(root);
-
-        DownloadQueueGroup group = SteamDownloadQueueGroupFactory.CreateCustomManifest(
-            42,
-            "Unverified historical build",
-            root,
-            "historical");
-
-        DownloadQueueItem item = Assert.Single(group.Items);
-        Assert.Equal("steam:manifest", item.PackageId);
-        Assert.Equal("42", item.PackagePath);
-        Assert.Equal("Unverified historical build", item.Name);
-        Assert.Equal("historical", group.TargetInstanceName);
+        var group = SteamDownloadQueueGroupFactory.CreateCustomManifest(42, "Manual", root, "silk", gameId: GameId.Silksong);
+        var item = Assert.Single(group.Items);
+        SteamDownloadRequest? captured = null;
+        var executor = new SteamDownloadQueueExecutor(new RejectingFallbackExecutor(), async (request, _, token) =>
+        {
+            captured = request;
+            Directory.CreateDirectory(Path.Combine(request.StagingDirectory, GameDefinition.Silksong.DataDirectoryName));
+            await File.WriteAllTextAsync(Path.Combine(request.StagingDirectory, GameDefinition.Silksong.ExecutableName), "game", token);
+            return new(1030300, 1030301, 42, request.StagingDirectory, [GameDefinition.Silksong.ExecutableName], 4);
+        }, _ => "wrong-hk-build", resolveGameBuildId: (game, _) =>
+        {
+            Assert.Equal(GameId.Silksong, game);
+            return null;
+        });
+        await executor.TransferAsync(group, item, new ProgressCapture(_ => { }), networkGate, CancellationToken.None);
+        await executor.InstallAsync(group, item, CancellationToken.None);
+        Assert.Equal(1030300U, captured?.AppId);
+        Assert.Equal(1030301U, captured?.DepotId);
+        var instance = await InstanceSidecar.LoadAsync(group.TargetInstanceRoot);
+        Assert.NotNull(instance);
+        Assert.Equal(GameId.Silksong, instance.GameId);
+        Assert.Equal("steam-manifest-42", instance.BuildId);
+        var repair = SteamDownloadQueueGroupFactory.CreateManifestRepair(instance, 42);
+        Assert.Equal(GameId.Silksong, repair.GameId);
+        Assert.Throws<InvalidDataException>(() => SteamDownloadQueueGroupFactory.CreateManifestRepair(instance, 43));
+        var persisted = JsonSerializer.Serialize(group, Crystalfly.Core.Serialization.CrystalflyJson.Options);
+        Assert.Equal(GameId.Silksong, JsonSerializer.Deserialize<DownloadQueueGroup>(persisted, Crystalfly.Core.Serialization.CrystalflyJson.Options)!.GameId);
     }
 
     [Fact]
@@ -520,22 +535,6 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
 
         InstanceRecord instance = (await InstanceSidecar.LoadAsync(group.TargetInstanceRoot))!;
         Assert.Equal("steam-public-42", instance.BuildId);
-    }
-
-    [Fact]
-    public async Task Known_custom_manifest_uses_the_catalog_build_identity()
-    {
-        Directory.CreateDirectory(root);
-        var executor = CreateExecutor(SuccessfulDownload(42), manifest => manifest == 42 ? "known-build" : null);
-        DownloadQueueGroup group = SteamDownloadQueueGroupFactory.CreateCustomManifest(
-            42, "Known historical build", root, "target");
-        DownloadQueueItem item = Assert.Single(group.Items);
-
-        await executor.TransferAsync(group, item, new ProgressCapture(_ => { }), networkGate, CancellationToken.None);
-        await executor.InstallAsync(group, item, CancellationToken.None);
-
-        InstanceRecord instance = (await InstanceSidecar.LoadAsync(group.TargetInstanceRoot))!;
-        Assert.Equal("known-build", instance.BuildId);
     }
 
     [Fact]

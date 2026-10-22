@@ -139,8 +139,11 @@ public static class LoaderStateDetector
     {
         const string moddingApiPrefix = "modding-api-";
         const string bepinExPrefix = "bepinex-";
+        const string silksongPrefix = "bepinex-silksong-";
         return packageId.StartsWith(moddingApiPrefix, StringComparison.OrdinalIgnoreCase)
             ? packageId[moddingApiPrefix.Length..]
+            : packageId.StartsWith(silksongPrefix, StringComparison.OrdinalIgnoreCase)
+                ? packageId[silksongPrefix.Length..]
             : packageId.StartsWith(bepinExPrefix, StringComparison.OrdinalIgnoreCase)
                 ? packageId[bepinExPrefix.Length..]
                 : null;

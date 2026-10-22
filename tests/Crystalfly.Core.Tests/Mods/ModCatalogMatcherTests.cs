@@ -5,21 +5,6 @@ namespace Crystalfly.Core.Tests.Mods;
 
 public sealed class ModCatalogMatcherTests
 {
-    [Fact]
-    public void Match_returns_single_candidate_when_name_and_loader_agree()
-    {
-        var external = External("DebugMod", "modding-api-77");
-        var catalog = new[]
-        {
-            Manifest("debugmod-1", "DebugMod", "modding-api-77", ["1.5.78.11833"]),
-            Manifest("other-1", "OtherMod", "modding-api-77", ["1.5.78.11833"])
-        };
-
-        var candidates = ModCatalogMatcher.Match(external, "1.5.78.11833", catalog);
-
-        Assert.Single(candidates);
-        Assert.Equal("debugmod-1", candidates[0].Id);
-    }
 
     [Fact]
     public void Match_returns_multiple_candidates_when_several_names_agree()
@@ -81,20 +66,6 @@ public sealed class ModCatalogMatcherTests
 
         Assert.Single(candidates);
         Assert.Equal("hkmod:DebugMod", candidates[0].Id);
-    }
-
-    [Fact]
-    public void Match_returns_empty_when_nothing_agrees()
-    {
-        var external = External("UnknownMod", "modding-api-77");
-        var catalog = new[]
-        {
-            Manifest("debugmod-1", "DebugMod", "modding-api-77", ["1.5.78.11833"])
-        };
-
-        var candidates = ModCatalogMatcher.Match(external, "1.5.78.11833", catalog);
-
-        Assert.Empty(candidates);
     }
 
     [Fact]

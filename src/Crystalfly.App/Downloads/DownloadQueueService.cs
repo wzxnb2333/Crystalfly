@@ -4,15 +4,18 @@ using System.Runtime.ExceptionServices;
 using Crystalfly.Core.Networking;
 using Crystalfly.Core.Packages;
 using Crystalfly.Core.Serialization;
+using Crystalfly.Core.Diagnostics;
 
 namespace Crystalfly.App.Downloads;
 
 public sealed class DownloadQueueService : IAsyncDisposable
 {
     private const int MaxTransferRetries = 3;
+    private readonly IErrorReporter errorReporter;
     private readonly string storePath;
     private readonly IDownloadQueueExecutor executor;
     private readonly Func<bool> isGameRunning;
+    public Func<DownloadQueueGroup, bool>? IsTargetGameRunning { get; set; }
     private readonly Func<IReadOnlyList<DownloadQueueGroup>, CancellationToken, Task>? persistOverride;
     private readonly TimeSpan gameExitPollInterval;
     private readonly INetworkPolicy? networkPolicy;
@@ -53,7 +56,8 @@ public sealed class DownloadQueueService : IAsyncDisposable
         Func<bool> isGameRunning,
         TimeSpan gameExitPollInterval,
         INetworkPolicy? networkPolicy = null,
-        InstanceOperationCoordinator? operationCoordinator = null)
+        InstanceOperationCoordinator? operationCoordinator = null,
+        IErrorReporter? errorReporter = null)
         : this(
             storePath,
             executor,
@@ -61,7 +65,8 @@ public sealed class DownloadQueueService : IAsyncDisposable
             gameExitPollInterval,
             null,
             networkPolicy,
-            operationCoordinator)
+            operationCoordinator,
+            errorReporter)
     {
     }
 
@@ -72,7 +77,8 @@ public sealed class DownloadQueueService : IAsyncDisposable
         TimeSpan gameExitPollInterval,
         Func<IReadOnlyList<DownloadQueueGroup>, CancellationToken, Task>? persistOverride,
         INetworkPolicy? networkPolicy = null,
-        InstanceOperationCoordinator? operationCoordinator = null)
+        InstanceOperationCoordinator? operationCoordinator = null,
+        IErrorReporter? errorReporter = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(storePath);
         ArgumentNullException.ThrowIfNull(executor);
@@ -88,6 +94,7 @@ public sealed class DownloadQueueService : IAsyncDisposable
         this.persistOverride = persistOverride;
         this.networkPolicy = networkPolicy;
         this.operationCoordinator = operationCoordinator;
+        this.errorReporter = errorReporter ?? NullErrorReporter.Instance;
         if (networkPolicy is not null)
         {
             networkPolicy.Changed += NetworkPolicyChanged;
@@ -1032,6 +1039,7 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     continue;
                 }
                 Update(group, item, () => FailItem(item, exception));
+                errorReporter.Capture(exception, ErrorOperation.Download);
                 return false;
             }
         }
@@ -1053,7 +1061,7 @@ public sealed class DownloadQueueService : IAsyncDisposable
                     item.BytesPerSecond = 0;
                 });
                 await PersistAsync(cancellationToken);
-                while (isGameRunning())
+                while (IsTargetGameRunning?.Invoke(group) ?? isGameRunning())
                 {
                     await Task.Delay(gameExitPollInterval, cancellationToken);
                 }
@@ -1098,6 +1106,7 @@ public sealed class DownloadQueueService : IAsyncDisposable
         catch (Exception exception)
         {
             Update(group, item, () => FailItem(item, exception));
+            errorReporter.Capture(exception, ErrorOperation.Install);
             return false;
         }
     }

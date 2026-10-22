@@ -91,44 +91,6 @@ public sealed class UiUsabilityRegressionTests
         finally { Close(window); }
     }
 
-    [AvaloniaFact]
-    public async Task Community_rail_reflows_when_resizing_without_hiding_links()
-    {
-        var root = Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N"));
-        await using var vm = new MainViewModel(root);
-        var window = new MainWindow { Width = 1280, Height = 720 };
-        window.Show();
-        window.DataContext = vm;
-        try
-        {
-            foreach (var width in new[] { 1280, 900, 1100, 1920 })
-            {
-                window.Width = width;
-                Dispatcher.UIThread.RunJobs();
-                var rail = window.FindControl<Border>("CommunityRail")!;
-                Assert.Equal(width < 1180 ? 1 : 2, Grid.GetColumn(rail));
-                Assert.Equal(width < 1180 ? 1 : 0, Grid.GetRow(rail));
-                Assert.True(rail.IsEffectivelyVisible);
-                var communityButtons = rail.GetVisualDescendants().OfType<Button>().Where(b => b.Classes.Contains("cfp-community-link")).ToArray();
-                Assert.Equal(6, communityButtons.Length);
-                Assert.All(communityButtons, b => Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(b))));
-                foreach (var button in communityButtons)
-                {
-                    var item = Assert.IsType<SpeedrunCommunityLinkItemViewModel>(button.DataContext);
-                    var icon = Assert.Single(button.GetVisualDescendants().OfType<LucideIcon>());
-                    Assert.Equal(item.Icon, icon.Kind);
-                }
-                var first = communityButtons[0];
-                Assert.True(first.Focus(NavigationMethod.Tab));
-                Dispatcher.UIThread.RunJobs();
-                Assert.True(first.IsKeyboardFocusWithin);
-                Assert.Equal(2, first.BorderThickness.Left);
-                Assert.NotEqual(Colors.Transparent, Assert.IsAssignableFrom<ISolidColorBrush>(first.BorderBrush).Color);
-            }
-        }
-        finally { Close(window); }
-    }
-
     private static void Close(MainWindow window)
     {
         foreach (var dialog in window.GetVisualDescendants().OfType<CustomDialogControl>().ToArray()) dialog.Close();

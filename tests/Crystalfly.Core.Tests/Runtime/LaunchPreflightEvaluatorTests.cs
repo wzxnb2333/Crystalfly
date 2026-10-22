@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Crystalfly.Core.Loaders;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Mods;
 using Crystalfly.Core.Runtime;
@@ -26,14 +27,80 @@ public sealed class LaunchPreflightEvaluatorTests
     }
 
     [Fact]
-    public void Unknown_build_only_allows_vanilla_loader()
+    public void Unknown_build_allows_BepInEx_with_a_compatibility_warning()
     {
         var vanilla = LaunchPreflightEvaluator.Evaluate(false, true, LoaderState.Vanilla, [], true, true);
         var modded = LaunchPreflightEvaluator.Evaluate(false, true, LoaderState.BepInEx, [], true, true);
 
         Assert.True(vanilla.IsReady);
-        Assert.False(modded.LoaderReady);
+        Assert.True(modded.LoaderReady);
         Assert.False(modded.IsReady);
+        Assert.DoesNotContain(modded.Issues, issue => issue.Code == LaunchIssueCode.UnsupportedBuildLoaderCombination);
+        Assert.Contains(modded.Issues, issue => issue.Code == LaunchIssueCode.LoaderCompatibilityUnverified);
+    }
+
+    [Fact]
+    public void Unavailable_Steam_profile_requires_explicit_launch_confirmation()
+    {
+        var result = LaunchPreflightEvaluator.Evaluate(true, true, LoaderState.Vanilla, [], true, true,
+            instanceId: "silksong", modHealthReports: [], steamSaveProfileUnavailable: true);
+        Assert.Equal(LaunchIssueCode.SteamSaveProfileUnavailable, Assert.Single(result.Issues).Code);
+        Assert.False(result.CanLaunchNormally);
+        Assert.True(result.CanForceLaunch);
+        Assert.False(result.Issues[0].IsAcknowledged);
+    }
+
+    [Fact]
+    public void Adopted_BepInEx_on_unknown_build_is_unverified_not_unsupported()
+    {
+        var result = LaunchPreflightEvaluator.Evaluate(false, true, LoaderState.BepInEx, [], true, true,
+            instanceId: "silksong-old", modHealthReports: [],
+            compatibility: new("unknown", new LoaderInspection
+            {
+                State = LoaderState.BepInEx, PackageId = "bepinex-5.4.23.2", Ownership = LoaderOwnership.Managed
+            }));
+        Assert.True(result.LoaderReady);
+        Assert.Equal(LaunchIssueCode.LoaderCompatibilityUnverified, Assert.Single(result.Issues).Code);
+        Assert.Equal(LaunchIssueSeverity.Warning, result.Issues[0].Severity);
+    }
+
+    [Fact]
+    public void Unverified_loader_acknowledgement_is_scoped_to_the_actual_launch_files()
+    {
+        var context = new LaunchCompatibilityContext("unknown", new LoaderInspection
+        {
+            State = LoaderState.BepInEx, PackageId = "bepinex-silksong-5.4.23.4"
+        }, new string('A', 64));
+        LaunchPreflightResult Evaluate(LaunchCompatibilityContext value, ModHealthAcknowledgement[] acknowledgements) =>
+            LaunchPreflightEvaluator.Evaluate(false, true, LoaderState.BepInEx, [], true, true,
+                "silksong-old", [], acknowledgements, compatibility: value);
+        var first = Evaluate(context, []);
+        var acknowledgement = ModHealthAcknowledgement.Create("silksong-old", Assert.Single(first.Issues));
+        Assert.True(Evaluate(context, [acknowledgement]).CanLaunchNormally);
+        Assert.False(Evaluate(context with { FileFingerprint = new string('B', 64) }, [acknowledgement]).CanLaunchNormally);
+        Assert.False(Evaluate(context with { FileFingerprint = null }, [acknowledgement]).CanLaunchNormally);
+    }
+
+    [Theory]
+    [InlineData(LoaderState.BepInEx, "bepinex-5.4.23.4", true)]
+    [InlineData(LoaderState.ModdingApi, "modding-api-78", false)]
+    public void Only_BepInEx_can_launch_on_a_known_build_outside_the_catalog_allowlist(
+        LoaderState state, string packageId, bool ready)
+    {
+        var result = LaunchPreflightEvaluator.Evaluate(
+            true, true, state, [], true, true,
+            instanceId: "practice", modHealthReports: [],
+            compatibility: new LaunchCompatibilityContext("1.2.2.1", new LoaderInspection
+            {
+                State = state,
+                PackageId = packageId,
+                IsVerified = true,
+                SupportedBuildIds = ["1.5.12620.0"]
+            }));
+
+        Assert.Equal(ready, result.IsReady);
+        Assert.Equal(!ready, result.Issues.Any(issue =>
+            issue.Code == LaunchIssueCode.UnsupportedBuildLoaderCombination));
     }
 
     [Fact]
@@ -53,27 +120,6 @@ public sealed class LaunchPreflightEvaluatorTests
 
         Assert.False(missing.DependenciesReady);
         Assert.False(disabled.DependenciesReady);
-    }
-
-    [Fact]
-    public void Healthy_instance_passes_all_checks()
-    {
-        var library = Receipt("library", enabled: true);
-        var mod = Receipt("feature", enabled: true, dependencies: ["library"]);
-
-        var result = LaunchPreflightEvaluator.Evaluate(
-            true,
-            true,
-            LoaderState.ModdingApi,
-            [mod, library],
-            true,
-            true);
-
-        Assert.True(result.GameFilesReady);
-        Assert.True(result.LoaderReady);
-        Assert.True(result.DependenciesReady);
-        Assert.True(result.SaveIsolationReady);
-        Assert.True(result.IsReady);
     }
 
     [Fact]

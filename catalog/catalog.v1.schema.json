@@ -89,6 +89,7 @@
         "globalGameManagersSha256"
       ],
       "properties": {
+        "gameId": {"type": "string", "enum": ["hollowKnight", "silksong"], "default": "hollowKnight"},
         "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
         "id": { "$ref": "#/$defs/identifier" },
         "displayVersion": { "type": "string", "minLength": 1 },
@@ -109,6 +110,7 @@
       "additionalProperties": false,
       "required": ["schemaVersion", "name", "buildId"],
       "properties": {
+        "gameId": {"type": "string", "enum": ["hollowKnight", "silksong"], "default": "hollowKnight"},
         "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
         "name": { "$ref": "#/$defs/identifier" },
         "buildId": { "$ref": "#/$defs/identifier" }
@@ -127,6 +129,7 @@
         "supportedBuildIds"
       ],
       "properties": {
+        "gameId": {"type": "string", "enum": ["hollowKnight", "silksong"], "default": "hollowKnight"},
         "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
         "id": { "$ref": "#/$defs/identifier" },
         "name": { "type": "string", "minLength": 1 },
@@ -162,6 +165,7 @@
         "dependencies"
       ],
       "properties": {
+        "gameId": {"type": "string", "enum": ["hollowKnight", "silksong"], "default": "hollowKnight"},
         "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
         "id": { "$ref": "#/$defs/modIdentifier" },
         "name": { "type": "string", "minLength": 1 },

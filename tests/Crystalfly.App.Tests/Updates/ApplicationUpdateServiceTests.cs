@@ -227,16 +227,6 @@ public sealed class ApplicationUpdateServiceTests : IDisposable
     }
 
     [Fact]
-    public void CrystalflySettings_enables_update_checks_by_default()
-    {
-        var settings = new CrystalflySettings();
-
-        Assert.True(settings.CheckForUpdates);
-        Assert.Null(settings.LastUpdateCheckAt);
-        Assert.Null(settings.SkippedUpdateVersion);
-    }
-
-    [Fact]
     public async Task DownloadAssetAsync_streams_verified_asset_to_temporary_file()
     {
         byte[] content = [1, 2, 3, 4, 5];

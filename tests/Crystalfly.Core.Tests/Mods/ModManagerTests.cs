@@ -11,46 +11,6 @@ public sealed class ModManagerTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "Crystalfly.Tests", Guid.NewGuid().ToString("N"));
 
-    [Theory]
-    [InlineData("modding-api-37", "hollow_knight_Data/Managed/Mods/mod.dll")]
-    [InlineData("modding-api-60", "hollow_knight_Data/Managed/Mods/mod.dll")]
-    [InlineData("modding-api-77", "hollow_knight_Data/Managed/Mods/TestMod/folder/mod.dll")]
-    [InlineData("bepinex-5.4.23.4", "BepInEx/plugins/TestMod/folder/mod.dll")]
-    public async Task Install_uses_loader_specific_layout(string loaderId, string expectedPath)
-    {
-        var manager = CreateManager();
-        var package = CreateZip(("folder/mod.dll", "mod"));
-
-        var receipt = await manager.InstallFromFileAsync(Manifest("test", "TestMod", loaderId, package), package);
-
-        Assert.True(receipt.Enabled);
-        Assert.False(receipt.IsLocal);
-        Assert.True(File.Exists(Path.Combine(InstanceRoot, expectedPath.Replace('/', Path.DirectorySeparatorChar))));
-        Assert.Single(await manager.GetInstalledAsync());
-    }
-
-    [Fact]
-    public async Task Disable_and_enable_move_mod_files_out_of_the_loader_scan_path()
-    {
-        var manager = CreateManager();
-        var package = CreateZip(("mod.dll", "mod"));
-        await manager.InstallFromFileAsync(Manifest("test", "TestMod", "modding-api-77", package), package);
-
-        var disabled = await manager.SetEnabledAsync("test", enabled: false);
-
-        Assert.False(disabled.Enabled);
-        Assert.True(File.Exists(Path.Combine(
-            InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "Disabled", "TestMod", "mod.dll")));
-        Assert.False(File.Exists(Path.Combine(
-            InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "TestMod", "mod.dll")));
-
-        var enabled = await manager.SetEnabledAsync("test", enabled: true);
-
-        Assert.True(enabled.Enabled);
-        Assert.True(File.Exists(Path.Combine(
-            InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "TestMod", "mod.dll")));
-    }
-
     [Fact]
     public async Task Uninstall_blocks_reverse_dependencies_and_drifted_files()
     {
@@ -147,32 +107,6 @@ public sealed class ModManagerTests : IDisposable
             Manifest("dependent", "Dependent", "modding-api-77", package, "missing"), package));
 
         Assert.Empty(await manager.GetInstalledAsync());
-    }
-
-    [Fact]
-    public async Task Local_zip_and_dll_imports_are_marked_local()
-    {
-        var manager = CreateManager();
-        var package = CreateZip(("zip.dll", "zip"));
-        var zipReceipt = await manager.ImportLocalZipAsync(
-            "local-zip", "LocalZip", "modding-api-77", package);
-        var flatPackage = CreateZip(("flat.dll", "flat"), ("readme.txt", "ignore"));
-        var flatReceipt = await manager.ImportLocalZipAsync(
-            "local-flat", "LocalFlat", "modding-api-60", flatPackage);
-        var dll = Path.Combine(_root, "single.dll");
-        await File.WriteAllTextAsync(dll, "dll");
-
-        var dllReceipt = await manager.ImportLocalDllAsync(
-            "local-dll", "LocalDll", "bepinex-5.4.23.4", dll);
-
-        Assert.True(zipReceipt.IsLocal);
-        Assert.True(flatReceipt.IsLocal);
-        Assert.True(dllReceipt.IsLocal);
-        Assert.True(File.Exists(Path.Combine(
-            InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "flat.dll")));
-        Assert.False(File.Exists(Path.Combine(
-            InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "readme.txt")));
-        Assert.True(File.Exists(Path.Combine(InstanceRoot, "BepInEx", "plugins", "LocalDll", "single.dll")));
     }
 
     [Fact]

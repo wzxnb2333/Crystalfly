@@ -38,8 +38,8 @@ public sealed class ModInstallService
         ModManager modManager)
     {
         _instance = instance;
-        _catalog = ModCatalogCompatibility.ProjectForBuild(catalog, instance.BuildId);
-        _loaders = loaders;
+        _catalog = ModCatalogCompatibility.ProjectForBuild(catalog.Where(item => item.GameId == instance.GameId).ToArray(), instance.BuildId);
+        _loaders = loaders.Where(item => item.GameId == instance.GameId).ToArray();
         _loaderManager = loaderManager;
         _modManager = modManager;
     }
@@ -55,7 +55,7 @@ public sealed class ModInstallService
             .ToDictionary(receipt => receipt.Id, StringComparer.OrdinalIgnoreCase);
         var loaderManifest = _loaders.FirstOrDefault(loader =>
             string.Equals(loader.Id, evaluation.RequiredLoaderId, StringComparison.OrdinalIgnoreCase)
-            && loader.SupportedBuildIds.Contains(_instance.BuildId, StringComparer.OrdinalIgnoreCase));
+            && LoaderBuildCompatibility.CanInstall(loader, _instance.BuildId));
         var blockedReason = evaluation.Status == ModInstallReadiness.Blocked
             ? evaluation.Reason
             : loaderManifest is null && _loaders.Count != 0

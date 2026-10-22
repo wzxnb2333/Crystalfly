@@ -135,20 +135,20 @@ public sealed partial class InstancesViewModel : ViewModelBase
             InstanceRecord? clone = null;
             await dependencies.RunCoordinated(
                 source.Id,
-                async _ =>
+                async token =>
                 {
-                    if (new SystemHollowKnightProcessProbe().IsRunning())
+                    if (new SystemHollowKnightProcessProbe(GameDefinition.Get(dependencies.GetSettings().SelectedGameId).ProcessName).IsRunning())
                     {
                         throw new InvalidOperationException(dependencies.Loc()["CloseGameFirst"]);
                     }
-                    if (!await dependencies.IsVanillaInstanceAsync(source))
+                    if (source.GameId == GameId.HollowKnight && !await dependencies.IsVanillaInstanceAsync(source))
                     {
                         throw new InvalidOperationException(dependencies.Loc()["CloneVanillaOnly"]);
                     }
                     clone = await InstanceCloneService.CloneAsync(
                         source.RootPath,
                         dependencies.GetCloneInstanceName().Trim(),
-                        Guid.NewGuid().ToString("N"));
+                        Guid.NewGuid().ToString("N"), token);
                 },
                 dependencies.LifetimeCancellation);
             var createdClone = clone
@@ -198,7 +198,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
                 instanceId,
                 async cancellationToken =>
                 {
-                    if (new SystemHollowKnightProcessProbe().IsRunning())
+                    if (new SystemHollowKnightProcessProbe(GameDefinition.Get(dependencies.GetSettings().SelectedGameId).ProcessName).IsRunning())
                     {
                         throw new InvalidOperationException(dependencies.Loc()["CloseGameFirst"]);
                     }
@@ -333,20 +333,23 @@ public sealed partial class InstancesViewModel : ViewModelBase
 
     internal async Task InitializeGameDirectoriesAsync()
     {
+        Interlocked.Increment(ref gameDirectorySelectionVersion);
+        GameDirectoryCandidates.Clear();
         var settings = dependencies.GetSettings();
-        var registrations = settings.GameDirectories.ToList();
+        var registrations = settings.GameDirectories.Where(item => item.GameId == settings.SelectedGameId).ToList();
         if (registrations.Count == 0 && Directory.Exists(dependencies.GetVersionRoot()))
         {
             var versionRoot = dependencies.GetVersionRoot();
             registrations.Add(new GameDirectoryRegistration
             {
+                GameId = settings.SelectedGameId,
                 Path = Path.TrimEndingDirectorySeparator(Path.GetFullPath(versionRoot)),
                 DisplayName = DirectoryName(versionRoot),
                 Source = GameDirectorySourceKind.Managed
             });
             dependencies.SetSettings(settings with
             {
-                GameDirectories = registrations,
+                GameDirectories = settings.GameDirectories.Where(item => item.GameId != settings.SelectedGameId).Concat(registrations).ToArray(),
                 GameDirectoryDiscoveryCompleted = true
             });
             dependencies.QueueSettingsSave();
@@ -409,7 +412,8 @@ public sealed partial class InstancesViewModel : ViewModelBase
         {
             await gameDirectoryActivationGate.WaitAsync(dependencies.LifetimeCancellation);
             entered = true;
-            if (selectionVersion != Volatile.Read(ref gameDirectorySelectionVersion))
+            if (selectionVersion != Volatile.Read(ref gameDirectorySelectionVersion)
+                || directory.Registration.GameId != dependencies.GetSettings().SelectedGameId)
             {
                 return;
             }
@@ -421,6 +425,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
             });
             dependencies.QueueSettingsSave();
             await dependencies.RefreshInstances();
+            if (selectionVersion != Volatile.Read(ref gameDirectorySelectionVersion)) return;
             directory.InstanceCount = Instances.Count;
             UpdateActiveDirectoryScanStatus();
         }
@@ -453,11 +458,14 @@ public sealed partial class InstancesViewModel : ViewModelBase
             return;
         }
         IsScanningGameDirectories = true;
+        var scanGame = dependencies.GetSettings().SelectedGameId;
         dependencies.SetErrorMessage(null);
         try
         {
-            var discovered = await new SteamLibraryDiscoveryService(new WindowsSteamInstallPathProvider())
+            var game = GameDefinition.Get(scanGame);
+            var discovered = await new SteamLibraryDiscoveryService(new WindowsSteamInstallPathProvider(), game.SteamAppId, game.ExecutableName, game.DataDirectoryName)
                 .DiscoverAsync(dependencies.LifetimeCancellation);
+            if (scanGame != dependencies.GetSettings().SelectedGameId) return;
             AddCandidates(discovered.Select(candidate => new GameDirectoryCandidate
             {
                 Path = candidate.GamePath,
@@ -469,7 +477,8 @@ public sealed partial class InstancesViewModel : ViewModelBase
                 dependencies.LifetimeCancellation,
                 new Progress<int>(checkedDirectories => GameDirectoryScanProgress =
                     string.Format(dependencies.Loc()["ScanGameDirectoriesProgress"], checkedDirectories)));
-            AddCandidates(treeScan.Candidates);
+            if (scanGame != dependencies.GetSettings().SelectedGameId) return;
+            AddCandidates(treeScan.Candidates.Where(item => GameDefinition.Detect(item.Path)?.Id == scanGame));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
         {
@@ -483,8 +492,10 @@ public sealed partial class InstancesViewModel : ViewModelBase
 
     internal async Task AddCustomGameDirectoryAsync(string path)
     {
+        var scanGame = dependencies.GetSettings().SelectedGameId;
         var result = await new GameDirectoryScanner().ScanAsync(path, dependencies.LifetimeCancellation);
-        AddCandidates(result.Candidates);
+        if (scanGame != dependencies.GetSettings().SelectedGameId) return;
+        AddCandidates(result.Candidates.Where(item => GameDefinition.Detect(item.Path)?.Id == scanGame));
         if (result.Candidates.Count == 0)
         {
             dependencies.SetErrorMessage(dependencies.Loc()["NoGameDirectoryCandidates"]);
@@ -555,7 +566,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
             ?? throw new InvalidOperationException(dependencies.Loc()["InvalidGameDirectory"]);
         async Task<GameDirectoryMigrationResult> MigrateCoreAsync(CancellationToken cancellationToken)
         {
-            if (new SystemHollowKnightProcessProbe().IsRunning())
+            if (new SystemHollowKnightProcessProbe(GameDefinition.Get(dependencies.GetSettings().SelectedGameId).ProcessName).IsRunning())
             {
                 throw new InvalidOperationException(dependencies.Loc()["CloseGameFirst"]);
             }
@@ -606,6 +617,26 @@ public sealed partial class InstancesViewModel : ViewModelBase
         }
     }
 
+    internal async Task UseDownloadDirectoryAsync(string path)
+    {
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        InstanceDirectory.RejectReparseAncestors(root);
+        if (!Directory.Exists(root) || GameDefinition.Detect(root) is not null)
+            throw new InvalidOperationException(dependencies.Loc()["ChooseDownloadLibraryHint"]);
+        var settings = dependencies.GetSettings();
+        var registration = new GameDirectoryRegistration { GameId = settings.SelectedGameId, Path = root, DisplayName = DirectoryName(root), Source = GameDirectorySourceKind.Managed };
+        var existing = GameDirectories.FirstOrDefault(item => string.Equals(item.Path, root, StringComparison.OrdinalIgnoreCase));
+        if (existing is null) { existing = new GameDirectoryItemViewModel(registration); GameDirectories.Add(existing); }
+        dependencies.SetSettings(settings with { VersionRoot = root, CurrentInstanceId = null,
+            GameDirectories = settings.GameDirectories.Where(item => item.GameId != settings.SelectedGameId).Concat(GameDirectories.Select(item => item.Registration)).ToArray() });
+        dependencies.SetVersionRoot(root);
+        dependencies.QueueSettingsSave();
+        suppressGameDirectorySelection = true;
+        SelectedGameDirectory = existing;
+        suppressGameDirectorySelection = false;
+        await dependencies.RefreshInstances();
+    }
+
     private async Task RegisterGameDirectoryAsync(GameDirectoryCandidate candidate, bool steamRiskAccepted)
     {
         var instancePath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(candidate.Path));
@@ -613,6 +644,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
             ?? throw new InvalidOperationException(dependencies.Loc()["InvalidGameDirectory"]);
         var registration = new GameDirectoryRegistration
         {
+            GameId = dependencies.GetSettings().SelectedGameId,
             Path = Path.TrimEndingDirectorySeparator(rootPath),
             DisplayName = DirectoryName(rootPath),
             Source = candidate.Source,
@@ -633,7 +665,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
         var settings = dependencies.GetSettings();
         dependencies.SetSettings(settings with
         {
-            GameDirectories = GameDirectories.Select(directory => directory.Registration).ToArray(),
+            GameDirectories = settings.GameDirectories.Where(item => item.GameId != settings.SelectedGameId).Concat(GameDirectories.Select(directory => directory.Registration)).ToArray(),
             GameDirectoryDiscoveryCompleted = true,
             VersionRoot = registration.Path
         });
@@ -670,7 +702,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
         var settings = dependencies.GetSettings();
         dependencies.SetSettings(settings with
         {
-            GameDirectories = GameDirectories.Select(directory => directory.Registration).ToArray(),
+            GameDirectories = settings.GameDirectories.Where(item => item.GameId != settings.SelectedGameId).Concat(GameDirectories.Select(directory => directory.Registration)).ToArray(),
             VersionRoot = string.IsNullOrWhiteSpace(dependencies.GetVersionRoot())
                 ? null
                 : dependencies.GetVersionRoot(),
@@ -703,7 +735,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
 
     private async Task RefreshInactiveGameDirectoriesAsync()
     {
-        foreach (var directory in GameDirectories.Where(directory => !ReferenceEquals(directory, SelectedGameDirectory)))
+        foreach (var directory in GameDirectories.Where(directory => !ReferenceEquals(directory, SelectedGameDirectory)).ToArray())
         {
             try
             {
@@ -712,7 +744,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
                     directory.Path,
                     dependencies.GetCatalog(),
                     dependencies.LifetimeCancellation);
-                directory.InstanceCount = records.Count;
+                directory.InstanceCount = records.Count(item => item.GameId == directory.Registration.GameId);
                 directory.ScanStatus = dependencies.Loc()[
                     records is InstanceDiscoveryResult { Issues.Count: > 0 }
                         ? records.Count > 0 ? "ScanPartial" : "ScanFailed"

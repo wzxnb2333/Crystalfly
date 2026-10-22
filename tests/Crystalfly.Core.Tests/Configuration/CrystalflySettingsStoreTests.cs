@@ -99,6 +99,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
             expected with
             {
                 AccentColor = "#7E22CE",
+                GameWorkspaces = [],
                 CustomCatalogs = [],
                 GameDirectories = [],
                 ModHealthAcknowledgements = [],
@@ -107,6 +108,7 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
             },
             actual with
             {
+                GameWorkspaces = [],
                 CustomCatalogs = [],
                 GameDirectories = [],
                 ModHealthAcknowledgements = [],
@@ -114,6 +116,9 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
                 LiveSplitFavoritePaths = []
             });
         Assert.Equal(expected.CustomCatalogs, actual.CustomCatalogs);
+        var workspace = Assert.Single(actual.GameWorkspaces);
+        Assert.Equal(expected.VersionRoot, workspace.VersionRoot);
+        Assert.Equal(expected.CurrentInstanceId, workspace.CurrentInstanceId);
         Assert.Equal(expected.CustomModLinks, actual.CustomModLinks);
         Assert.Equal(UiMotionPreference.Off, actual.MotionPreference);
         Assert.Equal(expected.ModHealthAcknowledgements, actual.ModHealthAcknowledgements);
@@ -236,41 +241,6 @@ public sealed class CrystalflySettingsStoreTests : IDisposable
         var settings = await CrystalflySettingsStore.LoadAsync(path);
 
         Assert.Equal(AccentColorPalette.DefaultColor, settings.AccentColor);
-    }
-
-    [Fact]
-    public void Accent_palette_is_fixed_unique_and_normalizes_hex()
-    {
-        Assert.Equal(
-            ["#0F6CBD", "#4338CA", "#7E22CE", "#BE185D", "#C2410C", "#15803D", "#0E7490"],
-            AccentColorPalette.Presets);
-        Assert.Equal(AccentColorPalette.Presets.Count, AccentColorPalette.Presets.Distinct().Count());
-        Assert.True(AccentColorPalette.TryNormalize("be185d", out var normalized));
-        Assert.Equal("#BE185D", normalized);
-        Assert.False(AccentColorPalette.TryNormalize("#1234", out _));
-        Assert.False(AccentColorPalette.TryNormalize("#00112233", out _));
-    }
-
-    [Theory]
-    [InlineData(-1, 0)]
-    [InlineData(35, 35)]
-    [InlineData(101, 100)]
-    public async Task Background_image_normalizes_opacity(int input, int expected)
-    {
-        var path = Path.Combine(root, $"opacity-{input}.json");
-
-        await CrystalflySettingsStore.SaveAsync(path, new CrystalflySettings
-        {
-            BackgroundImage = new BackgroundImageSettings
-            {
-                FileName = "image.png",
-                OpacityPercent = input
-            }
-        });
-
-        var settings = await CrystalflySettingsStore.LoadAsync(path);
-
-        Assert.Equal(expected, settings.BackgroundImage?.OpacityPercent);
     }
 
     [Theory]

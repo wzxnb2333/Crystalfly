@@ -24,7 +24,9 @@ public sealed class SteamDownloadQueueExecutor(
     TimeSpan? loginPollInterval = null,
     InstanceOperationCoordinator? operationCoordinator = null,
     INetworkPolicy? networkPolicy = null,
-    Func<string, IReadOnlyDictionary<string, string>?>? resolveRepairHashes = null) : IDownloadQueueExecutor
+    Func<string, IReadOnlyDictionary<string, string>?>? resolveRepairHashes = null,
+    Func<GameId, ulong, string?>? resolveGameBuildId = null,
+    Func<GameId, string, IReadOnlyDictionary<string, string>?>? resolveGameRepairHashes = null) : IDownloadQueueExecutor
 {
     private readonly SemaphoreSlim steamDownloadGate = new(1, 1);
     private readonly Func<bool> isLoggedOn = isLoggedOn ?? (static () => true);
@@ -98,8 +100,10 @@ public sealed class SteamDownloadQueueExecutor(
             {
                 var repair = SteamDownloadQueueGroupFactory.IsSteamRepairItem(item);
                 var repairHashes = repair
-                    ? resolveRepairHashes(group.ExpectedBuildId)
-                        ?? throw new InvalidDataException("Repair build hashes are unavailable.")
+                    ? (resolveGameRepairHashes is not null ? resolveGameRepairHashes(group.GameId, group.ExpectedBuildId)
+                        : group.GameId == GameId.HollowKnight ? resolveRepairHashes(group.ExpectedBuildId) : null)
+                        ?? (group.ExpectedBuildId.StartsWith("steam-manifest-", StringComparison.Ordinal) || group.ExpectedBuildId.StartsWith("steam-public-", StringComparison.Ordinal)
+                            ? new Dictionary<string, string>() : throw new InvalidDataException("Repair build hashes are unavailable."))
                     : null;
                 result = await download(
                     new SteamDownloadRequest(
@@ -107,7 +111,9 @@ public sealed class SteamDownloadQueueExecutor(
                         requestedManifest,
                         RepairSourceDirectory: repair ? group.TargetInstanceRoot : null,
                         RepairSha256: repairHashes,
-                        ChunkCacheDirectory: SteamDownloadQueueGroupFactory.GetChunkCacheDirectory(group)),
+                        ChunkCacheDirectory: SteamDownloadQueueGroupFactory.GetChunkCacheDirectory(group),
+                        AppId: GameDefinition.Get(group.GameId).SteamAppId,
+                        DepotId: GameDefinition.Get(group.GameId).WindowsDepotId),
                     value => progress.Report(new PackageTransferProgress(
                         value.CompletedBytes,
                         value.TotalBytes,
@@ -119,11 +125,12 @@ public sealed class SteamDownloadQueueExecutor(
             {
                 networkGate.Release();
             }
-            ValidateResult(result, staging, requestedManifest);
+            ValidateResult(result, staging, requestedManifest, group.GameId);
             await AtomicJsonStore.WriteAsync(
                 Path.Combine(staging, InstanceDirectory.PendingDownloadMarkerFileName),
                 new SteamQueueTransferState
                 {
+                    GameId = group.GameId,
                     ManifestId = result.ManifestId,
                     InstanceId = group.TargetInstanceId
                 },
@@ -186,7 +193,7 @@ public sealed class SteamDownloadQueueExecutor(
             ?? throw new InvalidDataException(
                 $"Repair target sidecar metadata is missing; expected '{InstanceSidecar.GetMarkerPath(destination)}'. "
                 + "The instance may be corrupted.");
-        if (!string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal)
+        if (instance.GameId != group.GameId || !string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal)
             || !string.Equals(instance.BuildId, group.ExpectedBuildId, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidDataException("Repair target no longer matches the queued instance.");
@@ -217,7 +224,7 @@ public sealed class SteamDownloadQueueExecutor(
             string statePath = Path.Combine(staging, InstanceDirectory.PendingDownloadMarkerFileName);
             SteamQueueTransferState state = await ReadTransferStateAsync(
                 statePath, group, item, cancellationToken);
-            string buildId = ResolveBuildId(item, state.ManifestId);
+            string buildId = ResolveBuildId(group.GameId, item, state.ManifestId);
             if (File.Exists(destination))
             {
                 throw new IOException($"Instance destination already exists: {destination}");
@@ -299,6 +306,7 @@ public sealed class SteamDownloadQueueExecutor(
         string destination,
         string buildId) => new()
     {
+        GameId = group.GameId,
         Id = group.TargetInstanceId,
         Name = group.TargetInstanceName,
         RootPath = destination,
@@ -312,7 +320,8 @@ public sealed class SteamDownloadQueueExecutor(
         DownloadQueueGroup group,
         string destination,
         string buildId) =>
-        string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal)
+        instance.GameId == group.GameId
+        && string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal)
         && string.Equals(instance.Name, group.TargetInstanceName, StringComparison.Ordinal)
         && string.Equals(instance.BuildId, buildId, StringComparison.OrdinalIgnoreCase)
         && string.Equals(
@@ -330,7 +339,7 @@ public sealed class SteamDownloadQueueExecutor(
         SteamQueueTransferState state = await AtomicJsonStore.ReadAsync<SteamQueueTransferState>(
             statePath,
             cancellationToken);
-        if (!string.Equals(state.InstanceId, group.TargetInstanceId, StringComparison.Ordinal))
+        if (state.GameId != group.GameId || !string.Equals(state.InstanceId, group.TargetInstanceId, StringComparison.Ordinal))
         {
             throw new InvalidDataException("Downloaded Steam target does not match the queue request.");
         }
@@ -342,10 +351,12 @@ public sealed class SteamDownloadQueueExecutor(
         return state;
     }
 
-    private string ResolveBuildId(DownloadQueueItem item, ulong manifestId)
+    private string ResolveBuildId(GameId gameId, DownloadQueueItem item, ulong manifestId)
     {
         string requestedBuildId = item.PackageId[SteamDownloadQueueGroupFactory.PackagePrefix.Length..];
-        string? resolvedBuildId = resolveBuildId(manifestId);
+        string? resolvedBuildId = resolveGameBuildId is not null
+            ? resolveGameBuildId(gameId, manifestId)
+            : gameId == GameId.HollowKnight ? resolveBuildId(manifestId) : null;
         if (string.Equals(requestedBuildId, "public", StringComparison.Ordinal))
         {
             return resolvedBuildId
@@ -382,10 +393,10 @@ public sealed class SteamDownloadQueueExecutor(
     private static void ValidateResult(
         SteamDownloadResult result,
         string staging,
-        ulong? requestedManifest)
+        ulong? requestedManifest, GameId gameId)
     {
-        if (result.AppId != SteamProduct.HollowKnightAppId
-            || result.DepotId != SteamProduct.HollowKnightWindowsDepotId
+        if (result.AppId != GameDefinition.Get(gameId).SteamAppId
+            || result.DepotId != GameDefinition.Get(gameId).WindowsDepotId
             || !string.Equals(
                 Path.GetFullPath(result.StagingDirectory),
                 Path.GetFullPath(staging),
@@ -419,6 +430,8 @@ public sealed class SteamDownloadQueueExecutor(
 
     private sealed record SteamQueueTransferState
     {
+        public GameId GameId { get; init; } = GameId.HollowKnight;
+
         public required ulong ManifestId { get; init; }
 
         public required string InstanceId { get; init; }

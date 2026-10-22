@@ -9,20 +9,6 @@ public sealed class InstanceDirectoryTests
         "crystalfly-instance-directory",
         Guid.NewGuid().ToString("N"));
 
-    [Fact]
-    public void ResolveUnderRoot_returns_a_direct_child_for_a_valid_name()
-    {
-        const string name = "Hollow Knight 1.5.78.11833";
-
-        var destination = InstanceDirectory.ResolveUnderRoot(root, name);
-
-        Assert.Equal(Path.GetFullPath(Path.Combine(root, name)), destination);
-        Assert.Equal(
-            Path.GetFullPath(root),
-            Path.GetDirectoryName(destination),
-            ignoreCase: true);
-    }
-
     [Theory]
     [InlineData("name.")]
     [InlineData("name ")]

@@ -32,6 +32,16 @@
     },
     {
       "schemaVersion": 1,
+      "id": "1.5.12459",
+      "displayVersion": "1.5.12459",
+      "depotId": 367521,
+      "manifestId": "4709992615819941531",
+      "executableSha256": "7961BBA7243CE322163AD6B0DDFD6EF701413020B92AD0D98502526A396171B0",
+      "unityPlayerSha256": "8F2D601F8D3C7F4D29D80BA786C0BE873102BB7E6041EB03964A90B99724D90B",
+      "globalGameManagersSha256": "C9720F4B34131058C97766A9A92A1C4FFCE3B407647DE192C6D4DF46253EAFA9"
+    },
+    {
+      "schemaVersion": 1,
       "id": "1.5.12620.0",
       "displayVersion": "1.5.12620.0",
       "depotId": 367521,
@@ -39,11 +49,47 @@
       "executableSha256": "7961BBA7243CE322163AD6B0DDFD6EF701413020B92AD0D98502526A396171B0",
       "unityPlayerSha256": "8F2D601F8D3C7F4D29D80BA786C0BE873102BB7E6041EB03964A90B99724D90B",
       "globalGameManagersSha256": "0E9A971C59C072A2DDD5BEDE0B64964F512BDE9596C3583D23E4881BDE35D7F8"
+    },
+    {
+      "schemaVersion": 1,
+      "gameId": "silksong",
+      "id": "silksong-1.0.30000",
+      "displayVersion": "1.0.30000",
+      "depotId": 1030301,
+      "manifestId": "4421626056705534276",
+      "executableSha256": "5957B04989DE6E242938F5EE0FC745A5B1AF42DA8CCA44B0E6F8DAF30D836496",
+      "unityPlayerSha256": "5EADAEC116A9810C68A3C67BC9AD07C6F233BADEB06533987CE27DEFF471B21D",
+      "globalGameManagersSha256": "6B68A9CAFD0856EFC8357AF92F939E80564C361F77FB2C61AB067BB59356DA49"
+    },
+    {
+      "schemaVersion": 1,
+      "gameId": "silksong",
+      "id": "silksong-1.0.29980",
+      "displayVersion": "1.0.29980",
+      "depotId": 1030301,
+      "manifestId": "468692862190470536",
+      "executableSha256": "5957B04989DE6E242938F5EE0FC745A5B1AF42DA8CCA44B0E6F8DAF30D836496",
+      "unityPlayerSha256": "5EADAEC116A9810C68A3C67BC9AD07C6F233BADEB06533987CE27DEFF471B21D",
+      "globalGameManagersSha256": "3C85E9B49150463F2C8898E79E56D469CC0998399EDEC704BEE678F2BCF8607C"
     }
   ],
   "channels": [
-    { "schemaVersion": 1, "name": "latest", "buildId": "1.5.12620.0" },
-    { "schemaVersion": 1, "name": "public", "buildId": "1.5.12620.0" }
+    {
+      "schemaVersion": 1,
+      "name": "latest",
+      "buildId": "1.5.12620.0"
+    },
+    {
+      "schemaVersion": 1,
+      "name": "public",
+      "buildId": "1.5.12620.0"
+    },
+    {
+      "schemaVersion": 1,
+      "gameId": "silksong",
+      "name": "public",
+      "buildId": "silksong-1.0.30000"
+    }
   ],
   "loaders": [
     {
@@ -54,7 +100,9 @@
       "downloadUrl": "https://github.com/wzxnb2333/api/releases/download/1.2.2.1-37-windows/ModdingAPI-1.2.2.1-37-win-x64.zip",
       "sizeBytes": 932719,
       "sha256": "ECFF6C73C40194E9D8118C14B9ADE6862DB91E3949D8150027A86FD83BF290F7",
-      "supportedBuildIds": ["1.2.2.1"]
+      "supportedBuildIds": [
+        "1.2.2.1"
+      ]
     },
     {
       "schemaVersion": 1,
@@ -64,7 +112,13 @@
       "downloadUrl": "https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.4/BepInEx_win_x64_5.4.23.4.zip",
       "sizeBytes": 638940,
       "sha256": "F881201B79DA03E513BF97CDF39607FFA7F9E0D31A519B1AEECA8EB60F8309E7",
-      "supportedBuildIds": ["1.5.12620.0"]
+      "supportedBuildIds": [
+        "1.2.2.1",
+        "1.4.3.2",
+        "1.5.78.11833",
+        "1.5.12459",
+        "1.5.12620.0"
+      ]
     },
     {
       "schemaVersion": 1,
@@ -74,7 +128,9 @@
       "downloadUrl": "https://github.com/hk-modding/api/releases/download/1.4.3.2-60/Windows.zip",
       "sizeBytes": 3623441,
       "sha256": "A84571DE7DD8E0EA2F2528E132359F6F37A3CD161472C104E19D0C9FEA874E51",
-      "supportedBuildIds": ["1.4.3.2"]
+      "supportedBuildIds": [
+        "1.4.3.2"
+      ]
     },
     {
       "schemaVersion": 1,
@@ -84,7 +140,9 @@
       "downloadUrl": "https://github.com/hk-modding/api/releases/download/1.5.78.11833-77/moddingapi.v77.windows.zip",
       "sizeBytes": 7024251,
       "sha256": "BC9F0DB3D0916B05CD5A2420BB602FB1B239CE3FF6C289FD84BFFB682FB8F1D6",
-      "supportedBuildIds": ["1.5.78.11833"]
+      "supportedBuildIds": [
+        "1.5.78.11833"
+      ]
     },
     {
       "schemaVersion": 1,
@@ -94,7 +152,9 @@
       "downloadUrl": "https://github.com/wzxnb2333/api/releases/download/1.5.12620.0-78/ModdingAPI-1.5.12620.0-78-win-x64.zip",
       "sizeBytes": 4982043,
       "sha256": "5B5EBDDA651171E3C5EA6F13FB68FFE2D1B5F8B97A9D6FDE0EED3EA529418748",
-      "supportedBuildIds": ["1.5.12620.0"]
+      "supportedBuildIds": [
+        "1.5.12620.0"
+      ]
     }
   ],
   "mods": [
@@ -107,9 +167,13 @@
       "sizeBytes": 1107771,
       "sha256": "B25BE4A843D1010D3F6A54D159A4F6F87A9175DEC31E6B0C625B333F23AA83FB",
       "loaderId": "modding-api-37",
-      "supportedBuildIds": ["1.2.2.1"],
+      "supportedBuildIds": [
+        "1.2.2.1"
+      ],
       "dependencies": [],
-      "flatFiles": ["DebugMod.dll"]
+      "flatFiles": [
+        "DebugMod.dll"
+      ]
     },
     {
       "schemaVersion": 1,
@@ -120,9 +184,13 @@
       "sizeBytes": 1114406,
       "sha256": "E386365E73B7EB2547B6C57E25A6174591E768E8715B75F3B619811EF7420318",
       "loaderId": "modding-api-60",
-      "supportedBuildIds": ["1.4.3.2"],
+      "supportedBuildIds": [
+        "1.4.3.2"
+      ],
       "dependencies": [],
-      "flatFiles": ["DebugMod.dll"]
+      "flatFiles": [
+        "DebugMod.dll"
+      ]
     },
     {
       "schemaVersion": 1,
@@ -133,7 +201,9 @@
       "sizeBytes": 1115153,
       "sha256": "136C768BDE57A8864CB089E1471C554CFC88218F23229D1A39A56B032A2B7D75",
       "loaderId": "modding-api-77",
-      "supportedBuildIds": ["1.5.78.11833"],
+      "supportedBuildIds": [
+        "1.5.78.11833"
+      ],
       "dependencies": []
     },
     {
@@ -145,7 +215,9 @@
       "sizeBytes": 1104691,
       "sha256": "DE988BB70C578D935FD69F028D4C4537253CB7FE23BC6BBCCEFB925D1C2B574F",
       "loaderId": "bepinex-5.4.23.4",
-      "supportedBuildIds": ["1.5.12620.0"],
+      "supportedBuildIds": [
+        "1.5.12620.0"
+      ],
       "dependencies": []
     }
   ],
@@ -158,7 +230,9 @@
       "isOfficial": true,
       "rulesRevision": "runtime-patches-v1.0.2",
       "fileManifestId": "files-runtime-patches-1221",
-      "requiredAssetIds": ["runtime-patches-1221-v1.0.2"],
+      "requiredAssetIds": [
+        "runtime-patches-1221-v1.0.2"
+      ],
       "loadNormaliserAvailable": false,
       "requiresLoadNormaliserSelection": false,
       "allowedLoadNormaliserSeconds": []
@@ -171,7 +245,9 @@
       "isOfficial": true,
       "rulesRevision": "runtime-patches-v1.0.2",
       "fileManifestId": "files-runtime-patches-1432",
-      "requiredAssetIds": ["runtime-patches-1432-v1.0.2"],
+      "requiredAssetIds": [
+        "runtime-patches-1432-v1.0.2"
+      ],
       "loadNormaliserAvailable": false,
       "requiresLoadNormaliserSelection": false,
       "allowedLoadNormaliserSeconds": []
@@ -184,7 +260,10 @@
       "isOfficial": true,
       "rulesRevision": "runtime-patches-v1.0.2",
       "fileManifestId": "files-runtime-patches-1578",
-      "requiredAssetIds": ["runtime-patches-1578-v1.0.2", "multisavestates-1578"],
+      "requiredAssetIds": [
+        "runtime-patches-1578-v1.0.2",
+        "multisavestates-1578"
+      ],
       "loadNormaliserAvailable": false,
       "requiresLoadNormaliserSelection": false,
       "allowedLoadNormaliserSeconds": []
@@ -199,7 +278,9 @@
       "downloadUrl": "https://github.com/olvior/AssemblyPatches/releases/download/v1.0.2/Assembly-CSharp-1221-windows.zip",
       "sizeBytes": 876481,
       "sha256": "5F603C92E1E94F3FA1CBF59CC75AADCBD8E6014F7AC39D4F3F5924F945D85FC6",
-      "supportedBuildIds": ["1.2.2.1"]
+      "supportedBuildIds": [
+        "1.2.2.1"
+      ]
     },
     {
       "schemaVersion": 1,
@@ -209,7 +290,9 @@
       "downloadUrl": "https://github.com/olvior/AssemblyPatches/releases/download/v1.0.2/Assembly-CSharp-1432-windows.zip",
       "sizeBytes": 1128984,
       "sha256": "2ED1D9AE636EA177F97CE5C4565DFA4FA102E22B10F82D49201086A8F706FC3E",
-      "supportedBuildIds": ["1.4.3.2"]
+      "supportedBuildIds": [
+        "1.4.3.2"
+      ]
     },
     {
       "schemaVersion": 1,
@@ -219,7 +302,9 @@
       "downloadUrl": "https://github.com/olvior/AssemblyPatches/releases/download/v1.0.2/Assembly-CSharp-1578-windows.zip",
       "sizeBytes": 1129878,
       "sha256": "5E4380B70C27DA8E512E0C177A9A6C4742A615216330D343535AF8D48BA8AA3D",
-      "supportedBuildIds": ["1.5.78.11833"]
+      "supportedBuildIds": [
+        "1.5.78.11833"
+      ]
     },
     {
       "schemaVersion": 1,
@@ -230,7 +315,9 @@
       "sizeBytes": 1128823,
       "sha256": "7B5484A98EC552C55734CEAB54A4663699F0A85D786BD2881246BDDBDCA733E5",
       "archiveEntryPath": "Multisavestates/Assembly-CSharp.dll",
-      "supportedBuildIds": ["1.5.78.11833"]
+      "supportedBuildIds": [
+        "1.5.78.11833"
+      ]
     }
   ],
   "speedrunFileManifests": [

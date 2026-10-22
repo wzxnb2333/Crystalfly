@@ -7,11 +7,11 @@ public interface IHollowKnightProcessProbe
     bool IsRunning();
 }
 
-public sealed class SystemHollowKnightProcessProbe : IHollowKnightProcessProbe
+public sealed class SystemHollowKnightProcessProbe(string processName = "hollow_knight") : IHollowKnightProcessProbe
 {
     public bool IsRunning()
     {
-        var processes = Process.GetProcessesByName("hollow_knight");
+        var processes = Process.GetProcessesByName(processName);
         try
         {
             return processes.Length != 0;

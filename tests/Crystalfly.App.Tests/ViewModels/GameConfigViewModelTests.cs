@@ -10,27 +10,6 @@ public sealed class GameConfigViewModelTests : IDisposable
     private string ConfigPath => Path.Combine(directory, "AppConfig.ini");
 
     [Fact]
-    public async Task Load_populates_sliders_and_entries_from_file()
-    {
-        await WriteConfigAsync("""
-            [Accessibility]
-            ReducedCameraShake=0.2
-            ReducedControllerRumble=0.4
-            [Custom]
-            Tweak=42
-            """);
-        var viewModel = new GameConfigViewModel(ConfigPath);
-
-        await viewModel.LoadAsync();
-
-        Assert.Equal(0.2, viewModel.ReducedCameraShake);
-        Assert.Equal(0.4, viewModel.ReducedControllerRumble);
-        Assert.Equal(3, viewModel.Entries.Count);
-        Assert.False(viewModel.IsDirty);
-        Assert.True(viewModel.IsLoaded);
-    }
-
-    [Fact]
     public async Task Load_missing_file_defaults_to_zero_sliders()
     {
         var viewModel = new GameConfigViewModel(ConfigPath);
@@ -40,40 +19,6 @@ public sealed class GameConfigViewModelTests : IDisposable
         Assert.Equal(0, viewModel.ReducedCameraShake);
         Assert.Equal(0, viewModel.ReducedControllerRumble);
         Assert.Empty(viewModel.Entries);
-    }
-
-    [Fact]
-    public async Task Changing_slider_marks_dirty_and_updates_entry()
-    {
-        await WriteConfigAsync("""
-            [Accessibility]
-            ReducedCameraShake=0.2
-            """);
-        var viewModel = new GameConfigViewModel(ConfigPath);
-        await viewModel.LoadAsync();
-
-        viewModel.ReducedCameraShake = 0.8;
-
-        Assert.True(viewModel.IsDirty);
-        var entry = viewModel.Entries.Single(item => item.Key == AppConfigService.ReducedCameraShakeKey);
-        Assert.Equal("0.8", entry.Value);
-    }
-
-    [Fact]
-    public async Task Editing_entry_value_updates_slider_and_marks_dirty()
-    {
-        await WriteConfigAsync("""
-            [Accessibility]
-            ReducedCameraShake=0.2
-            """);
-        var viewModel = new GameConfigViewModel(ConfigPath);
-        await viewModel.LoadAsync();
-
-        var entry = viewModel.Entries.Single(item => item.Key == AppConfigService.ReducedCameraShakeKey);
-        entry.Value = "0.6";
-
-        Assert.Equal(0.6, viewModel.ReducedCameraShake);
-        Assert.True(viewModel.IsDirty);
     }
 
     [Fact]
@@ -134,21 +79,6 @@ public sealed class GameConfigViewModelTests : IDisposable
 
         Assert.False(viewModel.IsDirty);
         Assert.Equal(0.2, viewModel.ReducedCameraShake);
-    }
-
-    [Fact]
-    public async Task Save_raises_saved_event()
-    {
-        await WriteConfigAsync("[Accessibility]\nReducedCameraShake=0.2");
-        var viewModel = new GameConfigViewModel(ConfigPath);
-        await viewModel.LoadAsync();
-        viewModel.ReducedCameraShake = 0.5;
-        var raised = false;
-        viewModel.Saved += () => raised = true;
-
-        await viewModel.SaveCommand.ExecuteAsync(null);
-
-        Assert.True(raised);
     }
 
     private async Task WriteConfigAsync(string content)

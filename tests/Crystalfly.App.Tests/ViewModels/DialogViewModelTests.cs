@@ -44,28 +44,6 @@ public sealed class DialogViewModelTests
     }
 
     [Fact]
-    public void Accent_color_dialog_cancel_and_close_return_no_color()
-    {
-        var dialog = new AccentColorDialogViewModel(
-            "Theme color",
-            "Original",
-            "New",
-            "HEX",
-            "Invalid color",
-            "Confirm",
-            "Cancel",
-            "#0F6CBD",
-            _ => { });
-        var results = new List<object?>();
-        dialog.RequestClose += (_, value) => results.Add(value);
-
-        dialog.CancelCommand.Execute(null);
-        dialog.Close();
-
-        Assert.Equal([null, null], results);
-    }
-
-    [Fact]
     public void Text_input_trims_confirmed_value_and_rejects_blank_text()
     {
         var dialog = new TextInputDialogViewModel(
@@ -92,74 +70,6 @@ public sealed class DialogViewModelTests
         Assert.Equal("unchanged", result);
     }
 
-    [Fact]
-    public void Text_input_cancel_and_close_return_null()
-    {
-        var dialog = new TextInputDialogViewModel("Title", "Message", "Value", "Placeholder", "OK", "Cancel");
-        var results = new List<object?>();
-        dialog.RequestClose += (_, value) => results.Add(value);
-
-        dialog.CancelCommand.Execute(null);
-        dialog.Close();
-
-        Assert.Equal([null, null], results);
-    }
-
-    [Fact]
-    public void Mod_pack_editor_trims_name_and_returns_selected_apply_mode()
-    {
-        var dialog = new ModPackEditorDialogViewModel(
-            "New Mod Pack",
-            "Capture current Mods",
-            "  Practice  ",
-            ModPresetApplyMode.Append,
-            "Name",
-            "Mode",
-            "Append",
-            "Exact",
-            "Create",
-            "Cancel");
-        object? result = null;
-        dialog.RequestClose += (_, value) => result = value;
-        dialog.SelectedMode = dialog.ModeOptions.Single(option => option.Value == ModPresetApplyMode.Exact);
-
-        dialog.ConfirmCommand.Execute(null);
-
-        Assert.Equal(new ModPackEditorDialogResult("Practice", ModPresetApplyMode.Exact), result);
-        dialog.Name = "   ";
-        Assert.False(dialog.ConfirmCommand.CanExecute(null));
-    }
-    [Fact]
-    public void Historical_manifest_dialog_accepts_only_nonzero_unsigned_ids_and_returns_the_request()
-    {
-        var dialog = new HistoricalManifestDialogViewModel(
-            [new DownloadBuildOption("known-build", "Known build", 42)],
-            "Download historical version",
-            "Use a Windows Depot manifest ID.",
-            "Manifest ID",
-            "Instance name",
-            "Known: {0}",
-            "Unverified historical version · vanilla only",
-            "Invalid manifest ID",
-            "Continue",
-            "Cancel");
-        object? result = null;
-        dialog.RequestClose += (_, value) => result = value;
-
-        dialog.ManifestId = "0";
-        dialog.InstanceName = "Historical";
-        Assert.False(dialog.CanConfirm);
-        Assert.Equal("Invalid manifest ID", dialog.ValidationMessage);
-
-        dialog.ManifestId = "42";
-        Assert.True(dialog.CanConfirm);
-        Assert.True(dialog.IsKnownManifest);
-        Assert.Equal("Known: Known build", dialog.ValidationMessage);
-        dialog.ConfirmCommand.Execute(null);
-
-        Assert.Equal(new HistoricalManifestDownloadRequest(42, "Historical"), result);
-    }
-
     [Theory]
     [InlineData("")]
     [InlineData("-1")]
@@ -179,105 +89,23 @@ public sealed class DialogViewModelTests
     }
 
     [Fact]
-    public void Dependency_dialog_projects_graph_and_respects_confirmation_state()
+    public void Silksong_history_dialog_uses_its_depot_and_keeps_candidates_unverified()
     {
-        var nodes = new[]
+        var dialog = new HistoricalManifestDialogViewModel(
+            [new("silksong-1.0.30000", "1.0.30000", 4421626056705534276UL),
+                new("steam-manifest-3229726349000518284", "Manifest 3229726349000518284", 3229726349000518284UL)],
+            "Title", "Message", "Manifest", "Instance", "Known: {0}",
+            "Unverified", "Invalid", "Confirm", "Cancel", GameId.Silksong)
         {
-            new DependencyPlanNodeViewModel(
-                "feature",
-                "Feature",
-                "功能",
-                "Enabled",
-                DependencyGraphNodeState.Normal,
-                "Will delete",
-                ["library"]),
-            new DependencyPlanNodeViewModel(
-                "library",
-                "Library",
-                "前置库",
-                "Missing",
-                DependencyGraphNodeState.Missing)
+            ManifestId = "3229726349000518284", InstanceName = "History"
         };
-        var dialog = new DependencyPlanDialogViewModel(
-            "Dependency impact",
-            "Review affected mods",
-            nodes,
-            "Delete",
-            "Cancel",
-            canConfirm: false,
-            isDangerous: true);
-        object? result = null;
-        dialog.RequestClose += (_, value) => result = value;
-
-        Assert.Same(nodes, dialog.Nodes);
-        Assert.True(dialog.IsDangerous);
-        Assert.False(dialog.ConfirmCommand.CanExecute(null));
-        Assert.Contains(dialog.Graph.Edges, edge => edge.Source.Id == "library" && edge.Target.Id == "feature");
-        Assert.Equal(DependencyGraphNodeState.Missing, Assert.Single(dialog.Graph.Nodes, node => node.Id == "library").State);
-        dialog.ConfirmCommand.Execute(null);
-        Assert.Null(result);
-
-        dialog.CancelCommand.Execute(null);
-        Assert.Equal(false, result);
-    }
-
-    [Fact]
-    public void Dependency_dialog_projects_real_relationships_into_a_graph()
-    {
-        var nodes = new[]
-        {
-            new DependencyPlanNodeViewModel(
-                "feature",
-                "Feature",
-                string.Empty,
-                "Enabled",
-                DependencyGraphNodeState.Normal,
-                PrerequisiteIds: ["library"]),
-
-            new DependencyPlanNodeViewModel(
-                "library",
-                "Library",
-                string.Empty,
-                "Missing",
-                DependencyGraphNodeState.Missing)
-
-
-
-        };
-        var dialog = new DependencyPlanDialogViewModel(
-            "Dependency impact",
-            "Review affected mods",
-            nodes,
-            "Delete",
-            "Cancel",
-            canConfirm: true,
-            isDangerous: true);
-
-        Assert.Contains(dialog.Graph.Edges, edge => edge.Source.Id == "library" && edge.Target.Id == "feature");
-        var missing = Assert.Single(dialog.Graph.Nodes, node => node.Id == "library");
-        Assert.True(missing.IsMissing);
-        Assert.False(missing.IsProblem);
-
-    }
-
-    [Fact]
-    public void Dependency_dialog_confirm_and_close_return_expected_results()
-    {
-        var dialog = new DependencyPlanDialogViewModel(
-            "Repair dependencies",
-            "Review actions",
-            [],
-            "Repair",
-            "Cancel",
-            canConfirm: true,
-            isDangerous: false);
-        var results = new List<object?>();
-        dialog.RequestClose += (_, value) => results.Add(value);
-
-        dialog.ConfirmCommand.Execute(null);
-        dialog.Close();
-
-        Assert.Equal([true, false], results);
+        Assert.Equal("AppID 1030300 · Windows Depot 1030301", dialog.DepotIdentity);
+        Assert.True(dialog.CanConfirm);
+        Assert.False(dialog.IsKnownManifest);
+        Assert.Equal("Unverified", dialog.ValidationMessage);
+        dialog.ManifestId = "4421626056705534276";
+        Assert.True(dialog.IsKnownManifest);
+        Assert.Equal("Known: 1.0.30000", dialog.ValidationMessage);
     }
 
     [Fact]

@@ -17,12 +17,14 @@ public sealed class SteamDepotDownloadService(
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.StagingDirectory);
+        if (request.AppId == 0 || request.DepotId == 0)
+            throw new ArgumentException("Steam App and Depot must be specified.", nameof(request));
         if (!string.Equals(request.Branch, "public", StringComparison.Ordinal))
             throw new NotSupportedException("Only the public Steam branch is supported.");
 
         SteamDepotManifest manifest = await content.GetManifestAsync(
-            SteamProduct.HollowKnightAppId,
-            SteamProduct.HollowKnightWindowsDepotId,
+            request.AppId,
+            request.DepotId,
             request.Branch,
             request.ManifestId,
             cancellationToken);
@@ -176,11 +178,11 @@ public sealed class SteamDepotDownloadService(
             if (!manifestProvidesAppId
                 && (request.RepairSourceDirectory is null
                     || !File.Exists(Path.Combine(request.RepairSourceDirectory, "steam_appid.txt"))))
-                await WriteSteamAppIdAsync(appIdTarget, cancellationToken);
+                await WriteSteamAppIdAsync(appIdTarget, request.AppId, cancellationToken);
 
             return new SteamDownloadResult(
-                SteamProduct.HollowKnightAppId,
-                SteamProduct.HollowKnightWindowsDepotId,
+                request.AppId,
+                request.DepotId,
                 manifest.Id,
                 staging,
                 completedFiles,
@@ -308,14 +310,14 @@ public sealed class SteamDepotDownloadService(
             throw new InvalidDataException($"SHA-1 verification failed for {path}.");
     }
 
-    private static async Task WriteSteamAppIdAsync(string target, CancellationToken cancellationToken)
+    private static async Task WriteSteamAppIdAsync(string target, uint appId, CancellationToken cancellationToken)
     {
         string partial = target + ".crystalfly-part";
         Exception? operationFailure = null;
         try
         {
             byte[] content = Encoding.ASCII.GetBytes(
-                SteamProduct.HollowKnightAppId.ToString(CultureInfo.InvariantCulture));
+                appId.ToString(CultureInfo.InvariantCulture));
             await using (var output = new FileStream(
                 partial,
                 FileMode.CreateNew,

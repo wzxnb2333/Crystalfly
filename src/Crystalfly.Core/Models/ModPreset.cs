@@ -19,6 +19,8 @@ public sealed record ModPresetEntry
 
 public sealed record ModPreset
 {
+    public GameId GameId { get; init; } = GameId.HollowKnight;
+
     public const int CurrentSchemaVersion = 1;
     public const int MaxDocumentBytes = 128 * 1024;
     public const int MaxEntries = 1000;

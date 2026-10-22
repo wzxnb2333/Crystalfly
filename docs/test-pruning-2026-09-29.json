@@ -1,0 +1,2156 @@
+{
+  "basis": "Executed xUnit cases, including individual theory rows; no skipped tests or new production exclusions",
+  "test_counts": {
+    "before": 2108,
+    "after": 1686,
+    "removed": 422,
+    "removed_percent": 20.01897533206831
+  },
+  "removed_method_count": 201,
+  "removed_whole_method_cases": 383,
+  "trimmed_parameter_cases": 39,
+  "coverage": {
+    "Overall": {
+      "line": {
+        "total": 33983,
+        "before_covered": 28718,
+        "after_covered": 28312,
+        "before_percent": 84.50695936203395,
+        "after_percent": 83.31224435747285,
+        "loss_percentage_points": 1.1947150045611041,
+        "lost": 408,
+        "gained": 2
+      },
+      "branch": {
+        "total": 14778,
+        "before_covered": 10582,
+        "after_covered": 10432,
+        "before_percent": 71.60644200839086,
+        "after_percent": 70.59141967789958,
+        "loss_percentage_points": 1.0150223304912709,
+        "lost": 151,
+        "gained": 1
+      }
+    },
+    "Crystalfly.App.dll": {
+      "line": {
+        "total": 21039,
+        "before_covered": 17242,
+        "after_covered": 16847,
+        "before_percent": 81.95256428537478,
+        "after_percent": 80.07509862636057,
+        "loss_percentage_points": 1.8774656590142118,
+        "lost": 395,
+        "gained": 0
+      },
+      "branch": {
+        "total": 8133,
+        "before_covered": 5384,
+        "after_covered": 5245,
+        "before_percent": 66.19943440304931,
+        "after_percent": 64.49034796508053,
+        "loss_percentage_points": 1.7090864379687691,
+        "lost": 139,
+        "gained": 0
+      }
+    },
+    "Crystalfly.Core.dll": {
+      "line": {
+        "total": 11409,
+        "before_covered": 10349,
+        "after_covered": 10338,
+        "before_percent": 90.70908931545272,
+        "after_percent": 90.61267420457534,
+        "loss_percentage_points": 0.0964151108773775,
+        "lost": 13,
+        "gained": 2
+      },
+      "branch": {
+        "total": 6081,
+        "before_covered": 4809,
+        "after_covered": 4798,
+        "before_percent": 79.0823877651702,
+        "after_percent": 78.9014964643973,
+        "loss_percentage_points": 0.1808913007728992,
+        "lost": 12,
+        "gained": 1
+      }
+    },
+    "Crystalfly.Steam.dll": {
+      "line": {
+        "total": 1054,
+        "before_covered": 732,
+        "after_covered": 732,
+        "before_percent": 69.44971537001898,
+        "after_percent": 69.44971537001898,
+        "loss_percentage_points": 0.0,
+        "lost": 0,
+        "gained": 0
+      },
+      "branch": {
+        "total": 356,
+        "before_covered": 237,
+        "after_covered": 237,
+        "before_percent": 66.57303370786516,
+        "after_percent": 66.57303370786516,
+        "loss_percentage_points": 0.0,
+        "lost": 0,
+        "gained": 0
+      }
+    },
+    "Crystalfly.Updater.dll": {
+      "line": {
+        "total": 481,
+        "before_covered": 395,
+        "after_covered": 395,
+        "before_percent": 82.12058212058211,
+        "after_percent": 82.12058212058211,
+        "loss_percentage_points": 0.0,
+        "lost": 0,
+        "gained": 0
+      },
+      "branch": {
+        "total": 208,
+        "before_covered": 152,
+        "after_covered": 152,
+        "before_percent": 73.07692307692308,
+        "after_percent": 73.07692307692308,
+        "loss_percentage_points": 0.0,
+        "lost": 0,
+        "gained": 0
+      }
+    }
+  },
+  "max_loss_percentage_points_per_module": 2,
+  "preserved_test_files_verified_against_source_backup": 14,
+  "selection_adjustment": {
+    "restored": [
+      "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Speedrun_verification_keeps_report_path_out_of_global_status"
+    ],
+    "removed": [
+      "Crystalfly.App.Tests.ViewModels.DependencyGraphViewModelTests.Missing_node_ids_are_exposed_from_graph"
+    ],
+    "reason": "Preserve unique speedrun verification workflow coverage; remove the redundant MissingNodeIds projection check instead."
+  },
+  "removed_methods": [
+    {
+      "method": "Crystalfly.App.Tests.Appearance.BackgroundImageServiceTests.Replace_uses_default_opacity_for_first_upload",
+      "file": "tests/Crystalfly.App.Tests/Appearance/BackgroundImageServiceTests.cs",
+      "original_line": 53,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Downloads.ModInstallQueueGroupFactoryTests.Creates_loader_dependency_and_mod_items_in_plan_order",
+      "file": "tests/Crystalfly.App.Tests/Downloads/ModInstallQueueGroupFactoryTests.cs",
+      "original_line": 9,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Downloads.PresetShareClientTests.Production_share_service_uses_the_custom_domain",
+      "file": "tests/Crystalfly.App.Tests/Downloads/PresetShareClientTests.cs",
+      "original_line": 12,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Downloads.SteamDownloadQueueExecutorTests.Factory_creates_a_stable_custom_manifest_item",
+      "file": "tests/Crystalfly.App.Tests/Downloads/SteamDownloadQueueExecutorTests.cs",
+      "original_line": 48,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Downloads.SteamDownloadQueueExecutorTests.Known_custom_manifest_uses_the_catalog_build_identity",
+      "file": "tests/Crystalfly.App.Tests/Downloads/SteamDownloadQueueExecutorTests.cs",
+      "original_line": 558,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Runtime.ProtocolCommandIntegrationTests.Program_and_window_keep_forwarding_parsing_and_confirmation_in_one_flow",
+      "file": "tests/Crystalfly.App.Tests/Runtime/ProtocolCommandIntegrationTests.cs",
+      "original_line": 141,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Runtime.SingleInstanceCommandChannelTests.Forwarder_and_parser_share_one_utf8_byte_limit",
+      "file": "tests/Crystalfly.App.Tests/Runtime/SingleInstanceCommandChannelTests.cs",
+      "original_line": 9,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.AccentColorUiStructureTests.App_registers_matching_Semi_color_picker_theme_and_package",
+      "file": "tests/Crystalfly.App.Tests/Ui/AccentColorUiStructureTests.cs",
+      "original_line": 37,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.AccentColorUiStructureTests.Settings_exposes_accessible_accent_swatches_and_picker_dialog",
+      "file": "tests/Crystalfly.App.Tests/Ui/AccentColorUiStructureTests.cs",
+      "original_line": 9,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_uses_fixed_light_and_dark_blends",
+      "file": "tests/Crystalfly.App.Tests/Ui/AccentThemeResourcesTests.cs",
+      "original_line": 37,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Redundant empty-page matrix, fixed presentation values, or framework-only assertion"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ApplicationIconTests.Application_uses_new_window_and_executable_icons",
+      "file": "tests/Crystalfly.App.Tests/Ui/ApplicationIconTests.cs",
+      "original_line": 7,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ApplicationUpdateSettingsStructureTests.Settings_page_exposes_update_check_and_protocol_status",
+      "file": "tests/Crystalfly.App.Tests/Ui/ApplicationUpdateSettingsStructureTests.cs",
+      "original_line": 7,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ApplicationUpdateSettingsStructureTests.Update_dialog_exposes_progress_cancel_and_retry_states",
+      "file": "tests/Crystalfly.App.Tests/Ui/ApplicationUpdateSettingsStructureTests.cs",
+      "original_line": 27,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.BackgroundAppearanceUiTests.Main_window_exposes_full_client_background_and_accessible_settings_card",
+      "file": "tests/Crystalfly.App.Tests/Ui/BackgroundAppearanceUiTests.cs",
+      "original_line": 9,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.BackgroundAppearanceUiTests.Theme_defines_light_and_dark_translucent_surfaces_only_for_active_backgrounds",
+      "file": "tests/Crystalfly.App.Tests/Ui/BackgroundAppearanceUiTests.cs",
+      "original_line": 43,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.DocumentationScreenshotTests.Documentation_fixture_renders_expected_content_and_writes_screenshots_only_when_requested",
+      "file": "tests/Crystalfly.App.Tests/Ui/DocumentationScreenshotTests.cs",
+      "original_line": 63,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Redundant empty-page matrix, fixed presentation values, or framework-only assertion"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.DocumentationScreenshotTests.Populated_pages_keep_untrimmed_text_inside_its_available_width",
+      "file": "tests/Crystalfly.App.Tests/Ui/DocumentationScreenshotTests.LayoutAudit.cs",
+      "original_line": 122,
+      "before_cases": 4,
+      "after_cases": 0,
+      "removed_cases": 4,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.DocumentationScreenshotTests.Speedrun_switch_preserves_workspace_height_and_activity_edge_spacing",
+      "file": "tests/Crystalfly.App.Tests/Ui/DocumentationScreenshotTests.LayoutAudit.cs",
+      "original_line": 19,
+      "before_cases": 7,
+      "after_cases": 0,
+      "removed_cases": 7,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.DocumentationScreenshotTests.Visual_acceptance_checks_supported_layouts_and_writes_screenshots_only_when_requested",
+      "file": "tests/Crystalfly.App.Tests/Ui/DocumentationScreenshotTests.VisualAcceptance.cs",
+      "original_line": 18,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Redundant empty-page matrix, fixed presentation values, or framework-only assertion"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.DownloadQueueRenderingTests.Download_queue_is_a_third_download_section_with_compact_actions",
+      "file": "tests/Crystalfly.App.Tests/Ui/DownloadQueueRenderingTests.cs",
+      "original_line": 403,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.GameDirectoryWorkspaceStructureTests.Discovery_and_steam_risk_overlays_are_registered",
+      "file": "tests/Crystalfly.App.Tests/Ui/GameDirectoryWorkspaceStructureTests.cs",
+      "original_line": 59,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.GameDirectoryWorkspaceStructureTests.Instance_workspace_is_a_two_column_directory_and_instance_surface",
+      "file": "tests/Crystalfly.App.Tests/Ui/GameDirectoryWorkspaceStructureTests.cs",
+      "original_line": 9,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.GameDirectoryWorkspaceStructureTests.Settings_no_longer_exposes_the_single_version_root_picker",
+      "file": "tests/Crystalfly.App.Tests/Ui/GameDirectoryWorkspaceStructureTests.cs",
+      "original_line": 48,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Launch_rail_actions_are_vertical_equal_width_buttons",
+      "file": "tests/Crystalfly.App.Tests/Ui/LayoutRenderingTests.cs",
+      "original_line": 582,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Redundant empty-page matrix, fixed presentation values, or framework-only assertion"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Secondary_page_headers_are_removed",
+      "file": "tests/Crystalfly.App.Tests/Ui/LayoutRenderingTests.cs",
+      "original_line": 349,
+      "before_cases": 5,
+      "after_cases": 0,
+      "removed_cases": 5,
+      "reason": "Redundant empty-page matrix, fixed presentation values, or framework-only assertion"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Speedrun_page_shows_the_runtime_patches_workspace",
+      "file": "tests/Crystalfly.App.Tests/Ui/LayoutRenderingTests.cs",
+      "original_line": 378,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Redundant empty-page matrix, fixed presentation values, or framework-only assertion"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Top_navigation_uses_a_text_brand_without_a_logo",
+      "file": "tests/Crystalfly.App.Tests/Ui/LayoutRenderingTests.cs",
+      "original_line": 555,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Redundant empty-page matrix, fixed presentation values, or framework-only assertion"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Workspaces_are_centered_and_interactive_controls_do_not_overflow",
+      "file": "tests/Crystalfly.App.Tests/Ui/LayoutRenderingTests.cs",
+      "original_line": 178,
+      "before_cases": 84,
+      "after_cases": 0,
+      "removed_cases": 84,
+      "reason": "Redundant empty-page matrix, fixed presentation values, or framework-only assertion"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.LocalizationBindingRefreshTests.Indexer_binding_refreshes_when_loc_raises_indexer_notification",
+      "file": "tests/Crystalfly.App.Tests/Ui/LocalizationBindingRefreshTests.cs",
+      "original_line": 45,
+      "before_cases": 2,
+      "after_cases": 0,
+      "removed_cases": 2,
+      "reason": "Redundant empty-page matrix, fixed presentation values, or framework-only assertion"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.LocalizationBindingRefreshTests.Wpf_style_item_array_notification_does_not_refresh_indexer_bindings",
+      "file": "tests/Crystalfly.App.Tests/Ui/LocalizationBindingRefreshTests.cs",
+      "original_line": 67,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Redundant empty-page matrix, fixed presentation values, or framework-only assertion"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowCodeBehindTests.Installed_mod_row_handler_returns_focus_to_the_list",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowCodeBehindTests.cs",
+      "original_line": 45,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowCodeBehindTests.Pcl_weak_back_easing_has_a_small_single_overshoot",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowCodeBehindTests.cs",
+      "original_line": 62,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Download_center_exposes_batch_toolbar_and_overview_bindings",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 473,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Download_fab_and_github_latency_controls_match_layout_contract",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 518,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Download_queue_cards_expose_eta_duration_and_error_copy_bindings",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 499,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Installed_mod_dependency_graph_has_no_selected_component_scope_controls",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 457,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Installed_mods_use_compact_rows_hover_actions_and_bottom_bulk_bar",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 359,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Launch_integrity_state_stays_visible_and_offline_mode_is_global",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 604,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Launch_page_exposes_community_rail_with_curated_groups",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 255,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Main_navigation_and_instance_actions_follow_compact_workspace_contract",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 9,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Main_window_requests_Windows_11_rounded_corners_after_opening",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 343,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Mod_detail_uses_sanitized_markdown_viewers_for_cached_repository_content",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 627,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Mod_pack_workspace_uses_compact_master_detail_layout_and_subpage_markers",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 697,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Mods_workspace_has_master_detail_panel_update_check_and_conflict_highlight",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 406,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Motion_system_exposes_a_persisted_preference_and_uses_press_only_scaling",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 130,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Page_surfaces_use_pcl_style_translation_without_nested_scale_motion",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 77,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Preset_page_exposes_confirmed_file_and_share_interactions",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 661,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Settings_use_a_category_drawer_and_include_project_about_information",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 547,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Shared_rails_stretch_navigation_to_their_inner_edges",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 166,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Snapshot_page_exposes_confirmed_delete_action",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 754,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Speedrun_environment_exposes_a_named_rename_action",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 331,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Speedrun_environment_has_a_live_split_favorites_panel",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 290,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.Speedrun_page_exposes_environment_and_activity_workspaces",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 195,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.MainWindowStructureTests.The_1578_save_state_selector_includes_an_explicit_disabled_choice",
+      "file": "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+      "original_line": 268,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Static markup/style implementation assertion; behavior and layout tested through controls"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ModMarketRenderingTests.Catalog_statuses_are_localized",
+      "file": "tests/Crystalfly.App.Tests/Ui/ModMarketRenderingTests.cs",
+      "original_line": 45,
+      "before_cases": 2,
+      "after_cases": 0,
+      "removed_cases": 2,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ModMarketRenderingTests.Downloads_use_a_176_pixel_rail_with_game_market_and_queue_sections",
+      "file": "tests/Crystalfly.App.Tests/Ui/ModMarketRenderingTests.cs",
+      "original_line": 78,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ModMarketRenderingTests.English_download_rail_shows_full_game_versions_label",
+      "file": "tests/Crystalfly.App.Tests/Ui/ModMarketRenderingTests.cs",
+      "original_line": 104,
+      "before_cases": 2,
+      "after_cases": 0,
+      "removed_cases": 2,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ModMarketRenderingTests.GitHub_download_routes_are_localized",
+      "file": "tests/Crystalfly.App.Tests/Ui/ModMarketRenderingTests.cs",
+      "original_line": 62,
+      "before_cases": 2,
+      "after_cases": 0,
+      "removed_cases": 2,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ModMarketRenderingTests.Instance_mods_surface_only_shows_installed_mods",
+      "file": "tests/Crystalfly.App.Tests/Ui/ModMarketRenderingTests.cs",
+      "original_line": 293,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ModMarketRenderingTests.Navigation_and_new_surfaces_are_localized",
+      "file": "tests/Crystalfly.App.Tests/Ui/ModMarketRenderingTests.cs",
+      "original_line": 26,
+      "before_cases": 2,
+      "after_cases": 0,
+      "removed_cases": 2,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ModMarketRenderingTests.Settings_show_GitHub_download_route_selector",
+      "file": "tests/Crystalfly.App.Tests/Ui/ModMarketRenderingTests.cs",
+      "original_line": 353,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ModMarketRenderingTests.Settings_show_read_only_hk_modlinks_status",
+      "file": "tests/Crystalfly.App.Tests/Ui/ModMarketRenderingTests.cs",
+      "original_line": 331,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ModMarketRenderingTests.Snapshot_surface_uses_save_snapshot_title",
+      "file": "tests/Crystalfly.App.Tests/Ui/ModMarketRenderingTests.cs",
+      "original_line": 313,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.SaveEditorRenderingTests.Config_tab_exposes_accessibility_and_save_controls",
+      "file": "tests/Crystalfly.App.Tests/Ui/SaveEditorRenderingTests.cs",
+      "original_line": 83,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.SaveEditorRenderingTests.Knight_loading_indicators_are_larger_and_centered_in_their_hosts",
+      "file": "tests/Crystalfly.App.Tests/Ui/SaveEditorRenderingTests.cs",
+      "original_line": 129,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Application_registers_Semi_and_Ursa_themes_without_Fluent",
+      "file": "tests/Crystalfly.App.Tests/Ui/ThemeRenderingTests.cs",
+      "original_line": 25,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Redundant empty-page matrix, fixed presentation values, or framework-only assertion"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Application_type_and_control_scale_remains_readable",
+      "file": "tests/Crystalfly.App.Tests/Ui/ThemeRenderingTests.cs",
+      "original_line": 904,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Redundant empty-page matrix, fixed presentation values, or framework-only assertion"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Dark_danger_hover_keeps_white_text_readable",
+      "file": "tests/Crystalfly.App.Tests/Ui/ThemeRenderingTests.cs",
+      "original_line": 444,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Dependency_graph_states_use_semantic_theme_resources",
+      "file": "tests/Crystalfly.App.Tests/Ui/ThemeRenderingTests.cs",
+      "original_line": 185,
+      "before_cases": 2,
+      "after_cases": 0,
+      "removed_cases": 2,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Error_text_and_download_build_selection_follow_theme",
+      "file": "tests/Crystalfly.App.Tests/Ui/ThemeRenderingTests.cs",
+      "original_line": 266,
+      "before_cases": 2,
+      "after_cases": 0,
+      "removed_cases": 2,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Game_versions_page_exposes_compact_steam_chunk_cache_management",
+      "file": "tests/Crystalfly.App.Tests/Ui/ThemeRenderingTests.cs",
+      "original_line": 513,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Icon_actions_expose_active_danger_disabled_and_focus_states",
+      "file": "tests/Crystalfly.App.Tests/Ui/ThemeRenderingTests.cs",
+      "original_line": 225,
+      "before_cases": 2,
+      "after_cases": 0,
+      "removed_cases": 2,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Main_window_keeps_the_mod_pack_file_picker_and_quick_mod_import_action",
+      "file": "tests/Crystalfly.App.Tests/Ui/ThemeRenderingTests.cs",
+      "original_line": 827,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Mod_market_list_item_keeps_its_outer_background_transparent",
+      "file": "tests/Crystalfly.App.Tests/Ui/ThemeRenderingTests.cs",
+      "original_line": 300,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Primary_button_text_inherits_a_readable_foreground",
+      "file": "tests/Crystalfly.App.Tests/Ui/ThemeRenderingTests.cs",
+      "original_line": 131,
+      "before_cases": 2,
+      "after_cases": 0,
+      "removed_cases": 2,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Selected_list_item_uses_the_application_selection_brush",
+      "file": "tests/Crystalfly.App.Tests/Ui/ThemeRenderingTests.cs",
+      "original_line": 156,
+      "before_cases": 2,
+      "after_cases": 0,
+      "removed_cases": 2,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Settings_catalog_error_uses_error_foreground",
+      "file": "tests/Crystalfly.App.Tests/Ui/ThemeRenderingTests.cs",
+      "original_line": 746,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Standard_confirmation_overlay_uses_primary_confirm_button",
+      "file": "tests/Crystalfly.App.Tests/Ui/ThemeRenderingTests.cs",
+      "original_line": 791,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.UiUsabilityRegressionTests.Community_rail_reflows_when_resizing_without_hiding_links",
+      "file": "tests/Crystalfly.App.Tests/Ui/UiUsabilityRegressionTests.cs",
+      "original_line": 94,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Updates.ApplicationUpdateServiceTests.CrystalflySettings_enables_update_checks_by_default",
+      "file": "tests/Crystalfly.App.Tests/Updates/ApplicationUpdateServiceTests.cs",
+      "original_line": 229,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Updates.ApplicationUpdateWindowIntegrationTests.MainWindow_checks_then_hosts_the_stateful_update_dialog",
+      "file": "tests/Crystalfly.App.Tests/Updates/ApplicationUpdateWindowIntegrationTests.cs",
+      "original_line": 5,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Updates.EmbeddedApplicationReleaseNotesTests.Load_returns_empty_text_for_an_unknown_version",
+      "file": "tests/Crystalfly.App.Tests/Updates/EmbeddedApplicationReleaseNotesTests.cs",
+      "original_line": 15,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Updates.EmbeddedApplicationReleaseNotesTests.Load_returns_the_packaged_release_notes",
+      "file": "tests/Crystalfly.App.Tests/Updates/EmbeddedApplicationReleaseNotesTests.cs",
+      "original_line": 7,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.ApplicationUpdateDialogViewModelTests.Passive_commands_close_with_the_selected_result",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/ApplicationUpdateDialogViewModelTests.cs",
+      "original_line": 9,
+      "before_cases": 2,
+      "after_cases": 0,
+      "removed_cases": 2,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.BackgroundAppearanceViewModelTests.Initialize_loads_global_background_and_opacity",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/BackgroundAppearanceViewModelTests.cs",
+      "original_line": 17,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.BackgroundAppearanceViewModelTests.Instance_scope_is_disabled_without_current_instance",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/BackgroundAppearanceViewModelTests.cs",
+      "original_line": 121,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DependencyGraphRebuildSkipTests.Rebuild_with_unchanged_content_keeps_the_existing_graph_instance",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DependencyGraphRebuildSkipTests.cs",
+      "original_line": 9,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DependencyGraphViewModelTests.Missing_node_ids_are_exposed_from_graph",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DependencyGraphViewModelTests.cs",
+      "original_line": 10,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Redundant MissingNodeIds getter projection; keep speedrun verification workflow instead"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DependencyGraphViewModelTests.Rebuild_raises_property_changed_for_graph_so_the_view_binding_updates",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DependencyGraphViewModelTests.cs",
+      "original_line": 48,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DependencyGraphViewModelTests.Select_node_tracks_the_selected_id",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DependencyGraphViewModelTests.cs",
+      "original_line": 24,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DialogViewModelTests.Accent_color_dialog_cancel_and_close_return_no_color",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DialogViewModelTests.cs",
+      "original_line": 46,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DialogViewModelTests.Dependency_dialog_confirm_and_close_return_expected_results",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DialogViewModelTests.cs",
+      "original_line": 263,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DialogViewModelTests.Dependency_dialog_projects_graph_and_respects_confirmation_state",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DialogViewModelTests.cs",
+      "original_line": 181,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DialogViewModelTests.Dependency_dialog_projects_real_relationships_into_a_graph",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DialogViewModelTests.cs",
+      "original_line": 224,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DialogViewModelTests.Historical_manifest_dialog_accepts_only_nonzero_unsigned_ids_and_returns_the_request",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DialogViewModelTests.cs",
+      "original_line": 132,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DialogViewModelTests.Mod_pack_editor_trims_name_and_returns_selected_apply_mode",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DialogViewModelTests.cs",
+      "original_line": 108,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DialogViewModelTests.Text_input_cancel_and_close_return_null",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DialogViewModelTests.cs",
+      "original_line": 95,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DownloadCenterViewModelTests.Copy_error_command_writes_the_error_to_the_clipboard",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DownloadCenterViewModelTests.cs",
+      "original_line": 226,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DownloadCenterViewModelTests.Duration_text_formats_started_and_completed_times",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DownloadCenterViewModelTests.cs",
+      "original_line": 204,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DownloadCenterViewModelTests.Error_category_is_inferred_from_error_text",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DownloadCenterViewModelTests.cs",
+      "original_line": 160,
+      "before_cases": 8,
+      "after_cases": 0,
+      "removed_cases": 8,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DownloadCenterViewModelTests.Error_category_is_offline_for_network_waiting_groups_and_text_is_localized",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DownloadCenterViewModelTests.cs",
+      "original_line": 180,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DownloadCenterViewModelTests.Group_and_item_eta_text_use_remaining_bytes_and_hide_without_speed",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DownloadCenterViewModelTests.cs",
+      "original_line": 86,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DownloadCenterViewModelTests.Language_change_reapplies_projection_to_localize_existing_groups",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DownloadCenterViewModelTests.cs",
+      "original_line": 470,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DownloadCenterViewModelTests.Overview_totals_sum_active_speed_eta_and_count",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DownloadCenterViewModelTests.cs",
+      "original_line": 129,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.GameConfigViewModelTests.Changing_slider_marks_dirty_and_updates_entry",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/GameConfigViewModelTests.cs",
+      "original_line": 45,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.GameConfigViewModelTests.Editing_entry_value_updates_slider_and_marks_dirty",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/GameConfigViewModelTests.cs",
+      "original_line": 62,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.GameConfigViewModelTests.Load_populates_sliders_and_entries_from_file",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/GameConfigViewModelTests.cs",
+      "original_line": 12,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.GameConfigViewModelTests.Save_raises_saved_event",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/GameConfigViewModelTests.cs",
+      "original_line": 139,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.GameDirectoryDialogViewModelTests.Discovery_dialog_returns_requested_action",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/GameDirectoryDialogViewModelTests.cs",
+      "original_line": 10,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.GameDirectoryDialogViewModelTests.Three_choice_dialog_returns_primary_and_secondary_actions",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/GameDirectoryDialogViewModelTests.cs",
+      "original_line": 32,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.GameDirectoryItemViewModelTests.Candidate_selection_is_explicit_before_registration",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/GameDirectoryItemViewModelTests.cs",
+      "original_line": 34,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.GameDirectoryItemViewModelTests.Registration_is_projected_for_the_directory_rail",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/GameDirectoryItemViewModelTests.cs",
+      "original_line": 9,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.InstalledModItemViewModelTests.Local_mod_never_claims_catalog_update",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/InstalledModItemViewModelTests.cs",
+      "original_line": 26,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.InstalledModItemViewModelTests.Matches_search_and_status_filter",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/InstalledModItemViewModelTests.cs",
+      "original_line": 213,
+      "before_cases": 6,
+      "after_cases": 0,
+      "removed_cases": 6,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.InstalledModItemViewModelTests.Reports_catalog_update_and_selection_changes",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/InstalledModItemViewModelTests.cs",
+      "original_line": 8,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.InstalledModItemViewModelTests.Unknown_local_mod_falls_back_to_receipt_name",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/InstalledModItemViewModelTests.cs",
+      "original_line": 74,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.LocalizationViewModelTests.Management_strings_are_available_in_both_languages",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/LocalizationViewModelTests.cs",
+      "original_line": 80,
+      "before_cases": 40,
+      "after_cases": 0,
+      "removed_cases": 40,
+      "reason": "Redundant empty-page matrix, fixed presentation values, or framework-only assertion"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Accent_color_options_expose_seven_presets_and_one_custom_choice",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 572,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Applying_language_notifies_official_catalog_labels",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 3593,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Download_build_search_keeps_every_catalog_build_and_matches_manifest_ids",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 727,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Download_status_shows_speed_size_progress_and_current_file",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 2402,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Favorite_instances_sort_first_within_the_active_directory",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 2603,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Installed_mod_graph_always_shows_the_complete_instance",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 3043,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Language_change_rebuilds_all_mod_market_filter_labels",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 3614,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Language_change_refreshes_localized_bindings_and_selected_option",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 3367,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Language_switch_refreshes_preflight_and_status_bar_labels",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 3391,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Language_switch_refreshes_settings_option_labels",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 3567,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Language_switch_reprojects_download_queue_texts",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 3444,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Language_switch_reprojects_installed_mod_item_display_names",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 3407,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Localization_normalizes_follow_system_culture",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 469,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Localization_uses_supported_culture_for_explicit_language",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 455,
+      "before_cases": 2,
+      "after_cases": 0,
+      "removed_cases": 2,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Mod_market_exposes_1578_official_mods_for_latest_api78",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 2998,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Mod_market_filters_by_exact_build_loader_source_and_tag",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 2967,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Mod_market_filters_recent_additions_from_activity_catalog",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 3077,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Mod_search_and_status_filter_both_lists",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 2672,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Selecting_a_current_speedrun_environment_does_not_show_the_verification_banner",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 166,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Speedrun_reminder_can_be_dismissed",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 326,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MarketModItemViewModelTests.Activity_projection_marks_recent_additions_and_updates_against_catalog_cutoff",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MarketModItemViewModelTests.cs",
+      "original_line": 106,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MarketModItemViewModelTests.Chinese_projection_keeps_manifest_and_localizes_display_fields",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MarketModItemViewModelTests.cs",
+      "original_line": 42,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MarketModItemViewModelTests.Embedded_names_display_in_Chinese_and_preserve_official_name_search",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MarketModItemViewModelTests.cs",
+      "original_line": 9,
+      "before_cases": 7,
+      "after_cases": 0,
+      "removed_cases": 7,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MarketModItemViewModelTests.English_projection_falls_back_to_official_fields_without_translation",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MarketModItemViewModelTests.cs",
+      "original_line": 70,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MarketModItemViewModelTests.Official_1578_projection_lists_latest_build_and_api78_compatibility",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MarketModItemViewModelTests.cs",
+      "original_line": 94,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.ModManagementViewModelTests.Detail_properties_are_empty_without_catalog_manifest",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/ModManagementViewModelTests.cs",
+      "original_line": 76,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.ModManagementViewModelTests.Detail_properties_format_catalog_manifest_data",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/ModManagementViewModelTests.cs",
+      "original_line": 57,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.ModManagementViewModelTests.Has_updates_available_aggregates_installed_mods",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/ModManagementViewModelTests.cs",
+      "original_line": 13,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.ModManagementViewModelTests.Has_updates_available_is_false_when_nothing_can_update",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/ModManagementViewModelTests.cs",
+      "original_line": 27,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.ModManagementViewModelTests.Latest_version_text_is_shown_when_update_is_available",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/ModManagementViewModelTests.cs",
+      "original_line": 89,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.ModManagementViewModelTests.Modified_files_text_lists_health_modified_files",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/ModManagementViewModelTests.cs",
+      "original_line": 134,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.OnboardingTests.Completing_onboarding_hides_the_launch_card_but_keeps_manual_reopen",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/OnboardingTests.cs",
+      "original_line": 139,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.OnboardingTests.Launch_onboarding_card_uses_the_next_incomplete_task",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/OnboardingTests.cs",
+      "original_line": 99,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.OnboardingTests.Task_center_runs_the_selected_task_action",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/OnboardingTests.cs",
+      "original_line": 80,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.OnboardingTests.Task_center_selects_the_first_incomplete_task_and_can_complete",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/OnboardingTests.cs",
+      "original_line": 59,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.ProtocolServiceTests.Describe_lists_the_action_instance_and_mod",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/ProtocolServiceTests.cs",
+      "original_line": 116,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.ProtocolServiceTests.Parse_accepts_a_legal_download_command",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/ProtocolServiceTests.cs",
+      "original_line": 12,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.SaveEditorViewModelTests.Known_fields_have_chinese_labels_without_changing_their_paths",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/SaveEditorViewModelTests.cs",
+      "original_line": 14,
+      "before_cases": 9,
+      "after_cases": 0,
+      "removed_cases": 9,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.SaveEditorViewModelTests.Type_labels_follow_language_without_changing_json_types",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/SaveEditorViewModelTests.cs",
+      "original_line": 51,
+      "before_cases": 4,
+      "after_cases": 0,
+      "removed_cases": 4,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Catalog.CatalogResolverTests.Latest_resolution_uses_current_catalog_channel_mapping",
+      "file": "tests/Crystalfly.Core.Tests/Catalog/CatalogResolverTests.cs",
+      "original_line": 8,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Catalog.EmbeddedCatalogTests.Catalog_contains_all_supported_loader_and_debugmod_release_assets",
+      "file": "tests/Crystalfly.Core.Tests/Catalog/EmbeddedCatalogTests.cs",
+      "original_line": 288,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Catalog.EmbeddedCatalogTests.Embedded_mod_translation_catalog_loads_expected_entries",
+      "file": "tests/Crystalfly.Core.Tests/Catalog/EmbeddedCatalogTests.cs",
+      "original_line": 95,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Catalog.ModActivitySourceTests.Generated_catalog_matches_schema_and_embedded_fallback",
+      "file": "tests/Crystalfly.Core.Tests/Catalog/ModActivitySourceTests.cs",
+      "original_line": 37,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Configuration.AppConfigServiceTests.Save_then_load_round_trips_values",
+      "file": "tests/Crystalfly.Core.Tests/Configuration/AppConfigServiceTests.cs",
+      "original_line": 19,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Configuration.CrystalflySettingsStoreTests.Accent_palette_is_fixed_unique_and_normalizes_hex",
+      "file": "tests/Crystalfly.Core.Tests/Configuration/CrystalflySettingsStoreTests.cs",
+      "original_line": 246,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Configuration.CrystalflySettingsStoreTests.Background_image_normalizes_opacity",
+      "file": "tests/Crystalfly.Core.Tests/Configuration/CrystalflySettingsStoreTests.cs",
+      "original_line": 259,
+      "before_cases": 3,
+      "after_cases": 0,
+      "removed_cases": 3,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Configuration.IniDocumentTests.Keys_before_any_section_header_use_default_section",
+      "file": "tests/Crystalfly.Core.Tests/Configuration/IniDocumentTests.cs",
+      "original_line": 118,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Configuration.IniDocumentTests.Parse_empty_content_yields_empty_document",
+      "file": "tests/Crystalfly.Core.Tests/Configuration/IniDocumentTests.cs",
+      "original_line": 111,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Configuration.InstanceAppearanceSettingsStoreTests.Load_returns_inherited_default_then_round_trips_override",
+      "file": "tests/Crystalfly.Core.Tests/Configuration/InstanceAppearanceSettingsStoreTests.cs",
+      "original_line": 11,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Instances.BuildFingerprintServiceTests.Calculate_hashes_complete_build_fingerprint",
+      "file": "tests/Crystalfly.Core.Tests/Instances/BuildFingerprintServiceTests.cs",
+      "original_line": 12,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Instances.BuildFingerprintServiceTests.FindBuild_matches_all_unmodified_identity_files",
+      "file": "tests/Crystalfly.Core.Tests/Instances/BuildFingerprintServiceTests.cs",
+      "original_line": 27,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Instances.BuildIdentityTests.Catalog_build_ids_are_known",
+      "file": "tests/Crystalfly.Core.Tests/Instances/BuildIdentityTests.cs",
+      "original_line": 14,
+      "before_cases": 2,
+      "after_cases": 0,
+      "removed_cases": 2,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Instances.InstanceDirectoryTests.ResolveUnderRoot_returns_a_direct_child_for_a_valid_name",
+      "file": "tests/Crystalfly.Core.Tests/Instances/InstanceDirectoryTests.cs",
+      "original_line": 12,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Instances.InstanceSidecarTests.Save_places_minimal_marker_at_instance_root",
+      "file": "tests/Crystalfly.Core.Tests/Instances/InstanceSidecarTests.cs",
+      "original_line": 12,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Loaders.LocalLoaderPackageManifestTests.Load_applies_loader_specific_prefix_when_matching_managed_files",
+      "file": "tests/Crystalfly.Core.Tests/Loaders/LocalLoaderPackageManifestTests.cs",
+      "original_line": 34,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Logs.ApplicationLogTests.Write_appends_timestamped_catalog_event",
+      "file": "tests/Crystalfly.Core.Tests/Logs/ApplicationLogTests.cs",
+      "original_line": 11,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.InstalledModDependencyGraphTests.Finds_external_transitive_dependents",
+      "file": "tests/Crystalfly.Core.Tests/Mods/InstalledModDependencyGraphTests.cs",
+      "original_line": 8,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.InstalledModDependencyGraphTests.Orders_dependents_before_dependencies",
+      "file": "tests/Crystalfly.Core.Tests/Mods/InstalledModDependencyGraphTests.cs",
+      "original_line": 41,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.InstalledModDependencyGraphTests.Selected_dependents_are_not_reported_as_external",
+      "file": "tests/Crystalfly.Core.Tests/Mods/InstalledModDependencyGraphTests.cs",
+      "original_line": 24,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.ModCatalogCompatibilityTests.Supported_bindings_include_legacy_and_latest_api_pairs",
+      "file": "tests/Crystalfly.Core.Tests/Mods/ModCatalogCompatibilityTests.cs",
+      "original_line": 38,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.ModCatalogMatcherTests.Match_returns_empty_when_nothing_agrees",
+      "file": "tests/Crystalfly.Core.Tests/Mods/ModCatalogMatcherTests.cs",
+      "original_line": 86,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.ModCatalogMatcherTests.Match_returns_single_candidate_when_name_and_loader_agree",
+      "file": "tests/Crystalfly.Core.Tests/Mods/ModCatalogMatcherTests.cs",
+      "original_line": 8,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.ModConflictDetectorTests.Detect_returns_empty_when_no_mods_are_provided",
+      "file": "tests/Crystalfly.Core.Tests/Mods/ModConflictDetectorTests.cs",
+      "original_line": 61,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.ModConflictDetectorTests.Detect_returns_empty_when_no_overlap",
+      "file": "tests/Crystalfly.Core.Tests/Mods/ModConflictDetectorTests.cs",
+      "original_line": 22,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.ModDependencyResolverTests.ResolveInstallOrder_places_dependencies_before_requested_mods",
+      "file": "tests/Crystalfly.Core.Tests/Mods/ModDependencyResolverTests.cs",
+      "original_line": 8,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.ModInstallServiceTests.CreatePlan_includes_display_metadata_and_reason_for_every_item",
+      "file": "tests/Crystalfly.Core.Tests/Mods/ModInstallServiceTests.cs",
+      "original_line": 273,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.ModInstallServiceTests.CreatePlan_marks_matching_and_old_installed_dependencies",
+      "file": "tests/Crystalfly.Core.Tests/Mods/ModInstallServiceTests.cs",
+      "original_line": 162,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.ModInstallServiceTests.CreatePlan_orders_loader_dependencies_and_requested_mod",
+      "file": "tests/Crystalfly.Core.Tests/Mods/ModInstallServiceTests.cs",
+      "original_line": 142,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.ModInstallServiceTests.Exact_managed_loader_is_ready",
+      "file": "tests/Crystalfly.Core.Tests/Mods/ModInstallServiceTests.cs",
+      "original_line": 69,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.ModManagerTests.Disable_and_enable_move_mod_files_out_of_the_loader_scan_path",
+      "file": "tests/Crystalfly.Core.Tests/Mods/ModManagerTests.cs",
+      "original_line": 32,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.ModManagerTests.Install_uses_loader_specific_layout",
+      "file": "tests/Crystalfly.Core.Tests/Mods/ModManagerTests.cs",
+      "original_line": 14,
+      "before_cases": 4,
+      "after_cases": 0,
+      "removed_cases": 4,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Mods.ModManagerTests.Local_zip_and_dll_imports_are_marked_local",
+      "file": "tests/Crystalfly.Core.Tests/Mods/ModManagerTests.cs",
+      "original_line": 152,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Networking.GitHubRouteLatencyServiceTests.Legacy_null_time_provider_constructor_call_is_unambiguous",
+      "file": "tests/Crystalfly.Core.Tests/Networking/GitHubRouteLatencyServiceTests.cs",
+      "original_line": 10,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Runtime.LaunchPreflightEvaluatorTests.Healthy_instance_passes_all_checks",
+      "file": "tests/Crystalfly.Core.Tests/Runtime/LaunchPreflightEvaluatorTests.cs",
+      "original_line": 108,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Serialization.ManifestSerializationTests.GameBuild_round_trips_with_schema_version",
+      "file": "tests/Crystalfly.Core.Tests/Serialization/ManifestSerializationTests.cs",
+      "original_line": 9,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Serialization.ManifestSerializationTests.GameCatalog_round_trips_speedrun_file_manifests",
+      "file": "tests/Crystalfly.Core.Tests/Serialization/ManifestSerializationTests.cs",
+      "original_line": 138,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Serialization.ManifestSerializationTests.GameChannel_round_trips_with_schema_version",
+      "file": "tests/Crystalfly.Core.Tests/Serialization/ManifestSerializationTests.cs",
+      "original_line": 30,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Serialization.ManifestSerializationTests.InstanceRecord_round_trips_with_schema_version",
+      "file": "tests/Crystalfly.Core.Tests/Serialization/ManifestSerializationTests.cs",
+      "original_line": 47,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Serialization.ManifestSerializationTests.LoaderManifest_round_trips_with_schema_version",
+      "file": "tests/Crystalfly.Core.Tests/Serialization/ManifestSerializationTests.cs",
+      "original_line": 69,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Serialization.ManifestSerializationTests.ModManifest_round_trips_with_schema_version",
+      "file": "tests/Crystalfly.Core.Tests/Serialization/ManifestSerializationTests.cs",
+      "original_line": 92,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Serialization.ManifestSerializationTests.NamedSnapshot_round_trips_with_schema_version",
+      "file": "tests/Crystalfly.Core.Tests/Serialization/ManifestSerializationTests.cs",
+      "original_line": 217,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Serialization.ManifestSerializationTests.SpeedrunTemplate_round_trips_with_schema_version",
+      "file": "tests/Crystalfly.Core.Tests/Serialization/ManifestSerializationTests.cs",
+      "original_line": 116,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Shallow display/default/serialization assertion duplicated by retained workflow, localization, persistence or layout tests"
+    },
+    {
+      "method": "Crystalfly.Steam.Tests.Downloads.SteamKitContentDeliveryClientTests.SelectContentServer_throws_when_the_list_is_empty",
+      "file": "tests/Crystalfly.Steam.Tests/Downloads/SteamKitContentDeliveryClientTests.cs",
+      "original_line": 344,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    },
+    {
+      "method": "Crystalfly.Steam.Tests.Networking.SteamNetworkConfigurationTests.Configuration_uses_the_proxy_friendly_websocket_transport",
+      "file": "tests/Crystalfly.Steam.Tests/Networking/SteamNetworkConfigurationTests.cs",
+      "original_line": 11,
+      "before_cases": 1,
+      "after_cases": 0,
+      "removed_cases": 1,
+      "reason": "Lower-priority presentation/default/happy-path unit check; retain workflow, error-path and safety regressions"
+    }
+  ],
+  "trimmed_parameters": [
+    {
+      "method": "Crystalfly.App.Tests.Appearance.BackgroundImageServiceTests.Is_supported_file_name_accepts_only_static_raster_extensions",
+      "file": "tests/Crystalfly.App.Tests/Appearance/BackgroundImageServiceTests.cs",
+      "original_line": 15,
+      "before_cases": 7,
+      "after_cases": 4,
+      "removed_cases": 3,
+      "removed_parameters": [
+        "Crystalfly.App.Tests.Appearance.BackgroundImageServiceTests.Is_supported_file_name_accepts_only_static_raster_extensions(fileName: \"image.jpg\", expected: True)",
+        "Crystalfly.App.Tests.Appearance.BackgroundImageServiceTests.Is_supported_file_name_accepts_only_static_raster_extensions(fileName: \"image.webp\", expected: True)",
+        "Crystalfly.App.Tests.Appearance.BackgroundImageServiceTests.Is_supported_file_name_accepts_only_static_raster_extensions(fileName: \"image.jpeg\", expected: True)"
+      ],
+      "retained_parameters": [
+        "Crystalfly.App.Tests.Appearance.BackgroundImageServiceTests.Is_supported_file_name_accepts_only_static_raster_extensions(fileName: \"image.png\", expected: True)",
+        "Crystalfly.App.Tests.Appearance.BackgroundImageServiceTests.Is_supported_file_name_accepts_only_static_raster_extensions(fileName: \"image.gif\", expected: False)",
+        "Crystalfly.App.Tests.Appearance.BackgroundImageServiceTests.Is_supported_file_name_accepts_only_static_raster_extensions(fileName: \"image.bmp\", expected: True)",
+        "Crystalfly.App.Tests.Appearance.BackgroundImageServiceTests.Is_supported_file_name_accepts_only_static_raster_extensions(fileName: \"image.svg\", expected: False)"
+      ],
+      "reason": "Retain representative inputs and boundary cases; trim repeated interior parameter cases"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Downloads.CatalogPackageQueueExecutorTests.Standalone_BepInEx_installs_on_any_game_build",
+      "file": "tests/Crystalfly.App.Tests/Downloads/CatalogPackageQueueExecutorTests.cs",
+      "original_line": 642,
+      "before_cases": 8,
+      "after_cases": 3,
+      "removed_cases": 5,
+      "removed_parameters": [
+        "Crystalfly.App.Tests.Downloads.CatalogPackageQueueExecutorTests.Standalone_BepInEx_installs_on_any_game_build(buildId: \"1.4.3.2\")",
+        "Crystalfly.App.Tests.Downloads.CatalogPackageQueueExecutorTests.Standalone_BepInEx_installs_on_any_game_build(buildId: \"1.0.0.5\")",
+        "Crystalfly.App.Tests.Downloads.CatalogPackageQueueExecutorTests.Standalone_BepInEx_installs_on_any_game_build(buildId: \"1.2.2.1\")",
+        "Crystalfly.App.Tests.Downloads.CatalogPackageQueueExecutorTests.Standalone_BepInEx_installs_on_any_game_build(buildId: \"steam-public-42\")",
+        "Crystalfly.App.Tests.Downloads.CatalogPackageQueueExecutorTests.Standalone_BepInEx_installs_on_any_game_build(buildId: \"1.5.12620.0\")"
+      ],
+      "retained_parameters": [
+        "Crystalfly.App.Tests.Downloads.CatalogPackageQueueExecutorTests.Standalone_BepInEx_installs_on_any_game_build(buildId: \"steam-manifest-42\")",
+        "Crystalfly.App.Tests.Downloads.CatalogPackageQueueExecutorTests.Standalone_BepInEx_installs_on_any_game_build(buildId: \"unknown\")",
+        "Crystalfly.App.Tests.Downloads.CatalogPackageQueueExecutorTests.Standalone_BepInEx_installs_on_any_game_build(buildId: \"1.5.78.11833\")"
+      ],
+      "reason": "Retain representative inputs and boundary cases; trim repeated interior parameter cases"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable",
+      "file": "tests/Crystalfly.App.Tests/Ui/AccentThemeResourcesTests.cs",
+      "original_line": 26,
+      "before_cases": 16,
+      "after_cases": 8,
+      "removed_cases": 8,
+      "removed_parameters": [
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#15803D\", dark: False)",
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#7E22CE\", dark: False)",
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#4338CA\", dark: True)",
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#C2410C\", dark: True)",
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#C2410C\", dark: False)",
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#15803D\", dark: True)",
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#7E22CE\", dark: True)",
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#4338CA\", dark: False)"
+      ],
+      "retained_parameters": [
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#FDE68A\", dark: False)",
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#0E7490\", dark: True)",
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#0E7490\", dark: False)",
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#FDE68A\", dark: True)",
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#0F6CBD\", dark: False)",
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#BE185D\", dark: False)",
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#0F6CBD\", dark: True)",
+        "Crystalfly.App.Tests.Ui.AccentThemeResourcesTests.Build_preserves_accent_and_keeps_text_readable(accent: \"#BE185D\", dark: True)"
+      ],
+      "reason": "Retain representative inputs and boundary cases; trim repeated interior parameter cases"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Button_labels_and_icons_are_not_clipped_at_common_dpi_scaling",
+      "file": "tests/Crystalfly.App.Tests/Ui/LayoutRenderingTests.cs",
+      "original_line": 716,
+      "before_cases": 12,
+      "after_cases": 8,
+      "removed_cases": 4,
+      "removed_parameters": [
+        "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Button_labels_and_icons_are_not_clipped_at_common_dpi_scaling(renderScaling: 1.5, page: \"Manage\", manageTab: \"Presets\")",
+        "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Button_labels_and_icons_are_not_clipped_at_common_dpi_scaling(renderScaling: 1.5, page: \"Settings\", manageTab: null)",
+        "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Button_labels_and_icons_are_not_clipped_at_common_dpi_scaling(renderScaling: 1.5, page: \"Downloads\", manageTab: null)",
+        "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Button_labels_and_icons_are_not_clipped_at_common_dpi_scaling(renderScaling: 1.5, page: \"Manage\", manageTab: \"Mods\")"
+      ],
+      "retained_parameters": [
+        "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Button_labels_and_icons_are_not_clipped_at_common_dpi_scaling(renderScaling: 2, page: \"Manage\", manageTab: \"Presets\")",
+        "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Button_labels_and_icons_are_not_clipped_at_common_dpi_scaling(renderScaling: 2, page: \"Downloads\", manageTab: null)",
+        "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Button_labels_and_icons_are_not_clipped_at_common_dpi_scaling(renderScaling: 1, page: \"Manage\", manageTab: \"Presets\")",
+        "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Button_labels_and_icons_are_not_clipped_at_common_dpi_scaling(renderScaling: 1, page: \"Settings\", manageTab: null)",
+        "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Button_labels_and_icons_are_not_clipped_at_common_dpi_scaling(renderScaling: 1, page: \"Manage\", manageTab: \"Mods\")",
+        "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Button_labels_and_icons_are_not_clipped_at_common_dpi_scaling(renderScaling: 1, page: \"Downloads\", manageTab: null)",
+        "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Button_labels_and_icons_are_not_clipped_at_common_dpi_scaling(renderScaling: 2, page: \"Settings\", manageTab: null)",
+        "Crystalfly.App.Tests.Ui.LayoutRenderingTests.Button_labels_and_icons_are_not_clipped_at_common_dpi_scaling(renderScaling: 2, page: \"Manage\", manageTab: \"Mods\")"
+      ],
+      "reason": "Retain representative inputs and boundary cases; trim repeated interior parameter cases"
+    },
+    {
+      "method": "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Button_focus_and_disabled_states_remain_visible",
+      "file": "tests/Crystalfly.App.Tests/Ui/ThemeRenderingTests.cs",
+      "original_line": 870,
+      "before_cases": 8,
+      "after_cases": 4,
+      "removed_cases": 4,
+      "removed_parameters": [
+        "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Button_focus_and_disabled_states_remain_visible(darkTheme: False, buttonClass: \"cfp-danger\")",
+        "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Button_focus_and_disabled_states_remain_visible(darkTheme: True, buttonClass: \"cfp-primary\")",
+        "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Button_focus_and_disabled_states_remain_visible(darkTheme: False, buttonClass: \"cfp-accent\")",
+        "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Button_focus_and_disabled_states_remain_visible(darkTheme: True, buttonClass: \"cfp-secondary\")"
+      ],
+      "retained_parameters": [
+        "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Button_focus_and_disabled_states_remain_visible(darkTheme: False, buttonClass: \"cfp-secondary\")",
+        "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Button_focus_and_disabled_states_remain_visible(darkTheme: True, buttonClass: \"cfp-danger\")",
+        "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Button_focus_and_disabled_states_remain_visible(darkTheme: False, buttonClass: \"cfp-primary\")",
+        "Crystalfly.App.Tests.Ui.ThemeRenderingTests.Button_focus_and_disabled_states_remain_visible(darkTheme: True, buttonClass: \"cfp-accent\")"
+      ],
+      "reason": "Retain representative inputs and boundary cases; trim repeated interior parameter cases"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.DownloadQueueGroupItemViewModelTests.Individual_cancel_is_available_for_every_unfinished_group",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/DownloadQueueGroupItemViewModelTests.cs",
+      "original_line": 9,
+      "before_cases": 6,
+      "after_cases": 3,
+      "removed_cases": 3,
+      "removed_parameters": [
+        "Crystalfly.App.Tests.ViewModels.DownloadQueueGroupItemViewModelTests.Individual_cancel_is_available_for_every_unfinished_group(state: Running, canCancel: True)",
+        "Crystalfly.App.Tests.ViewModels.DownloadQueueGroupItemViewModelTests.Individual_cancel_is_available_for_every_unfinished_group(state: WaitingForNetwork, canCancel: True)",
+        "Crystalfly.App.Tests.ViewModels.DownloadQueueGroupItemViewModelTests.Individual_cancel_is_available_for_every_unfinished_group(state: Pending, canCancel: True)"
+      ],
+      "retained_parameters": [
+        "Crystalfly.App.Tests.ViewModels.DownloadQueueGroupItemViewModelTests.Individual_cancel_is_available_for_every_unfinished_group(state: Canceled, canCancel: False)",
+        "Crystalfly.App.Tests.ViewModels.DownloadQueueGroupItemViewModelTests.Individual_cancel_is_available_for_every_unfinished_group(state: Failed, canCancel: True)",
+        "Crystalfly.App.Tests.ViewModels.DownloadQueueGroupItemViewModelTests.Individual_cancel_is_available_for_every_unfinished_group(state: Completed, canCancel: False)"
+      ],
+      "reason": "Retain representative inputs and boundary cases; trim repeated interior parameter cases"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Selecting_any_build_offers_BepInEx_even_with_an_older_catalog",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/MainViewModelStateTests.cs",
+      "original_line": 1102,
+      "before_cases": 8,
+      "after_cases": 3,
+      "removed_cases": 5,
+      "removed_parameters": [
+        "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Selecting_any_build_offers_BepInEx_even_with_an_older_catalog(buildId: \"steam-manifest-42\")",
+        "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Selecting_any_build_offers_BepInEx_even_with_an_older_catalog(buildId: \"1.2.2.1\")",
+        "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Selecting_any_build_offers_BepInEx_even_with_an_older_catalog(buildId: \"1.4.3.2\")",
+        "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Selecting_any_build_offers_BepInEx_even_with_an_older_catalog(buildId: \"1.0.0.5\")",
+        "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Selecting_any_build_offers_BepInEx_even_with_an_older_catalog(buildId: \"1.5.12620.0\")"
+      ],
+      "retained_parameters": [
+        "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Selecting_any_build_offers_BepInEx_even_with_an_older_catalog(buildId: \"unknown\")",
+        "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Selecting_any_build_offers_BepInEx_even_with_an_older_catalog(buildId: \"1.5.78.11833\")",
+        "Crystalfly.App.Tests.ViewModels.MainViewModelStateTests.Selecting_any_build_offers_BepInEx_even_with_an_older_catalog(buildId: \"steam-public-42\")"
+      ],
+      "reason": "Retain representative inputs and boundary cases; trim repeated interior parameter cases"
+    },
+    {
+      "method": "Crystalfly.App.Tests.ViewModels.SaveEditorViewModelTests.Unknown_or_mod_owned_fields_keep_the_original_name",
+      "file": "tests/Crystalfly.App.Tests/ViewModels/SaveEditorViewModelTests.cs",
+      "original_line": 33,
+      "before_cases": 7,
+      "after_cases": 3,
+      "removed_cases": 4,
+      "removed_parameters": [
+        "Crystalfly.App.Tests.ViewModels.SaveEditorViewModelTests.Unknown_or_mod_owned_fields_keep_the_original_name(path: \"playerData.customMod.geo\")",
+        "Crystalfly.App.Tests.ViewModels.SaveEditorViewModelTests.Unknown_or_mod_owned_fields_keep_the_original_name(path: \"playerData.equippedCharms[]\")",
+        "Crystalfly.App.Tests.ViewModels.SaveEditorViewModelTests.Unknown_or_mod_owned_fields_keep_the_original_name(path: \"playerData.equippedCharms[-1]\")",
+        "Crystalfly.App.Tests.ViewModels.SaveEditorViewModelTests.Unknown_or_mod_owned_fields_keep_the_original_name(path: \"playerData.unknownFutureField\")"
+      ],
+      "retained_parameters": [
+        "Crystalfly.App.Tests.ViewModels.SaveEditorViewModelTests.Unknown_or_mod_owned_fields_keep_the_original_name(path: \"[\\\"playerData.geo\\\"]\")",
+        "Crystalfly.App.Tests.ViewModels.SaveEditorViewModelTests.Unknown_or_mod_owned_fields_keep_the_original_name(path: \"playerData.gotCharm_41\")",
+        "Crystalfly.App.Tests.ViewModels.SaveEditorViewModelTests.Unknown_or_mod_owned_fields_keep_the_original_name(path: \"modData.health\")"
+      ],
+      "reason": "Retain representative inputs and boundary cases; trim repeated interior parameter cases"
+    },
+    {
+      "method": "Crystalfly.Core.Tests.Speedrun.OfficialSpeedrunTemplatePolicyTests.Old_template_ids_are_recognized_as_legacy",
+      "file": "tests/Crystalfly.Core.Tests/Speedrun/OfficialSpeedrunTemplatePolicyTests.cs",
+      "original_line": 97,
+      "before_cases": 4,
+      "after_cases": 1,
+      "removed_cases": 3,
+      "removed_parameters": [
+        "Crystalfly.Core.Tests.Speedrun.OfficialSpeedrunTemplatePolicyTests.Old_template_ids_are_recognized_as_legacy(templateId: \"race-1578\")",
+        "Crystalfly.Core.Tests.Speedrun.OfficialSpeedrunTemplatePolicyTests.Old_template_ids_are_recognized_as_legacy(templateId: \"single-run-1578\")",
+        "Crystalfly.Core.Tests.Speedrun.OfficialSpeedrunTemplatePolicyTests.Old_template_ids_are_recognized_as_legacy(templateId: \"single-run-1221\")"
+      ],
+      "retained_parameters": [
+        "Crystalfly.Core.Tests.Speedrun.OfficialSpeedrunTemplatePolicyTests.Old_template_ids_are_recognized_as_legacy(templateId: \"race-1221\")"
+      ],
+      "reason": "Retain representative inputs and boundary cases; trim repeated interior parameter cases"
+    }
+  ],
+  "removed_empty_files": [
+    "tests/Crystalfly.App.Tests/Ui/AccentColorUiStructureTests.cs",
+    "tests/Crystalfly.App.Tests/Ui/ApplicationUpdateSettingsStructureTests.cs",
+    "tests/Crystalfly.App.Tests/Ui/BackgroundAppearanceUiTests.cs",
+    "tests/Crystalfly.App.Tests/Ui/DocumentationScreenshotTests.LayoutAudit.cs",
+    "tests/Crystalfly.App.Tests/Ui/DocumentationScreenshotTests.VisualAcceptance.cs",
+    "tests/Crystalfly.App.Tests/Ui/GameDirectoryWorkspaceStructureTests.cs",
+    "tests/Crystalfly.App.Tests/Ui/MainWindowStructureTests.cs",
+    "tests/Crystalfly.App.Tests/Updates/ApplicationUpdateWindowIntegrationTests.cs",
+    "tests/Crystalfly.App.Tests/Updates/EmbeddedApplicationReleaseNotesTests.cs",
+    "tests/Crystalfly.App.Tests/ViewModels/GameDirectoryDialogViewModelTests.cs",
+    "tests/Crystalfly.App.Tests/ViewModels/GameDirectoryItemViewModelTests.cs",
+    "tests/Crystalfly.App.Tests/ViewModels/MarketModItemViewModelTests.cs",
+    "tests/Crystalfly.Core.Tests/Catalog/CatalogResolverTests.cs"
+  ]
+}

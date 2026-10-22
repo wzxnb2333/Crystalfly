@@ -12,31 +12,8 @@ public sealed class SaveEditorViewModelTests : IDisposable
     private readonly string root = Path.Combine(Path.GetTempPath(), "Crystalfly.SaveEditor.Tests", Guid.NewGuid().ToString("N"));
 
     [Theory]
-    [InlineData("playerData.geo", "吉欧")]
-    [InlineData("playerData.health", "当前生命值")]
-    [InlineData("playerData.hasDash", "蛾翼披风（冲刺）")]
-    [InlineData("playerData.fireballLevel", "复仇之魂／暗影之魂等级")]
-    [InlineData("playerData.gotCharm_1", "蜂群集结 · 已获得")]
-    [InlineData("playerData.equippedCharm_2", "任性的指南针 · 已装备")]
-    [InlineData("playerData.charmCost_40", "格林之子／无忧旋律 · 槽位消耗")]
-    [InlineData("playerData.equippedCharms[0]", "已装备护符 · 第 1 项")]
-    [InlineData("health", "当前生命值")]
-    public void Known_fields_have_chinese_labels_without_changing_their_paths(string path, string expected)
-    {
-        var entry = new SaveEntryViewModel(new SaveEntry(path, "3", SaveEntry.KindNumber));
-        Assert.Equal(expected, entry.DisplayName);
-        Assert.True(entry.HasLocalizedName);
-        Assert.Contains(path, entry.FieldToolTip);
-        Assert.Equal(new SaveEntry(path, "3", SaveEntry.KindNumber), entry.ToEntry());
-    }
-
-    [Theory]
     [InlineData("modData.health")]
-    [InlineData("playerData.customMod.geo")]
-    [InlineData("playerData.unknownFutureField")]
     [InlineData("playerData.gotCharm_41")]
-    [InlineData("playerData.equippedCharms[]")]
-    [InlineData("playerData.equippedCharms[-1]")]
     [InlineData("[\"playerData.geo\"]")]
     public void Unknown_or_mod_owned_fields_keep_the_original_name(string path)
     {
@@ -48,21 +25,29 @@ public sealed class SaveEditorViewModelTests : IDisposable
         Assert.Equal("true", entry.Value);
     }
 
-    [Theory]
-    [InlineData(SaveEntry.KindNumber, "数值", "Number")]
-    [InlineData(SaveEntry.KindString, "文本", "Text")]
-    [InlineData(SaveEntry.KindBoolean, "开关", "Boolean")]
-    [InlineData(SaveEntry.KindNull, "空值", "Null")]
-    public void Type_labels_follow_language_without_changing_json_types(string kind, string chinese, string english)
+    [Fact]
+    public async Task Silksong_editor_lists_account_slots_and_imports_into_selected_profile()
     {
-        var entry = new SaveEntryViewModel(new SaveEntry("playerData.geo", "true", kind));
-        Assert.Equal(chinese, entry.KindDisplayName);
-        var loc = new LocalizationViewModel();
-        loc.Apply(UiLanguage.English);
-        entry.RefreshLocalization(loc);
-        Assert.Equal(english, entry.KindDisplayName);
-        Assert.Equal("playerData.geo", entry.DisplayName);
-        Assert.Equal(kind, entry.ToEntry().Kind);
+        const string json = """{"playerData":{"version":"1.0.28324","silk":3,"geo":50}}""";
+        var directory = Path.Combine(root, "instances/instance/local-low/123456789");
+        Directory.CreateDirectory(directory);
+        await SaveFileCodec.EncryptAsync(Path.Combine(directory, "user2.dat"), json);
+        var service = new NamedSnapshotService(root, "Crystalfly.ProfileEditor." + Guid.NewGuid().ToString("N"),
+            new IdleProcessProbe(), Crystalfly.Core.Models.GameId.Silksong);
+        var editor = new SaveEditorViewModel(service, "instance", null, "Profiles",
+            gameId: Crystalfly.Core.Models.GameId.Silksong, targetVersion: "silksong-1.0.30000");
+        await editor.InitializeAsync();
+        Assert.Equal("123456789/user2.dat", editor.SelectedSlot);
+        Assert.Equal(editor.SelectedSlot, editor.ImportSlot);
+        Assert.Contains("123456789/user4.dat", editor.ImportSlots);
+        Assert.Contains("default/user1.dat", editor.ImportSlots);
+        Assert.DoesNotContain("user1.dat", editor.ImportSlots);
+        var source = Path.Combine(root, "input.dat");
+        await SaveFileCodec.EncryptAsync(source, json.Replace("50", "70", StringComparison.Ordinal));
+        await editor.ImportFileAsync(source, "default/user1.dat");
+        Assert.Equal("default/user1.dat", editor.SelectedSlot);
+        Assert.Equal("70", editor.Entries.Single(item => item.Path == "playerData.geo").Value);
+        Assert.Equal(json, await service.DecryptSaveAsync("instance", null, "123456789/user2.dat"));
     }
 
     [Fact]

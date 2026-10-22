@@ -90,12 +90,16 @@ public partial class MainWindow : Window
     private void UpdateLaunchLayout()
     {
         var compact = Bounds.Width < 1180;
-        LaunchPageGrid.ColumnDefinitions[2].Width = new GridLength(compact ? 0 : 272);
-        Grid.SetColumn(CommunityRail, compact ? 1 : 2);
-        Grid.SetRow(CommunityRail, compact ? 1 : 0);
-        Grid.SetRowSpan(CommunityRail, compact ? 1 : 2);
-        CommunityRail.MaxHeight = compact ? 216 : double.PositiveInfinity;
-        CommunityRail.Margin = compact ? new Thickness(24, 0, 24, 16) : new Thickness(0, 16, 16, 16);
+        LaunchWorkspaceGrid.ColumnDefinitions[1].Width = new GridLength(compact ? 0 : 272);
+        LaunchWorkspaceGrid.ColumnSpacing = compact ? 0 : 12;
+        Grid.SetColumn(CommunityRail, compact ? 0 : 1);
+        Grid.SetRow(CommunityRail, compact ? 2 : 1);
+
+        KnownCommunityGroups.ColumnDefinitions[1].Width = compact ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        KnownCommunityGroups.ColumnSpacing = compact ? 12 : 0;
+        KnownCommunityGroups.RowSpacing = compact ? 0 : 12;
+        Grid.SetColumn(SilksongCommunityGroup, compact ? 1 : 0);
+        Grid.SetRow(SilksongCommunityGroup, compact ? 0 : 1);
     }
 
     private void OnWindowMaximizeClick(object? sender, RoutedEventArgs e) =>
@@ -134,6 +138,7 @@ public partial class MainWindow : Window
             }
             catch (Exception exception)
             {
+                viewModel.ReportError(exception, Crystalfly.Core.Diagnostics.ErrorOperation.Startup);
                 viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
             }
             finally
@@ -417,6 +422,7 @@ public partial class MainWindow : Window
             toastViewModel.OnboardingRequested += onboardingRequestedHandler;
             toastViewModel.Instances.SteamDirectoryRiskRequested += steamDirectoryRiskRequestedHandler;
         }
+        motionCoordinator.UpdateGameAvatar(animate: false);
     }
 
     private async Task ConfirmGraphModRemovalAsync(MainViewModel viewModel)
@@ -433,6 +439,10 @@ public partial class MainWindow : Window
 
     private void OnToastViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
+        if (eventArgs.PropertyName == nameof(MainViewModel.SelectedGameId))
+            motionCoordinator.UpdateGameAvatar(animate: true);
+        else if (eventArgs.PropertyName == nameof(MainViewModel.CurrentPage))
+            motionCoordinator.UpdateGameAvatar(animate: false);
         if (eventArgs.PropertyName == nameof(MainViewModel.EffectiveMotionPreference))
         {
             motionCoordinator.UpdateMotionPreference(replayVisiblePages: true);

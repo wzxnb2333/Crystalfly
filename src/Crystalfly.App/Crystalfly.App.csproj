@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Sentry" />
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
@@ -36,5 +37,17 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Crystalfly.App.Tests" />
+    <InternalsVisibleTo Include="Crystalfly.Diagnostics.Probe" />
   </ItemGroup>
+
+  <ItemGroup Condition="'$(CrystalflyErrorReportingDsn)' != ''">
+    <AssemblyMetadata Include="ErrorReportingDsn" Value="$(CrystalflyErrorReportingDsn)" />
+    <AssemblyMetadata Include="ErrorReportingRegion" Value="$(CrystalflyErrorReportingRegion)" />
+    <AssemblyMetadata Include="ErrorReportingRetention" Value="$(CrystalflyErrorReportingRetention)" />
+  </ItemGroup>
+  <Target Name="ValidateErrorReportingMetadata" BeforeTargets="GenerateAssemblyInfo"
+          Condition="'$(CrystalflyErrorReportingDsn)' != ''">
+    <Error Condition="'$(CrystalflyErrorReportingRegion)' == '' Or '$(CrystalflyErrorReportingRetention)' == ''"
+           Text="Error reporting builds must disclose the hosting region and server retention policy." />
+  </Target>
 </Project>

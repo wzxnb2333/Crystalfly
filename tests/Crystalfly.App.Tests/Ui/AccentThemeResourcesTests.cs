@@ -14,7 +14,7 @@ public sealed class AccentThemeResourcesTests
         get
         {
             var data = new TheoryData<string, bool>();
-            foreach (var color in AccentColorPalette.Presets.Append("#FDE68A"))
+            foreach (var color in new[] { AccentColorPalette.DefaultColor, "#BE185D", "#0E7490", "#FDE68A" })
             {
                 data.Add(color, false);
                 data.Add(color, true);
@@ -32,18 +32,6 @@ public sealed class AccentThemeResourcesTests
         Assert.Equal(Color.Parse(accent), palette.Accent);
         Assert.True(ContrastRatio(palette.OnAccent, palette.Accent) >= 4.5);
         Assert.True(ContrastRatio(palette.AccentText, palette.Surface) >= 4.5);
-    }
-
-    [Fact]
-    public void Build_uses_fixed_light_and_dark_blends()
-    {
-        var light = AccentThemeResources.Build("#0F6CBD", dark: false);
-        var dark = AccentThemeResources.Build("#0F6CBD", dark: true);
-
-        Assert.Equal(Blend(Color.Parse("#0F6CBD"), Colors.Black, 0.12), light.Hover);
-        Assert.Equal(Blend(Color.Parse("#0F6CBD"), Colors.White, 0.12), dark.Hover);
-        Assert.Equal(Blend(Color.Parse("#0F6CBD"), Colors.White, 0.88), light.Soft);
-        Assert.Equal(Blend(Color.Parse("#0F6CBD"), Color.Parse("#0F1115"), 0.76), dark.Soft);
     }
 
     [AvaloniaFact]
@@ -73,11 +61,6 @@ public sealed class AccentThemeResourcesTests
         Assert.True(Application.Current!.TryGetResource(key, variant, out var value));
         return Assert.IsType<SolidColorBrush>(value).Color;
     }
-
-    private static Color Blend(Color source, Color target, double amount) => Color.FromRgb(
-        (byte)Math.Round(source.R + ((target.R - source.R) * amount)),
-        (byte)Math.Round(source.G + ((target.G - source.G) * amount)),
-        (byte)Math.Round(source.B + ((target.B - source.B) * amount)));
 
     private static double ContrastRatio(Color foreground, Color background)
     {

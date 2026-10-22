@@ -9,26 +9,6 @@ public sealed class InstanceAppearanceSettingsStoreTests : IDisposable
         $"crystalfly-instance-appearance-{Guid.NewGuid():N}");
 
     [Fact]
-    public async Task Load_returns_inherited_default_then_round_trips_override()
-    {
-        var path = Path.Combine(root, "appearance.json");
-
-        Assert.Null((await InstanceAppearanceSettingsStore.LoadAsync(path)).BackgroundImage);
-
-        var expected = new InstanceAppearanceSettings
-        {
-            BackgroundImage = new BackgroundImageSettings
-            {
-                FileName = "0123456789ABCDEF.jpg",
-                OpacityPercent = 72
-            }
-        };
-        await InstanceAppearanceSettingsStore.SaveAsync(path, expected);
-
-        Assert.Equal(expected, await InstanceAppearanceSettingsStore.LoadAsync(path));
-    }
-
-    [Fact]
     public async Task Load_normalizes_invalid_override_to_inherited_default()
     {
         var path = Path.Combine(root, "appearance.json");

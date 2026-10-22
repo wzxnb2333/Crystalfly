@@ -7,6 +7,7 @@
   <Project Path="src/Crystalfly.Updater/Crystalfly.Updater.csproj" />
   <Project Path="tests/Crystalfly.Core.Tests/Crystalfly.Core.Tests.csproj" />
   <Project Path="tests/Crystalfly.App.Tests/Crystalfly.App.Tests.csproj" />
+  <Project Path="tests/Crystalfly.Diagnostics.Probe/Crystalfly.Diagnostics.Probe.csproj" />
   <Project Path="tests/Crystalfly.Steam.Tests/Crystalfly.Steam.Tests.csproj" />
   <Project Path="tests/Crystalfly.Updater.Tests/Crystalfly.Updater.Tests.csproj" />
   <Folder Name="/tools/">

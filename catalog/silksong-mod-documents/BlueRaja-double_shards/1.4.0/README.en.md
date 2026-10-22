@@ -1,0 +1,1 @@
+Doubles the shards (the currency used to craft/repair tools) collected from all sources.

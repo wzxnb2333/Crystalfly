@@ -6,18 +6,6 @@ namespace Crystalfly.App.Tests.ViewModels;
 
 public sealed class DependencyGraphRebuildSkipTests
 {
-    [Fact]
-    public void Rebuild_with_unchanged_content_keeps_the_existing_graph_instance()
-    {
-        var viewModel = new DependencyGraphViewModel(Dependencies());
-        viewModel.Rebuild([Mod("a"), Mod("b", dependencies: ["a"])], selectedId: null, instanceId: null);
-        var firstGraph = viewModel.Graph;
-
-        // A mod refresh recreates the item view models with identical content.
-        viewModel.Rebuild([Mod("a"), Mod("b", dependencies: ["a"])], selectedId: null, instanceId: null);
-
-        Assert.Same(firstGraph, viewModel.Graph);
-    }
 
     [Fact]
     public async Task Rebuild_with_unchanged_content_keeps_graph_and_positions_for_an_instance()

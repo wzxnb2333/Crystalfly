@@ -37,14 +37,15 @@ public partial class MainWindow
         var dialog = new HistoricalManifestDialogViewModel(
             viewModel.DownloadBuilds,
             viewModel.Loc["HistoricalManifestTitle"],
-            viewModel.Loc["HistoricalManifestHint"],
+            string.Format(System.Globalization.CultureInfo.CurrentCulture, viewModel.Loc["HistoricalManifestHint"],
+                viewModel.Loc[viewModel.IsSilksong ? "GameSilksong" : "GameHollowKnight"]),
             viewModel.Loc["HistoricalManifestId"],
             viewModel.Loc["HistoricalInstanceName"],
             viewModel.Loc["HistoricalManifestKnown"],
             viewModel.Loc["HistoricalManifestUnverified"],
             viewModel.Loc["InvalidHistoricalManifest"],
             viewModel.Loc["Confirm"],
-            viewModel.Loc["Cancel"]);
+            viewModel.Loc["Cancel"], viewModel.SelectedGameId);
         var request = await OverlayDialog.ShowCustomAsync<
             HistoricalManifestDialogView,
             HistoricalManifestDialogViewModel,

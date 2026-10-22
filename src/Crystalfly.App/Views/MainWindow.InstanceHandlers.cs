@@ -11,6 +11,17 @@ namespace Crystalfly.App.Views;
 
 public partial class MainWindow
 {
+    private async void ChooseDownloadLibrary(object? sender, RoutedEventArgs args)
+    {
+        if (DataContext is not MainViewModel model || !model.CanNavigate) return;
+        var game = model.SelectedGameId;
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = model.Loc["ChooseDownloadLibrary"], AllowMultiple = false });
+        if (folders.FirstOrDefault()?.TryGetLocalPath() is not { } path || game != model.SelectedGameId) return;
+        try { await model.Instances.UseDownloadDirectoryAsync(path); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        { model.ErrorMessage = model.Loc.ErrorMessageFor(error); }
+    }
+
     private async void AddCustomGameDirectory(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is MainViewModel viewModel)

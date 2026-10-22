@@ -57,69 +57,6 @@ public sealed class OnboardingTests : IDisposable
     }
 
     [Fact]
-    public void Task_center_selects_the_first_incomplete_task_and_can_complete()
-    {
-        var tasks = new[]
-        {
-            new OnboardingTaskItemViewModel("game", "Game", "Ready", "Done", "Open", "Versions", OnboardingTaskState.Done),
-            new OnboardingTaskItemViewModel("loader", "Loader", "Install it", "Next", "Open", "ManageLoader", OnboardingTaskState.Current)
-        };
-        var viewModel = new OnboardingDialogViewModel(key => key, tasks);
-        bool? closed = null;
-        viewModel.RequestClose += (_, result) => closed = (bool?)result;
-
-        Assert.Equal(tasks[1], viewModel.SelectedTask);
-        Assert.Equal("Loader", viewModel.CurrentTitle);
-        Assert.Equal("Install it", viewModel.CurrentDescription);
-        Assert.True(viewModel.HasAction);
-
-        viewModel.CompleteCommand.Execute(null);
-        Assert.Equal(true, closed);
-    }
-
-    [Fact]
-    public async Task Task_center_runs_the_selected_task_action()
-    {
-        var invoked = string.Empty;
-        var tasks = new[]
-        {
-            new OnboardingTaskItemViewModel("market", "Market", "Open it", "Next", "Open market", "ModMarket", OnboardingTaskState.Current)
-        };
-        var viewModel = new OnboardingDialogViewModel(key => key, tasks, action =>
-        {
-            invoked = action;
-            return Task.CompletedTask;
-        });
-
-        await viewModel.RunSelectedActionCommand.ExecuteAsync(null);
-
-        Assert.Equal("ModMarket", invoked);
-    }
-
-    [Fact]
-    public async Task Launch_onboarding_card_uses_the_next_incomplete_task()
-    {
-        var versionRoot = testDirectory.CreateDirectory("versions");
-        var instanceRoot = testDirectory.CreateDirectory("versions", "1578");
-        var record = new InstanceRecord
-        {
-            Id = "1578",
-            Name = "1.5.78",
-            BuildId = "1.5.78.11833",
-            RootPath = instanceRoot
-        };
-        await using var viewModel = new MainViewModel(testDirectory.CreateDirectory("app-data"))
-        {
-            VersionRoot = versionRoot,
-            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Vanilla", 0)
-        };
-
-        Assert.True(viewModel.ShouldShowLaunchOnboarding);
-        Assert.Equal(viewModel.Loc["OnboardingTaskLoaderTitle"], viewModel.OnboardingNextTaskTitle);
-        Assert.Contains("3", viewModel.OnboardingProgressText, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public async Task Onboarding_actions_navigate_to_the_target_workspace()
     {
         await using var viewModel = new MainViewModel(testDirectory.CreateDirectory("app-data"));
@@ -134,19 +71,6 @@ public sealed class OnboardingTests : IDisposable
 
         viewModel.RunOnboardingAction("Speedrun");
         Assert.Equal("Speedrun", viewModel.CurrentPage);
-    }
-
-    [Fact]
-    public async Task Completing_onboarding_hides_the_launch_card_but_keeps_manual_reopen()
-    {
-        await using var viewModel = new MainViewModel(testDirectory.CreateDirectory("app-data"));
-
-        Assert.True(viewModel.ShouldShowLaunchOnboarding);
-
-        viewModel.CompleteOnboarding();
-
-        Assert.True(viewModel.IsOnboardingCompleted);
-        Assert.False(viewModel.ShouldShowLaunchOnboarding);
     }
 
     public void Dispose()

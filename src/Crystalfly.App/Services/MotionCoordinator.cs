@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Animation;
@@ -28,11 +29,14 @@ public sealed class MotionCoordinator
     private readonly Dictionary<Control, CancellationTokenSource> entranceAnimationCancellations = [];
     private readonly Dictionary<Control, EntranceFrameState> activeEntranceAnimations = [];
     private readonly List<EntranceFrameState> completedEntranceAnimations = [];
+    private readonly Dictionary<Control, (INotifyPropertyChanged Source, PropertyChangedEventHandler Handler)> downloadMotionSources = [];
+    private readonly Dictionary<Control, string?> downloadMotionStageTexts = [];
     private readonly Dictionary<Control, Transitions?> motionBaseTransitions = [];
     private readonly Dictionary<Control, MicroMotion> microInteractionTransforms = [];
     private long entranceAnimationGeneration;
     private DispatcherTimer? knightWalkTimer;
     private bool entranceAnimationFrameScheduled;
+    private bool isShutdown;
     private int knightWalkFrame;
 
     internal MotionCoordinator(
@@ -95,12 +99,20 @@ public sealed class MotionCoordinator
 
     internal void RegisterMotionTarget(Control control, bool animate)
     {
-        if (entranceAnimationTargets.Contains(control))
+        if (isShutdown || entranceAnimationTargets.Contains(control))
         {
             return;
         }
         entranceAnimationTargets.Add(control);
         control.PropertyChanged += OnEntranceTargetPropertyChanged;
+        if (control.Classes.Contains("cfp-download-motion"))
+        {
+            AttachDownloadMotionSource(control);
+        }
+        if (IsDynamicMotionTarget(control))
+        {
+            control.DetachedFromVisualTree += OnDynamicMotionTargetDetached;
+        }
         if (animate && control.IsEffectivelyVisible && IsOpacityEntranceTarget(control))
         {
             QueueEntranceAnimation(control);
@@ -109,6 +121,7 @@ public sealed class MotionCoordinator
 
     internal void UpdateMotionPreference(bool replayVisiblePages = false)
     {
+        UpdateGameAvatar(animate: false);
         ConfigureMicroInteractionTransitions();
         if (!IsMotionEnabled())
         {
@@ -123,6 +136,29 @@ public sealed class MotionCoordinator
             }
         }
         UpdateKnightWalkAnimationState();
+    }
+
+    internal void UpdateGameAvatar(bool animate)
+    {
+        if (owner.FindControl<Image>("KnightGameAvatar") is not { } knight
+            || owner.FindControl<Image>("HornetGameAvatar") is not { } hornet)
+            return;
+        var silksong = owner.DataContext is MainViewModel { IsSilksong: true };
+        var enabled = animate && owner.IsVisible
+            && owner.DataContext is MainViewModel { IsLaunchPage: true } && IsFullMotionEnabled();
+        foreach (var (image, active) in new[] { (knight, !silksong), (hornet, silksong) })
+        {
+            image.Transitions = enabled
+                ? new Transitions { new DoubleTransition { Property = Visual.OpacityProperty,
+                    Duration = TimeSpan.FromMilliseconds(180), Easing = new CubicEaseOut() } }
+                : null;
+            if (image.RenderTransform is ScaleTransform scale)
+            {
+                scale.Transitions = enabled ? CreateScaleTransitions(TimeSpan.FromMilliseconds(180)) : null;
+                scale.ScaleX = scale.ScaleY = active || !enabled ? 1 : 0.94;
+            }
+            image.Opacity = active ? 1 : 0;
+        }
     }
 
     internal void AnimateSpeedrunTabIndicator(Control indicator)
@@ -151,10 +187,11 @@ public sealed class MotionCoordinator
 
     internal void Shutdown()
     {
+        isShutdown = true;
         owner.PropertyChanged -= OnWindowPropertyChanged;
-        foreach (var target in entranceAnimationTargets)
+        foreach (var target in entranceAnimationTargets.ToArray())
         {
-            target.PropertyChanged -= OnEntranceTargetPropertyChanged;
+            UnregisterMotionTarget(target);
         }
         RestoreMicroInteractionTransforms();
         entranceAnimationTargets.Clear();
@@ -339,14 +376,33 @@ public sealed class MotionCoordinator
 
     private static bool IsOpacityEntranceTarget(Control control) =>
         control.Classes.Contains("cfp-dialog-motion")
-        || control.Classes.Contains("cfp-toast-motion");
+        || control.Classes.Contains("cfp-toast-motion")
+        || control.Classes.Contains("cfp-market-subpage")
+        || control.Classes.Contains("cfp-market-cover")
+        || control.Classes.Contains("cfp-download-motion");
+
+    private static bool IsProductMotionOpacityTarget(Control control) =>
+        control.Classes.Contains("cfp-market-subpage")
+        || control.Classes.Contains("cfp-market-cover")
+        || control.Classes.Contains("cfp-download-motion");
 
     private static bool IsEntranceAnimationTarget(Control control) =>
         control.Classes.Contains("cfp-subpage")
         || control.Classes.Contains("cfp-mod-bulk-bar")
         || control.Classes.Contains("cfp-page")
         || control.Classes.Contains("cfp-dialog-motion")
-        || control.Classes.Contains("cfp-toast-motion");
+        || control.Classes.Contains("cfp-toast-motion")
+        || control.Classes.Contains("cfp-market-subpage")
+        || control.Classes.Contains("cfp-market-cover")
+        || control.Classes.Contains("cfp-download-motion");
+
+    private static bool IsDynamicMotionTarget(Control control) =>
+        control.Classes.Contains("cfp-market-cover")
+        || control.Classes.Contains("cfp-download-motion");
+
+    private static bool IsTransformEntranceTarget(Control control) =>
+        !control.Classes.Contains("cfp-market-cover")
+        && !control.Classes.Contains("cfp-download-motion");
 
     private void ConfigureMicroInteractionTransitions()
     {
@@ -510,21 +566,178 @@ public sealed class MotionCoordinator
         motionBaseTransitions.Clear();
     }
 
+    private void AttachDownloadMotionSource(Control control)
+    {
+        if (downloadMotionSources.Remove(control, out var previous))
+        {
+            previous.Source.PropertyChanged -= previous.Handler;
+        }
+
+        var stage = DownloadStageText(control);
+        if (control.DataContext is not INotifyPropertyChanged source)
+        {
+            downloadMotionStageTexts.Remove(control);
+            return;
+        }
+
+        downloadMotionStageTexts[control] = stage;
+        PropertyChangedEventHandler handler = (_, args) =>
+        {
+            if (args.PropertyName != nameof(DownloadQueueGroupItemViewModel.StageText))
+            {
+                return;
+            }
+
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                UpdateDownloadMotionStage(control, source);
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(
+                    () => UpdateDownloadMotionStage(control, source),
+                    DispatcherPriority.Render);
+            }
+        };
+        source.PropertyChanged += handler;
+        downloadMotionSources[control] = (source, handler);
+    }
+
+    private void UpdateDownloadMotionStage(Control control, INotifyPropertyChanged source)
+    {
+        if (!entranceAnimationTargets.Contains(control)
+            || !downloadMotionSources.TryGetValue(control, out var current)
+            || !ReferenceEquals(current.Source, source))
+        {
+            return;
+        }
+
+        var next = DownloadStageText(control);
+        if (string.Equals(downloadMotionStageTexts.GetValueOrDefault(control), next, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        downloadMotionStageTexts[control] = next;
+        if (control.IsEffectivelyVisible)
+        {
+            QueueEntranceAnimation(control);
+        }
+    }
+
+    private static string? DownloadStageText(Control control) => control.DataContext switch
+    {
+        DownloadQueueGroupItemViewModel group => group.StageText,
+        DownloadQueueItemViewModel item => item.StageText,
+        _ => null
+    };
+
+    private void UnregisterMotionTarget(Control control)
+    {
+        if (!entranceAnimationTargets.Remove(control))
+        {
+            return;
+        }
+
+        control.PropertyChanged -= OnEntranceTargetPropertyChanged;
+        control.DetachedFromVisualTree -= OnDynamicMotionTargetDetached;
+        StopEntranceAnimation(control);
+        ResetEntranceVisual(control);
+        control.Opacity = 1;
+        entranceAnimationGenerations.Remove(control);
+        completedEntranceAnimations.RemoveAll(animation => ReferenceEquals(animation.Control, control));
+        if (downloadMotionSources.Remove(control, out var source))
+        {
+            source.Source.PropertyChanged -= source.Handler;
+        }
+        downloadMotionStageTexts.Remove(control);
+    }
+
+    private void OnDynamicMotionTargetDetached(object? sender, VisualTreeAttachmentEventArgs eventArgs)
+    {
+        if (sender is not Control control)
+        {
+            return;
+        }
+
+        UnregisterMotionTarget(control);
+        var coordinator = new WeakReference<MotionCoordinator>(this);
+        EventHandler<VisualTreeAttachmentEventArgs> reattachHandler = null!;
+        reattachHandler = (attachedSender, _) =>
+        {
+            if (attachedSender is Control attached)
+            {
+                attached.AttachedToVisualTree -= reattachHandler;
+                if (coordinator.TryGetTarget(out var activeCoordinator) && !activeCoordinator.isShutdown)
+                {
+                    activeCoordinator.RegisterMotionTarget(attached, animate: true);
+                }
+            }
+        };
+        control.AttachedToVisualTree += reattachHandler;
+    }
+
     private void OnEntranceTargetPropertyChanged(
         object? sender,
         AvaloniaPropertyChangedEventArgs eventArgs)
     {
-        if (eventArgs.Property == Visual.IsVisibleProperty
-            && sender is Control { IsVisible: true } control)
+        if (sender is not Control control)
         {
-            QueueEntranceAnimation(control);
+            return;
+        }
+
+        if (eventArgs.Property == StyledElement.DataContextProperty
+            && control.Classes.Contains("cfp-download-motion"))
+        {
+            AttachDownloadMotionSource(control);
+        }
+        else if (eventArgs.Property == Image.SourceProperty
+            && control.Classes.Contains("cfp-market-cover"))
+        {
+            if (control is Image { Source: not null } && control.IsEffectivelyVisible)
+            {
+                QueueEntranceAnimation(control);
+            }
+            else
+            {
+                StopEntranceAnimation(control);
+                ResetEntranceVisual(control);
+                control.Opacity = 1;
+            }
+        }
+        else if (eventArgs.Property == Visual.IsVisibleProperty)
+        {
+            if (control.IsVisible && IsEntranceAnimationTarget(control))
+            {
+                QueueEntranceAnimation(control);
+                if (control.Classes.Contains("cfp-page") || control.Classes.Contains("cfp-market-subpage"))
+                {
+                    Dispatcher.UIThread.Post(
+                        () => RegisterMotionTargets(animateNewTargets: true),
+                        DispatcherPriority.Render);
+                }
+            }
+            else if (!control.IsVisible)
+            {
+                StopEntranceAnimation(control);
+                ResetEntranceVisual(control);
+                control.Opacity = 1;
+                foreach (var hidden in entranceAnimationTargets.Where(target => !target.IsEffectivelyVisible).ToArray())
+                {
+                    StopEntranceAnimation(hidden);
+                    ResetEntranceVisual(hidden);
+                    hidden.Opacity = 1;
+                }
+            }
         }
     }
 
     private void QueueEntranceAnimation(Control control)
     {
         StopEntranceAnimation(control);
-        if (!IsMotionEnabled())
+        if (isShutdown
+            || !IsMotionEnabled()
+            || control.Classes.Contains("cfp-market-cover") && control is not Image { Source: not null })
         {
             ResetEntranceVisual(control);
             control.Opacity = 1;
@@ -570,6 +783,14 @@ public sealed class MotionCoordinator
 
     private void PrepareEntranceVisual(Control control)
     {
+        if (!IsTransformEntranceTarget(control))
+        {
+            control.Opacity = IsOpacityEntranceTarget(control)
+                ? TransientEntranceStartOpacity
+                : 1;
+            return;
+        }
+
         var baseTransform = control.RenderTransform;
         var baseOrigin = control.RenderTransformOrigin;
         var motion = new EntranceMotion(
@@ -663,6 +884,7 @@ public sealed class MotionCoordinator
 
         EntranceMotion? motion = null;
         if (!opacityOnly
+            && IsTransformEntranceTarget(control)
             && !entranceAnimationTransforms.TryGetValue(control, out motion))
         {
             DisposeEntranceCancellation(control, cancellation);
@@ -757,7 +979,9 @@ public sealed class MotionCoordinator
             {
                 var opacityDuration = animation.OpacityOnly
                     ? ReducedEntranceDuration
-                    : PageOpacityDuration;
+                    : IsProductMotionOpacityTarget(animation.Control)
+                        ? animation.Duration
+                        : PageOpacityDuration;
                 var opacityProgress = Math.Clamp(
                     elapsed.TotalMilliseconds / opacityDuration.TotalMilliseconds,
                     0d,
@@ -844,8 +1068,11 @@ public sealed class MotionCoordinator
             return TimeSpan.Zero;
         }
         if (control.Classes.Contains("cfp-subpage")
+            || control.Classes.Contains("cfp-market-subpage")
             || control.Classes.Contains("cfp-dialog-motion")
-            || control.Classes.Contains("cfp-toast-motion"))
+            || control.Classes.Contains("cfp-toast-motion")
+            || control.Classes.Contains("cfp-market-cover")
+            || control.Classes.Contains("cfp-download-motion"))
         {
             return TimeSpan.Zero;
         }

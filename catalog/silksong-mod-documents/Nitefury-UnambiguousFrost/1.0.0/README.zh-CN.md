@@ -1,0 +1,1 @@
+专为与本模组 https://www.nexusmods.com/hollowknightsilksong/mods/602, 配合使用而设计，但也可独立运行

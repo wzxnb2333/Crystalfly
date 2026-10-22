@@ -7,9 +7,10 @@ using Crystalfly.Core.Transactions;
 
 namespace Crystalfly.Core.Snapshots;
 
-public sealed class NamedSnapshotService
+public sealed partial class NamedSnapshotService
 {
     private const string MetadataFileName = "snapshot.json";
+    private readonly GameId gameId;
     private readonly string storagePath;
     private readonly string mutexName;
     private readonly IHollowKnightProcessProbe? processProbe;
@@ -17,8 +18,9 @@ public sealed class NamedSnapshotService
     public NamedSnapshotService(
         string storageRoot,
         string mutexName = HollowKnightProcessGuard.DefaultMutexName,
-        IHollowKnightProcessProbe? processProbe = null)
+        IHollowKnightProcessProbe? processProbe = null, GameId gameId = GameId.HollowKnight)
     {
+        this.gameId = gameId;
         storagePath = Path.GetFullPath(storageRoot);
         ArgumentException.ThrowIfNullOrWhiteSpace(mutexName);
         this.mutexName = mutexName;
@@ -55,7 +57,7 @@ public sealed class NamedSnapshotService
                 cancellationToken);
             var snapshot = new NamedSnapshot
             {
-                Id = id,
+                GameId = gameId, Id = id,
                 Name = name.Trim(),
                 SourcePath = sourcePath,
                 SnapshotPath = finalDataPath,
@@ -190,9 +192,9 @@ public sealed class NamedSnapshotService
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        var slots = Enumerable.Range(1, 4)
-            .Select(slot => $"user{slot}.dat")
-            .Where(slot => File.Exists(Path.Combine(basePath, slot)))
+        var slots = LocalLowDirectory.EnumerateRelativeFiles(basePath)
+            .Where(slot => SaveSlotPath.IsEditable(gameId, slot))
+            .Order(StringComparer.OrdinalIgnoreCase)
             .ToArray();
         return Task.FromResult<IReadOnlyList<string>>(slots);
     }
@@ -217,6 +219,19 @@ public sealed class NamedSnapshotService
         return await SaveFileCodec.DecryptAsync(filePath, cancellationToken);
     }
 
+    public async Task<bool> CanEditSaveAsync(string instanceId, string? snapshotId, string slotRelativePath, CancellationToken token = default)
+    {
+        ValidateSegment(instanceId, nameof(instanceId));
+        if (snapshotId is not null) ValidateSegment(snapshotId, nameof(snapshotId));
+        ValidateEditableSaveSlot(slotRelativePath);
+        var basePath = snapshotId is null ? GetInstanceLocalLowPath(instanceId) : Path.Combine(GetSnapshotsRoot(instanceId), snapshotId, "data");
+        var bytes = await File.ReadAllBytesAsync(ResolveUnderBase(basePath, slotRelativePath), token);
+        var json = SaveFileCodec.Decrypt(bytes);
+        var rebuilt = SaveGameEditor.Rebuild(json, SaveGameEditor.Flatten(json));
+        return bytes.AsSpan().SequenceEqual(SaveFileCodec.Encrypt(json))
+            && System.Text.Json.Nodes.JsonNode.DeepEquals(System.Text.Json.Nodes.JsonNode.Parse(json), System.Text.Json.Nodes.JsonNode.Parse(rebuilt));
+    }
+
     public async Task UpdateSaveAsync(
         string instanceId,
         string? snapshotId,
@@ -236,6 +251,12 @@ public sealed class NamedSnapshotService
             ? GetInstanceLocalLowPath(instanceId)
             : Path.Combine(GetSnapshotsRoot(instanceId), snapshotId, "data");
         var filePath = ResolveUnderBase(basePath, slotRelativePath);
+        if (!await CanEditSaveAsync(instanceId, snapshotId, slotRelativePath, cancellationToken))
+            throw new InvalidDataException("This save format cannot round-trip safely and is read-only.");
+        _ = SaveGameEditor.Flatten(json);
+        var backupRoot = ResolveUnderBase(storagePath, $"instances/{instanceId}/save-edit-backups");
+        Directory.CreateDirectory(backupRoot);
+        File.Copy(filePath, Path.Combine(backupRoot, $"{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}-{Path.GetFileName(filePath)}"));
         var transactionRoot = ResolveUnderBase(storagePath, "transactions");
         var recoveries = await FileTransaction.RecoverPendingAsync(transactionRoot, cancellationToken);
         if (recoveries.Any(recovery => recovery.State == TransactionState.NeedsAttention))
@@ -250,7 +271,9 @@ public sealed class NamedSnapshotService
             var targetRoot = basePath;
             if (snapshotId is null)
             {
-                await SaveFileCodec.EncryptAsync(Path.Combine(staging, Path.GetFileName(filePath)), json, cancellationToken);
+                var stagedPath = ResolveUnderBase(staging, slotRelativePath);
+                Directory.CreateDirectory(Path.GetDirectoryName(stagedPath)!);
+                await SaveFileCodec.EncryptAsync(stagedPath, json, cancellationToken);
             }
             else
             {
@@ -264,13 +287,21 @@ public sealed class NamedSnapshotService
                 var previewSave = Path.Combine(preview, slotRelativePath);
                 await SaveFileCodec.EncryptAsync(previewSave, json, cancellationToken);
                 var newHash = await LocalLowDirectory.HashFilesAsync(preview, includeLogs: false, cancellationToken);
-                Directory.CreateDirectory(Path.Combine(staging, "data"));
-                File.Copy(previewSave, Path.Combine(staging, "data", slotRelativePath));
+                var stagedPath = ResolveUnderBase(Path.Combine(staging, "data"), slotRelativePath);
+                Directory.CreateDirectory(Path.GetDirectoryName(stagedPath)!);
+                File.Copy(previewSave, stagedPath);
                 await AtomicJsonStore.WriteAsync(
                     Path.Combine(staging, MetadataFileName), snapshot with { Sha256 = newHash }, cancellationToken);
             }
-            await FileTransaction.ApplyDirectoryAsync(
-                staging, targetRoot, transactionRoot, "edit-save", cancellationToken);
+            var stagedSave = ResolveUnderBase(snapshotId is null ? staging : Path.Combine(staging, "data"), slotRelativePath);
+            if (await SaveFileCodec.DecryptAsync(stagedSave, cancellationToken) != json)
+                throw new InvalidDataException("Save verification failed before commit.");
+            var journal = await FileTransaction.ApplyDirectoryAsync(staging, targetRoot, transactionRoot, "edit-save", cancellationToken);
+            if (await SaveFileCodec.DecryptAsync(filePath, CancellationToken.None) != json)
+            {
+                await FileTransaction.RollBackLatestAsync(Path.Combine(journal.RestorePointPath, "journal.json"), CancellationToken.None);
+                throw new InvalidDataException("Save verification failed; the previous file was restored.");
+            }
         }
         finally
         {
@@ -298,12 +329,9 @@ public sealed class NamedSnapshotService
         return full;
     }
 
-    private static void ValidateEditableSaveSlot(string slotRelativePath)
+    private void ValidateEditableSaveSlot(string slotRelativePath)
     {
-        if (slotRelativePath.Length != "user1.dat".Length
-            || !slotRelativePath.StartsWith("user", StringComparison.OrdinalIgnoreCase)
-            || slotRelativePath[4] is < '1' or > '4'
-            || !slotRelativePath.EndsWith(".dat", StringComparison.OrdinalIgnoreCase))
+        if (!SaveSlotPath.IsEditable(gameId, slotRelativePath))
         {
             throw new ArgumentException(
                 "Save editor slots must be one of user1.dat through user4.dat.",
@@ -319,6 +347,7 @@ public sealed class NamedSnapshotService
 
     private void ValidateSnapshot(string instanceId, string snapshotRoot, NamedSnapshot snapshot)
     {
+        if (snapshot.GameId != gameId) throw new InvalidDataException("Snapshot belongs to a different game.");
         ValidateSegment(snapshot.Id, nameof(snapshot.Id));
         var expectedRoot = Path.Combine(GetSnapshotsRoot(instanceId), snapshot.Id);
         if (!LocalLowDirectory.PathEquals(snapshotRoot, expectedRoot)
@@ -345,7 +374,7 @@ public sealed class NamedSnapshotService
         }
     }
 
-    private static void CopySaveFiles(
+    private void CopySaveFiles(
         string sourcePath,
         string destinationPath,
         CancellationToken cancellationToken)
@@ -358,28 +387,12 @@ public sealed class NamedSnapshotService
             cancellationToken.ThrowIfCancellationRequested();
             var source = LocalLowDirectory.ResolveUnderRoot(sourcePath, relativePath);
             var destination = LocalLowDirectory.ResolveUnderRoot(destinationPath, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             File.Copy(source, destination, overwrite: true);
         }
     }
 
-    private static bool IsSaveFile(string relativePath)
-    {
-        if (relativePath.Contains('/') || relativePath.Contains('\\') || relativePath.Length < 9
-            || !relativePath.StartsWith("user", StringComparison.OrdinalIgnoreCase)
-            || relativePath[4] is < '1' or > '4'
-            || !relativePath.AsSpan(5).StartsWith(".dat", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-        if (relativePath.Length == 9)
-        {
-            return true;
-        }
-        var suffix = relativePath.AsSpan(9);
-        return suffix.StartsWith(".bak", StringComparison.OrdinalIgnoreCase)
-            && suffix.Length > 4
-            && suffix[4..].IndexOfAnyExceptInRange('0', '9') < 0;
-    }
+    private bool IsSaveFile(string relativePath) => SaveSlotPath.IsSaveFile(gameId, relativePath);
 
     private static void ValidateHash(string hash)
     {

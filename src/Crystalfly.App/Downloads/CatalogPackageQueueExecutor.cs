@@ -119,7 +119,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
                 "Satisfied"));
             return;
         }
-        var package = ResolvePackage(ModCatalogCompatibility.ProjectForBuild(getCatalog(), group.ExpectedBuildId), item);
+        var package = ResolvePackage(ModCatalogCompatibility.ProjectForBuild(Crystalfly.Core.Catalog.GameCatalogScope.ForGame(getCatalog(), group.GameId), group.ExpectedBuildId), item);
         var paths = GetPaths(group);
         await PackageInstaller.AcquireVerifiedFileFromUriAsync(
             new Uri(package.DownloadUrl),
@@ -149,7 +149,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
                     ?? throw new InvalidDataException(
                         $"Download target sidecar metadata is missing; expected '{InstanceSidecar.GetMarkerPath(paths.InstanceRoot)}'. "
                         + "The instance may be corrupted.");
-                if (!string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal))
+                if (instance.GameId != group.GameId || !string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal))
                 {
                     throw new InvalidDataException("Download target does not match the instance sidecar.");
                 }
@@ -175,7 +175,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
                     return;
                 }
 
-                var catalog = ModCatalogCompatibility.ProjectForBuild(getCatalog(), group.ExpectedBuildId);
+                var catalog = ModCatalogCompatibility.ProjectForBuild(Crystalfly.Core.Catalog.GameCatalogScope.ForGame(getCatalog(), group.GameId), group.ExpectedBuildId);
                 var modManager = new ModManager(
                     paths.InstanceRoot,
                     paths.TransactionRoot,
@@ -231,7 +231,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
             ?? throw new InvalidDataException(
                 $"Download target sidecar metadata is missing; expected '{InstanceSidecar.GetMarkerPath(paths.InstanceRoot)}'. "
                 + "The instance may be corrupted.");
-        if (!string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal))
+        if (instance.GameId != group.GameId || !string.Equals(instance.Id, group.TargetInstanceId, StringComparison.Ordinal))
         {
             throw new InvalidDataException("Download target does not match the instance sidecar.");
         }
@@ -261,7 +261,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
                     httpClient);
                 await new ModPresetService(
                         instance,
-                        ModCatalogCompatibility.ProjectForBuild(getCatalog(), group.ExpectedBuildId).Mods,
+                        ModCatalogCompatibility.ProjectForBuild(Crystalfly.Core.Catalog.GameCatalogScope.ForGame(getCatalog(), group.GameId), group.ExpectedBuildId).Mods,
                         presetLoaderManager,
                         context.ModManager,
                         Path.Combine(paths.StateRoot, "presets"))
@@ -277,7 +277,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
         if (group.Kind == DownloadQueueGroupKind.InstanceRepair
             && item.Kind == DownloadQueueItemKind.LoaderRepair)
         {
-            var repairCatalog = ModCatalogCompatibility.ProjectForBuild(getCatalog(), group.ExpectedBuildId);
+            var repairCatalog = ModCatalogCompatibility.ProjectForBuild(Crystalfly.Core.Catalog.GameCatalogScope.ForGame(getCatalog(), group.GameId), group.ExpectedBuildId);
             var repairPackage = ResolvePackage(repairCatalog, item);
             var repairLoaderManager = new LoaderManager(
                 paths.InstanceRoot,
@@ -292,7 +292,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
             return;
         }
 
-        var catalog = ModCatalogCompatibility.ProjectForBuild(getCatalog(), group.ExpectedBuildId);
+        var catalog = ModCatalogCompatibility.ProjectForBuild(Crystalfly.Core.Catalog.GameCatalogScope.ForGame(getCatalog(), group.GameId), group.ExpectedBuildId);
         var loaderManager = new LoaderManager(
             paths.InstanceRoot,
             paths.TransactionRoot,
@@ -413,11 +413,12 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
         {
             throw new InvalidOperationException("Official speedrun instances cannot be modified.");
         }
-        if (!BuildIdentity.IsKnown(instance.BuildId))
+        if (!BuildIdentity.IsKnown(instance.BuildId)
+            && !LoaderBuildCompatibility.IsBuildIndependent(package.Loader.Id))
         {
             throw new InvalidOperationException("Unknown game builds are restricted to vanilla mode.");
         }
-        if (!package.Loader.SupportedBuildIds.Contains(instance.BuildId, StringComparer.OrdinalIgnoreCase))
+        if (!LoaderBuildCompatibility.CanInstall(package.Loader, instance.BuildId))
         {
             throw new InvalidOperationException(
                 $"Loader '{package.Loader.Id}' is not compatible with build '{instance.BuildId}'.");
@@ -531,7 +532,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
         ModManifest? manifest = null;
         if (item.Kind == DownloadQueueItemKind.Dependency)
         {
-            manifest = ResolveMod(ModCatalogCompatibility.ProjectForBuild(getCatalog(), group.ExpectedBuildId), item).Mod!;
+            manifest = ResolveMod(ModCatalogCompatibility.ProjectForBuild(Crystalfly.Core.Catalog.GameCatalogScope.ForGame(getCatalog(), group.GameId), group.ExpectedBuildId), item).Mod!;
             if (!manifest.SupportedBuildIds.Contains(group.ExpectedBuildId, StringComparer.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException(
@@ -635,7 +636,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
         ModManifest? manifest = null;
         if (item.Kind == DownloadQueueItemKind.PresetInstall && receipt is null)
         {
-            manifest = ResolveMod(ModCatalogCompatibility.ProjectForBuild(getCatalog(), group.ExpectedBuildId), item).Mod!;
+            manifest = ResolveMod(ModCatalogCompatibility.ProjectForBuild(Crystalfly.Core.Catalog.GameCatalogScope.ForGame(getCatalog(), group.GameId), group.ExpectedBuildId), item).Mod!;
             if (!manifest.SupportedBuildIds.Contains(group.ExpectedBuildId, StringComparer.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException(

@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Crystalfly.App.ViewModels"
+        xmlns:views="using:Crystalfly.App.Views"
         xmlns:models="using:Crystalfly.Core.Models"
         xmlns:mv="using:MarkView.Avalonia"
         xmlns:controls="using:Crystalfly.App.Views.Controls"
@@ -138,6 +139,16 @@
         </Border>
 
         <StackPanel Grid.Row="1" Spacing="6">
+            <Border Classes="cfp-card" Margin="12,6" Padding="12" IsVisible="{Binding HasErrorReportingNotice}">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                    <TextBlock Text="{Binding Loc[ErrorReportingNotice]}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Classes="cfp-secondary" Command="{Binding DisableErrorReportingCommand}"
+                            Content="{Binding Loc[DisableErrorReporting]}" />
+                    <Button Grid.Column="2" Classes="cfp-icon" Command="{Binding DismissErrorReportingNoticeCommand}"
+                            AutomationProperties.Name="{Binding Loc[DismissErrorReportingNotice]}"
+                            ToolTip.Tip="{Binding Loc[DismissErrorReportingNotice]}" Content="{LucideIconContent X, 16}" />
+                </Grid>
+            </Border>
             <Border Classes="cfp-error"
                     IsVisible="{Binding ErrorMessage, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -211,22 +222,34 @@
                                TextTrimming="CharacterEllipsis" />
                 </Grid>
             </u:LoadingContainer.Indicator>
+        <DockPanel>
         <Grid>
             <!-- Launch -->
-            <Grid x:Name="LaunchPageGrid" Classes="cfp-page cfp-launch-page" IsVisible="{Binding IsLaunchPage}" ColumnDefinitions="224,*,272" RowDefinitions="*,Auto">
-                <Border Grid.ColumnSpan="3" Grid.RowSpan="2"
+            <Grid x:Name="LaunchPageGrid" Classes="cfp-page cfp-launch-page" IsVisible="{Binding IsLaunchPage}" ColumnDefinitions="224,*">
+                <Border Grid.ColumnSpan="2"
                         Classes="cfp-launch-issue-frame"
                         IsHitTestVisible="False"
                         IsVisible="{Binding HasLaunchIssues}"
                         ZIndex="100" />
-                <Border Grid.Column="0" Grid.RowSpan="2" Classes="cfp-rail cfp-launch-rail" Padding="16">
+                <Border Grid.Column="0" Classes="cfp-rail cfp-launch-rail" Padding="12">
                     <Grid RowDefinitions="Auto,*,Auto">
                         <StackPanel Grid.Row="0" Spacing="12" HorizontalAlignment="Stretch">
-                            <Image Width="64"
-                                   Height="64"
-                                   HorizontalAlignment="Center"
-                                   Source="/Assets/knight-icon.png" />
+                            <Button Name="GameAvatarButton" Classes="cfp-game-avatar"
+                                    Command="{Binding ToggleGameCommand}"
+                                    ToolTip.Tip="{Binding GameAvatarHint}"
+                                    AutomationProperties.Name="{Binding GameAvatarHint}"
+                                    HorizontalAlignment="Center">
+                                <Grid Width="64" Height="64" IsHitTestVisible="False">
+                                    <Image Name="KnightGameAvatar" Source="/Assets/knight-icon.png" Stretch="Uniform" RenderTransformOrigin="50%,50%">
+                                        <Image.RenderTransform><ScaleTransform ScaleX="1" ScaleY="1" /></Image.RenderTransform>
+                                    </Image>
+                                    <Image Name="HornetGameAvatar" Source="/Assets/hornet-icon.png" Stretch="Uniform" Opacity="0" RenderTransformOrigin="50%,50%">
+                                        <Image.RenderTransform><ScaleTransform ScaleX="0.94" ScaleY="0.94" /></Image.RenderTransform>
+                                    </Image>
+                                </Grid>
+                            </Button>
                             <StackPanel Spacing="4" HorizontalAlignment="Center">
+                                <TextBlock Name="CurrentGameLabel" Classes="cfp-meta" Text="{Binding SelectedGameName}" TextAlignment="Center" />
                                 <TextBlock Classes="cfp-page-title"
                                            Text="{Binding SelectedInstance.Name}"
                                            TextAlignment="Center"
@@ -250,7 +273,7 @@
                                        IsVisible="{Binding HasInstance, Converter={x:Static converters:BoolConverters.Not}}" />
                         </StackPanel>
 
-                        <StackPanel Grid.Row="2" Spacing="8">
+                        <StackPanel Name="LaunchPrimaryActions" Grid.Row="2" Spacing="8">
                             <Button AutomationProperties.Name="{Binding Loc[LaunchGame]}"
                                     Classes="cfp-primary"
                                      HorizontalAlignment="Stretch"
@@ -263,7 +286,7 @@
                                 </StackPanel>
                             </Button>
                             <Button Classes="cfp-secondary"
-                                      MinHeight="40"
+                                      MinHeight="44"
                                       HorizontalAlignment="Stretch"
                                       HorizontalContentAlignment="Center"
                                       Command="{Binding SelectPageCommand}"
@@ -271,7 +294,7 @@
                                       Content="{Binding Loc[SelectInstance]}" />
                             <Button AutomationProperties.Name="{Binding Loc[ManageInstance]}"
                                     Classes="cfp-secondary"
-                                    MinHeight="40"
+                                    MinHeight="44"
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Center"
                                     Command="{Binding OpenInstanceSettingsCommand}"
@@ -286,183 +309,229 @@
                     </Grid>
                 </Border>
 
-                <ScrollViewer Grid.Column="1"
+                <ScrollViewer Name="LaunchWorkspaceScroll" Grid.Column="1"
                               HorizontalContentAlignment="Stretch"
                               HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Classes="cfp-workspace"
-                                Margin="24"
-                                Spacing="16"
-                                MaxWidth="1920"
-                                HorizontalAlignment="Stretch">
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                            <StackPanel Grid.Column="0" Spacing="4">
-                                <TextBlock Classes="cfp-page-title" Text="{Binding LaunchReadinessTitle}" />
-                                <TextBlock Classes="cfp-meta" Text="{Binding LaunchReadinessHint}" TextWrapping="Wrap" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                <Button Classes="cfp-secondary"
-                                        Click="ShowLaunchIssues"
-                                        IsVisible="{Binding HasLaunchIssues}"
-                                        AutomationProperties.Name="{Binding Loc[LaunchIssues]}">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <LucideIcon Kind="TriangleAlert" Size="15" Foreground="{DynamicResource CfErrorBrush}" />
-                                        <TextBlock Text="{Binding LaunchIssueCountText}"
-                                                   Foreground="{DynamicResource CfErrorBrush}"
-                                                   FontWeight="SemiBold" />
-                                    </StackPanel>
-                                </Button>
-                                <Border Classes="cfp-badge">
-                                    <TextBlock Text="{Binding StatusMessage}"
-                                               Foreground="{DynamicResource CfAccentTextBrush}"
-                                               FontSize="13"
-                                               FontWeight="SemiBold" />
-                                </Border>
-                            </StackPanel>
-                        </Grid>
-
-                        <Border Classes="cfp-card cfp-accent-frame"
-                                IsVisible="{Binding ShouldShowLaunchOnboarding}"
-                                Padding="14,12">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
-                                <StackPanel Spacing="4">
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                                        <LucideIcon Kind="GraduationCap" Size="16" Foreground="{DynamicResource CfAccentBrush}" />
-                                        <TextBlock Grid.Column="1" Classes="cfp-row-title" Text="{Binding Loc[OnboardingLaunchCardTitle]}" />
-                                    </Grid>
-                                    <TextBlock Classes="cfp-caption" Text="{Binding OnboardingProgressText}" />
-                                    <TextBlock Classes="cfp-meta" Text="{Binding OnboardingNextTaskTitle}" TextWrapping="Wrap" />
-                                    <TextBlock Classes="cfp-caption" Text="{Binding OnboardingNextTaskDescription}" TextWrapping="Wrap" MaxLines="2" />
+                    <Grid Name="LaunchWorkspaceGrid" Classes="cfp-workspace"
+                          ColumnDefinitions="*,272" RowDefinitions="Auto,Auto,Auto"
+                          ColumnSpacing="12" RowSpacing="12" Margin="16"
+                          MaxWidth="1920" HorizontalAlignment="Stretch">
+                        <Border Name="LaunchHeader" Grid.ColumnSpan="2" Padding="12,0" BorderThickness="1,0">
+                            <Grid ColumnDefinitions="*,160" ColumnSpacing="12">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Classes="cfp-page-title" Text="{Binding LaunchReadinessTitle}" />
+                                    <TextBlock Classes="cfp-meta" Text="{Binding LaunchReadinessHint}" TextWrapping="Wrap" />
                                 </StackPanel>
-                                <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
-                                    <Button Classes="cfp-primary"
-                                            Command="{Binding RunOnboardingNextActionCommand}"
-                                            IsVisible="{Binding HasOnboardingAction}"
-                                            Content="{Binding OnboardingNextActionText}"
-                                            AutomationProperties.Name="{Binding OnboardingNextActionText}" />
-                                    <Button Classes="cfp-secondary"
-                                            Command="{Binding ShowOnboardingCommand}"
-                                            Content="{Binding Loc[OnboardingContinue]}"
-                                            AutomationProperties.Name="{Binding Loc[OnboardingContinue]}" />
-                                    <Button Classes="cfp-link"
-                                            Command="{Binding CompleteOnboardingFromUiCommand}"
-                                            Content="{Binding Loc[OnboardingDismiss]}"
-                                            AutomationProperties.Name="{Binding Loc[OnboardingDismiss]}" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <ProgressBar Name="InstanceDetailsLoading"
-                                     Height="2"
-                                     IsIndeterminate="True"
-                                     IsVisible="{Binding IsLoadingInstanceDetails}" />
-                        <Border Classes="cfp-card" IsVisible="{Binding HasInstance}">
-                            <StackPanel Spacing="16">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                                    <StackPanel Grid.Column="0" Spacing="4">
-                                        <TextBlock Classes="cfp-section-title" Text="{Binding SelectedInstance.Name}" />
-                                        <TextBlock Classes="cfp-meta" Text="{Binding SelectedInstance.RootPath}" TextWrapping="Wrap" />
-                                    </StackPanel>
-                                    <Button Grid.Column="1"
-                                            Classes="cfp-secondary"
+                                <Grid Grid.Column="1" VerticalAlignment="Center">
+                                    <Button Name="LaunchIssuesButton" Classes="cfp-secondary cfp-launch-action"
                                             Click="ShowLaunchIssues"
                                             IsVisible="{Binding HasLaunchIssues}"
-                                            Content="{Binding Loc[ViewDetails]}" />
+                                            AutomationProperties.Name="{Binding Loc[LaunchIssues]}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <LucideIcon Kind="TriangleAlert" Size="15" Foreground="{DynamicResource CfErrorBrush}" />
+                                            <TextBlock Text="{Binding LaunchIssueCountText}"
+                                                       Foreground="{DynamicResource CfErrorBrush}"
+                                                       FontWeight="SemiBold" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Border Name="LaunchStatusBadge" Classes="cfp-badge" HorizontalAlignment="Right"
+                                            MaxWidth="160" IsVisible="{Binding HasLaunchIssues, Converter={x:Static converters:BoolConverters.Not}}">
+                                        <TextBlock Text="{Binding StatusMessage}"
+                                                   TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding StatusMessage}"
+                                                   Foreground="{DynamicResource CfAccentTextBrush}"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold" />
+                                    </Border>
                                 </Grid>
-
-                                <WrapPanel Orientation="Horizontal">
-                                    <TextBlock Classes="cfp-row-title" Text="{Binding SelectedInstance.DisplayVersion}" />
-                                    <TextBlock Margin="8,0" Text="·" />
-                                    <TextBlock Text="{Binding SelectedInstance.LoaderDisplay}" TextWrapping="Wrap" />
-                                    <TextBlock Margin="8,0" Text="·" />
-                                    <TextBlock Margin="0,0,8,0" Text="{Binding SelectedInstance.ModCount}" />
-                                    <TextBlock Text="{Binding Loc[ModsUnit]}" />
-                                </WrapPanel>
-
-                                <StackPanel>
-                                    <Border Classes="cfp-divider-row">
-                                        <Grid ColumnDefinitions="20,*,Auto" ColumnSpacing="8">
-                                            <Grid Grid.Column="0">
-                                                <LucideIcon Kind="CircleCheck" Size="16" IsVisible="{Binding LaunchPreflight.GameFilesReady}" />
-                                                <LucideIcon Kind="TriangleAlert" Size="16" Foreground="{DynamicResource CfErrorBrush}"
-                                                            IsVisible="{Binding LaunchPreflight.GameFilesReady, Converter={x:Static converters:BoolConverters.Not}}" />
-                                            </Grid>
-                                            <TextBlock Grid.Column="1" Text="{Binding Loc[GameFiles]}" FontWeight="Medium" />
-                                            <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding GameFilesStatus}" />
-                                        </Grid>
-                                    </Border>
-                                    <Border Classes="cfp-divider-row">
-                                        <Grid ColumnDefinitions="20,*,Auto" ColumnSpacing="8">
-                                            <Grid Grid.Column="0">
-                                                <LucideIcon Kind="CircleCheck" Size="16" IsVisible="{Binding LaunchPreflight.LoaderReady}" />
-                                                <LucideIcon Kind="TriangleAlert" Size="16" Foreground="{DynamicResource CfErrorBrush}"
-                                                            IsVisible="{Binding LaunchPreflight.LoaderReady, Converter={x:Static converters:BoolConverters.Not}}" />
-                                            </Grid>
-                                            <TextBlock Grid.Column="1" Text="{Binding Loc[LoaderStatus]}" FontWeight="Medium" />
-                                            <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding LoaderPreflightStatus}" />
-                                        </Grid>
-                                    </Border>
-                                    <Border Classes="cfp-divider-row">
-                                        <Grid ColumnDefinitions="20,*,Auto" ColumnSpacing="8">
-                                            <Grid Grid.Column="0">
-                                                <LucideIcon Kind="CircleCheck" Size="16" IsVisible="{Binding LaunchPreflight.DependenciesReady}" />
-                                                <LucideIcon Kind="TriangleAlert" Size="16" Foreground="{DynamicResource CfErrorBrush}"
-                                                            IsVisible="{Binding LaunchPreflight.DependenciesReady, Converter={x:Static converters:BoolConverters.Not}}" />
-                                            </Grid>
-                                            <TextBlock Grid.Column="1" Text="{Binding Loc[ModDependencies]}" FontWeight="Medium" />
-                                            <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding ModDependencyStatus}" />
-                                        </Grid>
-                                    </Border>
-                                    <Border Padding="12,10">
-                                        <Grid ColumnDefinitions="20,*,Auto" ColumnSpacing="8">
-                                            <Grid Grid.Column="0">
-                                                <LucideIcon Kind="CircleCheck" Size="16" IsVisible="{Binding LaunchPreflight.SaveIsolationReady}" />
-                                                <LucideIcon Kind="TriangleAlert" Size="16" Foreground="{DynamicResource CfErrorBrush}"
-                                                            IsVisible="{Binding LaunchPreflight.SaveIsolationReady, Converter={x:Static converters:BoolConverters.Not}}" />
-                                            </Grid>
-                                            <TextBlock Grid.Column="1" Text="{Binding Loc[SaveIsolation]}" FontWeight="Medium" />
-                                            <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding SaveIsolationStatus}" />
-                                        </Grid>
-                                    </Border>
-                                </StackPanel>
-                            </StackPanel>
+                            </Grid>
                         </Border>
 
-                        <TextBlock Classes="cfp-meta"
-                                   Text="{Binding Loc[ChooseRoot]}"
-                                   TextWrapping="Wrap"
-                                   IsVisible="{Binding HasInstance, Converter={x:Static converters:BoolConverters.Not}}" />
-                    </StackPanel>
-                </ScrollViewer>
+                        <StackPanel Name="LaunchCards" Grid.Row="1" Spacing="12">
+                            <Border Name="LaunchOnboardingCard" Classes="cfp-card cfp-accent-frame"
+                                    IsVisible="{Binding ShouldShowLaunchOnboarding}">
+                                <Grid ColumnDefinitions="*,160" ColumnSpacing="12">
+                                    <StackPanel Spacing="4">
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                            <LucideIcon Kind="GraduationCap" Size="16" Foreground="{DynamicResource CfAccentBrush}" />
+                                            <TextBlock Grid.Column="1" Classes="cfp-row-title" Text="{Binding Loc[OnboardingLaunchCardTitle]}" />
+                                        </Grid>
+                                        <TextBlock Classes="cfp-caption" Text="{Binding OnboardingProgressText}" />
+                                        <TextBlock Classes="cfp-meta" Text="{Binding OnboardingNextTaskTitle}" TextWrapping="Wrap" />
+                                        <TextBlock Classes="cfp-caption" Text="{Binding OnboardingNextTaskDescription}" TextWrapping="Wrap" MaxLines="2" />
+                                    </StackPanel>
+                                    <StackPanel Name="LaunchOnboardingActions" Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                                        <Button Classes="cfp-primary cfp-launch-action"
+                                                Command="{Binding RunOnboardingNextActionCommand}"
+                                                IsVisible="{Binding HasOnboardingAction}"
+                                                Content="{Binding OnboardingNextActionText}"
+                                                AutomationProperties.Name="{Binding OnboardingNextActionText}" />
+                                        <Button Classes="cfp-secondary cfp-launch-action"
+                                                Command="{Binding ShowOnboardingCommand}"
+                                                Content="{Binding Loc[OnboardingContinue]}"
+                                                AutomationProperties.Name="{Binding Loc[OnboardingContinue]}" />
+                                        <Button Classes="cfp-link cfp-launch-action"
+                                                Command="{Binding CompleteOnboardingFromUiCommand}"
+                                                Content="{Binding Loc[OnboardingDismiss]}"
+                                                AutomationProperties.Name="{Binding Loc[OnboardingDismiss]}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
 
-                <Border x:Name="CommunityRail" Grid.Column="2" Grid.RowSpan="2"
-                        Classes="cfp-rail cfp-community-rail"
-                        Padding="12,16"
-                        Margin="12,0,0,0">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Spacing="14">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                <StackPanel Spacing="3">
-                                    <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunCommunityTitle]}" />
-                                    <TextBlock Classes="cfp-caption" Text="{Binding Loc[SpeedrunCommunityHint]}" TextWrapping="Wrap" />
+                            <ProgressBar Name="InstanceDetailsLoading"
+                                         Height="2"
+                                         IsIndeterminate="True"
+                                         IsVisible="{Binding IsLoadingInstanceDetails}" />
+                            <Border Name="LaunchInstanceCard" Classes="cfp-card" IsVisible="{Binding HasInstance}">
+                                <StackPanel Spacing="12">
+                                    <Grid ColumnDefinitions="*,160" ColumnSpacing="12">
+                                        <StackPanel Grid.Column="0" Spacing="4">
+                                            <TextBlock Classes="cfp-section-title" Text="{Binding SelectedInstance.Name}" />
+                                            <TextBlock Classes="cfp-meta" Text="{Binding SelectedInstance.RootPath}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <Button Name="LaunchDetailsButton" Grid.Column="1"
+                                                Classes="cfp-secondary cfp-launch-action"
+                                                Click="ShowLaunchIssues"
+                                                IsVisible="{Binding HasLaunchIssues}"
+                                                Content="{Binding Loc[ViewDetails]}" />
+                                    </Grid>
+
+                                    <WrapPanel Orientation="Horizontal">
+                                        <TextBlock Classes="cfp-row-title" Text="{Binding SelectedInstance.DisplayVersion}" />
+                                        <TextBlock Margin="8,0" Text="·" />
+                                        <TextBlock Text="{Binding SelectedInstance.LoaderDisplay}" TextWrapping="Wrap" />
+                                        <TextBlock Margin="8,0" Text="·" />
+                                        <TextBlock Margin="0,0,8,0" Text="{Binding SelectedInstance.ModCount}" />
+                                        <TextBlock Text="{Binding Loc[ModsUnit]}" />
+                                    </WrapPanel>
+
+                                    <StackPanel Name="LaunchChecks">
+                                        <Border Classes="cfp-divider-row cfp-launch-check-row">
+                                            <Grid ColumnDefinitions="20,*,160" ColumnSpacing="8">
+                                                <Grid Grid.Column="0">
+                                                    <LucideIcon Kind="CircleCheck" Size="16" IsVisible="{Binding LaunchPreflight.GameFilesReady}" />
+                                                    <LucideIcon Kind="TriangleAlert" Size="16" Foreground="{DynamicResource CfErrorBrush}"
+                                                                IsVisible="{Binding LaunchPreflight.GameFilesReady, Converter={x:Static converters:BoolConverters.Not}}" />
+                                                </Grid>
+                                                <TextBlock Grid.Column="1" Text="{Binding Loc[GameFiles]}" FontWeight="Medium" />
+                                                <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding GameFilesStatus}" />
+                                            </Grid>
+                                        </Border>
+                                        <Border Classes="cfp-divider-row cfp-launch-check-row">
+                                            <Grid ColumnDefinitions="20,*,160" ColumnSpacing="8">
+                                                <Grid Grid.Column="0">
+                                                    <LucideIcon Kind="CircleCheck" Size="16" IsVisible="{Binding LaunchPreflight.LoaderReady}" />
+                                                    <LucideIcon Kind="TriangleAlert" Size="16" Foreground="{DynamicResource CfErrorBrush}"
+                                                                IsVisible="{Binding LaunchPreflight.LoaderReady, Converter={x:Static converters:BoolConverters.Not}}" />
+                                                </Grid>
+                                                <TextBlock Grid.Column="1" Text="{Binding Loc[LoaderStatus]}" FontWeight="Medium" />
+                                                <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding LoaderPreflightStatus}" />
+                                            </Grid>
+                                        </Border>
+                                        <Border Classes="cfp-divider-row cfp-launch-check-row">
+                                            <Grid ColumnDefinitions="20,*,160" ColumnSpacing="8">
+                                                <Grid Grid.Column="0">
+                                                    <LucideIcon Kind="CircleCheck" Size="16" IsVisible="{Binding LaunchPreflight.DependenciesReady}" />
+                                                    <LucideIcon Kind="TriangleAlert" Size="16" Foreground="{DynamicResource CfErrorBrush}"
+                                                                IsVisible="{Binding LaunchPreflight.DependenciesReady, Converter={x:Static converters:BoolConverters.Not}}" />
+                                                </Grid>
+                                                <TextBlock Grid.Column="1" Text="{Binding Loc[ModDependencies]}" FontWeight="Medium" />
+                                                <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding ModDependencyStatus}" />
+                                            </Grid>
+                                        </Border>
+                                        <Border Classes="cfp-launch-check-row">
+                                            <Grid ColumnDefinitions="20,*,160" ColumnSpacing="8">
+                                                <Grid Grid.Column="0">
+                                                    <LucideIcon Kind="CircleCheck" Size="16" IsVisible="{Binding LaunchPreflight.SaveIsolationReady}" />
+                                                    <LucideIcon Kind="TriangleAlert" Size="16" Foreground="{DynamicResource CfErrorBrush}"
+                                                                IsVisible="{Binding LaunchPreflight.SaveIsolationReady, Converter={x:Static converters:BoolConverters.Not}}" />
+                                                </Grid>
+                                                <TextBlock Grid.Column="1" Text="{Binding Loc[SaveIsolation]}" FontWeight="Medium" />
+                                                <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding SaveIsolationStatus}" />
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
                                 </StackPanel>
-                                <Button Grid.Column="1"
-                                        Classes="cfp-icon"
-                                        Click="AddSpeedrunCommunityLink"
-                                        ToolTip.Tip="{Binding Loc[SpeedrunCommunityAdd]}"
-                                        AutomationProperties.Name="{Binding Loc[SpeedrunCommunityAdd]}"
-                                        Content="{LucideIconContent Plus, 15}"
-                                        VerticalAlignment="Top" />
-                            </Grid>
+                            </Border>
 
-                            <StackPanel Spacing="6" IsVisible="{Binding SpeedrunCommunityLinks.HasHollowKnightLinks}">
-                                <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SpeedrunCommunityHollowKnight]}" />
-                                <ItemsControl ItemsSource="{Binding SpeedrunCommunityLinks.HollowKnightLinks}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,1">
+                            <TextBlock Classes="cfp-meta"
+                                       Text="{Binding Loc[ChooseRoot]}"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding HasInstance, Converter={x:Static converters:BoolConverters.Not}}" />
+                        </StackPanel>
+
+                        <Border x:Name="CommunityRail" Grid.Column="1" Grid.Row="1"
+                                Classes="cfp-card cfp-community-rail" VerticalAlignment="Top">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunCommunityTitle]}" />
+                                        <TextBlock Classes="cfp-caption" Text="{Binding Loc[SpeedrunCommunityHint]}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Classes="cfp-icon"
+                                            Click="AddSpeedrunCommunityLink"
+                                            ToolTip.Tip="{Binding Loc[SpeedrunCommunityAdd]}"
+                                            AutomationProperties.Name="{Binding Loc[SpeedrunCommunityAdd]}"
+                                            Content="{LucideIconContent Plus, 15}"
+                                            VerticalAlignment="Top" />
+                                </Grid>
+
+                                <Grid Name="KnownCommunityGroups" ColumnDefinitions="*,0" RowDefinitions="Auto,Auto" RowSpacing="12">
+                                    <StackPanel Name="HollowKnightCommunityGroup" Spacing="6" IsVisible="{Binding SpeedrunCommunityLinks.HasHollowKnightLinks}">
+                                        <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SpeedrunCommunityHollowKnight]}" />
+                                        <ItemsControl ItemsSource="{Binding SpeedrunCommunityLinks.HollowKnightLinks}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Classes="cfp-community-link"
+                                                            Tag="{Binding Url}" Click="OpenExternalUrl"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Stretch"
+                                                            ToolTip.Tip="{Binding Url}"
+                                                            AutomationProperties.Name="{Binding Name}">
+                                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                                            <LucideIcon Kind="{Binding Icon}" Size="16" VerticalAlignment="Center" />
+                                                            <StackPanel Grid.Column="1" Spacing="1">
+                                                                <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Classes="cfp-caption" Text="{Binding Host}" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+
+                                    <StackPanel Name="SilksongCommunityGroup" Grid.Row="1" Spacing="6" IsVisible="{Binding SpeedrunCommunityLinks.HasSilksongLinks}">
+                                        <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SpeedrunCommunitySilksong]}" />
+                                        <ItemsControl ItemsSource="{Binding SpeedrunCommunityLinks.SilksongLinks}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Classes="cfp-community-link"
+                                                            Tag="{Binding Url}" Click="OpenExternalUrl"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Stretch"
+                                                            ToolTip.Tip="{Binding Url}"
+                                                            AutomationProperties.Name="{Binding Name}">
+                                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                                            <LucideIcon Kind="{Binding Icon}" Size="16" VerticalAlignment="Center" />
+                                                            <StackPanel Grid.Column="1" Spacing="1">
+                                                                <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Classes="cfp-caption" Text="{Binding Host}" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Grid>
+
+                                <StackPanel Spacing="6" IsVisible="{Binding SpeedrunCommunityLinks.HasOtherLinks}">
+                                    <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SpeedrunCommunityOther]}" />
+                                    <ItemsControl ItemsSource="{Binding SpeedrunCommunityLinks.OtherLinks}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
                                                 <Button Classes="cfp-community-link"
-                                                        Grid.ColumnSpan="3"
                                                         Tag="{Binding Url}" Click="OpenExternalUrl"
                                                         HorizontalAlignment="Stretch"
                                                         HorizontalContentAlignment="Stretch"
@@ -476,96 +545,48 @@
                                                         </StackPanel>
                                                     </Grid>
                                                 </Button>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
 
-                            <StackPanel Spacing="6" IsVisible="{Binding SpeedrunCommunityLinks.HasSilksongLinks}">
-                                <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SpeedrunCommunitySilksong]}" />
-                                <ItemsControl ItemsSource="{Binding SpeedrunCommunityLinks.SilksongLinks}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Button Classes="cfp-community-link"
-                                                    Tag="{Binding Url}" Click="OpenExternalUrl"
-                                                    HorizontalAlignment="Stretch"
-                                                    HorizontalContentAlignment="Stretch"
-                                                    ToolTip.Tip="{Binding Url}"
-                                                    AutomationProperties.Name="{Binding Name}">
-                                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                                                    <LucideIcon Kind="{Binding Icon}" Size="16" VerticalAlignment="Center" />
-                                                    <StackPanel Grid.Column="1" Spacing="1">
-                                                        <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                                        <TextBlock Classes="cfp-caption" Text="{Binding Host}" TextTrimming="CharacterEllipsis" />
-                                                    </StackPanel>
+                                <StackPanel Spacing="6" IsVisible="{Binding SpeedrunCommunityLinks.HasCustomLinks}">
+                                    <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SpeedrunCommunityCustom]}" />
+                                    <ItemsControl ItemsSource="{Binding SpeedrunCommunityLinks.CustomLinks}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
+                                                    <Button Classes="cfp-community-link"
+                                                            Tag="{Binding Url}" Click="OpenExternalUrl"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Stretch"
+                                                            ToolTip.Tip="{Binding Url}"
+                                                            AutomationProperties.Name="{Binding Name}">
+                                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                                            <LucideIcon Kind="{Binding Icon}" Size="16" VerticalAlignment="Center" />
+                                                            <TextBlock Grid.Column="1" Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                        </Grid>
+                                                    </Button>
+                                                    <Button Grid.Column="1" Classes="cfp-icon"
+                                                            Click="EditSpeedrunCommunityLink"
+                                                            ToolTip.Tip="{Binding #Root.DataContext.Loc[SpeedrunCommunityEdit]}"
+                                                            AutomationProperties.Name="{Binding #Root.DataContext.Loc[SpeedrunCommunityEdit]}"
+                                                            Content="{LucideIconContent Pencil, 14}" />
+                                                    <Button Grid.Column="2"
+                                                            Classes="cfp-icon danger"
+                                                            Click="RemoveSpeedrunCommunityLink"
+                                                            ToolTip.Tip="{Binding #Root.DataContext.Loc[SpeedrunCommunityRemove]}"
+                                                            AutomationProperties.Name="{Binding #Root.DataContext.Loc[SpeedrunCommunityRemove]}"
+                                                            Content="{LucideIconContent Trash2, 14}" />
                                                 </Grid>
-                                            </Button>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
                             </StackPanel>
-
-                            <StackPanel Spacing="6" IsVisible="{Binding SpeedrunCommunityLinks.HasOtherLinks}">
-                                <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SpeedrunCommunityOther]}" />
-                                <ItemsControl ItemsSource="{Binding SpeedrunCommunityLinks.OtherLinks}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Button Classes="cfp-community-link"
-                                                    Tag="{Binding Url}" Click="OpenExternalUrl"
-                                                    HorizontalAlignment="Stretch"
-                                                    HorizontalContentAlignment="Stretch"
-                                                    ToolTip.Tip="{Binding Url}"
-                                                    AutomationProperties.Name="{Binding Name}">
-                                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                                                    <LucideIcon Kind="{Binding Icon}" Size="16" VerticalAlignment="Center" />
-                                                    <StackPanel Grid.Column="1" Spacing="1">
-                                                        <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                                        <TextBlock Classes="cfp-caption" Text="{Binding Host}" TextTrimming="CharacterEllipsis" />
-                                                    </StackPanel>
-                                                </Grid>
-                                            </Button>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-
-                            <StackPanel Spacing="6" IsVisible="{Binding SpeedrunCommunityLinks.HasCustomLinks}">
-                                <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SpeedrunCommunityCustom]}" />
-                                <ItemsControl ItemsSource="{Binding SpeedrunCommunityLinks.CustomLinks}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
-                                                <Button Classes="cfp-community-link"
-                                                        Tag="{Binding Url}" Click="OpenExternalUrl"
-                                                        HorizontalAlignment="Stretch"
-                                                        HorizontalContentAlignment="Stretch"
-                                                        ToolTip.Tip="{Binding Url}"
-                                                        AutomationProperties.Name="{Binding Name}">
-                                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                                                        <LucideIcon Kind="{Binding Icon}" Size="16" VerticalAlignment="Center" />
-                                                        <TextBlock Grid.Column="1" Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                                    </Grid>
-                                                </Button>
-                                                <Button Grid.Column="1" Classes="cfp-icon"
-                                                        Click="EditSpeedrunCommunityLink"
-                                                        ToolTip.Tip="{Binding #Root.DataContext.Loc[SpeedrunCommunityEdit]}"
-                                                        AutomationProperties.Name="{Binding #Root.DataContext.Loc[SpeedrunCommunityEdit]}"
-                                                        Content="{LucideIconContent Pencil, 14}" />
-                                                <Button Grid.Column="2"
-                                                        Classes="cfp-icon danger"
-                                                        Click="RemoveSpeedrunCommunityLink"
-                                                        ToolTip.Tip="{Binding #Root.DataContext.Loc[SpeedrunCommunityRemove]}"
-                                                        AutomationProperties.Name="{Binding #Root.DataContext.Loc[SpeedrunCommunityRemove]}"
-                                                        Content="{LucideIconContent Trash2, 14}" />
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </StackPanel>
-                    </ScrollViewer>
-                </Border>
+                        </Border>
+                    </Grid>
+                </ScrollViewer>
             </Grid>
 
             <!-- Versions -->
@@ -614,7 +635,7 @@
                     </Border>
 
                     <ScrollViewer Grid.Column="1" HorizontalContentAlignment="Stretch" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Classes="cfp-workspace" Margin="24" Spacing="16" MaxWidth="1600" HorizontalAlignment="Stretch">
+                        <StackPanel Classes="cfp-workspace" Margin="16" Spacing="12" MaxWidth="1600" HorizontalAlignment="Stretch">
                             <StackPanel Spacing="4">
                                 <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SelectInstance]}" />
                                 <TextBlock Classes="cfp-meta" Text="{Binding Loc[InstancesHint]}" TextWrapping="Wrap" />
@@ -654,7 +675,7 @@
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
-                                    <StackPanel MinHeight="120" Margin="24" Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding Instances.VisibleInstances.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}">
+                                    <StackPanel MinHeight="120" Margin="16" Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding Instances.VisibleInstances.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}">
                                         <TextBlock Classes="cfp-meta" Text="{Binding Loc[NoInstancesAction]}" TextAlignment="Center" TextWrapping="Wrap" />
                                         <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                                             <Button Classes="cfp-secondary" Command="{Binding Instances.RefreshGameDirectoriesCommand}" Content="{Binding Loc[RefreshGameDirectories]}" />
@@ -738,10 +759,10 @@
                                   HorizontalContentAlignment="Stretch"
                                   HorizontalScrollBarVisibility="Disabled">
                         <Grid Classes="cfp-workspace"
-                              Margin="24"
+                              Margin="16"
                               MaxWidth="1920"
                               HorizontalAlignment="Stretch">
-                            <StackPanel Spacing="16"
+                            <StackPanel Spacing="12"
                                         Classes="cfp-tab-panel cfp-subpage"
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Overview}">
                                 <StackPanel Spacing="4">
@@ -761,7 +782,7 @@
                                         </Border>
                                     </StackPanel>
                                 </Border>
-                                <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                                     <Border Classes="cfp-card">
                                         <StackPanel Spacing="12">
                                             <TextBlock Classes="cfp-section-title" Text="{Binding Loc[InstanceShortcuts]}" />
@@ -803,9 +824,9 @@
                                 </Grid>
                             </StackPanel>
 
-                            <StackPanel Spacing="16"
+                            <StackPanel Spacing="12"
                                         Classes="cfp-tab-panel cfp-subpage"
-                                        IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Loader}">
+                                        IsVisible="{Binding IsLegacyLoaderTab}">
                                 <StackPanel Spacing="4">
                                     <TextBlock Classes="cfp-page-title" Text="{Binding Loc[Loader]}" />
                                     <TextBlock Classes="cfp-meta" Text="{Binding CurrentLoaderState}" TextWrapping="Wrap" />
@@ -951,9 +972,9 @@
                                 </Expander>
                             </StackPanel>
 
-                            <StackPanel Spacing="16"
+                            <StackPanel Spacing="12"
                                         Classes="cfp-tab-panel cfp-subpage"
-                                        IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Presets}">
+                                        IsVisible="{Binding IsLegacyPresetsTab}">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <StackPanel Spacing="4">
                                         <TextBlock Classes="cfp-page-title" Text="{Binding Loc[ModPacks]}" />
@@ -972,7 +993,7 @@
                                     </Button>
                                 </Grid>
 
-                                <Grid ColumnDefinitions="264,*" ColumnSpacing="16" MinHeight="380">
+                                <Grid ColumnDefinitions="264,*" ColumnSpacing="12" MinHeight="380">
                                     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
                                         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
                                             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
@@ -1125,10 +1146,10 @@
                                 </Grid>
                             </StackPanel>
 
-                            <StackPanel Spacing="16"
+                            <StackPanel Spacing="12"
                                         Classes="cfp-tab-panel cfp-subpage"
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Snapshots}">
-                                <StackPanel Spacing="16"
+                                <StackPanel Spacing="12"
                                             IsVisible="{Binding IsEditingSave, Converter={x:Static converters:BoolConverters.Not}}">
                                     <TextBlock Classes="cfp-page-title" Text="{Binding Loc[Snapshots]}" />
                                     <WrapPanel Orientation="Horizontal">
@@ -1215,7 +1236,7 @@
                                                 </ListBox.ItemTemplate>
                                             </ListBox>
                                             <TextBlock MinHeight="120"
-                                                       Margin="24"
+                                                       Margin="16"
                                                        Classes="cfp-meta"
                                                        Text="{Binding Loc[NoSnapshotsAction]}"
                                                        TextAlignment="Center"
@@ -1285,6 +1306,12 @@
                                                   SelectionChanged="OnSaveSlotSelectionChanged"
                                                   AutomationProperties.Name="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[SaveSlot]}" />
                                     </Grid>
+                                    <WrapPanel>
+                                        <ComboBox ItemsSource="{Binding ImportSlots}" SelectedItem="{Binding ImportSlot}" Margin="0,0,8,8" AutomationProperties.Name="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[SaveSlot]}" />
+                                        <Button Content="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[SaveImport]}" Click="ImportSaveFile" IsEnabled="{Binding CanImport}" Margin="0,0,8,8" />
+                                        <Button Content="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[SaveExport]}" Click="ExportSaveFile" IsEnabled="{Binding IsLoaded}" Margin="0,0,8,8" />
+                                    </WrapPanel>
+                                    <TextBlock IsVisible="{Binding IsReadOnly}" Text="{Binding ReadOnlyReason}" TextWrapping="Wrap" Classes="cfp-error" />
                                     <TextBox Name="SaveFieldSearchBox"
                                              Classes="cfp-input"
                                              Text="{Binding SearchText, Mode=TwoWay}"
@@ -1361,14 +1388,14 @@
                                                     </ListBox.ItemTemplate>
                                                 </ListBox>
                                             </Border>
-                                            <TextBlock Margin="24"
+                                            <TextBlock Margin="16"
                                                        Classes="cfp-meta"
                                                        Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[SaveFieldNoResults]}"
                                                        TextWrapping="Wrap"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"
                                                        IsVisible="{Binding HasNoSearchResults}" />
-                                            <TextBlock Margin="24"
+                                            <TextBlock Margin="16"
                                                        Classes="cfp-meta"
                                                        Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).Loc[NoSaveSlots]}"
                                                        TextAlignment="Center"
@@ -1401,7 +1428,7 @@
                                 </StackPanel>
                             </StackPanel>
 
-                            <StackPanel Spacing="16"
+                            <StackPanel Spacing="12"
                                         Classes="cfp-tab-panel cfp-subpage"
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Logs}">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -1461,7 +1488,7 @@
                             </StackPanel>
 
                             <StackPanel Name="GameConfigPanel"
-                                        Spacing="16"
+                                        Spacing="12"
                                         Classes="cfp-tab-panel cfp-subpage"
                                         IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Config}">
                                 <StackPanel Spacing="4">
@@ -1475,7 +1502,7 @@
                                 </Border>
                                 <Border Classes="cfp-card"
                                         IsVisible="{Binding GameConfig, Converter={x:Static converters:ObjectConverters.IsNotNull}}">
-                                    <StackPanel Spacing="16"
+                                    <StackPanel Spacing="12"
                                                 IsEnabled="{Binding IsGameRunning, Converter={x:Static converters:BoolConverters.Not}}">
                                         <StackPanel Spacing="10">
                                             <TextBlock Classes="cfp-section-title" Text="{Binding Loc[Accessibility]}" />
@@ -1595,9 +1622,10 @@
                             </StackPanel>
                         </Grid>
                     </ScrollViewer>
+                    <views:ThunderstoreView Name="ThunderstoreManager" Grid.Column="1" IsEnabled="{Binding #Root.DataContext.CanNavigate}" Workspace="{Binding #Root.DataContext.CurrentManageTab}" IsVisible="{Binding #Root.DataContext.IsSilksongModsTab}" DataContext="{Binding Thunderstore}" />
                     <Grid Grid.Column="1"
                           Classes="cfp-mods-workspace cfp-tab-panel cfp-subpage"
-                          Margin="24"
+                          Margin="16"
                           MaxWidth="1920"
                           HorizontalAlignment="Stretch"
                           VerticalAlignment="Stretch"
@@ -1605,7 +1633,7 @@
                           RowDefinitions="Auto,Auto,Auto,*,Auto"
                           ColumnSpacing="12"
                           RowSpacing="12"
-                          IsVisible="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Mods}">
+                          IsVisible="{Binding IsLegacyModsTab}">
                         <Grid Grid.Row="0" Grid.ColumnSpan="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Spacing="4">
                                 <TextBlock Classes="cfp-page-title" Text="{Binding Loc[InstalledMods]}" />
@@ -1778,7 +1806,7 @@
             <!-- Speedrun -->
             <Grid Classes="cfp-page" IsVisible="{Binding IsSpeedrunPage}">
                 <Grid RowDefinitions="*">
-                    <Border Grid.Row="0" Classes="cfp-speedrun-tab-switch" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,16"
+                    <Border Grid.Row="0" IsVisible="{Binding IsHollowKnight}" Classes="cfp-speedrun-tab-switch" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,16"
                             ZIndex="10">
                         <Grid Width="240" ColumnDefinitions="*,*">
                             <Border x:Name="SpeedrunTabIndicator"
@@ -1927,7 +1955,7 @@
                                 </Grid>
                             </Border>
                             <Border Classes="cfp-card"
-                                    Padding="16"
+                                    Padding="12"
                                     IsVisible="{Binding HasSelectedSpeedrunInstance, Converter={x:Static converters:BoolConverters.Not}}">
                                 <StackPanel Spacing="6">
                                     <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTitle]}" />
@@ -2163,18 +2191,22 @@
                                   HorizontalContentAlignment="Stretch"
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Classes="cfp-workspace"
-                                    Margin="24"
-                                    Spacing="16"
+                                    Margin="16"
+                                    Spacing="12"
                                     MaxWidth="1920"
                                     HorizontalAlignment="Stretch">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                                <StackPanel Spacing="4">
-                                    <TextBlock Classes="cfp-page-title" Text="{Binding Loc[GameVersions]}" />
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <StackPanel Spacing="4" Margin="13,0">
+                                    <TextBlock x:Name="DownloadVersionsPageTitle" Classes="cfp-page-title" Text="{Binding Loc[GameVersions]}" />
                                     <TextBlock Classes="cfp-meta" Text="{Binding Loc[DownloadsHint]}" TextWrapping="Wrap" />
+                                    <Button Classes="cfp-link" Content="{Binding Loc[ChooseDownloadLibrary]}" Click="ChooseDownloadLibrary" HorizontalAlignment="Left" />
+                                    <TextBlock Classes="cfp-caption" Text="{Binding VersionRoot}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding VersionRoot}"
+                                               IsVisible="{Binding VersionRoot, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
                                 </StackPanel>
                                 <Border x:Name="SteamChunkCacheCard"
                                         Grid.Column="1"
                                         VerticalAlignment="Center"
+                                        Margin="12,0"
                                         ToolTip.Tip="{Binding Loc[SteamChunkCacheHint]}">
                                     <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="10">
                                         <LucideIcon Kind="Database" Size="17" VerticalAlignment="Center" />
@@ -2193,13 +2225,22 @@
                                     </Grid>
                                 </Border>
                             </Grid>
-                            <Border Classes="cfp-download-account">
+                            <Border x:Name="SteamAccountCard" Classes="cfp-card">
                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                     <LucideIcon Kind="UserRound" Size="18" VerticalAlignment="Center" />
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SteamAccount]}" />
-                                        <TextBlock Classes="cfp-meta" Text="{Binding SteamStatus}" TextWrapping="Wrap" />
-                                        <TextBlock Classes="cfp-meta" Text="{Binding SteamNetworkStatus}" TextWrapping="Wrap" />
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                            <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SteamAccount]}" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Classes="cfp-meta" Text="{Binding SteamStatus}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                        </Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Classes="cfp-meta" Text="{Binding SteamNetworkStatus}" VerticalAlignment="Center" />
+                                            <Button Classes="cfp-icon" Width="28" Height="28" MinWidth="28" MinHeight="28"
+                                                    Command="{Binding RefreshSteamNetworkCommand}"
+                                                    ToolTip.Tip="{Binding Loc[RefreshSteamNetwork]}"
+                                                    AutomationProperties.Name="{Binding Loc[RefreshSteamNetwork]}"
+                                                    Content="{LucideIconContent RefreshCw, 14}" />
+                                        </StackPanel>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Center">
                                         <Button AutomationProperties.Name="{Binding Loc[SignInQr]}"
@@ -2226,115 +2267,114 @@
                                     </StackPanel>
                                 </Grid>
                             </Border>
-                            <Button AutomationProperties.Name="{Binding Loc[RefreshSteamNetwork]}"
-                                    Classes="cfp-link" Command="{Binding RefreshSteamNetworkCommand}" HorizontalAlignment="Left" MinHeight="36">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <LucideIcon Kind="RefreshCw" Size="14" />
-                                    <TextBlock Text="{Binding Loc[RefreshSteamNetwork]}" />
-                                </StackPanel>
-                            </Button>
                             <Border Classes="cfp-download-qr" IsVisible="{Binding QrCodeImage, Converter={x:Static converters:ObjectConverters.IsNotNull}}">
                                 <Image Width="180" Height="180" Source="{Binding QrCodeImage}" AutomationProperties.Name="{Binding Loc[SignInQr]}" />
                             </Border>
                             <Border Classes="cfp-download-qr" IsVisible="{Binding IsPasswordLoginVisible}">
                                 <StackPanel Spacing="12" MaxWidth="480" HorizontalAlignment="Left">
-                                    <TextBox Classes="cfp-input" Text="{Binding SteamUsername, Mode=TwoWay}" PlaceholderText="{Binding Loc[SteamUsername]}" MinWidth="320" AutomationProperties.Name="{Binding Loc[SteamUsername]}" />
-                                    <TextBox Classes="cfp-input" Text="{Binding SteamPassword, Mode=TwoWay}" PasswordChar="●" PlaceholderText="{Binding Loc[SteamPassword]}" MinWidth="320" AutomationProperties.Name="{Binding Loc[SteamPassword]}" />
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBox Classes="cfp-input" Text="{Binding SteamUsername, Mode=TwoWay}" PlaceholderText="{Binding Loc[SteamUsername]}" HorizontalAlignment="Stretch" AutomationProperties.Name="{Binding Loc[SteamUsername]}" />
+                                    <TextBox Classes="cfp-input" Text="{Binding SteamPassword, Mode=TwoWay}" PasswordChar="●" PlaceholderText="{Binding Loc[SteamPassword]}" HorizontalAlignment="Stretch" AutomationProperties.Name="{Binding Loc[SteamPassword]}" />
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                                         <Button AutomationProperties.Name="{Binding Loc[SteamLogin]}"
-                                                Classes="cfp-primary" Command="{Binding SignInWithPasswordCommand}">
+                                                Classes="cfp-primary" Command="{Binding SignInWithPasswordCommand}"
+                                                MinHeight="36" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <LucideIcon Kind="LogIn" Size="16" />
-                                                <TextBlock Text="{Binding Loc[SteamLogin]}" />
+                                                <TextBlock Text="{Binding Loc[SteamLogin]}" TextWrapping="Wrap" />
                                             </StackPanel>
                                         </Button>
-                                        <Button Classes="cfp-link" Command="{Binding TogglePasswordLoginCommand}" MinHeight="36" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Loc[SwitchToQrLogin]}" />
+                                        <Button Grid.Column="1" Classes="cfp-link" Command="{Binding TogglePasswordLoginCommand}"
+                                                MinHeight="36" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                                            <TextBlock Text="{Binding Loc[SwitchToQrLogin]}" TextWrapping="Wrap" TextAlignment="Center" />
                                         </Button>
-                                    </StackPanel>
+                                    </Grid>
                                 </StackPanel>
                             </Border>
-                            <TextBlock Classes="cfp-section-title" Text="{Binding Loc[GameVersions]}" />
-                            <StackPanel Spacing="12">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                    <TextBox Classes="cfp-input" Text="{Binding DownloadBuildSearchText, Mode=TwoWay}" PlaceholderText="{Binding Loc[SearchGameVersions]}" AutomationProperties.Name="{Binding Loc[SearchGameVersions]}" />
-                                    <Button Grid.Column="1" Classes="cfp-secondary" Click="ShowHistoricalManifestDownloadDialog" AutomationProperties.Name="{Binding Loc[OtherHistoricalVersion]}">
+                            <Border x:Name="DownloadVersionsCard" Classes="cfp-card">
+                                <StackPanel Spacing="8">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <TextBox x:Name="DownloadBuildSearch" Classes="cfp-input" Text="{Binding DownloadBuildSearchText, Mode=TwoWay}" PlaceholderText="{Binding Loc[SearchGameVersions]}" AutomationProperties.Name="{Binding Loc[SearchGameVersions]}" />
+                                        <Button Grid.Column="1" Classes="cfp-secondary" Click="ShowHistoricalManifestDownloadDialog" AutomationProperties.Name="{Binding Loc[OtherHistoricalVersion]}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <LucideIcon Kind="History" Size="16" />
+                                                <TextBlock Text="{Binding Loc[OtherHistoricalVersion]}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                    <ListBox x:Name="DownloadBuildList" Classes="cfp-download-build-list" ItemsSource="{Binding VisibleDownloadBuilds}" SelectedItem="{Binding SelectedDownloadBuild, Mode=TwoWay}" AutomationProperties.Name="{Binding Loc[GameVersions]}" IsVisible="{Binding VisibleDownloadBuilds.Count, Converter={x:Static converters:ObjectConverters.NotEqual}, ConverterParameter={StaticResource Zero}}">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:DownloadBuildOption">
+                                                <Grid Classes="cfp-download-build-row" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="2" ToolTip.Tip="{Binding BuildId}">
+                                                    <Border Classes="cfp-download-build-icon" Grid.RowSpan="2" VerticalAlignment="Center">
+                                                        <LucideIcon Kind="HardDriveDownload" Size="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <TextBlock Grid.Column="1" Classes="cfp-row-title" Text="{Binding DisplayName}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                                    <WrapPanel Grid.Row="1" Grid.Column="1">
+                                                        <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,10,2"
+                                                                    IsVisible="{Binding ReleaseDateText, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}">
+                                                            <TextBlock Classes="cfp-caption" Text="{Binding #Root.DataContext.Loc[DownloadBuildReleaseDate]}" />
+                                                            <TextBlock Classes="cfp-caption" Text="{Binding ReleaseDateText}" />
+                                                        </StackPanel>
+                                                        <TextBlock Classes="cfp-caption" Margin="0,0,10,2" Text="{Binding FirstSeenDateText}"
+                                                                   IsVisible="{Binding FirstSeenDateText, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+                                                        <TextBlock Classes="cfp-caption" Margin="0,0,10,2"
+                                                                   Text="{Binding VerificationText}"
+                                                                   IsVisible="{Binding VerificationText, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+                                                    </WrapPanel>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <StackPanel Spacing="8" IsVisible="{Binding DownloadBuilds.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}">
+                                        <TextBlock Classes="cfp-meta" Text="{Binding Loc[NoDownloadBuildsAction]}" TextWrapping="Wrap" />
+                                        <Button AutomationProperties.Name="{Binding Loc[OpenSettings]}"
+                                                Classes="cfp-secondary" Command="{Binding SelectPageCommand}" CommandParameter="Settings" HorizontalAlignment="Left">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <LucideIcon Kind="Settings" Size="16" />
+                                                <TextBlock Text="{Binding Loc[OpenSettings]}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                    <ProgressBar x:Name="SteamDownloadProgress" Classes="cfp-progress" Minimum="0" Maximum="1" Value="{Binding DownloadProgress}" IsVisible="{Binding IsDownloading}" />
+                                    <TextBlock Classes="cfp-meta" Text="{Binding DownloadStatus}" TextWrapping="Wrap"
+                                               IsVisible="{Binding DownloadStatus, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+                                    <Button x:Name="DownloadSelectedBuildButton" AutomationProperties.Name="{Binding Loc[NavDownloads]}"
+                                            Classes="cfp-primary" Command="{Binding DownloadBuildCommand}" HorizontalAlignment="Left" IsVisible="{Binding IsDownloading, Converter={x:Static converters:BoolConverters.Not}}">
+                                        <Button.IsEnabled>
+                                            <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
+                                                <Binding Path="IsSteamLoggedIn" />
+                                                <Binding Path="SelectedDownloadBuild" Converter="{x:Static converters:ObjectConverters.IsNotNull}" />
+                                                <Binding Path="IsBusy" Converter="{x:Static converters:BoolConverters.Not}" />
+                                                <Binding Path="IsGameRunning" Converter="{x:Static converters:BoolConverters.Not}" />
+                                            </MultiBinding>
+                                        </Button.IsEnabled>
                                         <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <LucideIcon Kind="History" Size="16" />
-                                            <TextBlock Text="{Binding Loc[OtherHistoricalVersion]}" />
+                                            <LucideIcon Kind="Download" Size="16" />
+                                            <TextBlock Text="{Binding Loc[NavDownloads]}" />
                                         </StackPanel>
                                     </Button>
-                                </Grid>
-                                <ComboBox Classes="cfp-input cfp-download-build-filter" ItemsSource="{Binding VisibleDownloadBuilds}" SelectedItem="{Binding SelectedDownloadBuild, Mode=TwoWay}" HorizontalAlignment="Left" AutomationProperties.Name="{Binding Loc[GameVersions]}">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:DownloadBuildOption">
-                                            <TextBlock Text="{Binding DisplayName}" />
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
-                                <ListBox Classes="cfp-download-build-list" ItemsSource="{Binding VisibleDownloadBuilds}" SelectedItem="{Binding SelectedDownloadBuild, Mode=TwoWay}" IsVisible="{Binding VisibleDownloadBuilds.Count, Converter={x:Static converters:ObjectConverters.NotEqual}, ConverterParameter={StaticResource Zero}}">
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:DownloadBuildOption">
-                                            <Grid Classes="cfp-download-build-row" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                                                <Border Classes="cfp-download-build-icon">
-                                                    <LucideIcon Kind="HardDriveDownload" Size="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                </Border>
-                                                <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
-                                                    <TextBlock Classes="cfp-row-title" Text="{Binding DisplayName}" />
-                                                    <TextBlock Classes="cfp-caption" Text="{Binding BuildId}" />
-                                                </StackPanel>
-                                                <LucideIcon Grid.Column="2" Kind="ChevronRight" Size="16" VerticalAlignment="Center" />
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
-                                <StackPanel Spacing="8" IsVisible="{Binding DownloadBuilds.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}">
-                                    <TextBlock Classes="cfp-meta" Text="{Binding Loc[NoDownloadBuildsAction]}" TextWrapping="Wrap" />
-                                    <Button AutomationProperties.Name="{Binding Loc[OpenSettings]}"
-                                            Classes="cfp-secondary" Command="{Binding SelectPageCommand}" CommandParameter="Settings" HorizontalAlignment="Left">
+                                    <Button AutomationProperties.Name="{Binding Loc[Cancel]}"
+                                            Classes="cfp-secondary" Command="{Binding CancelDownloadCommand}" HorizontalAlignment="Left" IsVisible="{Binding IsDownloading}">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <LucideIcon Kind="Settings" Size="16" />
-                                            <TextBlock Text="{Binding Loc[OpenSettings]}" />
+                                            <LucideIcon Kind="X" Size="16" />
+                                            <TextBlock Text="{Binding Loc[Cancel]}" />
                                         </StackPanel>
                                     </Button>
                                 </StackPanel>
-                                <ProgressBar x:Name="SteamDownloadProgress" Classes="cfp-progress" Minimum="0" Maximum="1" Value="{Binding DownloadProgress}" IsVisible="{Binding IsDownloading}" />
-                                <TextBlock Classes="cfp-meta" Text="{Binding DownloadStatus}" TextWrapping="Wrap" />
-                                <Button AutomationProperties.Name="{Binding Loc[NavDownloads]}"
-                                        Classes="cfp-primary" Command="{Binding DownloadBuildCommand}" HorizontalAlignment="Left" IsVisible="{Binding IsDownloading, Converter={x:Static converters:BoolConverters.Not}}">
-                                    <Button.IsEnabled>
-                                        <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
-                                            <Binding Path="IsSteamLoggedIn" />
-                                            <Binding Path="SelectedDownloadBuild" Converter="{x:Static converters:ObjectConverters.IsNotNull}" />
-                                            <Binding Path="IsBusy" Converter="{x:Static converters:BoolConverters.Not}" />
-                                            <Binding Path="IsGameRunning" Converter="{x:Static converters:BoolConverters.Not}" />
-                                        </MultiBinding>
-                                    </Button.IsEnabled>
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <LucideIcon Kind="Download" Size="16" />
-                                        <TextBlock Text="{Binding Loc[NavDownloads]}" />
-                                    </StackPanel>
-                                </Button>
-                                <Button AutomationProperties.Name="{Binding Loc[Cancel]}"
-                                        Classes="cfp-secondary" Command="{Binding CancelDownloadCommand}" HorizontalAlignment="Left" IsVisible="{Binding IsDownloading}">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <LucideIcon Kind="X" Size="16" />
-                                        <TextBlock Text="{Binding Loc[Cancel]}" />
-                                    </StackPanel>
-                                </Button>
-                            </StackPanel>
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
 
-                    <Grid Grid.Column="1" Classes="cfp-subpage" IsVisible="{Binding IsModMarketDownloadSection}">
+                    <views:ThunderstoreView Name="ThunderstoreMarket" Grid.Column="1" IsEnabled="{Binding #Root.DataContext.CanNavigate}" IsVisible="{Binding #Root.DataContext.IsSilksongMarket}" DataContext="{Binding Thunderstore}" />
+                    <Grid Grid.Column="1" Classes="cfp-subpage" IsVisible="{Binding IsHollowKnightMarket}">
                         <Grid IsVisible="{Binding IsMarketList}" RowDefinitions="Auto,*">
-                            <StackPanel Grid.Row="0" Margin="24,24,24,8" Spacing="8">
+                            <StackPanel Grid.Row="0" Margin="16,16,16,8" Spacing="8">
                                 <StackPanel Spacing="4">
                                     <TextBlock Classes="cfp-page-title" Text="{Binding Loc[MarketTitle]}" />
                                     <TextBlock Classes="cfp-meta" Text="{Binding Loc[MarketHint]}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <Border Classes="cfp-card cfp-market-source">
-                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                         <TextBlock Classes="cfp-row-title"
                                                    Text="{Binding OfficialModCatalogStatus}"
                                                    VerticalAlignment="Center" />
@@ -2396,7 +2436,7 @@
                                 </Grid>
                             </StackPanel>
 
-                            <Grid Grid.Row="1" Margin="24,0,24,24">
+                            <Grid Grid.Row="1" Margin="16,0,16,16">
                                 <ListBox Classes="cfp-list cfp-market-list"
                                          ItemsSource="{Binding VisibleMarketDisplayMods}"
                                          AutomationProperties.Name="{Binding Loc[ModMarket]}">
@@ -2447,7 +2487,7 @@
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
-                                <TextBlock Margin="24"
+                                <TextBlock Margin="16"
                                            Classes="cfp-meta"
                                            Text="{Binding Loc[MarketEmpty]}"
                                            TextAlignment="Center"
@@ -2461,7 +2501,7 @@
                                       IsVisible="{Binding IsMarketDetail}"
                                       HorizontalContentAlignment="Stretch"
                                       HorizontalScrollBarVisibility="Disabled">
-                            <StackPanel Classes="cfp-workspace" Margin="24" Spacing="16" MaxWidth="1200" HorizontalAlignment="Stretch">
+                            <StackPanel Classes="cfp-workspace" Margin="16" Spacing="12" MaxWidth="1200" HorizontalAlignment="Stretch">
                                 <Button Classes="cfp-secondary"
                                         HorizontalAlignment="Left"
                                         Command="{Binding BackToMarketCommand}"
@@ -2471,7 +2511,7 @@
                                         <TextBlock Text="{Binding Loc[BackToMarket]}" />
                                     </StackPanel>
                                 </Button>
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <StackPanel Spacing="4">
                                         <TextBlock Classes="cfp-page-title" Text="{Binding SelectedMarketModDisplay.PrimaryName}" TextWrapping="Wrap" />
                                         <TextBlock Classes="cfp-meta"
@@ -2611,8 +2651,8 @@
                                   HorizontalContentAlignment="Stretch"
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Classes="cfp-workspace"
-                                    Margin="24"
-                                    Spacing="16"
+                                    Margin="16"
+                                    Spacing="12"
                                     MaxWidth="1200"
                                     HorizontalAlignment="Stretch">
                             <StackPanel Spacing="4">
@@ -2633,28 +2673,39 @@
                                            Text="{Binding DownloadCenter.OverallEtaText}" />
                             </StackPanel>
 
-                            <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
                                 <Button Classes="cfp-secondary"
                                         Command="{Binding DownloadCenter.RetryAllCommand}"
                                         IsEnabled="{Binding DownloadCenter.CanRetryAll}"
                                         AutomationProperties.Name="{Binding Loc[QueueRetryAll]}"
-                                        Content="{Binding Loc[QueueRetryAll]}" />
+                                        MinHeight="44" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                                    <TextBlock Text="{Binding Loc[QueueRetryAll]}" TextWrapping="Wrap" TextAlignment="Center" />
+                                </Button>
                                 <Button Classes="cfp-secondary"
+                                        Grid.Column="1"
                                         Command="{Binding DownloadCenter.PauseAllCommand}"
                                         IsEnabled="{Binding DownloadCenter.CanPauseAll}"
                                         AutomationProperties.Name="{Binding Loc[QueuePauseAll]}"
-                                        Content="{Binding Loc[QueuePauseAll]}" />
+                                        MinHeight="44" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                                    <TextBlock Text="{Binding Loc[QueuePauseAll]}" TextWrapping="Wrap" TextAlignment="Center" />
+                                </Button>
                                 <Button Classes="cfp-secondary"
+                                        Grid.Column="2"
                                         Command="{Binding DownloadCenter.ResumeAllCommand}"
                                         IsEnabled="{Binding DownloadCenter.CanResumeAll}"
                                         AutomationProperties.Name="{Binding Loc[QueueResumeAll]}"
-                                        Content="{Binding Loc[QueueResumeAll]}" />
+                                        MinHeight="44" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                                    <TextBlock Text="{Binding Loc[QueueResumeAll]}" TextWrapping="Wrap" TextAlignment="Center" />
+                                </Button>
                                 <Button Classes="cfp-secondary"
+                                        Grid.Column="3"
                                         Command="{Binding DownloadCenter.ClearCompletedCommand}"
                                         IsEnabled="{Binding DownloadCenter.CanClearCompleted}"
                                         AutomationProperties.Name="{Binding Loc[QueueClearCompleted]}"
-                                        Content="{Binding Loc[QueueClearCompleted]}" />
-                            </StackPanel>
+                                        MinHeight="44" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                                    <TextBlock Text="{Binding Loc[QueueClearCompleted]}" TextWrapping="Wrap" TextAlignment="Center" />
+                                </Button>
+                            </Grid>
 
                             <StackPanel Spacing="8">
                                 <ItemsControl ItemsSource="{Binding DownloadCenter.DownloadQueueGroups}">
@@ -2667,7 +2718,7 @@
                                                             <TextBlock Classes="cfp-row-title"
                                                                        Text="{Binding Name}"
                                                                        TextWrapping="Wrap" />
-                                                            <TextBlock Classes="cfp-caption">
+                                                            <TextBlock Classes="cfp-caption cfp-download-motion">
                                                                 <TextBlock.TextWrapping>Wrap</TextBlock.TextWrapping>
                                                                 <TextBlock.Inlines>
                                                                     <Run Text="{Binding #Root.DataContext.Loc[QueueTarget]}" />
@@ -2713,7 +2764,7 @@
                                                             <TextBlock Classes="cfp-caption" Text="{Binding EtaText}" />
                                                         </StackPanel>
                                                     </Grid>
-                                                    <Grid ColumnDefinitions="Auto,*,Auto"
+                                                    <Grid ColumnDefinitions="Auto,*"
                                                           ColumnSpacing="8"
                                                           IsVisible="{Binding HasError}">
                                                         <Border Classes="cfp-badge" VerticalAlignment="Top">
@@ -2721,65 +2772,70 @@
                                                                        Text="{Binding ErrorCategoryText}" />
                                                         </Border>
                                                         <TextBlock Grid.Column="1"
-                                                                   Classes="cfp-caption"
-                                                                   Foreground="{DynamicResource CfErrorBrush}"
-                                                                   Text="{Binding Error}"
+                                                                   Classes="cfp-caption cfp-error-text"
+                                                                   Text="{Binding ErrorSummaryText}"
                                                                    TextWrapping="Wrap" />
-                                                        <Button Grid.Column="2"
-                                                                Classes="cfp-secondary cfp-icon"
-                                                                Width="32"
-                                                                Height="32"
-                                                                Command="{Binding CopyErrorCommand}"
-                                                                ToolTip.Tip="{Binding #Root.DataContext.Loc[QueueCopyError]}"
-                                                                AutomationProperties.Name="{Binding #Root.DataContext.Loc[QueueCopyError]}"
-                                                                Content="{LucideIconContent Copy, 15}" />
                                                     </Grid>
                                                     <Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
                                                         <Expander.Header>
                                                             <TextBlock Classes="cfp-caption"
                                                                        Text="{Binding #Root.DataContext.Loc[QueueDetails]}" />
                                                         </Expander.Header>
-                                                        <ItemsControl ItemsSource="{Binding Items}">
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate x:DataType="vm:DownloadQueueItemViewModel">
-                                                                    <Grid ColumnDefinitions="*,Auto"
-                                                                          ColumnSpacing="12"
-                                                                          Margin="0,4">
-                                                                        <StackPanel Spacing="4">
-                                                                            <TextBlock Text="{Binding Name}"
-                                                                                       TextWrapping="Wrap" />
-                                                                            <TextBlock Classes="cfp-caption">
-                                                                                <TextBlock.TextWrapping>Wrap</TextBlock.TextWrapping>
-                                                                                <TextBlock.Inlines>
-                                                                                    <Run Text="{Binding Version}" />
-                                                                                    <Run Text=" · " />
-                                                                                    <Run Text="{Binding StageText}" />
-                                                                                </TextBlock.Inlines>
-                                                                            </TextBlock>
-                                                                            <TextBlock Classes="cfp-caption"
-                                                                                       Foreground="{DynamicResource CfErrorBrush}"
-                                                                                       Text="{Binding Error}"
-                                                                                       TextWrapping="Wrap"
-                                                                                       IsVisible="{Binding HasError}" />
-                                                                        </StackPanel>
-                                                                        <StackPanel Grid.Column="1"
-                                                                                    HorizontalAlignment="Right"
-                                                                                    Spacing="4">
-                                                                            <TextBlock Classes="cfp-caption"
-                                                                                       Text="{Binding ProgressText}"
-                                                                                       TextAlignment="Right" />
-                                                                            <TextBlock Classes="cfp-caption"
-                                                                                       Text="{Binding SpeedText}"
-                                                                                       TextAlignment="Right" />
-                                                                            <TextBlock Classes="cfp-caption"
-                                                                                       Text="{Binding RetryText}"
-                                                                                       TextAlignment="Right"
-                                                                                       IsVisible="{Binding HasRetries}" />
-                                                                        </StackPanel>
-                                                                    </Grid>
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
+                                                        <StackPanel Spacing="8">
+                                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding HasError}">
+                                                                <TextBlock Classes="cfp-caption cfp-error-text"
+                                                                           Text="{Binding Error}"
+                                                                           TextWrapping="Wrap" />
+                                                                <Button Grid.Column="1"
+                                                                        Classes="cfp-secondary cfp-icon"
+                                                                        Width="32"
+                                                                        Height="32"
+                                                                        Command="{Binding CopyErrorCommand}"
+                                                                        ToolTip.Tip="{Binding #Root.DataContext.Loc[QueueCopyError]}"
+                                                                        AutomationProperties.Name="{Binding #Root.DataContext.Loc[QueueCopyError]}"
+                                                                        Content="{LucideIconContent Copy, 15}" />
+                                                            </Grid>
+                                                            <ItemsControl ItemsSource="{Binding Items}">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate x:DataType="vm:DownloadQueueItemViewModel">
+                                                                        <Grid ColumnDefinitions="*,Auto"
+                                                                              ColumnSpacing="12"
+                                                                              Margin="0,4">
+                                                                            <StackPanel Spacing="4">
+                                                                                <TextBlock Text="{Binding Name}"
+                                                                                           TextWrapping="Wrap" />
+                                                                                <TextBlock Classes="cfp-caption cfp-download-motion">
+                                                                                    <TextBlock.TextWrapping>Wrap</TextBlock.TextWrapping>
+                                                                                    <TextBlock.Inlines>
+                                                                                        <Run Text="{Binding Version}" />
+                                                                                        <Run Text=" · " />
+                                                                                        <Run Text="{Binding StageText}" />
+                                                                                    </TextBlock.Inlines>
+                                                                                </TextBlock>
+                                                                                <TextBlock Classes="cfp-caption cfp-error-text"
+                                                                                           Text="{Binding Error}"
+                                                                                           TextWrapping="Wrap"
+                                                                                           IsVisible="{Binding HasError}" />
+                                                                            </StackPanel>
+                                                                            <StackPanel Grid.Column="1"
+                                                                                        HorizontalAlignment="Right"
+                                                                                        Spacing="4">
+                                                                                <TextBlock Classes="cfp-caption"
+                                                                                           Text="{Binding ProgressText}"
+                                                                                           TextAlignment="Right" />
+                                                                                <TextBlock Classes="cfp-caption"
+                                                                                           Text="{Binding SpeedText}"
+                                                                                           TextAlignment="Right" />
+                                                                                <TextBlock Classes="cfp-caption"
+                                                                                           Text="{Binding RetryText}"
+                                                                                           TextAlignment="Right"
+                                                                                           IsVisible="{Binding HasRetries}" />
+                                                                            </StackPanel>
+                                                                        </Grid>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                        </StackPanel>
                                                     </Expander>
                                                 </StackPanel>
                                             </Border>
@@ -2788,7 +2844,7 @@
                                 </ItemsControl>
                                 <StackPanel Spacing="12"
                                             HorizontalAlignment="Center"
-                                            Margin="24"
+                                            Margin="16"
                                             IsVisible="{Binding DownloadCenter.DownloadQueueGroups.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}">
                                     <TextBlock Classes="cfp-meta"
                                                MaxWidth="480"
@@ -2845,11 +2901,22 @@
                                   HorizontalContentAlignment="Stretch"
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Classes="cfp-workspace cfp-settings-workspace"
-                                    Margin="24"
-                                    Spacing="16"
+                                    Margin="16"
+                                    Spacing="12"
                                     MaxWidth="1200"
                                     HorizontalAlignment="Stretch">
-                            <StackPanel Spacing="16" Classes="cfp-subpage" IsVisible="{Binding Settings.IsGeneralSettingsSection}">
+                            <StackPanel Spacing="12" Classes="cfp-subpage" IsVisible="{Binding Settings.IsGeneralSettingsSection}">
+                                <Border Classes="cfp-card">
+                                    <StackPanel Spacing="10">
+                                        <CheckBox Name="ErrorReportingToggle" IsChecked="{Binding ErrorReportingEnabled, Mode=TwoWay}"
+                                                  Content="{Binding Loc[ErrorReportingEnabled]}" />
+                                        <TextBlock Classes="cfp-caption" Text="{Binding Loc[ErrorReportingDetails]}" TextWrapping="Wrap" />
+                                        <TextBlock Name="ErrorReportingDestination" Classes="cfp-meta"
+                                                   Text="{Binding ErrorReportingDestination}" TextWrapping="Wrap" />
+                                        <Button Classes="cfp-secondary" HorizontalAlignment="Left" Click="ExportErrorReports"
+                                                Content="{Binding Loc[ExportErrorReports]}" />
+                                    </StackPanel>
+                                </Border>
                                 <Border Classes="cfp-card">
                                     <Grid ColumnDefinitions="*,16,*,16,*">
                                         <StackPanel Grid.Column="0" Spacing="8">
@@ -2962,7 +3029,7 @@
                                             </StackPanel>
                                         </Grid>
 
-                                        <Grid ColumnDefinitions="320,*" ColumnSpacing="16">
+                                        <Grid ColumnDefinitions="320,*" ColumnSpacing="12">
                                             <Border Width="320"
                                                     Height="180"
                                                     CornerRadius="7"
@@ -3046,7 +3113,7 @@
                                 </Border>
                             </StackPanel>
 
-                            <StackPanel Spacing="16" Classes="cfp-subpage" IsVisible="{Binding Settings.IsNetworkSettingsSection}">
+                            <StackPanel Spacing="12" Classes="cfp-subpage" IsVisible="{Binding Settings.IsNetworkSettingsSection}">
                                 <Border Classes="cfp-card">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                         <StackPanel Spacing="3"><TextBlock Classes="cfp-row-title" Text="{Binding Loc[OfflineMode]}" /><TextBlock Classes="cfp-caption" Text="{Binding Loc[OfflineModeHint]}" TextWrapping="Wrap" /></StackPanel>
@@ -3072,7 +3139,7 @@
                                 </Border>
                             </StackPanel>
 
-                            <StackPanel Spacing="16" Classes="cfp-subpage" IsVisible="{Binding Settings.IsCatalogSettingsSection}">
+                            <StackPanel Spacing="12" Classes="cfp-subpage" IsVisible="{Binding Settings.IsCatalogSettingsSection}">
                                 <Border Classes="cfp-card">
                                     <StackPanel Spacing="6">
                                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -3109,7 +3176,7 @@
                                 </Border>
                             </StackPanel>
 
-                            <StackPanel Spacing="16" Classes="cfp-subpage" IsVisible="{Binding Settings.IsUpdatesSettingsSection}">
+                            <StackPanel Spacing="12" Classes="cfp-subpage" IsVisible="{Binding Settings.IsUpdatesSettingsSection}">
                                 <Border Classes="cfp-card">
                                     <StackPanel Spacing="10">
                                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -3158,9 +3225,9 @@
                                 </Border>
                             </StackPanel>
 
-                            <StackPanel Spacing="16" Classes="cfp-subpage" IsVisible="{Binding Settings.IsAboutSettingsSection}">
+                            <StackPanel Spacing="12" Classes="cfp-subpage" IsVisible="{Binding Settings.IsAboutSettingsSection}">
                                 <Border Classes="cfp-card">
-                                    <StackPanel Spacing="16">
+                                    <StackPanel Spacing="12">
                                         <StackPanel Spacing="4"><TextBlock Classes="cfp-section-title" Text="{Binding Loc[AboutTitle]}" /><TextBlock Classes="cfp-meta" Text="{Binding Loc[AboutDescription]}" TextWrapping="Wrap" /></StackPanel>
                                         <Button AutomationProperties.Name="{Binding Loc[OnboardingReopen]}"
                                                 Classes="cfp-link" HorizontalAlignment="Left" MinHeight="36" Command="{Binding ShowOnboardingCommand}">
@@ -3229,6 +3296,7 @@
                 </Grid>
             </Grid>
         </Grid>
+        </DockPanel>
         </u:LoadingContainer>
         <Button Grid.Row="2" Classes="cfp-download-fab cfp-primary" Width="44" Height="44" Margin="16" HorizontalAlignment="Right" VerticalAlignment="Bottom" Command="{Binding OpenDownloadQueueCommand}" ToolTip.Tip="{Binding DownloadCenter.ActiveDownloadSummary}" AutomationProperties.Name="{Binding Loc[DownloadQueue]}" IsVisible="{Binding DownloadCenter.HasActiveDownloads}" Content="{LucideIconContent Download, 18}" />
         <u:OverlayDialogHost x:Name="MainOverlayDialogHost"

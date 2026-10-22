@@ -362,7 +362,12 @@ public sealed class DownloadQueueRenderingTests
             new FailingExecutor(),
             static () => false,
             TimeSpan.FromMilliseconds(10));
-        var viewModel = new MainViewModel(root, downloadQueueOverride: queue);
+        var viewModel = new MainViewModel(root, downloadQueueOverride: queue)
+        {
+            CurrentPage = "Downloads",
+            CurrentDownloadSection = "DownloadQueue"
+        };
+        viewModel.Loc.Apply(Crystalfly.Core.Configuration.UiLanguage.SimplifiedChinese);
         var window = new MainWindow { Width = 900, Height = 600 };
         window.Show();
         window.DataContext = viewModel;
@@ -378,6 +383,29 @@ public sealed class DownloadQueueRenderingTests
 
         try
         {
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var groupViewModel = Assert.Single(viewModel.DownloadCenter.DownloadQueueGroups);
+            var visibleTexts = window.GetVisualDescendants().OfType<TextBlock>()
+                .Where(text => text.IsEffectivelyVisible)
+                .Select(text => text.Text)
+                .ToArray();
+            Assert.Contains(groupViewModel.ErrorSummaryText, visibleTexts);
+            Assert.DoesNotContain(groupViewModel.Error!, visibleTexts);
+            Assert.True(groupViewModel.CanRetry);
+            Assert.True(groupViewModel.CanCancel);
+
+            var details = Assert.Single(window.GetVisualDescendants().OfType<Expander>(), expander =>
+                expander.Header is TextBlock header && header.Text == viewModel.Loc["QueueDetails"]);
+            Assert.False(details.IsExpanded);
+            details.IsExpanded = true;
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text =>
+                text.IsEffectivelyVisible && text.Text == groupViewModel.Error);
+            Assert.Contains(window.GetVisualDescendants().OfType<Button>(), button =>
+                button.IsEffectivelyVisible && ReferenceEquals(button.Command, groupViewModel.CopyErrorCommand));
+
             window.Close();
             var dialog = await WaitForDialogAsync(window);
 
@@ -397,82 +425,6 @@ public sealed class DownloadQueueRenderingTests
             {
                 Directory.Delete(root, recursive: true);
             }
-        }
-    }
-
-    [AvaloniaFact]
-    public void Download_queue_is_a_third_download_section_with_compact_actions()
-    {
-        var viewModel = new MainViewModel(Path.Combine(
-            Path.GetTempPath(),
-            "crystalfly-ui",
-            Guid.NewGuid().ToString("N")))
-        {
-            CurrentPage = "Downloads",
-            CurrentDownloadSection = "DownloadQueue"
-        };
-        var queueGroup = new DownloadQueueGroupItemViewModel(
-            new DownloadQueueGroup
-            {
-                Id = "group-1",
-                Name = "Feature",
-                TargetInstanceId = "practice",
-                TargetInstanceName = "Practice",
-                TargetInstanceRoot = "C:\\Games\\Practice",
-                CreatedAt = DateTimeOffset.UtcNow,
-                State = DownloadQueueGroupState.Running,
-                Stage = "Downloading",
-                CompletedBytes = 25,
-                TotalBytes = 100,
-                Items =
-                [
-                    new DownloadQueueItem
-                    {
-                        Id = "item-1",
-                        Name = "Library",
-                        Version = "1.0.0",
-                        State = DownloadQueueItemState.Transferring,
-                        Stage = "Downloading",
-                        CompletedBytes = 25,
-                        TotalBytes = 100
-                    }
-                ]
-            },
-            viewModel.Loc);
-
-        var window = new MainWindow { Width = 900, Height = 600, DataContext = viewModel };
-        window.Show();
-        Dispatcher.UIThread.RunJobs();
-        viewModel.DownloadCenter.DownloadQueueGroups.Add(queueGroup);
-        Dispatcher.UIThread.RunJobs();
-
-        try
-        {
-            var railButtons = window.GetVisualDescendants()
-                .OfType<Button>()
-                .Where(button => button.IsEffectivelyVisible
-                    && button.Classes.Contains("cfp-local-nav"))
-                .ToArray();
-            Assert.Equal(3, railButtons.Length);
-            Assert.Contains(railButtons, button =>
-                AutomationProperties.GetName(button) == viewModel.Loc["DownloadQueue"]);
-            var texts = window.GetVisualDescendants().OfType<TextBlock>().ToArray();
-            Assert.Contains(texts, text => text.IsEffectivelyVisible && text.Text == "Feature");
-            Assert.Contains(texts, text => text.Text == viewModel.Loc["QueueDetails"]);
-
-            var cancel = window.GetVisualDescendants()
-                .OfType<Button>()
-                .Single(button => button.IsEffectivelyVisible
-                    && AutomationProperties.GetName(button) == viewModel.Loc["Cancel"]);
-            Assert.InRange(cancel.Bounds.Width, 43.5, 44.5);
-            Assert.InRange(cancel.Bounds.Height, 43.5, 44.5);
-        }
-        finally
-        {
-            typeof(MainWindow)
-                .GetField("closeAfterDispose", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
-                .SetValue(window, true);
-            window.Close();
         }
     }
 

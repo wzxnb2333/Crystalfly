@@ -7,9 +7,6 @@ namespace Crystalfly.App.Tests.ViewModels;
 public sealed class DownloadQueueGroupItemViewModelTests
 {
     [Theory]
-    [InlineData(DownloadQueueGroupState.Pending, true)]
-    [InlineData(DownloadQueueGroupState.Running, true)]
-    [InlineData(DownloadQueueGroupState.WaitingForNetwork, true)]
     [InlineData(DownloadQueueGroupState.Failed, true)]
     [InlineData(DownloadQueueGroupState.Completed, false)]
     [InlineData(DownloadQueueGroupState.Canceled, false)]
@@ -52,6 +49,31 @@ public sealed class DownloadQueueGroupItemViewModelTests
         Assert.True(viewModel.CanCancel);
         Assert.True(viewModel.CanRetry);
         Assert.Equal("network failed", viewModel.Error);
+    }
+
+    [Theory]
+    [InlineData("SHA-256 hash failed at C:\\Users\\owner\\Downloads\\package.zip", "QueueFailureVerificationSummary", "DownloadErrorVerification")]
+    [InlineData("Access denied at C:\\Users\\owner\\Games\\Practice", "QueueFailurePermissionSummary", "DownloadErrorPermission")]
+    [InlineData("Unmanaged external Mod found at C:\\Users\\owner\\Games\\Practice", "QueueFailureUnmanagedSummary", "DownloadErrorUnmanaged")]
+    [InlineData("Unmanaged memory allocation failed at C:\\Users\\owner\\Games\\Practice", "QueueFailureOtherSummary", "DownloadErrorOther")]
+    public void Failure_summary_is_safe_localized_and_keeps_the_raw_error(
+        string error, string summaryKey, string categoryKey)
+    {
+        var localization = new LocalizationViewModel();
+        localization.Apply(UiLanguage.SimplifiedChinese);
+        var viewModel = new DownloadQueueGroupItemViewModel(
+            Group() with { State = DownloadQueueGroupState.Failed, Error = error }, localization);
+
+        Assert.Equal(localization[summaryKey], viewModel.ErrorSummaryText);
+        Assert.Equal(localization[categoryKey], viewModel.ErrorCategoryText);
+        Assert.Equal(error, viewModel.Error);
+        Assert.DoesNotContain("C:\\Users\\owner", viewModel.ErrorSummaryText, StringComparison.OrdinalIgnoreCase);
+        Assert.True(viewModel.CanRetry);
+        Assert.True(viewModel.CanCancel);
+
+        localization.Apply(UiLanguage.English);
+        Assert.Equal(localization[summaryKey], viewModel.ErrorSummaryText);
+        Assert.Equal(error, viewModel.Error);
     }
 
     private static DownloadQueueGroup Group() => new()

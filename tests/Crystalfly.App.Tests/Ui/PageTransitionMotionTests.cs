@@ -6,8 +6,11 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Crystalfly.App.Downloads;
 using Crystalfly.App.Services;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.Views;
@@ -16,6 +19,147 @@ namespace Crystalfly.App.Tests.Ui;
 
 public sealed class PageTransitionMotionTests
 {
+    [AvaloniaTheory]
+    [InlineData(true, false, 180, true)]
+    [InlineData(false, true, 120, false)]
+    [InlineData(false, false, 0, false)]
+    public void Market_pane_transition_obeys_motion_preference_and_cancels_on_fast_return(
+        bool fullMotion,
+        bool reducedMotion,
+        int expectedDuration,
+        bool expectTransform)
+    {
+        var catalog = new Border { Classes = { "cfp-market-subpage" } };
+        var detail = new Border { Classes = { "cfp-market-subpage" }, IsVisible = false };
+        var window = new Window { Content = new StackPanel { Children = { catalog, detail } } };
+        NameScope.SetNameScope(window, new NameScope());
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        var coordinator = new MotionCoordinator(window, () => fullMotion, () => reducedMotion);
+        coordinator.Start();
+
+        try
+        {
+            catalog.IsVisible = false;
+            detail.IsVisible = true;
+            Assert.Equal(1, catalog.Opacity);
+            if (expectedDuration == 0)
+            {
+                Assert.Equal(1, detail.Opacity);
+                Assert.False(HasActiveAnimation(coordinator, detail));
+                Assert.Null(FindTranslate(detail.RenderTransform));
+            }
+            else
+            {
+                var first = GetActiveState(coordinator, detail);
+                Assert.Equal(TimeSpan.FromMilliseconds(expectedDuration), (TimeSpan)first.GetType().GetProperty("Duration")!.GetValue(first)!);
+                Assert.Equal(expectTransform, FindTranslate(detail.RenderTransform) is not null);
+                Assert.True(detail.Opacity < 1);
+            }
+
+            detail.IsVisible = false;
+            catalog.IsVisible = true;
+            Assert.Equal(1, detail.Opacity);
+            Assert.Null(FindTranslate(detail.RenderTransform));
+            if (expectedDuration == 0)
+            {
+                Assert.False(HasActiveAnimation(coordinator, catalog));
+            }
+            else
+            {
+                var returned = GetActiveState(coordinator, catalog);
+                Assert.Equal(TimeSpan.FromMilliseconds(expectedDuration), (TimeSpan)returned.GetType().GetProperty("Duration")!.GetValue(returned)!);
+            }
+        }
+        finally
+        {
+            coordinator.Shutdown();
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void Download_stage_feedback_ignores_progress_updates_with_the_same_stage()
+    {
+        var localization = new LocalizationViewModel();
+        var group = new DownloadQueueGroup { Id = "group", Name = "Mod", State = DownloadQueueGroupState.Running, Stage = "Downloading" };
+        var viewModel = new DownloadQueueGroupItemViewModel(group, localization);
+        var status = new TextBlock { Classes = { "cfp-download-motion" }, DataContext = viewModel };
+        var (window, coordinator) = CreateMotionWindow(status, fullMotion: true, reducedMotion: false);
+
+        try
+        {
+            viewModel.Update(group with { CompletedBytes = 1 }, localization);
+            Assert.False(HasActiveAnimation(coordinator, status));
+
+            viewModel.Update(group with { Stage = "Installing", CompletedBytes = 2 }, localization);
+            Assert.True(HasActiveAnimation(coordinator, status));
+            Assert.True(status.Opacity < 1);
+            Assert.Null(FindTranslate(status.RenderTransform));
+        }
+        finally
+        {
+            coordinator.Shutdown();
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void Market_cover_only_fades_after_a_source_arrives_and_clear_resets_it()
+    {
+        var cover = new Image { Classes = { "cfp-market-cover" } };
+        var (window, coordinator) = CreateMotionWindow(cover, fullMotion: true, reducedMotion: false);
+
+        try
+        {
+            Assert.False(HasActiveAnimation(coordinator, cover));
+            using var bitmap = new WriteableBitmap(
+                new PixelSize(1, 1), new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Premul);
+            cover.Source = bitmap;
+            Assert.True(HasActiveAnimation(coordinator, cover));
+            Assert.True(cover.Opacity < 1);
+            Assert.Null(FindTranslate(cover.RenderTransform));
+
+            cover.Source = null;
+            Assert.False(HasActiveAnimation(coordinator, cover));
+            Assert.Equal(1, cover.Opacity);
+        }
+        finally
+        {
+            coordinator.Shutdown();
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void Detached_motion_targets_are_unregistered_and_shutdown_blocks_reattachment()
+    {
+        var status = new TextBlock { Classes = { "cfp-download-motion" } };
+        var host = new StackPanel { Children = { status } };
+        var (window, coordinator) = CreateMotionWindow(host, fullMotion: false, reducedMotion: false);
+
+        try
+        {
+            Assert.Contains(status, entranceAnimationTargets(coordinator));
+            host.Children.Remove(status);
+            Assert.DoesNotContain(status, entranceAnimationTargets(coordinator));
+            host.Children.Add(status);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Contains(status, entranceAnimationTargets(coordinator));
+            host.Children.Remove(status);
+            coordinator.Shutdown();
+            host.Children.Add(status);
+            Dispatcher.UIThread.RunJobs();
+            Assert.DoesNotContain(status, entranceAnimationTargets(coordinator));
+            Assert.Equal(1, status.Opacity);
+        }
+        finally
+        {
+            coordinator.Shutdown();
+            window.Close();
+        }
+    }
+
     [AvaloniaFact]
     public void Page_switch_primes_the_entrance_offset_before_rendering()
     {
@@ -175,6 +319,28 @@ public sealed class PageTransitionMotionTests
         var active = (IDictionary)field.GetValue(coordinator)!;
         Assert.True(active.Contains(control), "Entrance animation was not registered.");
         return active[control]!;
+    }
+
+    private static bool HasActiveAnimation(MotionCoordinator coordinator, Control control)
+    {
+        var field = typeof(MotionCoordinator).GetField(
+            "activeEntranceAnimations",
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        return ((IDictionary)field.GetValue(coordinator)!).Contains(control);
+    }
+
+    private static (Window Window, MotionCoordinator Coordinator) CreateMotionWindow(
+        Control content,
+        bool fullMotion,
+        bool reducedMotion)
+    {
+        var window = new Window { Content = content, Width = 240, Height = 180 };
+        NameScope.SetNameScope(window, new NameScope());
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        var coordinator = new MotionCoordinator(window, () => fullMotion, () => reducedMotion);
+        coordinator.Start();
+        return (window, coordinator);
     }
 
     private static bool StateHasStarted(object state)

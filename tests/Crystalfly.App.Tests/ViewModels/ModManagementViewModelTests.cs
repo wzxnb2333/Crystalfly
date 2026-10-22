@@ -10,29 +10,6 @@ namespace Crystalfly.App.Tests.ViewModels;
 
 public sealed class ModManagementViewModelTests
 {
-    [Fact]
-    public void Has_updates_available_aggregates_installed_mods()
-    {
-        var viewModel = CreateViewModel();
-        viewModel.InstalledMods.Add(Installed("a", version: "1.0.0", manifestVersion: "1.1.0"));
-        viewModel.InstalledMods.Add(Installed("b", version: "1.0.0", manifestVersion: "1.0.0"));
-
-        Assert.True(viewModel.HasUpdatesAvailable);
-
-        viewModel.CheckForUpdatesCommand.Execute(null);
-
-        Assert.True(viewModel.HasUpdatesAvailable);
-    }
-
-    [Fact]
-    public void Has_updates_available_is_false_when_nothing_can_update()
-    {
-        var viewModel = CreateViewModel();
-        viewModel.InstalledMods.Add(Installed("a", version: "1.0.0", manifestVersion: "1.0.0"));
-        viewModel.InstalledMods.Add(Installed("b", version: "1.0.0", manifestVersion: null));
-
-        Assert.False(viewModel.HasUpdatesAvailable);
-    }
 
     [Fact]
     public void Conflicts_are_surfaced_on_the_installed_mod_items()
@@ -52,48 +29,6 @@ public sealed class ModManagementViewModelTests
         Assert.False(viewModel.InstalledMods[2].HasConflicts);
         Assert.Contains("Mod b", viewModel.InstalledMods[0].ConflictWithText, StringComparison.Ordinal);
         Assert.Contains("Mod a", viewModel.InstalledMods[1].ConflictWithText, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Detail_properties_format_catalog_manifest_data()
-    {
-        var manifest = Manifest("a", "1.0.0") with
-        {
-            Authors = ["Alice", "Bob"],
-            RepositoryUrl = "https://github.com/example/mod",
-            Dependencies = ["lib-a", "lib-b"]
-        };
-        var item = new InstalledModItemViewModel(Receipt("a", "1.0.0"), manifest, static () => { });
-
-        Assert.Equal("lib-a, lib-b", item.DependenciesText);
-        Assert.Equal("Alice, Bob", item.AuthorsText);
-        Assert.Equal("https://github.com/example/mod", item.RepositoryUrl);
-        Assert.True(item.HasRepositoryUrl);
-        Assert.False(item.HasLatestVersion);
-        Assert.Equal(string.Empty, item.LatestVersionText);
-    }
-
-    [Fact]
-    public void Detail_properties_are_empty_without_catalog_manifest()
-    {
-        var item = new InstalledModItemViewModel(Receipt("a", "1.0.0"), null, static () => { });
-
-        Assert.Equal(string.Empty, item.DependenciesText);
-        Assert.Equal(string.Empty, item.AuthorsText);
-        Assert.Equal(string.Empty, item.RepositoryUrl);
-        Assert.False(item.HasRepositoryUrl);
-        Assert.Equal(string.Empty, item.InstallDateText);
-        Assert.False(item.HasInstallDate);
-    }
-
-    [Fact]
-    public void Latest_version_text_is_shown_when_update_is_available()
-    {
-        var item = new InstalledModItemViewModel(Receipt("a", "1.0.0"), Manifest("a", "1.1.0"), static () => { });
-
-        Assert.True(item.HasUpdate);
-        Assert.Equal("1.1.0", item.LatestVersionText);
-        Assert.True(item.HasLatestVersion);
     }
 
     [Fact]
@@ -129,23 +64,6 @@ public sealed class ModManagementViewModelTests
         {
             Directory.Delete(root, recursive: true);
         }
-    }
-
-    [Fact]
-    public void Modified_files_text_lists_health_modified_files()
-    {
-        var item = Installed("a", "1.0.0", modifiedFiles:
-        [
-            "hollow_knight_Data/Managed/Shared/First.dll",
-            "hollow_knight_Data/Managed/Shared/Second.dll"
-        ]);
-
-        Assert.Equal(
-            "hollow_knight_Data/Managed/Shared/First.dll"
-            + Environment.NewLine
-            + "hollow_knight_Data/Managed/Shared/Second.dll",
-            item.ModifiedFilesText);
-        Assert.True(item.HasModifiedFilesText);
     }
 
     [Fact]

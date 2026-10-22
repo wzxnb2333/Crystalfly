@@ -35,4 +35,13 @@ public sealed record MarketInstallTargetViewModel(
 public sealed record DownloadBuildOption(
     string BuildId,
     string DisplayName,
-    ulong? ManifestId);
+    ulong? ManifestId)
+{
+    public string ReleaseDateText { get; init; } = string.Empty;
+
+    public string FirstSeenDateText { get; init; } = string.Empty;
+
+    public string VerificationText { get; init; } = string.Empty;
+
+    public bool IsDownloaded { get; init; }
+}

@@ -36,7 +36,7 @@ public sealed partial class DownloadQueueGroupItemViewModel : ViewModelBase
 
     public string Id => group.Id;
 
-    public string Name => group.Name;
+    public string Name => $"{localization[group.GameId == Crystalfly.Core.Models.GameId.Silksong ? "GameSilksong" : "GameHollowKnight"]} · {group.Name}";
 
     public string TargetInstanceName => group.TargetInstanceName;
 
@@ -47,6 +47,20 @@ public sealed partial class DownloadQueueGroupItemViewModel : ViewModelBase
     public string StageText => QueueDisplayText.Stage(localization, group.Stage, StateText);
 
     public string? Error => group.Error;
+
+    private bool HasUnmanagedExternalError
+    {
+        get
+        {
+            var error = group.Error;
+            return error?.Contains("unmanaged file", StringComparison.OrdinalIgnoreCase) == true
+                || error?.Contains("unmanaged mod", StringComparison.OrdinalIgnoreCase) == true
+                || error?.Contains("unmanaged external mod", StringComparison.OrdinalIgnoreCase) == true
+                || error?.Contains("unmanaged loader", StringComparison.OrdinalIgnoreCase) == true
+                || error?.Contains("未接管", StringComparison.OrdinalIgnoreCase) == true
+                || error?.Contains("未由水晶虫管理的模组加载器", StringComparison.OrdinalIgnoreCase) == true;
+        }
+    }
 
     public double Progress => group.Progress;
 
@@ -65,7 +79,13 @@ public sealed partial class DownloadQueueGroupItemViewModel : ViewModelBase
     public DownloadErrorCategory ErrorCategory =>
         DownloadCenterViewModel.ClassifyError(group.Error, group.State);
 
-    public string ErrorCategoryText => localization[$"DownloadError{ErrorCategory}"];
+    public string ErrorCategoryText => localization[HasUnmanagedExternalError
+        ? "DownloadErrorUnmanaged"
+        : $"DownloadError{ErrorCategory}"];
+
+    public string ErrorSummaryText => localization[HasUnmanagedExternalError
+        ? "QueueFailureUnmanagedSummary"
+        : $"QueueFailure{ErrorCategory}Summary"];
 
     public string DurationText => group.StartedAt is { } started && group.CompletedAt is { } completed
         ? (completed - started).ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture)
@@ -123,7 +143,7 @@ public sealed partial class DownloadQueueGroupItemViewModel : ViewModelBase
                      nameof(Name), nameof(TargetInstanceName), nameof(State), nameof(StateText),
                      nameof(StageText), nameof(Error), nameof(Progress), nameof(ProgressText),
                      nameof(SpeedText), nameof(CanCancel), nameof(CanRetry), nameof(HasError),
-                     nameof(EtaText), nameof(ErrorCategory), nameof(ErrorCategoryText),
+                     nameof(EtaText), nameof(ErrorCategory), nameof(ErrorCategoryText), nameof(ErrorSummaryText),
                      nameof(DurationText), nameof(HasDuration)
                  })
         {

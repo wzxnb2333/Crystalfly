@@ -1,0 +1,1 @@
+该包为空，仅用于将用户引导至当前维护的模组加载器包：[silksong_modding-BepInExPack_Silksong](https://thunderstore.io/c/hollow-knight-silksong/p/silksong_modding/BepInExPack_Silksong/)

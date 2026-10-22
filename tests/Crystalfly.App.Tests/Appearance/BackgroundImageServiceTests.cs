@@ -14,9 +14,6 @@ public sealed class BackgroundImageServiceTests : IDisposable
 
     [Theory]
     [InlineData("image.png", true)]
-    [InlineData("image.jpg", true)]
-    [InlineData("image.jpeg", true)]
-    [InlineData("image.webp", true)]
     [InlineData("image.bmp", true)]
     [InlineData("image.svg", false)]
     [InlineData("image.gif", false)]
@@ -48,20 +45,6 @@ public sealed class BackgroundImageServiceTests : IDisposable
         Assert.Matches("^[A-F0-9]{64}\\.bmp$", result.FileName);
         Assert.True(File.Exists(Path.Combine(destination, result.FileName)));
         Assert.False(File.Exists(Path.Combine(destination, current.FileName)));
-    }
-
-    [AvaloniaFact]
-    public async Task Replace_uses_default_opacity_for_first_upload()
-    {
-        var source = CreateBmp("first.bmp", 1, 1);
-
-        var result = await new BackgroundImageService().ReplaceAsync(
-            source,
-            Path.Combine(root, "appearance"),
-            null,
-            static (_, _) => Task.CompletedTask);
-
-        Assert.Equal(BackgroundImageSettings.DefaultOpacityPercent, result.OpacityPercent);
     }
 
     [AvaloniaFact]

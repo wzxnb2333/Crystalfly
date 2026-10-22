@@ -1,3 +1,4 @@
+using Crystalfly.Core.Thunderstore;
 using System.Globalization;
 using CommunityToolkit.Mvvm.Input;
 using Crystalfly.App.Downloads;
@@ -5,6 +6,7 @@ using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Mods;
 using Crystalfly.Core.Runtime;
+using Crystalfly.Core.Instances;
 using Crystalfly.Steam.Downloads;
 
 namespace Crystalfly.App.ViewModels;
@@ -18,6 +20,8 @@ public partial class MainViewModel
 
     partial void OnCurrentDownloadSectionChanged(string value)
     {
+        NotifyGameSurfacesChanged();
+        if (IsSilksong && value == "ModMarket") _ = Thunderstore.EnsureLoadedAsync();
         if (value == "GameVersions")
             _ = DownloadCenter.RefreshSteamChunkCacheStatusCommand.ExecuteAsync(null);
     }
@@ -61,22 +65,29 @@ public partial class MainViewModel
                 }
                 var hashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ["hollow_knight.exe"] = build.ExecutableSha256,
-                    ["hollow_knight_Data/globalgamemanagers"] = build.GlobalGameManagersSha256
+                    [GameDefinition.Get(build.GameId).ExecutableName] = build.ExecutableSha256,
+                    [GameDefinition.Get(build.GameId).GlobalGameManagersPath] = build.GlobalGameManagersSha256
                 };
                 if (build.UnityPlayerSha256 is not null)
                 {
                     hashes["UnityPlayer.dll"] = build.UnityPlayerSha256;
                 }
                 return hashes;
-            });
+            },
+            resolveGameBuildId: (gameId, manifestId) => catalog.Builds.FirstOrDefault(build =>
+                build.GameId == gameId && build.ManifestId == manifestId.ToString(CultureInfo.InvariantCulture))?.Id,
+            resolveGameRepairHashes: (gameId, buildId) => GetGameRepairHashes(gameId, buildId));
         return new DownloadQueueService(
             Path.Combine(paths.ApplicationDataRoot, "download-queue.json"),
-            executor,
+            new ThunderstoreQueueExecutor(executor, GetThunderstorePackageStore(), instanceOperationCoordinator, networkPolicy),
             isGameProcessRunning,
             TimeSpan.FromMilliseconds(500),
             networkPolicy,
-            instanceOperationCoordinator);
+            instanceOperationCoordinator,
+            errorReporter)
+        {
+            IsTargetGameRunning = group => new SystemHollowKnightProcessProbe(GameDefinition.Get(group.GameId).ProcessName).IsRunning()
+        };
     }
 
     private async Task InitializeDownloadQueueAsync()
@@ -176,14 +187,17 @@ public partial class MainViewModel
         }
 
         var selected = SelectedDownloadBuild;
-        await DownloadCenter.DownloadQueue.InitializeAsync(lifetimeCancellation.Token);
         var instanceName = UniqueInstanceName(selected.DisplayName);
-        var group = SteamDownloadQueueGroupFactory.Create(
+        var group = BuildIdentity.TryGetSteamManifestId(selected.BuildId, out var historicalManifest)
+            ? SteamDownloadQueueGroupFactory.CreateCustomManifest(
+                historicalManifest, selected.DisplayName, VersionRoot, instanceName, gameId: SelectedGameId)
+            : SteamDownloadQueueGroupFactory.Create(
             selected.BuildId,
             selected.DisplayName,
             selected.ManifestId,
             VersionRoot,
-            instanceName);
+            instanceName, gameId: SelectedGameId);
+        await DownloadCenter.DownloadQueue.InitializeAsync(lifetimeCancellation.Token);
         var result = await DownloadCenter.EnqueueAsync(group, lifetimeCancellation.Token);
         DownloadStatus = result.Added
             ? Loc["AddedToDownloadQueue"]
@@ -200,8 +214,11 @@ public partial class MainViewModel
             return;
         }
         var build = catalog.Builds.FirstOrDefault(candidate =>
-            string.Equals(candidate.Id, selected.Record.BuildId, StringComparison.OrdinalIgnoreCase));
-        if (build is null)
+            candidate.GameId == selected.Record.GameId && string.Equals(candidate.Id, selected.Record.BuildId, StringComparison.OrdinalIgnoreCase));
+        var suffix = selected.Record.BuildId.StartsWith("steam-manifest-", StringComparison.Ordinal) ? selected.Record.BuildId[15..]
+            : selected.Record.BuildId.StartsWith("steam-public-", StringComparison.Ordinal) ? selected.Record.BuildId[13..] : "";
+        _ = ulong.TryParse(suffix, NumberStyles.None, CultureInfo.InvariantCulture, out var recordedManifest);
+        if (build is null && recordedManifest == 0)
         {
             ErrorMessage = Loc["UnknownBuild"];
             return;
@@ -214,7 +231,7 @@ public partial class MainViewModel
             var inspection = await loaderManager.InspectAsync(lifetimeCancellation.Token);
             var receipt = await loaderManager.GetReceiptAsync(lifetimeCancellation.Token);
             LoaderManifest? loader = null;
-            if (inspection.State != LoaderState.Vanilla)
+            if (inspection.State != LoaderState.Vanilla && selected.Record.GameId == GameId.HollowKnight)
             {
                 if (receipt is null)
                 {
@@ -228,7 +245,8 @@ public partial class MainViewModel
             }
 
             await DownloadCenter.DownloadQueue.InitializeAsync(lifetimeCancellation.Token);
-            var group = SteamDownloadQueueGroupFactory.CreateRepair(selected.Record, build, loader);
+            var group = build is not null ? SteamDownloadQueueGroupFactory.CreateRepair(selected.Record, build, loader)
+                : SteamDownloadQueueGroupFactory.CreateManifestRepair(selected.Record, recordedManifest);
             var result = await DownloadCenter.EnqueueAsync(group, lifetimeCancellation.Token);
             NotifyToast(result.Added
                 ? Loc["AddedToDownloadQueue"]
@@ -265,7 +283,7 @@ public partial class MainViewModel
             return false;
         }
 
-        var known = catalog.Builds.FirstOrDefault(build =>
+        var known = catalog.Builds.FirstOrDefault(build => build.GameId == SelectedGameId &&
             string.Equals(
                 build.ManifestId,
                 request.ManifestId.ToString(CultureInfo.InvariantCulture),
@@ -274,7 +292,7 @@ public partial class MainViewModel
             request.ManifestId,
             known?.DisplayVersion ?? $"{Loc["UnverifiedHistoricalBuild"]} · {request.ManifestId}",
             VersionRoot,
-            request.InstanceName);
+            request.InstanceName, gameId: SelectedGameId);
         await DownloadCenter.DownloadQueue.InitializeAsync(cancellationToken);
         var result = await DownloadCenter.EnqueueAsync(group, cancellationToken);
         DownloadStatus = result.Added ? Loc["AddedToDownloadQueue"] : Loc["QueueTaskAlreadyExists"];

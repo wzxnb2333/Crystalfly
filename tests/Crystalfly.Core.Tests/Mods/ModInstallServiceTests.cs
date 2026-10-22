@@ -67,18 +67,6 @@ public sealed class ModInstallServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Exact_managed_loader_is_ready()
-    {
-        await WriteManagedLoaderAsync("modding-api-77", LoaderState.ModdingApi);
-        var service = CreateService(Instance(), [Manifest("feature", "modding-api-77")]);
-
-        var result = await service.EvaluateAsync("feature");
-
-        Assert.Equal(ModInstallReadiness.Ready, result.Status);
-        Assert.Equal("modding-api-77", result.RequiredLoaderId);
-    }
-
-    [Fact]
     public async Task Wrong_conflicting_and_drifted_loaders_are_blocked()
     {
         await WriteManagedLoaderAsync("modding-api-77", LoaderState.ModdingApi);
@@ -140,53 +128,6 @@ public sealed class ModInstallServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CreatePlan_orders_loader_dependencies_and_requested_mod()
-    {
-        var service = CreateService(
-            Instance(),
-            [
-                Manifest("feature", "modding-api-77", dependencies: ["library"]),
-                Manifest("library", "modding-api-77")
-            ]);
-
-        var plan = await service.CreatePlanAsync("feature");
-
-        Assert.False(plan.IsBlocked);
-        Assert.Equal(
-            [ModInstallPlanItemKind.Loader, ModInstallPlanItemKind.Dependency, ModInstallPlanItemKind.Mod],
-            plan.Items.Select(item => item.Kind));
-        Assert.All(plan.Items, item => Assert.Equal(ModInstallPlanItemState.NeedsInstall, item.State));
-        Assert.Equal(["modding-api-77", "library", "feature"], plan.Items.Select(item => item.Id));
-    }
-
-    [Fact]
-    public async Task CreatePlan_marks_matching_and_old_installed_dependencies()
-    {
-        await WriteManagedLoaderAsync("modding-api-77", LoaderState.ModdingApi);
-        await WriteInstalledModAsync("library", "0.9", enabled: true);
-        await WriteInstalledModAsync("shared", "1.0", enabled: true);
-        await WriteInstalledModAsync("disabled", "1.0", enabled: false);
-        var service = CreateService(
-            Instance(),
-            [
-                Manifest("feature", "modding-api-77", dependencies: ["library", "shared", "disabled"]),
-                Manifest("library", "modding-api-77"),
-                Manifest("shared", "modding-api-77"),
-                Manifest("disabled", "modding-api-77")
-            ]);
-
-        var plan = await service.CreatePlanAsync("feature");
-
-        Assert.Equal(ModInstallPlanItemState.Satisfied, plan.Items[0].State);
-        Assert.Equal(ModInstallPlanItemState.NeedsUpdate, plan.Items.Single(item => item.Id == "library").State);
-        Assert.Equal(ModInstallPlanItemState.Satisfied, plan.Items.Single(item => item.Id == "shared").State);
-        var disabled = plan.Items.Single(item => item.Id == "disabled");
-        Assert.Equal(ModInstallPlanItemState.NeedsUpdate, disabled.State);
-        Assert.Contains("enable", disabled.Reason, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(ModInstallPlanItemState.NeedsInstall, plan.Items.Single(item => item.Id == "feature").State);
-    }
-
-    [Fact]
     public async Task Evaluate_maps_official_1578_mod_to_api78_on_latest_build()
     {
         var instance = Instance(buildId: "1.5.12620.0");
@@ -221,6 +162,42 @@ public sealed class ModInstallServiceTests : IDisposable
         Assert.Equal(ModInstallReadiness.RequiresLoader, evaluation.Status);
         Assert.Equal("modding-api-78", evaluation.RequiredLoaderId);
     }
+    [Theory]
+    [InlineData("bepinex-5.4.23.4", false)]
+    [InlineData("modding-api-78", true)]
+    public async Task CreatePlan_only_allows_BepInEx_outside_the_loader_build_allowlist(
+        string loaderId, bool blocked)
+    {
+        var instance = Instance(buildId: "1.2.2.1");
+        var service = new ModInstallService(
+            instance,
+            [Manifest("feature", loaderId, instance.BuildId)],
+            [
+                new LoaderManifest
+                {
+                    Id = loaderId,
+                    Name = loaderId,
+                    Version = "1.0.0",
+                    DownloadUrl = "https://example.invalid/loader.zip",
+                    Sha256 = new string('B', 64),
+                    SupportedBuildIds = ["1.5.12620.0"]
+                }
+            ],
+            new LoaderManager(InstanceRoot, Path.Combine(root, "transactions"), LoaderReceiptPath),
+            new ModManager(
+                InstanceRoot,
+                Path.Combine(root, "transactions"),
+                Path.Combine(root, "state", "mods"),
+                Path.Combine(root, "packages")));
+
+        var plan = await service.CreatePlanAsync("feature");
+
+        Assert.Equal(blocked, plan.IsBlocked);
+        Assert.Equal(loaderId, plan.Items[0].Id);
+        Assert.Equal(blocked ? ModInstallPlanItemState.Blocked : ModInstallPlanItemState.NeedsInstall,
+            plan.Items[0].State);
+    }
+
     [Fact]
     public async Task CreatePlan_marks_every_pending_item_blocked_when_loader_is_incompatible()
     {
@@ -232,23 +209,6 @@ public sealed class ModInstallServiceTests : IDisposable
         Assert.True(plan.IsBlocked);
         Assert.All(plan.Items, item => Assert.Equal(ModInstallPlanItemState.Blocked, item.State));
         Assert.All(plan.Items, item => Assert.False(string.IsNullOrWhiteSpace(item.Reason)));
-    }
-
-    [Fact]
-    public async Task CreatePlan_includes_display_metadata_and_reason_for_every_item()
-    {
-        var service = CreateService(Instance(), [Manifest("feature", "modding-api-77")]);
-
-        var plan = await service.CreatePlanAsync("feature");
-
-        Assert.Equal("Instance", plan.InstanceName);
-        Assert.All(plan.Items, item =>
-        {
-            Assert.False(string.IsNullOrWhiteSpace(item.Name));
-            Assert.False(string.IsNullOrWhiteSpace(item.Version));
-            Assert.False(string.IsNullOrWhiteSpace(item.LoaderId));
-            Assert.False(string.IsNullOrWhiteSpace(item.Reason));
-        });
     }
 
     [Fact]

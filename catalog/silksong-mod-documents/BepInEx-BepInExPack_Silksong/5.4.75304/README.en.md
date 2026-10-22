@@ -1,0 +1,1 @@
+This package is empty and exists only to redirect users to the currently maintained modloader package: [silksong_modding-BepInExPack_Silksong](https://thunderstore.io/c/hollow-knight-silksong/p/silksong_modding/BepInExPack_Silksong/)

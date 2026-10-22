@@ -4,6 +4,11 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Data/official-catalog.json" />
+    <EmbeddedResource Include="..\..\catalog\silksong-mod-translations.zh-CN.v1.json" LogicalName="Crystalfly.Core.SilksongTranslations.index.json" />
+    <EmbeddedResource Include="..\..\catalog\silksong-mod-documents\**\*.md">
+      <WithCulture>false</WithCulture>
+      <LogicalName>Crystalfly.Core.SilksongTranslations.$([System.String]::Copy('%(RecursiveDir)').Replace('\', '/'))%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="..\..\catalog\mod-translations.zh-CN.v1.json">
       <LogicalName>Crystalfly.Core.Data.mod-translations.zh-CN.v1.json</LogicalName>
     </EmbeddedResource>

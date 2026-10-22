@@ -1,0 +1,1 @@
+You only need to kill one of each enemy to complete its hunter's journal entry.

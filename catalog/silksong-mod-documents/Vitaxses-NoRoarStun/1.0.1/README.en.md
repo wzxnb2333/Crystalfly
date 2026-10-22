@@ -1,0 +1,1 @@
+Prevents you from being stunned by boss roars/screams

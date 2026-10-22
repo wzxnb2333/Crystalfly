@@ -16,7 +16,9 @@ public sealed record SteamDownloadRequest(
     string Branch = "public",
     string? RepairSourceDirectory = null,
     IReadOnlyDictionary<string, string>? RepairSha256 = null,
-    string? ChunkCacheDirectory = null);
+    string? ChunkCacheDirectory = null,
+    uint AppId = SteamProduct.HollowKnightAppId,
+    uint DepotId = SteamProduct.HollowKnightWindowsDepotId);
 
 public sealed record SteamDownloadResult(
     uint AppId,

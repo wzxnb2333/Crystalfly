@@ -30,7 +30,7 @@ public sealed record ModHealthAcknowledgement
         };
     }
 
-    internal bool Matches(string instanceId, LaunchPreflightIssue issue) =>
+    public bool Matches(string instanceId, LaunchPreflightIssue issue) =>
         string.Equals(Fingerprint, Create(instanceId, issue).Fingerprint, StringComparison.Ordinal);
 
     private static string Normalize(string? value) =>

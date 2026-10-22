@@ -102,7 +102,7 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(HasLiveSplitFavorites));
     }
 
-    public bool IsSpeedrunEnvironmentTab => CurrentSpeedrunTab == "Environment";
+    public bool IsSpeedrunEnvironmentTab => IsHollowKnight && CurrentSpeedrunTab == "Environment";
     public bool IsSpeedrunActivityTab => CurrentSpeedrunTab == "Activity";
     public bool IsSpeedrunActivityFilterAll => SpeedrunActivityFilter == "All";
     public bool IsSpeedrunActivityFilterHollowKnight => SpeedrunActivityFilter == "HollowKnight";
@@ -173,7 +173,7 @@ public partial class MainViewModel
     [RelayCommand]
     private void SelectSpeedrunTab(string? tab)
     {
-        if (tab is "Environment" or "Activity")
+        if (tab is "Environment" or "Activity" && (IsHollowKnight || tab == "Activity"))
         {
             CurrentSpeedrunTab = tab;
         }

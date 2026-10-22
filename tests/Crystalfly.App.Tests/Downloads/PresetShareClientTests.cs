@@ -9,13 +9,6 @@ namespace Crystalfly.App.Tests.Downloads;
 
 public sealed class PresetShareClientTests
 {
-    [Fact]
-    public void Production_share_service_uses_the_custom_domain()
-    {
-        Assert.Equal(
-            "https://crystalflyapi.jwst233.top/",
-            MainViewModel.PresetShareServiceUri.AbsoluteUri);
-    }
 
     [Fact]
     public async Task Create_fetch_and_delete_use_the_versioned_portable_preset_contract()

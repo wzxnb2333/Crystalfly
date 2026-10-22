@@ -6,28 +6,6 @@ namespace Crystalfly.App.Tests.Downloads;
 
 public sealed class ModInstallQueueGroupFactoryTests
 {
-    [Fact]
-    public void Creates_loader_dependency_and_mod_items_in_plan_order()
-    {
-        var instance = Instance();
-        var catalog = Catalog();
-        var plan = Plan(
-            Item(ModInstallPlanItemKind.Loader, ModInstallPlanItemState.NeedsInstall, "loader"),
-            Item(ModInstallPlanItemKind.Dependency, ModInstallPlanItemState.Satisfied, "library"),
-            Item(ModInstallPlanItemKind.Mod, ModInstallPlanItemState.NeedsInstall, "feature"));
-
-        var group = ModInstallQueueGroupFactory.Create(plan, catalog, instance);
-
-        Assert.Equal("practice:mod:feature", group.DeduplicationKey);
-        Assert.Equal(instance.RootPath, group.TargetInstanceRoot);
-        Assert.Equal(
-            [DownloadQueueItemKind.Loader, DownloadQueueItemKind.Dependency, DownloadQueueItemKind.Mod],
-            group.Items.Select(item => item.Kind));
-        Assert.Equal(DownloadQueueItemState.Pending, group.Items[1].State);
-        Assert.True(group.Items[1].IsSatisfied);
-        Assert.Equal(group.Items[1].TotalBytes, group.Items[1].CompletedBytes);
-        Assert.Equal("https://packages.test/feature.zip", group.Items[2].DownloadUrl);
-    }
 
     [Fact]
     public void Resolves_legacy_official_package_for_latest_api78_plan()

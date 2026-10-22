@@ -2,6 +2,8 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Crystalfly.App.ViewModels;
+using Crystalfly.Core.Instances;
+using Crystalfly.Core.Models;
 using Irihi.Avalonia.Shared.Contracts;
 
 namespace Crystalfly.App.ViewModels.Dialogs;
@@ -25,10 +27,11 @@ public sealed partial class HistoricalManifestDialogViewModel : ViewModelBase, I
         string unverifiedMessage,
         string invalidMessage,
         string confirmText,
-        string cancelText)
+        string cancelText,
+        GameId gameId = GameId.HollowKnight)
     {
         knownBuilds = builds
-            .Where(build => build.ManifestId is not null)
+            .Where(build => build.ManifestId is not null && BuildIdentity.IsKnown(build.BuildId))
             .ToDictionary(build => build.ManifestId!.Value);
         Title = title;
         Message = message;
@@ -39,6 +42,8 @@ public sealed partial class HistoricalManifestDialogViewModel : ViewModelBase, I
         this.invalidMessage = invalidMessage;
         ConfirmText = confirmText;
         CancelText = cancelText;
+        var game = GameDefinition.Get(gameId);
+        DepotIdentity = $"AppID {game.SteamAppId} · Windows Depot {game.WindowsDepotId}";
         UpdateValidation();
     }
 
@@ -53,6 +58,8 @@ public sealed partial class HistoricalManifestDialogViewModel : ViewModelBase, I
     public string ConfirmText { get; }
 
     public string CancelText { get; }
+
+    public string DepotIdentity { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanConfirm))]

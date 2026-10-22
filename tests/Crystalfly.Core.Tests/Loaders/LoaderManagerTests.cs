@@ -4,6 +4,7 @@ using System.Text;
 using Crystalfly.Core.Loaders;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Serialization;
+using Crystalfly.Core.Thunderstore;
 
 namespace Crystalfly.Core.Tests.Loaders;
 
@@ -575,6 +576,55 @@ public sealed class LoaderManagerTests : IDisposable
         Assert.Contains(receipt.Files, file => file.RelativePath == "doorstop_config.ini");
         Assert.Equal(LoaderState.BepInEx, await manager.GetStateAsync());
         Assert.True(File.Exists(Path.Combine(coreDir, "BepInEx.dll")));
+    }
+
+    [Fact]
+    public async Task Thunderstore_loader_receipt_takes_precedence_over_stale_legacy_receipt()
+    {
+        var manager = CreateManager();
+        var loaderPath = Path.Combine(InstanceRoot, "BepInEx", "core", "BepInEx.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(loaderPath)!);
+        await File.WriteAllTextAsync(loaderPath, "official loader bytes");
+        var configPath = Path.Combine(InstanceRoot, "doorstop_config.ini");
+        await File.WriteAllTextAsync(configPath, "user-owned config");
+        await AtomicJsonStore.WriteAsync(ReceiptPath, new InstalledPackageReceipt
+        {
+            GameId = GameId.HollowKnight,
+            PackageId = "bepinex-5.4.23.2",
+            LoaderState = LoaderState.BepInEx,
+            IsVerified = false,
+            BackupRoot = string.Empty,
+            Files = [new InstalledFileReceipt
+            {
+                RelativePath = "BepInEx/core/BepInEx.dll",
+                Sha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("legacy loader bytes")))
+            }]
+        });
+        await AtomicJsonStore.WriteAsync(Path.Combine(InstanceRoot, ThunderstoreInstallService.MetadataDirectory, "installed.json"),
+            new ThunderstoreInstallState
+            {
+                GameId = GameId.Silksong,
+                Packages = [new ThunderstoreInstalledPackage
+                {
+                    FullName = SilksongLoaderAdapter.PackageName,
+                    Version = SilksongLoaderAdapter.PackageVersion,
+                    ArchiveSha256 = SilksongLoaderAdapter.Sha256,
+                    IsLoader = true,
+                    RuntimeVersion = SilksongLoaderAdapter.RuntimeVersion,
+                    Files =
+                    [
+                        new("BepInEx/core/BepInEx.dll", FileSha256(loaderPath)),
+                        new("doorstop_config.ini", FileSha256(configPath), IsConfiguration: false)
+                    ]
+                }]
+            });
+
+        var receipt = await manager.GetReceiptAsync();
+
+        Assert.Equal("bepinex-silksong-" + SilksongLoaderAdapter.RuntimeVersion, receipt!.PackageId);
+        Assert.Equal(FileSha256(loaderPath), receipt.Files.Single().Sha256);
+        Assert.DoesNotContain(receipt.Files, file => file.RelativePath == "doorstop_config.ini");
+        Assert.Equal(LoaderState.BepInEx, await manager.GetStateAsync());
     }
 
     [Fact]

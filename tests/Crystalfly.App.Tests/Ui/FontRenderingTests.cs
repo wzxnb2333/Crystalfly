@@ -6,6 +6,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
 using Crystalfly.App.ViewModels;
+using Crystalfly.Core.Thunderstore;
 
 namespace Crystalfly.App.Tests.Ui;
 
@@ -83,6 +84,30 @@ public sealed class FontRenderingTests
         Assert.NotEmpty(characters);
         var text = string.Concat(characters.OrderBy(rune => rune.Value).Select(rune => rune.ToString()));
         using var layout = new TextLayout(text, new Typeface(FontFamily.Default, weight: weight), 14, Brushes.Black);
+        AssertNoMissingGlyphs(layout);
+    }
+
+    [AvaloniaFact]
+    public async Task Silksong_translation_metadata_and_document_Chinese_characters_have_no_missing_glyphs()
+    {
+        var source = new SilksongModTranslationSource();
+        var catalog = source.Catalog;
+        var texts = catalog.Mods.SelectMany(item => new[] { item.DisplayName }
+            .Concat(item.Versions.Select(version => version.Description ?? ""))).Concat(catalog.CategoryNames.Values).ToList();
+        foreach (var mod in catalog.Mods)
+        foreach (var version in mod.Versions)
+        foreach (var document in version.Documents.Where(item => !item.Value.Missing))
+        {
+            var content = await source.ReadDocumentAsync(mod.FullName, version.Version, document.Key, offline: true);
+            Assert.NotNull(content);
+            if (!content.Missing) Assert.NotNull(content.Chinese);
+            texts.Add(content.Chinese ?? "");
+        }
+        var characters = texts.SelectMany(text => text.EnumerateRunes()).Where(rune => !Rune.IsControl(rune))
+            .Where(rune => rune.Value is >= 0x3400 and <= 0x9fff || rune.Value is >= 0x3000 and <= 0x303f)
+            .Distinct().OrderBy(rune => rune.Value);
+        using var layout = new TextLayout(string.Concat(characters.Select(rune => rune.ToString())),
+            Typeface.Default, 14, Brushes.Black);
         AssertNoMissingGlyphs(layout);
     }
 

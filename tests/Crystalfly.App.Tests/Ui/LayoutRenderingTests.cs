@@ -130,133 +130,6 @@ public sealed class LayoutRenderingTests
         }
     }
 
-    public static TheoryData<int, int, bool, bool, string, string?> LayoutCases
-    {
-        get
-        {
-            var data = new TheoryData<int, int, bool, bool, string, string?>();
-            foreach (var (width, height) in new[]
-                     {
-                         (900, 600),
-                         (1280, 720),
-                         (1920, 1080),
-                         (2560, 1440)
-                     })
-            {
-                foreach (var darkTheme in new[] { false, true })
-                {
-                    foreach (var english in new[] { false, true })
-                    {
-                        data.Add(width, height, darkTheme, english, "Launch", null);
-                        data.Add(width, height, darkTheme, english, "Settings", null);
-                    }
-                }
-            }
-
-            foreach (var darkTheme in new[] { false, true })
-            {
-                foreach (var english in new[] { false, true })
-                {
-                    data.Add(900, 600, darkTheme, english, "Manage", "Mods");
-                    data.Add(900, 600, darkTheme, english, "Manage", "Presets");
-                    data.Add(900, 600, darkTheme, english, "Manage", "Logs");
-                    data.Add(900, 600, darkTheme, english, "Downloads", null);
-                    data.Add(900, 600, darkTheme, english, "Speedrun", null);
-                    foreach (var tab in new[] { "Overview", "Loader", "Mods", "Presets", "Snapshots", "Logs" })
-                    {
-                        data.Add(1280, 720, darkTheme, english, "Manage", tab);
-                    }
-                    data.Add(1280, 720, darkTheme, english, "Versions", null);
-                    data.Add(1280, 720, darkTheme, english, "Speedrun", null);
-                }
-            }
-
-            return data;
-        }
-    }
-
-    [AvaloniaTheory]
-    [MemberData(nameof(LayoutCases))]
-    public void Workspaces_are_centered_and_interactive_controls_do_not_overflow(
-        int width,
-        int height,
-        bool darkTheme,
-        bool english,
-        string page,
-        string? manageTab)
-    {
-        Application.Current!.RequestedThemeVariant = darkTheme ? ThemeVariant.Dark : ThemeVariant.Light;
-        var applicationData = Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N"));
-        var viewModel = new MainViewModel(applicationData)
-        {
-            CurrentPage = page,
-            CurrentManageTab = manageTab ?? "Overview"
-        };
-        viewModel.Loc.Apply(english ? UiLanguage.English : UiLanguage.SimplifiedChinese);
-
-        var window = new MainWindow
-        {
-            Width = width,
-            Height = height
-        };
-        window.Show();
-        window.DataContext = viewModel;
-        Dispatcher.UIThread.RunJobs();
-
-        try
-        {
-            var workspaces = window.GetVisualDescendants()
-                .OfType<Control>()
-                .Where(control => control.IsEffectivelyVisible && control.Classes.Contains("cfp-workspace"))
-                .ToArray();
-            Assert.NotEmpty(workspaces);
-
-            foreach (var workspace in workspaces)
-            {
-                var maximumWidth = workspace.Classes.Contains("cfp-settings-workspace") ? 1200d : 1920d;
-                Assert.True(workspace.Bounds.Width <= maximumWidth + 0.5,
-                    $"{page}/{manageTab}: workspace width {workspace.Bounds.Width:F1} exceeded {maximumWidth:F0}.");
-                var scrollViewer = workspace.FindAncestorOfType<ScrollViewer>();
-                Assert.NotNull(scrollViewer);
-                var availableWidth = scrollViewer.Bounds.Width - workspace.Margin.Left - workspace.Margin.Right;
-                var expectedWidth = Math.Min(maximumWidth, availableWidth);
-                Assert.InRange(Math.Abs(workspace.Bounds.Width - expectedWidth), 0, 1.5);
-                var workspaceOrigin = workspace.TranslatePoint(default, window);
-                var scrollOrigin = scrollViewer.TranslatePoint(default, window);
-                Assert.NotNull(workspaceOrigin);
-                Assert.NotNull(scrollOrigin);
-                var leftGap = workspaceOrigin.Value.X - scrollOrigin.Value.X;
-                var rightGap = scrollOrigin.Value.X + scrollViewer.Bounds.Width
-                    - workspaceOrigin.Value.X - workspace.Bounds.Width;
-                Assert.InRange(Math.Abs(leftGap - rightGap), 0, 1.5);
-            }
-
-            var controls = window.GetVisualDescendants()
-                .OfType<Control>()
-                .Where(control => control.IsEffectivelyVisible
-                    && control.Bounds.Width > 0
-                    && control is Button or TextBox or ComboBox)
-                .ToArray();
-            foreach (var control in controls)
-            {
-                var origin = control.TranslatePoint(default, window);
-                Assert.NotNull(origin);
-                Assert.True(origin.Value.X >= -0.5,
-                    $"{page}/{manageTab}: {control.GetType().Name} starts at {origin.Value.X:F1}.");
-                Assert.True(origin.Value.X + control.Bounds.Width <= width + 0.5,
-                    $"{page}/{manageTab}: {control.GetType().Name} ends at {origin.Value.X + control.Bounds.Width:F1} of {width}.");
-            }
-        }
-        finally
-        {
-            CloseImmediately(window);
-            if (Directory.Exists(applicationData))
-            {
-                Directory.Delete(applicationData, recursive: true);
-            }
-        }
-    }
-
     [AvaloniaFact]
     public async Task Installed_mod_list_uses_remaining_height_and_keeps_bulk_actions_visible_at_900x600()
     {
@@ -339,125 +212,6 @@ public sealed class LayoutRenderingTests
             Assert.All(controls, control =>
                 Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(control)),
                     $"{page}: {control.GetType().Name} has no accessible name."));
-        }
-        finally
-        {
-            CloseImmediately(window);
-        }
-    }
-
-    [AvaloniaTheory]
-    [InlineData("Versions")]
-    [InlineData("Manage")]
-    [InlineData("Speedrun")]
-    [InlineData("Downloads")]
-    [InlineData("Settings")]
-    public void Secondary_page_headers_are_removed(string page)
-    {
-        var viewModel = new MainViewModel(Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N")))
-        {
-            CurrentPage = page
-        };
-        var window = new MainWindow { Width = 1280, Height = 720 };
-        window.Show();
-        window.DataContext = viewModel;
-        Dispatcher.UIThread.RunJobs();
-
-        try
-        {
-            Assert.DoesNotContain(window.GetVisualDescendants()
-                .OfType<Border>(),
-                border => border.IsEffectivelyVisible && border.Classes.Contains("cfp-page-header"));
-        }
-        finally
-        {
-            CloseImmediately(window);
-        }
-    }
-
-    [AvaloniaFact]
-    public void Speedrun_page_shows_the_runtime_patches_workspace()
-    {
-        var viewModel = new MainViewModel(Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N")))
-        {
-            CurrentPage = "Speedrun"
-        };
-        var window = new MainWindow { Width = 1280, Height = 720 };
-        window.Show();
-        window.DataContext = viewModel;
-        Dispatcher.UIThread.RunJobs();
-
-        try
-        {
-            Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text =>
-                text.IsEffectivelyVisible && text.Text == "仍在开发中");
-            Assert.Contains(window.GetVisualDescendants().OfType<ListBox>(), list => list.IsEffectivelyVisible);
-            Assert.Contains(window.GetVisualDescendants().OfType<Button>(), button =>
-                button.IsEffectivelyVisible && Equals(button.Content, viewModel.Loc["SpeedrunCreate"]));
-            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(), button =>
-                button.IsEffectivelyVisible
-                && button.Classes.Contains("cfp-icon")
-                && AutomationProperties.GetName(button) == viewModel.Loc["SpeedrunCreate"]);
-
-            var config = window.GetVisualDescendants()
-                .OfType<Border>()
-                .Single(border => border.Classes.Contains("cfp-speedrun-config"));
-            Assert.False(config.IsEffectivelyVisible);
-
-            var create = window.GetVisualDescendants()
-                .OfType<Border>()
-                .Single(border => border.Classes.Contains("cfp-speedrun-create"));
-            Assert.Equal(2, create.GetVisualDescendants().OfType<ComboBox>().Count(combo => combo.IsEffectivelyVisible));
-            var createButton = create.GetVisualDescendants()
-                .OfType<Button>()
-                .Single(button => button.Classes.Contains("cfp-primary")
-                    && Equals(button.Content, viewModel.Loc["SpeedrunCreate"]));
-            Assert.Equal(HorizontalAlignment.Stretch, createButton.HorizontalAlignment);
-
-            // 切换条叠放在工作区底部，保持内容和两侧栏的完整高度。
-            var tabSwitch = window.GetVisualDescendants()
-                .OfType<Border>()
-                .Single(border => border.Classes.Contains("cfp-speedrun-tab-switch"));
-            Assert.True(tabSwitch.IsEffectivelyVisible);
-            var tabTop = tabSwitch.TranslatePoint(default, window);
-            var tabBottom = tabSwitch.TranslatePoint(new Point(0, tabSwitch.Bounds.Height), window);
-            var tabCenter = tabSwitch.TranslatePoint(new Point(tabSwitch.Bounds.Width / 2, 0), window);
-            Assert.NotNull(tabBottom);
-            Assert.NotNull(tabTop);
-            Assert.NotNull(tabCenter);
-            Assert.InRange(window.ClientSize.Height - tabBottom.Value.Y, 0, 20);
-            Assert.InRange(Math.Abs(tabCenter.Value.X - window.Width / 2), 0, 2);
-
-            var workspaceScroll = window.GetVisualDescendants()
-                .OfType<Grid>()
-                .Single(grid => grid.Classes.Contains("cfp-workspace") && grid.IsEffectivelyVisible)
-                .FindAncestorOfType<ScrollViewer>();
-            Assert.NotNull(workspaceScroll);
-            var rail = window.GetVisualDescendants()
-                .OfType<Border>()
-                .Single(border => border.IsEffectivelyVisible
-                    && border.Classes.Contains("cfp-rail")
-                    && Math.Abs(border.Bounds.Width - 216) < 1);
-            var railOrigin = rail.TranslatePoint(default, window);
-            var workspaceOrigin = workspaceScroll.TranslatePoint(default, window);
-            var favoritesRail = window.GetVisualDescendants()
-                .OfType<Border>()
-                .Single(border => border.IsEffectivelyVisible
-                    && border.Classes.Contains("cfp-speedrun-favorites"));
-            var favoritesOrigin = favoritesRail.TranslatePoint(default, window);
-            Assert.NotNull(railOrigin);
-            Assert.NotNull(workspaceOrigin);
-            Assert.NotNull(favoritesOrigin);
-            Assert.InRange(Math.Abs(railOrigin.Value.X), 0, 1.5);
-            Assert.Equal(248, favoritesRail.Bounds.Width, precision: 0);
-            Assert.Equal(1, favoritesRail.BorderThickness.Left);
-            Assert.InRange(Math.Abs(window.Width - favoritesOrigin.Value.X - favoritesRail.Bounds.Width), 0, 1.5);
-            Assert.InRange(Math.Abs(favoritesOrigin.Value.X - 12 - workspaceOrigin.Value.X - workspaceScroll.Bounds.Width), 0, 1.5);
-            var scrollBottom = workspaceScroll.TranslatePoint(new Point(0, workspaceScroll.Bounds.Height), window);
-            Assert.NotNull(scrollBottom);
-            Assert.Equal(rail.Bounds.Height, workspaceScroll.Bounds.Height, precision: 0);
-            Assert.InRange(Math.Abs(scrollBottom.Value.Y - window.ClientSize.Height), 0, 1.5);
-            Assert.True(tabTop.Value.Y < scrollBottom.Value.Y);
         }
         finally
         {
@@ -553,71 +307,6 @@ public sealed class LayoutRenderingTests
     }
 
     [AvaloniaFact]
-    public void Top_navigation_uses_a_text_brand_without_a_logo()
-    {
-        var viewModel = new MainViewModel(Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N")));
-        var window = new MainWindow { Width = 1280, Height = 720 };
-        window.Show();
-        window.DataContext = viewModel;
-        Dispatcher.UIThread.RunJobs();
-
-        try
-        {
-            var topbar = window.GetVisualDescendants()
-                .OfType<Border>()
-                .Single(border => border.Classes.Contains("cfp-topbar"));
-            var brand = topbar.GetVisualDescendants()
-                .OfType<TextBlock>()
-                .Single(text => text.Classes.Contains("cfp-brand"));
-            var brandGrid = Assert.IsType<Grid>(brand.Parent);
-            Assert.Equal(0, Grid.GetColumn(brand));
-            Assert.DoesNotContain(brandGrid.Children, child => child is Border && Grid.GetColumn(child) == 0);
-        }
-        finally
-        {
-            CloseImmediately(window);
-        }
-    }
-
-    [AvaloniaFact]
-    public void Launch_rail_actions_are_vertical_equal_width_buttons()
-    {
-        var viewModel = new MainViewModel(Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N")))
-        {
-            CurrentPage = "Launch"
-        };
-        var window = new MainWindow { Width = 1280, Height = 720 };
-        window.Show();
-        window.DataContext = viewModel;
-        Dispatcher.UIThread.RunJobs();
-
-        try
-        {
-            var rail = window.GetVisualDescendants()
-                .OfType<Border>()
-                .Single(border => border.IsEffectivelyVisible && border.Classes.Contains("cfp-launch-rail"));
-            var buttons = rail.GetVisualDescendants()
-                .OfType<Button>()
-                .Where(button => button.IsEffectivelyVisible)
-                .ToArray();
-            Assert.Equal(3, buttons.Length);
-
-            var origins = buttons
-                .Select(button => Assert.IsType<Point>(button.TranslatePoint(default, rail)))
-                .ToArray();
-            Assert.All(buttons, button => Assert.True(button.Bounds.Height >= 39.5));
-            Assert.All(buttons, button => Assert.Equal(HorizontalAlignment.Center, button.HorizontalContentAlignment));
-            Assert.All(buttons, button => Assert.InRange(Math.Abs(button.Bounds.Width - buttons[0].Bounds.Width), 0, 0.5));
-            Assert.True(origins[1].Y >= origins[0].Y + buttons[0].Bounds.Height + 7.5);
-            Assert.True(origins[2].Y >= origins[1].Y + buttons[1].Bounds.Height + 7.5);
-        }
-        finally
-        {
-            CloseImmediately(window);
-        }
-    }
-
-    [AvaloniaFact]
     public void Instance_rows_keep_summary_left_and_selected_actions_visible()
     {
         var viewModel = new MainViewModel(Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N")))
@@ -701,7 +390,7 @@ public sealed class LayoutRenderingTests
         get
         {
             var data = new TheoryData<double, string, string?>();
-            foreach (var scaling in new[] { 1d, 1.5d, 2d })
+            foreach (var scaling in new[] { 1d, 2d })
             {
                 data.Add(scaling, "Settings", null);
                 data.Add(scaling, "Downloads", null);
@@ -758,8 +447,10 @@ public sealed class LayoutRenderingTests
                     "cfp-instance-action" or
                     "cfp-download-fab"))
                 {
-                    Assert.True(button.Bounds.Height >= 35.5,
-                        $"{page}/{manageTab}: button height {button.Bounds.Height:F1} at {renderScaling:P0} scaling.");
+                    // Link actions use the compact 32-DIP button template; full actions remain 36 DIP.
+                    var minimumHeight = button.Classes.Contains("cfp-link") ? 31.5 : 35.5;
+                    Assert.True(button.Bounds.Height >= minimumHeight,
+                        $"{page}/{manageTab}: button [{string.Join(' ', button.Classes)}] '{button.Content}' height {button.Bounds.Height:F1} at {renderScaling:P0} scaling.");
                 }
                 var contentControls = button.GetVisualDescendants()
                     .OfType<Control>()

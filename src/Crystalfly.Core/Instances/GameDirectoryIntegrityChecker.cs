@@ -1,20 +1,17 @@
+using Crystalfly.Core.Models;
+
 namespace Crystalfly.Core.Instances;
 
 public static class GameDirectoryIntegrityChecker
 {
-    private static readonly string[] CoreFiles =
-    [
-        "hollow_knight.exe",
-        "hollow_knight_Data/globalgamemanagers"
-    ];
-
     public static GameDirectoryIntegrityReport Inspect(
         string rootPath,
-        IEnumerable<string>? requiredRelativePaths = null)
+        IEnumerable<string>? requiredRelativePaths = null, GameId? gameId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
-        var requiredFiles = CoreFiles
+        var game = GameDefinition.Get(gameId ?? GameDefinition.Detect(root)?.Id ?? GameId.HollowKnight);
+        var requiredFiles = new[] { game.ExecutableName, game.GlobalGameManagersPath }
             .Concat(requiredRelativePaths ?? [])
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();

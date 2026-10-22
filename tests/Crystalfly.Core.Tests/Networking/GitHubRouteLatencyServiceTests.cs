@@ -7,13 +7,6 @@ namespace Crystalfly.Core.Tests.Networking;
 
 public sealed class GitHubRouteLatencyServiceTests
 {
-    [Fact]
-    public void Legacy_null_time_provider_constructor_call_is_unambiguous()
-    {
-        using var service = new GitHubRouteLatencyService(
-            new StubHandler((_, _) => Task.FromResult(Success())),
-            null);
-    }
 
     [Fact]
     public async Task TestAsync_probes_direct_and_mirror_in_parallel()

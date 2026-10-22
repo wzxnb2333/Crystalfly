@@ -1,0 +1,1 @@
+Made for use with this mod https://www.nexusmods.com/hollowknightsilksong/mods/602, but will still work on it's own

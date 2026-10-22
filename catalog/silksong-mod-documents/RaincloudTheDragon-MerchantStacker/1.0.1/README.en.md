@@ -1,0 +1,30 @@
+# MerchantStacker
+
+QOL mod for Hollow Knight: Silksong — buy stackable merchant refills (rosary strings, shard pouches, etc.) in bulk instead of mashing confirm.
+
+[Demonstration](https://github.com/user-attachments/assets/e88ae520-edc6-4bd1-a329-e501b698577c)
+
+<img width="720" height="810" alt="comparison" src="https://github.com/user-attachments/assets/9258997b-eeae-4cfc-8770-6a8d8a76e890" />
+
+## Features
+
+- On eligible **infinite-stock** shop items with a stack ceiling, the normal purchase confirm becomes a **quantity confirm**
+- Same Silksong yes/no dialog — **d-pad** ±1 / **right stick** ±5 (hold accelerates); cost and item count update live
+- Confirm buys that many; cancel backs out with no purchase
+- Works for **merchant shops** and **rosary stringing machines** (e.g. Greymoor)
+
+## Install
+
+1. Install [BepInExPack Silksong](https://thunderstore.io/c/hollow-knight-silksong/p/BepInEx/BepInExPack_Silksong/)
+2. Drop `MerchantStacker.dll` into `BepInEx/plugins` (or install via Thunderstore / r2modman)
+3. Configure in `BepInEx/config/io.github.raincloudthedragon.merchantstacker.cfg` (or F1 Configuration Manager)
+
+## Build
+
+Example:
+```bash
+dotnet new silksongpath --silksong-install-path "[Path to your Steam Library]/steamapps/common/Hollow Knight Silksong"
+dotnet build -c Release
+```
+
+Requires .NET SDK that can compile netstandard2.1 projects. Local `SilksongPath.props` is gitignored.

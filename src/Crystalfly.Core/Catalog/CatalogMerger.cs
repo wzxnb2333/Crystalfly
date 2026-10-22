@@ -13,13 +13,13 @@ public static class CatalogMerger
         var trustedCatalogs = new[] { embedded, remote }.OfType<GameCatalog>().ToArray();
         var trustedBuildIds = trustedCatalogs
             .SelectMany(catalog => catalog.Builds)
-            .Select(build => build.Id)
+            .Select(build => $"{build.GameId}:{build.Id}")
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         GameCatalog[] fallbackCatalogs = remote is null && cache is not null
             ? [new GameCatalog
             {
                 Channels = cache.Channels
-                    .Where(channel => trustedBuildIds.Contains(channel.BuildId))
+                    .Where(channel => trustedBuildIds.Contains($"{channel.GameId}:{channel.BuildId}"))
                     .ToArray()
             }]
             : [];
@@ -27,10 +27,10 @@ public static class CatalogMerger
 
         return new GameCatalog
         {
-            Builds = MergeEntries(trustedCatalogs, untrustedCatalogs, catalog => catalog.Builds, build => build.Id),
-            Channels = MergeEntries(trustedCatalogs, untrustedCatalogs, catalog => catalog.Channels, channel => channel.Name),
-            Loaders = MergeEntries(trustedCatalogs, untrustedCatalogs, catalog => catalog.Loaders, loader => loader.Id),
-            Mods = MergeEntries(trustedCatalogs, untrustedCatalogs, catalog => catalog.Mods, mod => mod.Id),
+            Builds = MergeEntries(trustedCatalogs, untrustedCatalogs, catalog => catalog.Builds, build => $"{build.GameId}:{build.Id}"),
+            Channels = MergeEntries(trustedCatalogs, untrustedCatalogs, catalog => catalog.Channels, channel => $"{channel.GameId}:{channel.Name}"),
+            Loaders = MergeEntries(trustedCatalogs, untrustedCatalogs, catalog => catalog.Loaders, loader => $"{loader.GameId}:{loader.Id}"),
+            Mods = MergeEntries(trustedCatalogs, untrustedCatalogs, catalog => catalog.Mods, mod => $"{mod.GameId}:{mod.Id}"),
             SpeedrunTemplates = MergeEntries(
                 trustedCatalogs,
                 untrustedCatalogs,

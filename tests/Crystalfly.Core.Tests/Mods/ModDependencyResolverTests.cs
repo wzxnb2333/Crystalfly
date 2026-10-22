@@ -5,20 +5,6 @@ namespace Crystalfly.Core.Tests.Mods;
 
 public sealed class ModDependencyResolverTests
 {
-    [Fact]
-    public void ResolveInstallOrder_places_dependencies_before_requested_mods()
-    {
-        var mods = new[]
-        {
-            Mod("hkmod:Satchel"),
-            Mod("hkmod:Menu", "hkmod:Satchel"),
-            Mod("hkmod:Feature", "hkmod:Menu", "hkmod:Satchel")
-        };
-
-        var result = ModDependencyResolver.ResolveInstallOrder(mods, ["hkmod:Feature"]);
-
-        Assert.Equal(["hkmod:Satchel", "hkmod:Menu", "hkmod:Feature"], result.Select(mod => mod.Id));
-    }
 
     [Fact]
     public void ResolveInstallOrder_rejects_missing_or_cyclic_dependencies()

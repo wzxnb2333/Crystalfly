@@ -2,6 +2,8 @@ namespace Crystalfly.Core.Models;
 
 public sealed record InstanceRecord
 {
+    public GameId GameId { get; init; } = GameId.HollowKnight;
+
     public const int CurrentSchemaVersion = 1;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
@@ -13,6 +15,9 @@ public sealed record InstanceRecord
     public required string RootPath { get; init; }
 
     public required string BuildId { get; init; }
+
+    // Game-reported version for display only; it does not replace a verified build identity.
+    public string? DeclaredVersion { get; init; }
 
     public string? LoaderId { get; init; }
 

@@ -1,0 +1,2 @@
+# TransTrans
+An asset pack for Patchwork that replaces the Mossgrub enemies with the Tiktik from Hollow Knight in the colors of the trans flag. inspired by Ashiepaws's tiktik mod and homothehk's trans trans mod

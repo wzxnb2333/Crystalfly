@@ -1,0 +1,1 @@
+Disables the "dark" vignette that follows player around.

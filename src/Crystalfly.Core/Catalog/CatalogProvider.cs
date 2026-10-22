@@ -90,6 +90,17 @@ public static class CatalogProvider
 
     private static GameCatalog FilterToEmbeddedBuilds(GameCatalog embedded, GameCatalog candidate)
     {
+        var games = GameDefinition.All.Select(game => FilterGameToEmbeddedBuilds(GameCatalogScope.ForGame(embedded, game.Id), GameCatalogScope.ForGame(candidate, game.Id))).ToArray();
+        return candidate with
+        {
+            Builds = games.SelectMany(game => game.Builds).ToArray(), Channels = games.SelectMany(game => game.Channels).ToArray(),
+            Loaders = games.SelectMany(game => game.Loaders).ToArray(), Mods = games.SelectMany(game => game.Mods).ToArray(),
+            SpeedrunAssets = games[0].SpeedrunAssets, SpeedrunTemplates = games[0].SpeedrunTemplates, SpeedrunFileManifests = games[0].SpeedrunFileManifests
+        };
+    }
+
+    private static GameCatalog FilterGameToEmbeddedBuilds(GameCatalog embedded, GameCatalog candidate)
+    {
         var embeddedBuildIds = embedded.Builds
             .Select(build => build.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -126,6 +137,12 @@ public static class CatalogProvider
     }
 
     private static void ValidateCatalog(GameCatalog source, GameCatalog resolved)
+    {
+        foreach (var game in GameDefinition.All)
+            ValidateGameCatalog(GameCatalogScope.ForGame(source, game.Id), GameCatalogScope.ForGame(resolved, game.Id));
+    }
+
+    private static void ValidateGameCatalog(GameCatalog source, GameCatalog resolved)
     {
         Version(source.SchemaVersion, nameof(GameCatalog), "catalog");
 
@@ -269,6 +286,16 @@ public static class CatalogProvider
     }
 
     internal static void ValidateSource(GameCatalog source)
+    {
+        var games = Index(source.Builds, item => $"{item.GameId}:{item.Id}", nameof(GameBuild)).Values.Select(item => item.GameId)
+            .Concat(Index(source.Channels, item => $"{item.GameId}:{item.Name}", nameof(GameChannel)).Values.Select(item => item.GameId))
+            .Concat(Index(source.Loaders, item => $"{item.GameId}:{item.Id}", nameof(LoaderManifest)).Values.Select(item => item.GameId))
+            .Concat(Index(source.Mods, item => $"{item.GameId}:{item.Id}", nameof(ModManifest)).Values.Select(item => item.GameId));
+        if (games.Any(game => !Enum.IsDefined(game))) throw new InvalidDataException("Unknown catalog game identity.");
+        foreach (var game in GameDefinition.All) ValidateGameSource(GameCatalogScope.ForGame(source, game.Id));
+    }
+
+    private static void ValidateGameSource(GameCatalog source)
     {
         Version(source.SchemaVersion, nameof(GameCatalog), "catalog");
         _ = Index(source.Builds, build => build.Id, nameof(GameBuild));

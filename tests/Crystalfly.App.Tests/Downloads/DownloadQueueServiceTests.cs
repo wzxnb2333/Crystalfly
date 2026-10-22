@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Net;
 using Crystalfly.App.Downloads;
+using Crystalfly.Core.Models;
 using Crystalfly.Core.Networking;
 using Crystalfly.Core.Packages;
 
@@ -670,6 +671,64 @@ public sealed class DownloadQueueServiceTests : IDisposable
                 | System.Reflection.BindingFlags.NonPublic)!
             .GetValue(queue));
         Assert.Empty(tasks);
+    }
+
+    [Fact]
+    public async Task Install_waits_only_for_its_recorded_game()
+    {
+        var hollowKnightRunning = 1;
+        var executor = new ControlledExecutor(requiresGameExit: true);
+        await using (var queue = CreateQueue(executor, static () => true))
+        {
+            queue.IsTargetGameRunning = group => group.GameId == GameId.HollowKnight
+                && Volatile.Read(ref hollowKnightRunning) != 0;
+            await queue.InitializeAsync();
+            await queue.EnqueueAsync(Group("silksong", "silksong-feature") with
+            {
+                GameId = GameId.Silksong,
+                TargetInstanceId = "silksong-instance"
+            });
+            await queue.WaitForIdleAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(DownloadQueueGroupState.Completed, Assert.Single(queue.Groups).State);
+
+            await queue.EnqueueAsync(Group("hollow-knight", "hk-feature"));
+            await WaitUntilAsync(() => queue.Groups.Single(group => group.Id == "hollow-knight")
+                .Items[0].State == DownloadQueueItemState.WaitingForGameExit);
+            Assert.Equal(1, executor.StartedInstalls);
+            Volatile.Write(ref hollowKnightRunning, 0);
+            await queue.WaitForIdleAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(2, executor.StartedInstalls);
+        }
+
+        Assert.Empty(await ReadStoredGroupsAsync());
+    }
+
+    [Fact]
+    public async Task Interrupted_games_preserve_their_game_and_instance_after_restart()
+    {
+        var executor = new ControlledExecutor(blockTransfers: true);
+        await using (var queue = CreateQueue(executor))
+        {
+            await queue.InitializeAsync();
+            await queue.EnqueueAsync(Group("silksong", "silksong-feature") with
+            {
+                GameId = GameId.Silksong,
+                TargetInstanceId = "silksong-instance",
+                TargetInstanceRoot = Path.Combine(root, "silksong")
+            });
+            await queue.EnqueueAsync(Group("hollow-knight", "hk-feature"));
+            await executor.WaitForStartedAsync(2);
+        }
+
+        await using var restored = CreateQueue(new ControlledExecutor());
+        await restored.InitializeAsync();
+        await restored.WaitForIdleAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        var silksong = restored.Groups.Single(group => group.Id == "silksong");
+        Assert.Equal(GameId.Silksong, silksong.GameId);
+        Assert.Equal("silksong-instance", silksong.TargetInstanceId);
+        Assert.Equal(Path.Combine(root, "silksong"), silksong.TargetInstanceRoot);
+        Assert.Equal(GameId.HollowKnight, restored.Groups.Single(group => group.Id == "hollow-knight").GameId);
+        Assert.All(restored.Groups, group => Assert.Equal(DownloadQueueGroupState.Completed, group.State));
     }
 
     [Fact]

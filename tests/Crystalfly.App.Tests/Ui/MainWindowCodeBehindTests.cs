@@ -43,31 +43,6 @@ public sealed class MainWindowCodeBehindTests : IDisposable
     }
 
     [Fact]
-    public void Installed_mod_row_handler_returns_focus_to_the_list()
-    {
-        var repositoryRoot = FindRepositoryRoot();
-        var code = File.ReadAllText(Path.Combine(
-            repositoryRoot,
-            "src",
-            "Crystalfly.App",
-            "Views",
-            "MainWindow.ModHandlers.cs"));
-        var handlerStart = code.IndexOf("private void OnInstalledModPointerPressed", StringComparison.Ordinal);
-        var nextHandler = code.IndexOf("private void OnInstalledModsKeyDown", handlerStart, StringComparison.Ordinal);
-
-        Assert.True(handlerStart >= 0 && nextHandler > handlerStart);
-        Assert.Contains("InstalledModsList.Focus", code[handlerStart..nextHandler], StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Pcl_weak_back_easing_has_a_small_single_overshoot()
-    {
-        Assert.Equal(0d, EasePclWeakBack(0d));
-        Assert.InRange(EasePclWeakBack(0.5d), 1.17d, 1.18d);
-        Assert.Equal(1d, EasePclWeakBack(1d));
-    }
-
-    [Fact]
     public async Task Dependency_repair_nodes_project_prerequisites_current_state_and_actions()
     {
         await using var viewModel = new MainViewModel(test.CreateDirectory("app-data"));

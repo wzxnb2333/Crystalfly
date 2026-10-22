@@ -1,0 +1,1 @@
+Gives the Act 3 void buffs and attacks to every enemy in the game, regardless of what act you're in.

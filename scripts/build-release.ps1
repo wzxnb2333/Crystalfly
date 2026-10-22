@@ -9,11 +9,33 @@ param(
     [string]$SigningKeyPath,
     [string]$ReleaseNotesPath,
     [string]$PublishedAt,
+    [string]$ErrorReportingConfig,
     [switch]$UnsignedLocal,
     [switch]$RunTests
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Get-ErrorReportingBuildProperties {
+    param([string]$ConfigPath)
+    # No implicit official endpoint in source, test, or fork builds.
+    if ([string]::IsNullOrWhiteSpace($ConfigPath)) {
+        return @('-p:CrystalflyErrorReportingDsn=', '-p:CrystalflyErrorReportingRegion=', '-p:CrystalflyErrorReportingRetention=')
+    }
+    $config = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
+    $uri = $null
+    if (-not [Uri]::TryCreate([string]$config.dsn, [UriKind]::Absolute, [ref]$uri) -or
+        $uri.Scheme -ne 'https' -or $uri.IsLoopback -or $uri.UserInfo -notmatch '^[A-Za-z0-9_-]+$' -or
+        $uri.AbsolutePath -notmatch '^/[0-9]+/?$' -or $uri.Query -or $uri.Fragment -or
+        ([string]$config.dsn) -match '[%;,"\s]' -or
+        ([string]$config.region) -notmatch '^[A-Za-z0-9 ._()-]{1,80}$' -or
+        ([string]$config.retention) -notmatch '^[A-Za-z0-9 ._()-]{1,80}$') {
+        throw 'Error reporting config requires a public HTTPS DSN, hosting region and retention policy; management secrets are forbidden.'
+    }
+    @("-p:CrystalflyErrorReportingDsn=$($config.dsn)",
+      "-p:CrystalflyErrorReportingRegion=$($config.region)",
+      "-p:CrystalflyErrorReportingRetention=$($config.retention)")
+}
 
 function Invoke-Native {
     param(
@@ -273,6 +295,7 @@ if ($MyInvocation.InvocationName -eq '.') {
 }
 
 $root = Split-Path -Parent $PSScriptRoot
+$errorReportingProperties = @(Get-ErrorReportingBuildProperties -ConfigPath $ErrorReportingConfig)
 $artifacts = Join-Path $root 'artifacts'
 $publish = Join-Path $artifacts "publish\$Runtime"
 $updaterPublish = Join-Path $artifacts "updater\$Runtime"
@@ -335,7 +358,7 @@ Invoke-Native 'Updater runtime restore' {
 Invoke-Native 'Self-contained publish' {
     dotnet publish $appProject -c $Configuration -r $Runtime --self-contained true `
         --no-restore -p:Version=$Version -p:DebugSymbols=false -p:DebugType=None `
-        -p:CopyOutputSymbolsToPublishDirectory=false -o $publish
+        -p:CopyOutputSymbolsToPublishDirectory=false @errorReportingProperties -o $publish
 }
 Invoke-Native 'Updater single-file publish' {
     dotnet publish $updaterProject -c $Configuration -r $Runtime --self-contained true `

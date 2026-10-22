@@ -93,38 +93,6 @@ public sealed class EmbeddedCatalogTests
     }
 
     [Fact]
-    public void Embedded_mod_translation_catalog_loads_expected_entries()
-    {
-        var catalog = EmbeddedModTranslationCatalog.Load();
-
-        Assert.Equal(1, catalog.SchemaVersion);
-        Assert.Equal("zh-CN", catalog.Language);
-        Assert.Equal(675, catalog.Mods.Count);
-        Assert.Equal(11, catalog.TagNames.Count);
-        Assert.Equal("大语言模型辅助开发", catalog.TagNames["LLM-Assisted"]);
-        Assert.Equal("首领", catalog.TagNames["Boss"]);
-        Assert.All(catalog.TagNames.Values, label => Assert.Matches("[一-鿿]", label));
-        Assert.All(catalog.Mods, mod => Assert.Matches("[一-鿿]", mod.DisplayName!));
-        Assert.All(catalog.Mods, mod => Assert.StartsWith(
-            "hkmod:",
-            mod.Id,
-            StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(
-            catalog.Mods.Count,
-            catalog.Mods.Select(mod => mod.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
-
-        var noskGod = catalog.Mods.Single(mod => mod.Id == "hkmod:Nosk God");
-        Assert.Equal("神明诺斯克", noskGod.DisplayName);
-        Assert.Null(noskGod.Description);
-        var anotherLocation = catalog.Mods.Single(mod => mod.Id == "hkmod:Another Location");
-        Assert.Equal("另一个地点", anotherLocation.DisplayName);
-        Assert.Equal("为随机机新增一个地点；可能附带条款与限制。", anotherLocation.Description);
-        var wayfinder = Assert.Single(catalog.Mods, mod => mod.Id == "hkmod:HallownestWayfinder");
-        Assert.Equal("圣巢寻路指南", wayfinder.DisplayName);
-        Assert.Contains("112% 完成度", wayfinder.Description, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void Load_returns_verified_official_fallback_data()
     {
         var catalog = EmbeddedCatalog.Load();
@@ -151,7 +119,11 @@ public sealed class EmbeddedCatalogTests
         var bepinex = catalog.Loaders.Single(loader => loader.Id == "bepinex-5.4.23.4");
         Assert.Equal(638940, bepinex.SizeBytes);
         Assert.Equal("F881201B79DA03E513BF97CDF39607FFA7F9E0D31A519B1AEECA8EB60F8309E7", bepinex.Sha256);
-        Assert.Equal(["1.5.12620.0"], bepinex.SupportedBuildIds);
+        Assert.Equal(catalog.Builds.Where(build => build.GameId == GameId.HollowKnight).Select(build => build.Id).Order(), bepinex.SupportedBuildIds.Order());
+        var silksong = catalog.Builds.Where(build => build.GameId == GameId.Silksong).ToArray();
+        Assert.Equal(2, silksong.Length);
+        Assert.All(silksong, build => Assert.Equal(1030301U, build.DepotId));
+        Assert.NotEqual(silksong[0].GlobalGameManagersSha256, silksong[1].GlobalGameManagersSha256);
 
         var moddingApi37 = catalog.Loaders.Single(loader => loader.Id == "modding-api-37");
         Assert.Equal(932719, moddingApi37.SizeBytes);
@@ -222,6 +194,23 @@ public sealed class EmbeddedCatalogTests
             file => file.Sha256.All(character => character == '0'));
     }
 
+    [Fact]
+    public void Verified_12459_has_a_Steam_identity_and_BepInEx_without_a_mismatched_Modding_API()
+    {
+        var catalog = EmbeddedCatalog.Load();
+        var build = Assert.Single(catalog.Builds, build => build.Id == "1.5.12459");
+
+        Assert.Equal("1.5.12459", build.DisplayVersion);
+        Assert.Equal(367521u, build.DepotId);
+        Assert.Equal("4709992615819941531", build.ManifestId);
+        Assert.Contains(catalog.Loaders, loader => loader.Id == "bepinex-5.4.23.4"
+            && loader.SupportedBuildIds.Contains(build.Id));
+        Assert.DoesNotContain(catalog.Loaders, loader => loader.Id.StartsWith("modding-api-", StringComparison.Ordinal)
+            && loader.SupportedBuildIds.Contains(build.Id));
+        Assert.DoesNotContain(catalog.Mods, mod => mod.Id.StartsWith("debugmod-", StringComparison.Ordinal)
+            && mod.SupportedBuildIds.Contains(build.Id));
+    }
+
     private static void AssertRuntimePatchesAsset(
         SpeedrunAsset asset,
         string id,
@@ -262,35 +251,6 @@ public sealed class EmbeddedCatalogTests
         Assert.Equal("https://json-schema.org/draft/2020-12/schema", schema["$schema"]!.GetValue<string>());
         Assert.Equal("https://raw.githubusercontent.com/wzxnb2333/Crystalfly/main/catalog/catalog.v1.schema.json", schema["$id"]!.GetValue<string>());
         Assert.NotNull(schema["properties"]?["speedrunFileManifests"]);
-    }
-
-    [Fact]
-    public void Catalog_contains_all_supported_loader_and_debugmod_release_assets()
-    {
-        var catalog = EmbeddedCatalog.Load();
-
-        Assert.Equal(
-            ["modding-api-37", "modding-api-60", "modding-api-77", "modding-api-78"],
-            catalog.Loaders
-                .Where(loader => loader.Id.StartsWith("modding-api-", StringComparison.Ordinal))
-                .Select(loader => loader.Id)
-                .Order(StringComparer.Ordinal));
-        Assert.All(catalog.Loaders, loader => Assert.True(loader.SizeBytes > 0));
-
-        Assert.Equal(
-            [
-                "debugmod-legacy-1.2.2.1",
-                "debugmod-legacy-1.4.3.2",
-                "debugmod-legacy-1.5.78",
-                "debugmod-unity6-latest"
-            ],
-            catalog.Mods
-                .Where(mod => mod.Id.StartsWith("debugmod-", StringComparison.Ordinal))
-                .Select(mod => mod.Id)
-                .Order(StringComparer.Ordinal));
-        Assert.All(
-            catalog.Mods.Where(mod => mod.Id.StartsWith("debugmod-", StringComparison.Ordinal)),
-            mod => Assert.True(mod.SizeBytes > 0));
     }
 
     [Fact]

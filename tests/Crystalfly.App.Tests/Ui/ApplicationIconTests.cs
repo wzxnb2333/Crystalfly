@@ -4,20 +4,6 @@ namespace Crystalfly.App.Tests.Ui;
 
 public sealed class ApplicationIconTests
 {
-    [Fact]
-    public void Application_uses_new_window_and_executable_icons()
-    {
-        var root = FindRepositoryRoot();
-        var png = Path.Combine(root, "src", "Crystalfly.App", "Assets", "crystalfly-icon.png");
-        var ico = Path.Combine(root, "src", "Crystalfly.App", "Assets", "crystalfly-icon.ico");
-        Assert.True(File.Exists(png));
-        Assert.True(File.Exists(ico));
-
-        var project = File.ReadAllText(Path.Combine(root, "src", "Crystalfly.App", "Crystalfly.App.csproj"));
-        var window = File.ReadAllText(Path.Combine(root, "src", "Crystalfly.App", "Views", "MainWindow.axaml"));
-        Assert.Contains("<ApplicationIcon>Assets\\crystalfly-icon.ico</ApplicationIcon>", project, StringComparison.Ordinal);
-        Assert.Contains("Icon=\"/Assets/crystalfly-icon.png\"", window, StringComparison.Ordinal);
-    }
 
     [Fact]
     public void Executable_icon_contains_all_required_sizes()

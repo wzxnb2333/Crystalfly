@@ -17,7 +17,7 @@ public static class SteamDownloadQueueGroupFactory
         ulong? manifestId,
         string versionRoot,
         string instanceName,
-        DateTimeOffset? createdAt = null)
+        DateTimeOffset? createdAt = null, GameId gameId = GameId.HollowKnight)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(buildId);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
@@ -31,7 +31,8 @@ public static class SteamDownloadQueueGroupFactory
         return new DownloadQueueGroup
         {
             Id = id,
-            DeduplicationKey = $"steam-instance:{targetRoot}",
+            GameId = gameId,
+            DeduplicationKey = $"steam-instance:{gameId}:{targetRoot}",
             Kind = DownloadQueueGroupKind.AssetInstall,
             Name = displayName,
             TargetInstanceId = Guid.NewGuid().ToString("N"),
@@ -63,7 +64,7 @@ public static class SteamDownloadQueueGroupFactory
         string displayName,
         string versionRoot,
         string instanceName,
-        DateTimeOffset? createdAt = null)
+        DateTimeOffset? createdAt = null, GameId gameId = GameId.HollowKnight)
     {
         if (manifestId == 0)
         {
@@ -80,7 +81,7 @@ public static class SteamDownloadQueueGroupFactory
             manifestId,
             versionRoot,
             instanceName,
-            createdAt);
+            createdAt, gameId);
     }
 
     public static DownloadQueueGroup CreateRepair(
@@ -91,11 +92,27 @@ public static class SteamDownloadQueueGroupFactory
     {
         ArgumentNullException.ThrowIfNull(instance);
         ArgumentNullException.ThrowIfNull(build);
+        if (build.GameId != instance.GameId)
+            throw new InvalidDataException("Cross-game repair is not allowed.");
         if (!ulong.TryParse(build.ManifestId, NumberStyles.None, CultureInfo.InvariantCulture, out var manifestId)
             || manifestId == 0)
         {
             throw new InvalidDataException($"Build '{build.Id}' has no valid Steam manifest ID.");
         }
+        if (build.Id != instance.BuildId) throw new InvalidDataException("Repair build does not match the instance.");
+        return CreateRepairCore(instance, build.Id, build.DisplayVersion, manifestId, loader, createdAt);
+    }
+
+    public static DownloadQueueGroup CreateManifestRepair(InstanceRecord instance, ulong manifestId)
+    {
+        if (manifestId == 0 || instance.BuildId != $"steam-manifest-{manifestId}" && instance.BuildId != $"steam-public-{manifestId}")
+            throw new InvalidDataException("The manifest must be recorded on the instance.");
+        return CreateRepairCore(instance, instance.BuildId, instance.BuildId, manifestId, null, null);
+    }
+
+    private static DownloadQueueGroup CreateRepairCore(InstanceRecord instance, string buildId, string version,
+        ulong manifestId, LoaderManifest? loader, DateTimeOffset? createdAt)
+    {
         var target = Path.GetFullPath(instance.RootPath);
         var id = Guid.NewGuid().ToString("N");
         var items = new List<DownloadQueueItem>
@@ -104,9 +121,9 @@ public static class SteamDownloadQueueGroupFactory
             {
                 Id = $"{id}:game-repair",
                 Kind = DownloadQueueItemKind.Asset,
-                PackageId = RepairPackagePrefix + build.Id,
-                Name = build.DisplayVersion,
-                Version = build.DisplayVersion,
+                PackageId = RepairPackagePrefix + buildId,
+                Name = version,
+                Version = version,
                 LoaderId = LoaderId,
                 PackagePath = manifestId.ToString(CultureInfo.InvariantCulture),
                 State = DownloadQueueItemState.Pending,
@@ -133,13 +150,14 @@ public static class SteamDownloadQueueGroupFactory
         return new DownloadQueueGroup
         {
             Id = id,
+            GameId = instance.GameId,
             DeduplicationKey = $"steam-repair:{instance.Id}",
             Kind = DownloadQueueGroupKind.InstanceRepair,
             Name = instance.Name,
             TargetInstanceId = instance.Id,
             TargetInstanceName = instance.Name,
             TargetInstanceRoot = target,
-            ExpectedBuildId = build.Id,
+            ExpectedBuildId = buildId,
             ExpectedLoaderId = loader?.Id ?? string.Empty,
             CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
             State = DownloadQueueGroupState.Pending,

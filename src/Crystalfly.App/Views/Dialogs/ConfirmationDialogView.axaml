@@ -11,7 +11,7 @@
         <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
     </UserControl.KeyBindings>
 
-    <StackPanel Margin="24" Spacing="16">
+    <StackPanel Margin="16" Spacing="12">
         <TextBlock Classes="cfp-section-title"
                    Text="{Binding Title}"
                    TextWrapping="Wrap" />

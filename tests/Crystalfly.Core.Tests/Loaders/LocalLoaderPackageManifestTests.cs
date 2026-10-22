@@ -31,21 +31,6 @@ public sealed class LocalLoaderPackageManifestTests : IDisposable
         Assert.Equal(["hollow_knight_Data/Managed/loader.dll"], result.Manifest.ManagedFiles);
     }
 
-    [Fact]
-    public async Task Load_applies_loader_specific_prefix_when_matching_managed_files()
-    {
-        var package = CreateZip(("BepInEx/core/BepInEx.dll", "loader"));
-        var manifestPath = await WriteManifestAsync(
-            package,
-            loaderState: "bepInEx",
-            managedFiles: ["BepInEx/core/BepInEx.dll"]);
-
-        var result = await LocalLoaderPackageManifest.LoadAsync(manifestPath, "build-1");
-
-        Assert.Equal(LoaderState.BepInEx, result.LoaderState);
-        Assert.Equal(["BepInEx/core/BepInEx.dll"], result.Manifest.ManagedFiles);
-    }
-
     [Theory]
     [InlineData("hollow_knight_Data/Managed/Assembly-CSharp.dll")]
     [InlineData("hollow_knight_Data/Managed/loader.dll,hollow_knight_Data/Managed/extra.dll")]

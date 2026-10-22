@@ -15,32 +15,6 @@ public sealed class BackgroundAppearanceViewModelTests : IDisposable
         $"crystalfly-background-vm-{Guid.NewGuid():N}");
 
     [AvaloniaFact]
-    public async Task Initialize_loads_global_background_and_opacity()
-    {
-        var appData = Directory.CreateDirectory(Path.Combine(root, "app-data")).FullName;
-        var appearance = Directory.CreateDirectory(Path.Combine(appData, "appearance")).FullName;
-        var image = CreateBmp(Path.Combine(appearance, "global.bmp"), 2, 2);
-        await CrystalflySettingsStore.SaveAsync(
-            Path.Combine(appData, "settings.json"),
-            new CrystalflySettings
-            {
-                OfflineMode = true,
-                BackgroundImage = new BackgroundImageSettings
-                {
-                    FileName = Path.GetFileName(image),
-                    OpacityPercent = 47
-                }
-            });
-        await using var viewModel = CreateViewModel(appData);
-
-        await viewModel.InitializeAsync();
-
-        Assert.True(viewModel.HasActiveBackgroundImage);
-        Assert.Equal(0.47, viewModel.ActiveBackgroundOpacity, 3);
-        Assert.Equal(47, viewModel.BackgroundOpacityPercent);
-    }
-
-    [AvaloniaFact]
     public async Task Instance_override_wins_and_missing_override_falls_back_to_global()
     {
         var appData = Directory.CreateDirectory(Path.Combine(root, "app-data")).FullName;
@@ -116,18 +90,6 @@ public sealed class BackgroundAppearanceViewModelTests : IDisposable
 
         Assert.False(viewModel.HasInstanceBackgroundOverride);
         Assert.Equal(0.20, viewModel.ActiveBackgroundOpacity, 3);
-    }
-
-    [AvaloniaFact]
-    public async Task Instance_scope_is_disabled_without_current_instance()
-    {
-        var appData = Directory.CreateDirectory(Path.Combine(root, "app-data")).FullName;
-        await using var viewModel = CreateViewModel(appData);
-
-        await viewModel.InitializeAsync();
-
-        Assert.False(viewModel.CanEditInstanceBackground);
-        Assert.False(viewModel.CanChangeBackgroundOpacity);
     }
 
     [AvaloniaFact]

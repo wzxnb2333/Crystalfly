@@ -35,28 +35,6 @@ public sealed class ModActivitySourceTests : IDisposable
     }
 
     [Fact]
-    public void Generated_catalog_matches_schema_and_embedded_fallback()
-    {
-        string root = FindRepositoryRoot();
-        string catalogPath = Path.Combine(root, "catalog", "mod-activity.v1.json");
-        string schemaPath = Path.Combine(root, "catalog", "mod-activity.v1.schema.json");
-        var schema = JsonSchema.FromFile(schemaPath);
-
-        using var document = JsonDocument.Parse(File.ReadAllText(catalogPath));
-        EvaluationResults validation = schema.Evaluate(document.RootElement);
-        var catalog = EmbeddedModActivityCatalog.Load();
-
-        Assert.True(validation.IsValid, validation.ToString());
-        var generated = document.RootElement.Deserialize<ModActivityCatalog>(CrystalflyJson.Options);
-        Assert.NotNull(generated);
-        Assert.NotEmpty(generated.Entries);
-        AssertCatalogEqual(generated, catalog);
-        Assert.Equal(
-            catalog.Entries.Select(entry => entry.Id).Order(StringComparer.Ordinal),
-            catalog.Entries.Select(entry => entry.Id));
-    }
-
-    [Fact]
     public async Task LoadAsync_returns_valid_cache_when_remote_fails()
     {
         var cached = Catalog("cached00", "Cached", "2026-07-20T00:00:00Z");

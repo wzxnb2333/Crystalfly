@@ -120,7 +120,7 @@ public sealed class GameDirectoryTreeScanner
             bool preCheck = false;
             try
             {
-                preCheck = Directory.Exists(Path.Combine(path, "hollow_knight_Data"));
+                preCheck = Crystalfly.Core.Models.GameDefinition.All.Any(game => Directory.Exists(Path.Combine(path, game.DataDirectoryName)));
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
