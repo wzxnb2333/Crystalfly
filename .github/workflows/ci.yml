@@ -42,13 +42,18 @@ jobs:
             if ($LASTEXITCODE -ne 0) {
               $failed += $name
               $failContext = Get-Content -LiteralPath $log |
-                Select-String -Pattern '\[FAIL\]' -Context 0,10
+                Select-String -Pattern '\[FAIL\]' -Context 0,40
               foreach ($match in ($failContext | Select-Object -First 20)) {
-                $details = (($match.Context.PostContext | Select-Object -First 4) -join ' ')
-                if ($details.Length -gt 700) {
-                  $details = $details.Substring(0, 700)
-                }
-                Write-Host ('::error::' + $match.Line.Trim() + ' | ' + $details)
+                $post = $match.Context.PostContext
+                $errorLine = ($post | Where-Object { $_ -match 'Error Message:' } | Select-Object -First 1)
+                $stack = (($post | Where-Object { $_ -match 'at .*Crystalfly' } | Select-Object -First 5) -join ' ')
+                $details = @()
+                if ($errorLine) { $details += $errorLine.Trim() }
+                if ($stack) { $details += $stack }
+                $text = $match.Line.Trim()
+                if ($details.Count -gt 0) { $text += ' | ' + ($details -join ' ') }
+                if ($text.Length -gt 900) { $text = $text.Substring(0, 900) }
+                Write-Host ('::error::' + $text)
               }
               Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## $name failed"
               $excerpt = Get-Content -LiteralPath $log |
