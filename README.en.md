@@ -8,7 +8,7 @@ Crystalfly manages Hollow Knight and Hollow Knight: Silksong builds, loaders, mo
 
 Silksong includes local imports, Thunderstore dependency installation and mod lifecycle management, isolated saves, and Chinese save-field descriptions. See the [feature and migration guide](docs/silksong-thunderstore.md) and [verification report and known limitations](docs/silksong-verification.md) (Chinese).
 
-> Current version: `1.1.4`. This release provides Windows x64 portable and installer artifacts. Release notes are available in Settings, and the signed update dialog supports progress, cancellation, and retry.
+> Current version: `1.1.7`. This release provides Windows x64 portable and installer artifacts. Release notes are available in Settings, and the signed update dialog supports progress, cancellation, and retry.
 
 ![Crystalfly launch checks](docs/screenshots/crystalfly-1280x720-zh.jpg)
 ![Select instance](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)
@@ -122,13 +122,13 @@ For routine development, run one check scoped to the change, preferably filtered
 ### Release build
 
 ```powershell
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.5'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.7'
 
 # Build and install locally without an update-signing key; no update manifest is emitted.
-pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.5' -UnsignedLocal
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.7' -UnsignedLocal
 
 # Opt into full regression only when needed; both build scripts support -RunTests.
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.5' -RunTests
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.7' -RunTests
 ```
 
 Both build scripts skip the test suite by default and build only the projects needed for packaging. Pass `-RunTests` explicitly to build the entire solution and run all tests first. Package consistency, signatures, and checksum checks remain enabled.
