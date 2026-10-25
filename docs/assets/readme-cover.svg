@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Crystalfly</title>
+  <desc id="desc">A violet crystal above an orbital grid. Hollow Knight and Silksong: versions, mods, saves, speedruns.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0D1120"/>
+      <stop offset=".6" stop-color="#16152D"/>
+      <stop offset="1" stop-color="#272047"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(1010 180) scale(310 250)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8F72E8" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#8F72E8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="facet" x1="946" y1="69" x2="1055" y2="283" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F0E9FF"/>
+      <stop offset=".5" stop-color="#AD98F2"/>
+      <stop offset="1" stop-color="#6552BC"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="918" y1="165" x2="1080" y2="219" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9B8CD6"/>
+      <stop offset="1" stop-color="#DAD2FF"/>
+    </linearGradient>
+    <clipPath id="bounds"><rect width="1280" height="360" rx="20"/></clipPath>
+  </defs>
+  <g clip-path="url(#bounds)">
+    <rect width="1280" height="360" fill="url(#bg)"/>
+    <rect width="1280" height="360" fill="url(#glow)"/>
+    <g stroke="#B4A3EA" stroke-opacity=".08">
+      <path d="M800 0V360M880 0V360M960 0V360M1040 0V360M1120 0V360M1200 0V360"/>
+      <path d="M760 40H1280M760 120H1280M760 200H1280M760 280H1280"/>
+    </g>
+    <ellipse cx="1000" cy="235" rx="188" ry="58" transform="rotate(-18 1000 235)" stroke="#AE9BE4" stroke-opacity=".23"/>
+    <ellipse cx="1000" cy="208" rx="147" ry="130" transform="rotate(-30 1000 208)" stroke="#AE9BE4" stroke-opacity=".12"/>
+    <path d="M1022 62L935 153L974 292L1068 199Z" fill="url(#facet)"/>
+    <path d="M1022 62L999 170L935 153Z" fill="#DFD5FF" fill-opacity=".8"/>
+    <path d="M1022 62L1068 199L999 170Z" fill="#AC96EF"/>
+    <path d="M935 153L999 170L974 292Z" fill="#A48AE8"/>
+    <path d="M999 170L1068 199L974 292Z" fill="#7058BD"/>
+    <path d="M1022 62L935 153L974 292L1068 199Z" stroke="#E0D5FF" stroke-opacity=".42"/>
+    <path d="M999 170L974 292M935 153L999 170L1068 199M999 170L1022 62" stroke="url(#edge)" stroke-opacity=".52"/>
+    <path d="M1143 80L1153 106L1134 126L1124 100Z" fill="#B6A2EF" fill-opacity=".35"/>
+    <path d="M863 222L878 237L867 266L852 247Z" fill="#B6A2EF" fill-opacity=".26"/>
+    <circle cx="1163" cy="185" r="3" fill="#CDBBFF"/>
+    <circle cx="862" cy="119" r="2" fill="#CDBBFF" fill-opacity=".55"/>
+    <circle cx="1097" cy="294" r="2" fill="#CDBBFF" fill-opacity=".55"/>
+    <path d="M1119 47V57M1114 52H1124" stroke="#D9CBFF" stroke-opacity=".6"/>
+    <rect x="72" y="70" width="24" height="3" rx="1.5" fill="#B5A2F3"/>
+    <text x="109" y="76" fill="#BFB2E6" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="600" letter-spacing="3">HOLLOW KNIGHT · SILKSONG</text>
+    <text x="68" y="175" fill="#F5F1FF" font-family="Segoe UI,Arial,sans-serif" font-size="78" font-weight="650" letter-spacing="-3">Crystalfly</text>
+    <text x="73" y="220" fill="#B9B5CF" font-family="Segoe UI,Arial,sans-serif" font-size="20" letter-spacing=".2">A little order. A world to explore.</text>
+    <path d="M73 268H645" stroke="#B5A2F3" stroke-opacity=".18"/>
+    <text x="73" y="301" fill="#A99FC6" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="600" letter-spacing="2.2">VERSIONS</text>
+    <circle cx="182" cy="297" r="2" fill="#756591"/>
+    <text x="205" y="301" fill="#A99FC6" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="600" letter-spacing="2.2">MODS</text>
+    <circle cx="278" cy="297" r="2" fill="#756591"/>
+    <text x="301" y="301" fill="#A99FC6" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="600" letter-spacing="2.2">SAVES</text>
+    <circle cx="381" cy="297" r="2" fill="#756591"/>
+    <text x="404" y="301" fill="#A99FC6" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="600" letter-spacing="2.2">SPEEDRUNS</text>
+    <rect x=".5" y=".5" width="1279" height="359" rx="19.5" stroke="#AD9CDC" stroke-opacity=".13"/>
+  </g>
+</svg>
