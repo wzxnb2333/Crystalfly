@@ -24,9 +24,20 @@
 
 原版、模组和速通副本分别管理，存档随实例隔离。切换游戏时，目录、当前实例和筛选条件各自保留。
 
-![空洞骑士依赖图：查看前置关系、缺失依赖与多选操作](docs/screenshots/readme-dependencies.png)
+<table width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-launch.png"><img src="docs/screenshots/readme-launch.png" alt="启动与预检" width="100%"></a>
+      <br><sub>启动与预检</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-instances.png"><img src="docs/screenshots/readme-instances.png" alt="游戏目录与实例选择" width="100%"></a>
+      <br><sub>游戏目录与实例选择</sub>
+    </td>
+  </tr>
+</table>
 
-<p align="center"><sub>依赖图支持自由布局、多选与框选；模组详情收纳在画布内。</sub></p>
+<p align="center"><sub>点击截图可查看原图。截图使用隔离演示数据展示界面与操作。</sub></p>
 
 | 游戏与实例 | 模组与依赖 | 存档与练习 |
 | :--- | :--- | :--- |
@@ -68,18 +79,28 @@
 - **维护已有模组**：检查文件状态、修复受管理内容、固定版本并批量启停、更新或卸载。卸载前展示依赖影响。
 - **双游戏依赖图**：查看缺失前置和依赖连线，自由拖动节点，并通过多选执行批量操作。
 
-<details>
-<summary><strong>查看模组市场与丝之歌管理界面</strong></summary>
-
-<br>
-
-![模组市场：搜索、筛选与中文内容](docs/screenshots/readme-market.png)
-
-![丝之歌已安装模组：缩略图、状态与快捷操作](docs/screenshots/readme-silksong-mods.png)
-
-<sub>界面截图使用隔离演示数据；用于展示布局与操作，不代表完整在线目录。</sub>
-
-</details>
+<table width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-market.png"><img src="docs/screenshots/readme-market.png" alt="模组市场" width="100%"></a>
+      <br><sub>模组市场</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-market-detail.png"><img src="docs/screenshots/readme-market-detail.png" alt="模组详情" width="100%"></a>
+      <br><sub>模组详情</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-dependencies.png"><img src="docs/screenshots/readme-dependencies.png" alt="空洞骑士依赖图与多选" width="100%"></a>
+      <br><sub>空洞骑士依赖图与多选</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-silksong-mods.png"><img src="docs/screenshots/readme-silksong-mods.png" alt="丝之歌模组管理" width="100%"></a>
+      <br><sub>丝之歌模组管理</sub>
+    </td>
+  </tr>
+</table>
 
 ### 存档，跟着实例走
 
@@ -93,22 +114,60 @@
 
 **空洞骑士速通环境**从干净原版创建独立副本，支持 `1.2.2.1`、`1.4.3.2`、`1.5.78` 的 RuntimePatches 模板与启动前验证报告。模板可用开关随版本变化，默认关闭；具体比赛分类以社区规则为准。丝之歌目前不提供正式速通模板。
 
-<details>
-<summary><strong>查看存档、整合包与速通界面</strong></summary>
-
-<br>
-
-![存档编辑：中文字段、搜索与原始数据](docs/screenshots/readme-saves.png)
-
-![整合包：版本绑定、分享与应用](docs/screenshots/readme-modpacks.png)
-
-![空洞骑士速通环境](docs/screenshots/readme-speedrun.png)
-
-</details>
+<table width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-saves.png"><img src="docs/screenshots/readme-saves.png" alt="存档编辑" width="100%"></a>
+      <br><sub>存档编辑</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-modpacks.png"><img src="docs/screenshots/readme-modpacks.png" alt="整合包与分享" width="100%"></a>
+      <br><sub>整合包与分享</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-speedrun.png"><img src="docs/screenshots/readme-speedrun.png" alt="空洞骑士速通环境" width="100%"></a>
+      <br><sub>空洞骑士速通环境</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-instance-detail.png"><img src="docs/screenshots/readme-instance-detail.png" alt="实例概览" width="100%"></a>
+      <br><sub>实例概览</sub>
+    </td>
+  </tr>
+</table>
 
 ### 适应你的使用习惯
 
 明暗主题、中英文界面、主题色、全局与实例独立背景，以及跟随系统、减少或关闭动画。离线模式可使用已有有效缓存；GitHub 下载支持线路测试、智能选择与失败回退。应用更新使用签名清单验证，支持进度、取消和重试。
+
+<details>
+<summary><strong>更多界面 · 下载与个性化</strong></summary>
+
+<table width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-versions.png"><img src="docs/screenshots/readme-versions.png" alt="Steam 游戏版本下载" width="100%"></a>
+      <br><sub>Steam 游戏版本下载</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-queue.png"><img src="docs/screenshots/readme-queue.png" alt="后台下载队列" width="100%"></a>
+      <br><sub>后台下载队列</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-settings.png"><img src="docs/screenshots/readme-settings.png" alt="主题与外观设置" width="100%"></a>
+      <br><sub>主题与外观设置</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-network.png"><img src="docs/screenshots/readme-network.png" alt="网络线路与连接测试" width="100%"></a>
+      <br><sub>网络线路与连接测试</sub>
+    </td>
+  </tr>
+</table>
+
+</details>
 
 ## 常用操作
 

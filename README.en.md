@@ -24,9 +24,20 @@ Manage Hollow Knight and Hollow Knight: Silksong versions, mods, and saves. Keep
 
 Keep vanilla, modded, and speedrun copies separate, with saves isolated per instance. Each game remembers its own libraries, selected instance, and filters.
 
-![Hollow Knight dependency graph with missing dependencies and multi-selection](docs/screenshots/readme-dependencies.png)
+<table width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-launch.png"><img src="docs/screenshots/readme-launch.png" alt="Launch & preflight checks" width="100%"></a>
+      <br><sub>Launch & preflight checks</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-instances.png"><img src="docs/screenshots/readme-instances.png" alt="Game libraries & instance selection" width="100%"></a>
+      <br><sub>Game libraries & instance selection</sub>
+    </td>
+  </tr>
+</table>
 
-<p align="center"><sub>Arrange nodes freely, select groups, and inspect mods without leaving the canvas.</sub></p>
+<p align="center"><sub>Click any screenshot for the full image. Screenshots use isolated demonstration data and show the Chinese UI.</sub></p>
 
 | Games & instances | Mods & dependencies | Saves & practice |
 | :--- | :--- | :--- |
@@ -68,18 +79,28 @@ Open **Download → Mod Market**, select a mod and target instance, and confirm 
 - **Maintain your setup**: inspect file health, repair managed content, pin versions, and enable, update, or uninstall mods in batches. Uninstall previews affected dependencies.
 - **Explore both graphs**: see missing prerequisites and dependency links, arrange nodes freely, and apply actions to selected groups.
 
-<details>
-<summary><strong>View the market and Silksong mod management</strong></summary>
-
-<br>
-
-![Mod Market with search, filters, and Chinese content](docs/screenshots/readme-market.png)
-
-![Silksong installed mods with thumbnails, status, and quick actions](docs/screenshots/readme-silksong-mods.png)
-
-<sub>Screenshots use isolated demonstration data to show layout and interactions; they are not a complete online catalog. The screenshots shown here use the Chinese UI.</sub>
-
-</details>
+<table width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-market.png"><img src="docs/screenshots/readme-market.png" alt="Mod Market" width="100%"></a>
+      <br><sub>Mod Market</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-market-detail.png"><img src="docs/screenshots/readme-market-detail.png" alt="Mod details" width="100%"></a>
+      <br><sub>Mod details</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-dependencies.png"><img src="docs/screenshots/readme-dependencies.png" alt="Hollow Knight dependencies & multi-selection" width="100%"></a>
+      <br><sub>Hollow Knight dependencies & multi-selection</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-silksong-mods.png"><img src="docs/screenshots/readme-silksong-mods.png" alt="Silksong mod management" width="100%"></a>
+      <br><sub>Silksong mod management</sub>
+    </td>
+  </tr>
+</table>
 
 ### Saves that stay with their instance
 
@@ -93,22 +114,60 @@ Silksong has its own field dictionary and DAT import/export. Configuration editi
 
 **Hollow Knight speedrun environments** create separate copies from clean vanilla instances, with RuntimePatches templates for `1.2.2.1`, `1.4.3.2`, and `1.5.78`, plus pre-launch verification reports. Available options vary by build and default to off; competition eligibility follows community rules. Silksong currently has no official speedrun templates.
 
-<details>
-<summary><strong>View saves, mod packs, and speedrun environments</strong></summary>
-
-<br>
-
-![Save editing with translated fields, search, and original data](docs/screenshots/readme-saves.png)
-
-![Mod packs with version bindings, sharing, and apply actions](docs/screenshots/readme-modpacks.png)
-
-![Hollow Knight speedrun environments](docs/screenshots/readme-speedrun.png)
-
-</details>
+<table width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-saves.png"><img src="docs/screenshots/readme-saves.png" alt="Save editor" width="100%"></a>
+      <br><sub>Save editor</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-modpacks.png"><img src="docs/screenshots/readme-modpacks.png" alt="Mod packs & sharing" width="100%"></a>
+      <br><sub>Mod packs & sharing</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-speedrun.png"><img src="docs/screenshots/readme-speedrun.png" alt="Hollow Knight speedrun environments" width="100%"></a>
+      <br><sub>Hollow Knight speedrun environments</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-instance-detail.png"><img src="docs/screenshots/readme-instance-detail.png" alt="Instance overview" width="100%"></a>
+      <br><sub>Instance overview</sub>
+    </td>
+  </tr>
+</table>
 
 ### Make it yours
 
 Light and dark themes, English and Simplified Chinese, accent colors, global or per-instance backgrounds, and system, reduced, or disabled motion. Offline mode uses existing valid caches. GitHub downloads support route tests, smart selection, and fallback. App updates verify signed manifests and provide progress, cancellation, and retry.
+
+<details>
+<summary><strong>More screens · Downloads & personalization</strong></summary>
+
+<table width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-versions.png"><img src="docs/screenshots/readme-versions.png" alt="Steam game version downloads" width="100%"></a>
+      <br><sub>Steam game version downloads</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-queue.png"><img src="docs/screenshots/readme-queue.png" alt="Background download queue" width="100%"></a>
+      <br><sub>Background download queue</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-settings.png"><img src="docs/screenshots/readme-settings.png" alt="Themes & appearance" width="100%"></a>
+      <br><sub>Themes & appearance</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/screenshots/readme-network.png"><img src="docs/screenshots/readme-network.png" alt="Network routes & connection tests" width="100%"></a>
+      <br><sub>Network routes & connection tests</sub>
+    </td>
+  </tr>
+</table>
+
+</details>
 
 ## Find your way
 
