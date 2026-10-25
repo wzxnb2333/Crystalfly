@@ -18,15 +18,21 @@ using Crystalfly.App.Views;
 
 namespace Crystalfly.App.Tests.Ui;
 
-public sealed class PageTransitionMotionTests
+public sealed class PageTransitionMotionTests : IDisposable
 {
+    private readonly Func<bool>? previousAnimationOverride = MainWindow.ClientAreaAnimationsOverride;
+
+    // Headless Windows runners may disable system animations.
+    public PageTransitionMotionTests() => MainWindow.ClientAreaAnimationsOverride = () => true;
+
+    public void Dispose() => MainWindow.ClientAreaAnimationsOverride = previousAnimationOverride;
+
     [AvaloniaTheory]
     [InlineData(900, Crystalfly.Core.Configuration.UiLanguage.SimplifiedChinese, false)]
     [InlineData(1100, Crystalfly.Core.Configuration.UiLanguage.English, true)]
     public void Top_navigation_indicator_slides_between_real_button_bounds_and_respects_motion_settings(
         int width, Crystalfly.Core.Configuration.UiLanguage language, bool dark)
     {
-        MainWindow.ClientAreaAnimationsOverride = () => true;
         var (window, viewModel, _) = CreateWindow();
         try
         {
@@ -96,7 +102,40 @@ public sealed class PageTransitionMotionTests
         {
             CloseImmediately(window);
             CleanupRoot(viewModel);
-            MainWindow.ClientAreaAnimationsOverride = null;
+        }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Page_switch_respects_the_system_animation_policy(bool animationsEnabled)
+    {
+        MainWindow.ClientAreaAnimationsOverride = () => animationsEnabled;
+        var (window, viewModel, coordinator) = CreateWindow();
+
+        try
+        {
+            viewModel.CurrentPage = "Downloads";
+            var downloads = window.GetVisualDescendants()
+                .OfType<Grid>()
+                .Single(grid => grid.IsVisible && grid.Classes.Contains("cfp-page"));
+
+            Assert.Equal(animationsEnabled, HasActiveAnimation(coordinator, downloads));
+            if (animationsEnabled)
+            {
+                var transform = Assert.IsType<TranslateTransform>(FindTranslate(downloads.RenderTransform));
+                Assert.InRange(transform.Y, -17.5d, -14.5d);
+            }
+            else
+            {
+                Assert.Null(FindTranslate(downloads.RenderTransform));
+                Assert.Equal(1, downloads.Opacity);
+            }
+        }
+        finally
+        {
+            CloseImmediately(window);
+            CleanupRoot(viewModel);
         }
     }
 
