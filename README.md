@@ -8,7 +8,7 @@ Crystalfly 是面向 Windows 10/11 x64 的《空洞骑士》和《丝之歌》�
 
 丝之歌支持 Steam 多版本下载、本地导入、Thunderstore 依赖安装与完整模组生命周期，以及独立存档和中文字段编辑。参见[功能与迁移说明](docs/silksong-thunderstore.md)及[验证结果与已知限制](docs/silksong-verification.md)。
 
-> 当前版本：`1.1.7`。提供 Windows x64 便携包与安装包；设置页可查看发行说明，签名更新弹窗支持下载进度、取消和失败重试。
+> 当前版本：`1.1.8`。提供 Windows x64 便携包与安装包；设置页可查看发行说明，签名更新弹窗支持下载进度、取消和失败重试。
 
 ![Crystalfly 启动预检](docs/screenshots/crystalfly-1280x720-zh.jpg)
 ![选择实例](docs/screenshots/crystalfly-select-instance-1280x720-zh.jpg)
@@ -163,13 +163,13 @@ Loader 兼容按精确包 ID 判断，不会把所有 Modding API 或 BepInEx �
 dotnet restore '.\Crystalfly.slnx'
 dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.7'
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.8'
 
 # 无更新签名的本地构建与固定目录覆盖；不会生成 update-manifest.v1.json。
-pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.7' -UnsignedLocal
+pwsh -NoProfile -File '.\scripts\build-and-install.ps1' -Version '1.1.8' -UnsignedLocal
 
 # 仅在需要完整回归时显式加上 -RunTests；两个构建脚本均支持。
-pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.7' -RunTests
+pwsh -NoProfile -File '.\scripts\build-release.ps1' -Version '1.1.8' -RunTests
 ```
 
 日常开发只执行一次与改动相关的检查，优先按测试名称筛选；文档和脚本改动只运行相应轻量检查。代码与输入未变化时复用已通过的结果，不自动重复全量回归、安装验收或开启下一轮复查。完整测试保留在 CI 合并检查中。

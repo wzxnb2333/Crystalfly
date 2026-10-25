@@ -68,7 +68,6 @@ public sealed class DownloadBuildUiTests
             var searchOrigin = search.TranslatePoint(default, window)!.Value;
             var listOrigin = list.TranslatePoint(default, window)!.Value;
             var searchRowOrigin = searchRow.TranslatePoint(default, window)!.Value;
-            Assert.InRange(Math.Abs(titleOrigin.X - searchOrigin.X), 0, 0.5);
             Assert.InRange(Math.Abs(searchOrigin.X - listOrigin.X), 0, 0.5);
             Assert.InRange(Math.Abs(searchRowOrigin.X - listOrigin.X), 0, 0.5);
             Assert.InRange(Math.Abs(searchRow.Bounds.Width - list.Bounds.Width), 0, 0.5);
@@ -86,6 +85,7 @@ public sealed class DownloadBuildUiTests
             var versions = window.FindControl<Border>("DownloadVersionsCard")!;
             var accountOrigin = account.TranslatePoint(default, window)!.Value;
             var versionsOrigin = versions.TranslatePoint(default, window)!.Value;
+            Assert.InRange(Math.Abs(titleOrigin.X - versionsOrigin.X), 0, 0.5);
             Assert.InRange(Math.Abs(accountOrigin.X - versionsOrigin.X), 0, 0.5);
             Assert.InRange(Math.Abs(account.Bounds.Width - versions.Bounds.Width), 0, 0.5);
             var download = window.FindControl<Button>("DownloadSelectedBuildButton")!;

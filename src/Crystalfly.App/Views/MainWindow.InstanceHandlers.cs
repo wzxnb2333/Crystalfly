@@ -30,6 +30,25 @@ public partial class MainWindow
         }
     }
 
+    private async void ConfirmRemoveGameDirectory(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || viewModel.Instances.SelectedGameDirectory is not { } directory)
+        {
+            return;
+        }
+        var confirmed = await ShowConfirmationAsync(
+            viewModel.Loc["RemoveGameDirectory"],
+            viewModel.Loc["RemoveGameDirectoryConfirmMessage"],
+            directory.Path,
+            viewModel,
+            isDangerous: true);
+        if (confirmed)
+        {
+            await viewModel.Instances.RemoveSelectedGameDirectoryCommand.ExecuteAsync(null);
+        }
+    }
+
     private async Task PickAndAddGameDirectoryAsync(MainViewModel viewModel)
     {
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions

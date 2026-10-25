@@ -7,7 +7,7 @@ using Crystalfly.Core.Thunderstore;
 
 namespace Crystalfly.App.Tests.ViewModels;
 
-public sealed class ThunderstoreViewModelTests : IDisposable
+public sealed partial class ThunderstoreViewModelTests : IDisposable
 {
     private readonly string root = Path.Combine(Path.GetTempPath(), "Crystalfly.Thunderstore.UI", Guid.NewGuid().ToString("N"));
 

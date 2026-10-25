@@ -386,6 +386,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         ModManagement.InstalledModsRefreshed += OnInstalledModsRefreshed;
         ModManagement.GraphVisibilityChanged += OnInstalledModGraphVisibilityChanged;
         DependencyGraph.NodeSelectedRequested += ModManagement.SelectModFromGraph;
+        DependencyGraph.SelectionChangedRequested += ModManagement.SetGraphSelection;
         DependencyGraph.NodeToggleRequested += id => _ = ModManagement.ToggleInstalledModFromGraphAsync(id);
         DependencyGraph.NodeDeleteRequested += RequestInstalledModRemovalFromGraph;        DownloadCenter = new DownloadCenterViewModel(new DownloadCenterDependencies(
             downloadQueue,
@@ -407,6 +408,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private void OnModManagementPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
         NotifyOnboardingStateChanged();
+        if (eventArgs.PropertyName == nameof(ModManagementViewModel.SelectedModCount) && ModManagement.IsInstalledModGraphVisible)
+            DependencyGraph.SetSelectedNodes(ModManagement.InstalledMods.Where(mod => mod.IsSelected).Select(mod => mod.Id));
         if (eventArgs.PropertyName == nameof(ModManagementViewModel.SelectedInstalledMod)
             && ModManagement.IsInstalledModGraphVisible)
         {

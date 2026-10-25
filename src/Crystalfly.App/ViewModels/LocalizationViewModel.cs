@@ -10,6 +10,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["ChooseDownloadLibrary"] = "Choose download directory",
         ["ChooseDownloadLibraryHint"] = "Select a library folder, not an existing game's root. Downloads create separate instance folders.",
         ["SaveImport"] = "Import save",
+        ["SaveImportSlot"] = "Import target slot",
         ["SaveExport"] = "Export save",
         ["SaveImportConfirm"] = "The selected slot will be replaced after an automatic backup. Target:",
         ["SaveNewerVersionWarning"] = "This save is newer than the target game, or its version is unknown. It may fail to load. No format conversion is performed.",
@@ -63,7 +64,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["TsExportPresetHint"] = "Export a JSON list of package versions and settings. Game files and saves are not included.",
         ["TsImportPresetHint"] = "Import a Mod Pack JSON, review dependencies and changes, then confirm installation.",
         ["GameHollowKnight"] = "Hollow Knight",
-        ["GameAvatarSwitchHint"] = "Current game: {0}. Click the portrait or press Shift+Tab on any page to switch to {1}.",
+        ["GameAvatarSwitchHint"] = "Current game: {0}. Click the portrait or press Shift+Tab outside instance settings to switch to {1}.",
         ["GameSwitched"] = "Switched to {0}",
         ["GameSilksong"] = "Silksong",
         ["SaveBeforeGameSwitch"] = "Save or reset your save edits before switching games or instances.",
@@ -90,6 +91,8 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["TsConfirmInstall"] = "Add to download queue",
         ["TsEnabled"] = "Enabled",
         ["TsPinned"] = "Locked",
+        ["TsVerifyFiles"] = "Check mod files",
+        ["DependencyMultiSelectHint"] = "Ctrl/Shift-click to select multiple · Shift-drag to select an area · Drag selected cards together · Ctrl+A / Esc",
         ["TsToggleEnabled"] = "Enable / disable",
         ["TsTogglePin"] = "Lock / unlock version",
         ["TsRepair"] = "Repair",
@@ -640,6 +643,8 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["NoSnapshotsAction"] = "No snapshots. Enter a name above to create the first one."
         ,["NoSpeedrunTemplatesAction"] = "No templates available. Check catalog sources in Settings."
         ,["NoDownloadBuildsAction"] = "No builds available. Check catalog sources in Settings."
+        ,["NoDownloadBuildSearchResults"] = "No versions match the search."
+        ,["RemoveGameDirectoryConfirmMessage"] = "This removes the directory from Crystalfly. Game files on disk are not deleted."
         ,["DownloadBuildReleaseDate"] = "Release date"
         ,["DownloadBuildFilesVerified"] = "Files verified"
         ,["DownloadBuildFilesUnverified"] = "Files not verified"
@@ -752,6 +757,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["DependencyImpact"] = "Dependency impact"
         ,["DependencyList"] = "List"
         ,["DependencyGraph"] = "Dependency graph"
+        ,["DependencyRequiredBy"] = "Required by"
         ,["DependencyGraphFocus"] = "Selected Mod relationships"
         ,["DependencyGraphAll"] = "All installed Mods"
         ,["DependencyRelationshipUnknown"] = "Relationship unknown"
@@ -998,6 +1004,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["ChooseDownloadLibrary"] = "选择下载目录",
         ["ChooseDownloadLibraryHint"] = "请选择存放多个版本的库目录，而非已有游戏本体目录。下载会创建独立实例文件夹。",
         ["SaveImport"] = "导入存档",
+        ["SaveImportSlot"] = "导入目标槽位",
         ["SaveExport"] = "导出存档",
         ["SaveImportConfirm"] = "将先自动备份，再覆盖所选槽位。目标：",
         ["SaveNewerVersionWarning"] = "存档版本高于目标游戏，或版本无法确认，导入后可能无法读取。不会自动转换存档格式。",
@@ -1051,7 +1058,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["TsExportPresetHint"] = "导出包含包版本和状态的 JSON 清单，不包含游戏文件和存档。",
         ["TsImportPresetHint"] = "导入整合包 JSON 后先查看依赖和变更，确认后才安装。",
         ["GameHollowKnight"] = "空洞骑士",
-        ["GameAvatarSwitchHint"] = "当前：{0}。点击头像或在任意页面按 Shift+Tab 切换到{1}。",
+        ["GameAvatarSwitchHint"] = "当前：{0}。点击头像或在实例设置之外按 Shift+Tab 切换到{1}。",
         ["GameSwitched"] = "已切换到{0}",
         ["GameSilksong"] = "丝之歌",
         ["SaveBeforeGameSwitch"] = "请先保存或重置存档编辑，再切换游戏或实例。",
@@ -1078,6 +1085,8 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["TsConfirmInstall"] = "加入下载队列",
         ["TsEnabled"] = "已启用",
         ["TsPinned"] = "已锁定",
+        ["TsVerifyFiles"] = "检查模组文件",
+        ["DependencyMultiSelectHint"] = "Ctrl/Shift 点击多选 · Shift 拖动框选 · 拖动已选卡片整体移动 · Ctrl+A 全选 / Esc 清空",
         ["TsToggleEnabled"] = "启用／禁用",
         ["TsTogglePin"] = "锁定／解锁版本",
         ["TsRepair"] = "修复",
@@ -1628,6 +1637,8 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["NoSnapshotsAction"] = "尚无快照。请在上方输入名称并创建第一个快照。"
         ,["NoSpeedrunTemplatesAction"] = "没有可用模板。请在设置中检查目录源。"
         ,["NoDownloadBuildsAction"] = "没有可用版本。请在设置中检查目录源。"
+        ,["NoDownloadBuildSearchResults"] = "没有符合搜索条件的版本。"
+        ,["RemoveGameDirectoryConfirmMessage"] = "这将从 Crystalfly 移除该目录，磁盘上的游戏文件不会被删除。"
         ,["DownloadBuildReleaseDate"] = "发布日期"
         ,["DownloadBuildFilesVerified"] = "文件已核验"
         ,["DownloadBuildFilesUnverified"] = "文件未核验"
@@ -1740,6 +1751,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["DependencyImpact"] = "依赖影响"
         ,["DependencyList"] = "列表"
         ,["DependencyGraph"] = "依赖图"
+        ,["DependencyRequiredBy"] = "被依赖"
         ,["DependencyGraphFocus"] = "当前模组关系"
         ,["DependencyGraphAll"] = "全部已安装模组"
         ,["DependencyRelationshipUnknown"] = "关系未知"

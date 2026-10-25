@@ -133,10 +133,9 @@ public sealed class GameAvatarSwitchTests
     [InlineData("Launch")]
     [InlineData("Versions")]
     [InlineData("Downloads")]
-    [InlineData("Manage")]
     [InlineData("Speedrun")]
     [InlineData("Settings")]
-    public async Task Shift_tab_switches_both_ways_from_each_page_without_navigating(string page)
+    public async Task Shift_tab_switches_both_ways_outside_instance_settings_without_navigating(string page)
     {
         await using var fixture = await Fixture.CreateAsync(UiMotionPreference.Off);
         var model = fixture.Model;
@@ -156,6 +155,34 @@ public sealed class GameAvatarSwitchTests
             await model.ToggleGameCommand.ExecutionTask!;
             Assert.Equal(expectedGame, model.SelectedGameId);
             Assert.Equal(page, model.CurrentPage);
+        }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(GameId.HollowKnight)]
+    [InlineData(GameId.Silksong)]
+    public async Task Shift_tab_keeps_the_game_and_instance_on_every_instance_settings_tab(GameId game)
+    {
+        await using var fixture = await Fixture.CreateAsync(UiMotionPreference.Off, withInstances: true);
+        var model = fixture.Model;
+        await model.SelectGameCommand.ExecuteAsync(game.ToString());
+        model.CurrentPage = "Manage";
+        var instance = model.SelectedInstance;
+        Assert.NotNull(instance);
+        foreach (var tab in new[] { "Overview", "Loader", "Mods", "Presets", "Snapshots", "Logs", "Config" })
+        {
+            model.CurrentManageTab = tab;
+            Dispatcher.UIThread.RunJobs();
+            fixture.Window.UpdateLayout();
+            fixture.Window.Focus();
+            fixture.Window.KeyPress(Key.Tab, RawInputModifiers.Shift, PhysicalKey.Tab, null);
+            fixture.Window.KeyRelease(Key.Tab, RawInputModifiers.Shift, PhysicalKey.Tab, null);
+            if (model.ToggleGameCommand.ExecutionTask is { } switching) await switching;
+            Assert.Equal(game, model.SelectedGameId);
+            Assert.Same(instance, model.SelectedInstance);
+            Assert.Equal("Manage", model.CurrentPage);
+            Assert.Equal(tab, model.CurrentManageTab);
+            Assert.Null(model.ToggleGameCommand.ExecutionTask);
         }
     }
 

@@ -15,10 +15,12 @@
                     <SolidColorBrush x:Key="CfSurfaceHoverBrush" Color="#EBEDF1" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedBrush" Color="#DDEEFF" />
                     <SolidColorBrush x:Key="CfSurfaceSelectedHoverBrush" Color="#CDE5FA" />
-                    <SolidColorBrush x:Key="CfBorderBrush" Color="#E0E3E8" />
-                    <SolidColorBrush x:Key="CfEdgeBrush" Color="#9AA2AC" />
+                    <SolidColorBrush x:Key="CfBorderBrush" Color="#A6B2C3" />
+                    <SolidColorBrush x:Key="CfEdgeBrush" Color="#56657A" />
+                    <SolidColorBrush x:Key="CfGraphCanvasBrush" Color="#E8EDF4" />
+                    <SolidColorBrush x:Key="CfGraphNodeBorderBrush" Color="#7C899C" />
                     <SolidColorBrush x:Key="CfTextBrush" Color="#14171B" />
-                    <SolidColorBrush x:Key="CfMutedTextBrush" Color="#5F6670" />
+                    <SolidColorBrush x:Key="CfMutedTextBrush" Color="#4D5664" />
                     <SolidColorBrush x:Key="CfAccentBrush" Color="#0F6CBD" />
                     <SolidColorBrush x:Key="CfAccentHoverBrush" Color="#0C5C9E" />
                     <SolidColorBrush x:Key="CfAccentSoftBrush" Color="#E2F1FF" />
@@ -57,6 +59,8 @@
                     <SolidColorBrush x:Key="CfSurfaceSelectedHoverBrush" Color="#1E4C73" />
                     <SolidColorBrush x:Key="CfBorderBrush" Color="#262B36" />
                     <SolidColorBrush x:Key="CfEdgeBrush" Color="#49505C" />
+                    <SolidColorBrush x:Key="CfGraphCanvasBrush" Color="#171A21" />
+                    <SolidColorBrush x:Key="CfGraphNodeBorderBrush" Color="#262B36" />
                     <SolidColorBrush x:Key="CfTextBrush" Color="#F5F6F7" />
                     <SolidColorBrush x:Key="CfMutedTextBrush" Color="#9BA3AE" />
                     <SolidColorBrush x:Key="CfAccentBrush" Color="#5AAEFA" />
@@ -236,10 +240,14 @@
         <Setter Property="ClipToBounds" Value="True" />
     </Style>
 
+    <Style Selector="Border.cfp-dependency-graph-frame">
+        <Setter Property="Background" Value="{DynamicResource CfGraphCanvasBrush}" />
+    </Style>
+
     <Style Selector="Button.cfp-dependency-node">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfGraphNodeBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="8" />
         <Setter Property="HorizontalContentAlignment" Value="Left" />
@@ -248,17 +256,6 @@
     <Style Selector="Button.cfp-dependency-node:pointerover">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CfSurfaceSelectedHoverBrush}" />
-    </Style>
-
-    <Style Selector="Button.cfp-dependency-node.selected">
-        <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
-    </Style>
-
-    <Style Selector="Button.cfp-dependency-node.selected:pointerover,
-                     Button.cfp-dependency-node.selected:pressed">
-        <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedHoverBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentHoverBrush}" />
     </Style>
 
     <Style Selector="Button.cfp-dependency-node.warning">
@@ -276,26 +273,25 @@
         <Setter Property="BorderBrush" Value="{DynamicResource CfEdgeBrush}" />
     </Style>
 
+    <Style Selector="Button.cfp-dependency-node.selected">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+    </Style>
+
+    <Style Selector="Button.cfp-dependency-node.selected:pointerover,
+                     Button.cfp-dependency-node.selected:pressed">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedHoverBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentHoverBrush}" />
+    </Style>
+
     <Style Selector="Button.cfp-dependency-node.dimmed">
-        <Setter Property="Opacity" Value="0.45" />
+        <Setter Property="Opacity" Value="0.85" />
     </Style>
 
     <Style Selector="Button.cfp-dependency-node:focus-visible">
         <Setter Property="BorderBrush" Value="{DynamicResource CfAccentTextBrush}" />
         <Setter Property="BorderThickness" Value="2" />
-    </Style>
-
-    <Style Selector="Border.cfp-dependency-node-accent">
-        <Setter Property="Background" Value="{DynamicResource CfAccentBrush}" />
-    </Style>
-
-    <Style Selector="Button.cfp-dependency-node.warning Border.cfp-dependency-node-accent">
-        <Setter Property="Background" Value="{DynamicResource CfWarningBrush}" />
-    </Style>
-
-    <Style Selector="Button.cfp-dependency-node.missing Border.cfp-dependency-node-accent,
-                     Button.cfp-dependency-node.problem Border.cfp-dependency-node-accent">
-        <Setter Property="Background" Value="{DynamicResource CfErrorBrush}" />
     </Style>
 
     <Style Selector="TextBlock.cfp-dependency-action">
@@ -514,14 +510,14 @@
     </Style>
 
     <Style Selector="Button.cfp-nav.active">
-        <Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}" />
+        <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}" />
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
     <Style Selector="Button.cfp-nav.active:pointerover,
                      Button.cfp-nav.active:pressed">
-        <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedHoverBrush}" />
+        <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource CfAccentTextBrush}" />
     </Style>
 
@@ -654,6 +650,15 @@
                      Button.cfp-secondary:pressed">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+    </Style>
+
+    <Style Selector="Button.cfp-secondary.danger">
+        <Setter Property="Foreground" Value="{DynamicResource CfDangerBrush}" />
+    </Style>
+
+    <Style Selector="Button.cfp-secondary.danger:pointerover,
+                     Button.cfp-secondary.danger:pressed">
+        <Setter Property="Foreground" Value="{DynamicResource CfDangerHoverBrush}" />
     </Style>
 
     <Style Selector="Button.cfp-link">

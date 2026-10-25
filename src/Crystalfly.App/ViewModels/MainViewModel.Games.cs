@@ -31,7 +31,8 @@ public partial class MainViewModel
         new ThunderstorePackageIconLoader(ThunderstoreHttpClient,
             Path.Combine(paths.ApplicationDataRoot, "thunderstore", "silksong", "icons"), () => IsOfflineMode),
         reportError: message => { ErrorMessage = null; ErrorMessage = message; },
-        getInstallTargets: () => Instances.Instances.Select(item => item.Record).ToArray());
+        getInstallTargets: () => Instances.Instances.Select(item => item.Record).ToArray(),
+        getInstalledGraphLayoutPath: GetInstalledModGraphLayoutPath);
 
     [RelayCommand]
     private void ClearMarketFilters()

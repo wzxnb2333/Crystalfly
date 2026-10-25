@@ -10,7 +10,8 @@
              Focusable="True"
              ClipToBounds="True">
     <Grid x:Name="Viewport"
-          Background="{DynamicResource CfSurfaceBrush}"
+          Background="{DynamicResource CfGraphCanvasBrush}"
+          ToolTip.Tip="{Binding #GraphRoot.Localization[DependencyMultiSelectHint]}"
           ClipToBounds="True">
         <Grid x:Name="Surface"
               Width="{Binding Width}"
@@ -33,8 +34,8 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemContainerTheme>
                     <ControlTheme TargetType="ContentPresenter">
-                        <Setter Property="Canvas.Left" Value="{ReflectionBinding X}" />
-                        <Setter Property="Canvas.Top" Value="{ReflectionBinding Y}" />
+                        <Setter Property="Canvas.Left" Value="{ReflectionBinding CanvasX}" />
+                        <Setter Property="Canvas.Top" Value="{ReflectionBinding CanvasY}" />
                     </ControlTheme>
                 </ItemsControl.ItemContainerTheme>
                 <ItemsControl.ItemTemplate>
@@ -54,11 +55,8 @@
                                 CommandParameter="{Binding}"
                                 AutomationProperties.Name="{Binding PrimaryName}"
                                 ToolTip.Tip="{Binding Id}">
-                            <Grid ColumnDefinitions="8,*" RowDefinitions="*,Auto">
-                                <Border Grid.RowSpan="2"
-                                        Classes="cfp-dependency-node-accent" />
-                                <StackPanel Grid.Column="1"
-                                            Margin="11,9,11,3"
+                            <Grid RowDefinitions="*,Auto">
+                                <StackPanel Margin="14,9,14,3"
                                             Spacing="2">
                                     <TextBlock Classes="cfp-row-title"
                                                Text="{Binding PrimaryName}"
@@ -69,8 +67,7 @@
                                                TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                                 <Grid Grid.Row="1"
-                                      Grid.Column="1"
-                                      Margin="11,0,11,8"
+                                      Margin="14,0,14,8"
                                       ColumnDefinitions="*,Auto"
                                       ColumnSpacing="8">
                                     <TextBlock Classes="cfp-meta"
@@ -88,11 +85,17 @@
             </ItemsControl>
         </Grid>
 
+        <Canvas IsHitTestVisible="False" ClipToBounds="True">
+            <Border Name="SelectionRectangle" IsVisible="False" Background="{DynamicResource CfAccentSoftBrush}"
+                    BorderBrush="{DynamicResource CfAccentBrush}" BorderThickness="1" CornerRadius="3"/>
+        </Canvas>
         <Border Classes="cfp-dependency-toolbar"
                 HorizontalAlignment="Right"
                 VerticalAlignment="Top"
                 Margin="10">
             <StackPanel Orientation="Horizontal" Spacing="2">
+                <Button Classes="cfp-icon" Click="OnSelectAll" ToolTip.Tip="{Binding #GraphRoot.Localization[SelectAll]}" AutomationProperties.Name="{Binding #GraphRoot.Localization[SelectAll]}" Content="{LucideIconContent ListChecks, 15}" />
+                <Button Classes="cfp-icon" Click="OnClearSelection" ToolTip.Tip="{Binding #GraphRoot.Localization[ClearSelection]}" AutomationProperties.Name="{Binding #GraphRoot.Localization[ClearSelection]}" Content="{LucideIconContent X, 15}" />
                 <Button Classes="cfp-icon" Click="OnZoomOut" ToolTip.Tip="{Binding #GraphRoot.Localization[DependencyZoomOut]}" AutomationProperties.Name="{Binding #GraphRoot.Localization[DependencyZoomOut]}" Content="{LucideIconContent Minus, 15}" />
                 <Button Classes="cfp-icon" Click="OnZoomIn" ToolTip.Tip="{Binding #GraphRoot.Localization[DependencyZoomIn]}" AutomationProperties.Name="{Binding #GraphRoot.Localization[DependencyZoomIn]}" Content="{LucideIconContent Plus, 15}" />
                 <Button Classes="cfp-icon" Click="OnFit" ToolTip.Tip="{Binding #GraphRoot.Localization[DependencyFitView]}" AutomationProperties.Name="{Binding #GraphRoot.Localization[DependencyFitView]}" Content="{LucideIconContent Scan, 15}" />

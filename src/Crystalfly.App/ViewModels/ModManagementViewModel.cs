@@ -50,7 +50,7 @@ public partial class ModManagementViewModel : ViewModelBase
 
     public bool IsInstalledModListVisible => !IsInstalledModGraphVisible;
 
-    public bool IsInstalledModBulkBarVisible => IsInstalledModListVisible && HasSelectedMods;
+    public bool IsInstalledModBulkBarVisible => HasSelectedMods;
 
     public bool HasUnusedDependencySuggestions => UnusedDependencySuggestions.Count > 0;
 
@@ -720,15 +720,15 @@ public partial class ModManagementViewModel : ViewModelBase
         }
     }
 
-    internal void SelectModFromGraph(string id)
+    internal void SetGraphSelection(IReadOnlyList<string> ids)
     {
-        var selected = InstalledMods.FirstOrDefault(mod =>
-            string.Equals(mod.Id, id, StringComparison.OrdinalIgnoreCase));
-        if (selected is not null && !ReferenceEquals(SelectedInstalledMod, selected))
-        {
-            SelectedInstalledMod = selected;
-        }
+        var selected = ids.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var mod in InstalledMods) mod.IsSelected = selected.Contains(mod.Id);
+        if (ids.Count == 0) SelectedInstalledMod = null;
     }
+
+    internal void SelectModFromGraph(string id) => SelectedInstalledMod = InstalledMods.FirstOrDefault(mod =>
+        string.Equals(mod.Id, id, StringComparison.OrdinalIgnoreCase));
 
     internal async Task ToggleInstalledModFromGraphAsync(string modId)
     {

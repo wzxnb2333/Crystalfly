@@ -124,7 +124,7 @@
                    Text="{Binding DialogError}"
                    TextWrapping="Wrap"
                    IsVisible="{Binding DialogError, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-        <StackPanel Grid.Row="5"
+        <StackPanel Grid.Row="4"
                     Margin="0,16,0,0"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"

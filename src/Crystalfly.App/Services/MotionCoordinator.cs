@@ -125,6 +125,7 @@ public sealed class MotionCoordinator
     internal void UpdateMotionPreference(bool replayVisiblePages = false)
     {
         UpdateGameAvatar(animate: false);
+        UpdateTopNavigationIndicator(animate: false);
         ConfigureMicroInteractionTransitions();
         if (!IsMotionEnabled())
         {
@@ -188,9 +189,34 @@ public sealed class MotionCoordinator
         transform.X = target;
     }
 
+    internal void UpdateTopNavigationIndicator(bool animate)
+    {
+        if (owner.FindControl<Border>("TopNavigationIndicator") is not { RenderTransform: TranslateTransform transform } indicator
+            || owner.FindControl<StackPanel>("TopNavigationButtons") is not { } buttons) return;
+        var selected = buttons.Children.OfType<Button>().FirstOrDefault(button => button.Classes.Contains("active"));
+        var enabled = animate && indicator.IsVisible && owner.IsVisible && IsFullMotionEnabled();
+        transform.Transitions = enabled ? new Transitions { new DoubleTransition
+        {
+            Property = TranslateTransform.XProperty, Duration = TimeSpan.FromMilliseconds(220), Easing = new CubicEaseOut()
+        } } : null;
+        indicator.Transitions = enabled ? new Transitions { new DoubleTransition
+        {
+            Property = Control.WidthProperty, Duration = TimeSpan.FromMilliseconds(220), Easing = new CubicEaseOut()
+        } } : null;
+        if (selected is null || selected.Bounds.Width <= 0)
+        {
+            indicator.IsVisible = false;
+            return;
+        }
+        indicator.Width = selected.Bounds.Width;
+        transform.X = selected.TranslatePoint(default, buttons)?.X ?? 0;
+        indicator.IsVisible = true;
+    }
+
     internal void Shutdown()
     {
         isShutdown = true;
+        UpdateTopNavigationIndicator(animate: false);
         owner.PropertyChanged -= OnWindowPropertyChanged;
         foreach (var target in entranceAnimationTargets.ToArray())
         {

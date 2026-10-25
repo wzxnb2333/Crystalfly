@@ -110,18 +110,6 @@ public static class LaunchPreflightEvaluator
             issues.Add(Forceable(LaunchIssueCode.SteamSaveProfileUnavailable));
         AddModHealthIssues(issues, modHealthReports, installedById);
         AddCompatibilityIssues(issues, installedMods, compatibility);
-        if (!isKnownBuild && loaderState == LoaderState.BepInEx
-            && !issues.Any(issue => issue.Code == LaunchIssueCode.LoaderCompatibilityUnverified))
-        {
-            issues.Add(new LaunchPreflightIssue
-            {
-                Code = LaunchIssueCode.LoaderCompatibilityUnverified,
-                Severity = LaunchIssueSeverity.Warning,
-                SubjectLoaderId = compatibility?.Loader.PackageId ?? "bepinex",
-                CurrentFileSha256 = compatibility?.FileFingerprint,
-                Arguments = [compatibility?.BuildId ?? "unknown", compatibility?.Loader.PackageId ?? "BepInEx", compatibility?.DeclaredVersion ?? ""]
-            });
-        }
 
         var evaluatedIssues = issues.Select(issue => issue.Severity == LaunchIssueSeverity.Warning
             && (issue.SubjectModId is not null || issue.SubjectLoaderId is not null)
@@ -215,17 +203,6 @@ public static class LaunchPreflightEvaluator
                     Code = LaunchIssueCode.UnsupportedBuildLoaderCombination,
                     Severity = LaunchIssueSeverity.Forceable,
                     Arguments = [compatibility.BuildId, loader.PackageId ?? loader.State.ToString()]
-                });
-            }
-            if (!loader.IsVerified || loader.SupportedBuildIds.Count == 0)
-            {
-                issues.Add(new LaunchPreflightIssue
-                {
-                    Code = LaunchIssueCode.LoaderCompatibilityUnverified,
-                    Severity = LaunchIssueSeverity.Warning,
-                    SubjectLoaderId = loader.PackageId ?? loader.State.ToString(),
-                    CurrentFileSha256 = compatibility.FileFingerprint,
-                    Arguments = [compatibility.BuildId, loader.PackageId ?? loader.State.ToString(), compatibility.DeclaredVersion ?? ""]
                 });
             }
         }

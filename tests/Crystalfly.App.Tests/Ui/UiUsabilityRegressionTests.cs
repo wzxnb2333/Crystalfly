@@ -2,6 +2,7 @@ using System.Reflection;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Notifications;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -69,7 +70,7 @@ public sealed class UiUsabilityRegressionTests
     }
 
     [AvaloniaFact]
-    public async Task Long_error_is_scrollable_dismissible_and_leaves_workspace_visible()
+    public async Task Long_error_is_dismissible_top_notification_and_leaves_workspace_visible()
     {
         var root = Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N"));
         await using var vm = new MainViewModel(root);
@@ -80,19 +81,28 @@ public sealed class UiUsabilityRegressionTests
         {
             vm.ErrorMessage = string.Join("\n", Enumerable.Repeat("A recoverable error with details", 80));
             Dispatcher.UIThread.RunJobs();
-            var error = window.GetVisualDescendants().OfType<Border>().Single(b => b.Classes.Contains("cfp-error") && b.IsEffectivelyVisible);
-            Assert.True(error.Bounds.Height <= 150, $"Error banner consumed {error.Bounds.Height}px.");
-            var dismiss = Assert.Single(error.GetVisualDescendants().OfType<Button>(), b => b.Classes.Contains("cfp-icon"));
-            Assert.Contains(error.GetVisualDescendants().OfType<ScrollViewer>(), s => s.Extent.Height > s.Viewport.Height);
+            var card = Assert.Single(window.GetVisualDescendants().OfType<ToastCard>());
+            Assert.Equal(NotificationType.Error, card.NotificationType);
+            Assert.True(card.Bounds.Width <= window.ClientSize.Width,
+                $"Error notification is {card.Bounds.Width}px wide in a {window.ClientSize.Width}px window.");
+            var dismiss = Assert.Single(card.GetVisualDescendants().OfType<Button>(),
+                button => button.Name == "PART_CloseButton" && button.IsEffectivelyVisible);
             Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(dismiss)));
             dismiss.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.True(string.IsNullOrEmpty(vm.ErrorMessage));
+            for (var attempt = 0; attempt < 100 && window.GetVisualDescendants().OfType<ToastCard>().Any(); attempt++)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Delay(10);
+            }
+            Assert.Empty(window.GetVisualDescendants().OfType<ToastCard>());
+            Assert.Contains(window.GetVisualDescendants().OfType<Button>(),
+                button => button.IsEffectivelyVisible && button.Classes.Contains("cfp-nav"));
         }
         finally { Close(window); }
     }
 
     [AvaloniaFact]
-    public async Task Error_banner_centers_its_message_vertically()
+    public async Task Error_notification_centers_its_message_vertically()
     {
         var root = Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N"));
         await using var vm = new MainViewModel(root);
@@ -104,14 +114,18 @@ public sealed class UiUsabilityRegressionTests
             vm.ErrorMessage = "No Hollow Knight installation was found in that directory.";
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
-            var banner = window.GetVisualDescendants().OfType<Border>()
-                .Single(border => border.Classes.Contains("cfp-error") && border.IsEffectivelyVisible);
-            var message = Assert.Single(banner.GetVisualDescendants().OfType<TextBlock>());
-            var origin = Assert.IsType<Point>(message.TranslatePoint(default, banner));
+            var card = Assert.Single(window.GetVisualDescendants().OfType<ToastCard>());
+            // 入场动画作用在模板根节点的 RenderTransform 上，TranslatePoint 会把它算进去，
+            // 因此以卡片内容边框为基准测量，避免入场位移影响断言。
+            var rootBorder = Assert.Single(card.GetVisualDescendants().OfType<Border>(),
+                border => border.Name == "PART_RootBorder");
+            var message = Assert.Single(rootBorder.GetVisualDescendants().OfType<TextBlock>(),
+                text => text.Text == vm.ErrorMessage);
+            var origin = Assert.IsType<Point>(message.TranslatePoint(default, rootBorder));
             var messageCenter = origin.Y + message.Bounds.Height / 2;
-            var bannerCenter = banner.Bounds.Height / 2;
+            var cardCenter = rootBorder.Bounds.Height / 2;
             Assert.InRange(
-                System.Math.Abs(messageCenter - bannerCenter),
+                System.Math.Abs(messageCenter - cardCenter),
                 0,
                 2);
         }

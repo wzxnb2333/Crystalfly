@@ -313,7 +313,22 @@ public sealed class ThemeRenderingTests
             Assert.Equal(workspaceBounds, workspace.Bounds);
             var center = cards[1].TranslatePoint(new Point(cards[1].Bounds.Width / 2, 0), window)!.Value;
             Assert.InRange(center.X, window.Bounds.Width / 2 - 2, window.Bounds.Width / 2 + 2);
-            Assert.InRange(center.Y, 0, 180);
+            var topbar = window.GetVisualDescendants().OfType<Border>().Single(border => border.Classes.Contains("cfp-topbar"));
+            var topbarBottom = topbar.TranslatePoint(new Point(0, topbar.Bounds.Height), window)!.Value.Y;
+            Assert.InRange(center.Y, topbarBottom + 8, 240);
+            if (Environment.GetEnvironmentVariable("CRYSTALFLY_NAV_SCREENSHOTS") is { Length: > 0 } output)
+            {
+                Directory.CreateDirectory(output);
+                for (var frameIndex = 0; frameIndex < 20; frameIndex++)
+                {
+                    await Task.Delay(16);
+                    AvaloniaHeadlessPlatform.ForceRenderTimerTick(1);
+                    Dispatcher.UIThread.RunJobs();
+                }
+                using var frame = window.CaptureRenderedFrame();
+                Assert.NotNull(frame);
+                frame.Save(Path.Combine(output, "notifications-below-navigation.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+            }
         }
         finally
         {

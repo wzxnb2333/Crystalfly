@@ -63,7 +63,7 @@ public sealed class DependencyGraphEdges : Control
 
         foreach (var edge in edges.Where(edge => edge.IsDimmed))
         {
-            DrawEdge(context, edge, LineBrush, 1.5, 0.5);
+            DrawEdge(context, edge, LineBrush, 2, 0.8);
         }
         foreach (var edge in edges.Where(edge => !edge.IsDimmed && !edge.IsCycle))
         {
@@ -83,11 +83,11 @@ public sealed class DependencyGraphEdges : Control
         double opacity)
     {
         var start = new Point(
-            edge.Source.X + DependencyGraphModel.NodeWidth,
-            edge.Source.Y + DependencyGraphModel.NodeHeight / 2);
+            edge.Source.CanvasX + DependencyGraphModel.NodeWidth,
+            edge.Source.CanvasY + DependencyGraphModel.NodeHeight / 2);
         var end = new Point(
-            edge.Target.X,
-            edge.Target.Y + DependencyGraphModel.NodeHeight / 2);
+            edge.Target.CanvasX,
+            edge.Target.CanvasY + DependencyGraphModel.NodeHeight / 2);
         var curve = Math.Max(34, Math.Abs(end.X - start.X) * 0.45);
         var geometry = new StreamGeometry();
         using (var path = geometry.Open())
@@ -101,6 +101,8 @@ public sealed class DependencyGraphEdges : Control
         using (context.PushOpacity(opacity))
         {
             context.DrawGeometry(null, new Pen(brush, thickness, lineCap: PenLineCap.Round), geometry);
+            context.DrawLine(new Pen(brush, thickness), end + new Vector(-8, -4), end);
+            context.DrawLine(new Pen(brush, thickness), end + new Vector(-8, 4), end);
         }
     }
 

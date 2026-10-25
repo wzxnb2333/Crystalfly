@@ -15,8 +15,12 @@ public sealed partial class ThunderstoreViewModel
     private IReadOnlyList<ThunderstorePackageDisplayItem>? packageDisplayItems;
     public IReadOnlyList<ThunderstorePackageDisplayItem> PackageDisplayItems => packageDisplayItems ??=
         Packages.Select(item => Display(item, item.Latest)).ToArray();
-    public IReadOnlyList<ThunderstoreInstalledDisplayItem> InstalledDisplayItems => InstalledMods
-        .Select(item => new ThunderstoreInstalledDisplayItem(item, DisplayName(item.FullName))).ToArray();
+    private IReadOnlyList<ThunderstoreInstalledDisplayItem>? installedDisplayItems;
+    public IReadOnlyList<ThunderstoreInstalledDisplayItem> InstalledDisplayItems => installedDisplayItems ??= InstalledMods
+        .Select(item => new ThunderstoreInstalledDisplayItem(item, DisplayName(item.FullName))
+        { IsSelected = selectedInstalled.Contains(item.FullName), SelectionChanged = selected => SetInstalledSelected(item.FullName, selected),
+            IconUrl = (InstalledCatalogPackage(item)?.Versions.FirstOrDefault(version => version.VersionNumber == item.Version) ?? InstalledCatalogPackage(item)?.Latest)?.IconUrl ?? "",
+            HasUpdate = HasInstalledUpdate(item), Status = InstalledNeedsAttention(item) ? loc["NeedsAttention"] : loc[item.Enabled ? "TsEnabled" : "TsDisabled"] }).ToArray();
     public ThunderstorePackageDisplayItem? SelectedDisplayPackage
     {
         get => PackageDisplayItems.FirstOrDefault(item => item.FullName == SelectedPackage?.FullName);
@@ -24,7 +28,7 @@ public sealed partial class ThunderstoreViewModel
     }
     public ThunderstoreInstalledDisplayItem? SelectedInstalledDisplay
     {
-        get => SelectedInstalled is null ? null : new(SelectedInstalled, DisplayName(SelectedInstalled.FullName));
+        get => InstalledDisplayItems.FirstOrDefault(item => item.FullName == SelectedInstalled?.FullName);
         set { if (!projecting && value is not null) SelectedInstalled = value.Package; }
     }
     public string SelectedPackageName => SelectedPackage is null ? "" : DisplayName(SelectedPackage.FullName, SelectedPackage.Name);
@@ -35,7 +39,7 @@ public sealed partial class ThunderstoreViewModel
     public string SelectedCategories => string.Join(" · ", SelectedPackage?.Categories ?? []);
     public string SelectedDependencies => string.Join("\n", SelectedVersion?.Dependencies ?? []);
     public bool HasSelectedOriginalDescription => SelectedDescription != SelectedOriginalDescription;
-    public string PendingUninstallDisplay => PendingUninstall is null ? "" : DisplayName(PendingUninstall) + "\n" + PendingUninstall;
+    public string PendingUninstallDisplay => PendingUninstall is null ? "" : string.Join("\n", uninstallNames.Select(name => DisplayName(name) + " (" + name + ")"));
     public string SelectedInstalledName => SelectedInstalled is null ? "" : DisplayName(SelectedInstalled.FullName);
     public string TranslationNotice => Chinese && SelectedPackage is not null
         && !Display(SelectedPackage, SelectedVersion).DescriptionTranslated && !string.IsNullOrEmpty(SelectedVersion?.Description)
@@ -79,6 +83,7 @@ public sealed partial class ThunderstoreViewModel
     private void NotifyTranslationProjection()
     {
         packageDisplayItems = null;
+        installedDisplayItems = null;
         projecting = true;
         try
         {

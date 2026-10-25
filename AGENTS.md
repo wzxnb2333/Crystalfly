@@ -22,6 +22,8 @@ dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 
 Use `scripts/build-release.ps1` to produce the self-contained ZIP, installer, and checksums. After closing Crystalfly, `scripts/build-and-install.ps1` builds and updates `D:\Program Files\Crystalfly`. Both scripts skip the test suite by default; pass `-RunTests` explicitly when a full regression run is wanted.
 
+After completing changes and the relevant focused checks, always run `pwsh -NoProfile -File .\scripts\build-and-install.ps1 -UnsignedLocal` to build and overwrite the local installation before the final response. Verify the installed files match the build output. This is the user's standing local-delivery preference.
+
 ## Coding Style & Naming Conventions
 
 Use four-space indentation, file-scoped namespaces, nullable reference types, and implicit usings. Warnings are errors. Name types and public members with `PascalCase`, locals and parameters with `camelCase`, private fields with descriptive camelCase names, and asynchronous methods with an `Async` suffix. Keep cancellation tokens flowing through I/O operations. Prefer existing transaction, JSON, and path-validation helpers over new parallel abstractions.
@@ -30,7 +32,7 @@ Use four-space indentation, file-scoped namespaces, nullable reference types, an
 
 Tests use xUnit; UI tests use `Avalonia.Headless.XUnit`. Name tests by behavior, for example `ApplyDirectory_rejects_reparse_point_staging_root`. Add regression coverage for changed behavior, including failure, cancellation, rollback, and path-safety cases where relevant. There is no fixed coverage percentage; CI runs the full solution suite for the merge gate.
 
-For routine development, run the smallest relevant check once. Prefer a focused `--filter` over an entire test project. Reuse passing results while the relevant code and inputs remain unchanged. Documentation and script-only changes need only their relevant lightweight checks. Do not automatically run full regression, rebuild installers, perform desktop acceptance, or start another audit round after a focused check passes.
+For routine development, run the smallest relevant check once. Prefer a focused `--filter` over an entire test project. Reuse passing results while the relevant code and inputs remain unchanged. Documentation and script-only changes need only their relevant lightweight checks. Do not automatically run full regression, perform desktop acceptance, or start another audit round after a focused check passes. The local build and overwrite installation required above remains part of delivery.
 
 ### Change-to-Test Routing
 

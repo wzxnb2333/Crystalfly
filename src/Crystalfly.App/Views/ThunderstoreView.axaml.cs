@@ -27,6 +27,7 @@ public partial class ThunderstoreView : UserControl
     {
         InitializeComponent();
         CatalogList.AddHandler(InputElement.PointerPressedEvent, OnCatalogPointerPressed, RoutingStrategies.Tunnel);
+        InstalledList.AddHandler(InputElement.PointerPressedEvent, OnInstalledPointerPressed, RoutingStrategies.Tunnel);
         initialized = true;
         UpdatePresentation();
     }
@@ -99,6 +100,42 @@ public partial class ThunderstoreView : UserControl
             args.Handled = true;
         }
     }
+    private void OnInstalledPointerPressed(object? sender, PointerPressedEventArgs args)
+    {
+        if (args.GetCurrentPoint(this).Properties.PointerUpdateKind == PointerUpdateKind.LeftButtonPressed
+            && args.Source is Control { DataContext: ThunderstoreInstalledDisplayItem item } source
+            && source is not Button && source.FindAncestorOfType<Button>() is null
+            && DataContext is ThunderstoreViewModel model)
+        {
+            model.SelectInstalledItem(item.Package, args.KeyModifiers.HasFlag(KeyModifiers.Control), args.KeyModifiers.HasFlag(KeyModifiers.Shift));
+            InstalledList.Focus(NavigationMethod.Pointer);
+            args.Handled = true;
+        }
+    }
+    private ThunderstoreViewModel? SelectInstalledRow(object? sender)
+    {
+        if (DataContext is not ThunderstoreViewModel model || !model.CanManage
+            || sender is not Control { DataContext: ThunderstoreInstalledDisplayItem row }) return null;
+        model.SelectedInstalled = row.Package;
+        return model;
+    }
+    private void ToggleInstalledRow(object? sender, RoutedEventArgs args) => SelectInstalledRow(sender)?.ToggleEnabledCommand.Execute(null);
+    private void PinInstalledRow(object? sender, RoutedEventArgs args) => SelectInstalledRow(sender)?.TogglePinnedCommand.Execute(null);
+    private void UpdateInstalledRow(object? sender, RoutedEventArgs args) => SelectInstalledRow(sender)?.PreviewInstalledUpdateCommand.Execute(null);
+    private void UninstallInstalledRow(object? sender, RoutedEventArgs args) => SelectInstalledRow(sender)?.RequestUninstallCommand.Execute(null);
+    private async void OpenInstalledRoot(object? sender, RoutedEventArgs args) => await OpenInstalledDirectoryAsync(false);
+    private async void OpenInstalledFolder(object? sender, RoutedEventArgs args) => await OpenInstalledDirectoryAsync(true);
+    private async Task OpenInstalledDirectoryAsync(bool selected)
+    {
+        if (DataContext is not ThunderstoreViewModel { CanManage: true } model || TopLevel.GetTopLevel(this) is not { } top) return;
+        try
+        {
+            var path = model.GetInstalledDirectory(selected ? model.SelectedInstalled : null);
+            await top.Launcher.LaunchDirectoryInfoAsync(new DirectoryInfo(path));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        { model.Error = exception.Message; }
+    }
     private void SelectCatalogPackage(object? sender, SelectionChangedEventArgs args)
     {
         if (args.AddedItems.Count == 0) return;
@@ -118,6 +155,9 @@ public partial class ThunderstoreView : UserControl
     {
         if (!initialized) return;
         var isMarket = Workspace == "Market";
+        InstalledToolbar.IsVisible = Workspace == "Mods";
+        InstalledCountLabel.IsVisible = Workspace == "Mods";
+        SelectTargetInstance.MaxWidth = Workspace == "Mods" ? 140 : 220;
         SelectTargetInstance.IsVisible = !isMarket;
         RefreshWorkspace.IsVisible = !isMarket;
         MarketWorkspace.IsVisible = isMarket && !detailOpen;
@@ -128,7 +168,7 @@ public partial class ThunderstoreView : UserControl
         if (DataContext is ThunderstoreViewModel model)
         {
             WorkspaceTitle.Text = model.Loc[Workspace switch { "Mods" => "InstalledMods", "Loader" => "Loader", "Presets" => "ModPacks", _ => "TsMarketTitle" }];
-            WorkspaceHint.Text = model.Loc[Workspace switch { "Mods" => "TsInstalledHint", "Loader" => "TsLoaderHint", "Presets" => "TsPresetsHint", _ => "TsMarketHint" }];
+            ToolTip.SetTip(WorkspaceTitle, model.Loc[Workspace switch { "Mods" => "TsInstalledHint", "Loader" => "TsLoaderHint", "Presets" => "TsPresetsHint", _ => "TsMarketHint" }]);
         }
         CatalogPane.IsVisible = isMarket && !detailOpen;
         PackageDetailPane.IsVisible = isMarket && detailOpen;
@@ -138,7 +178,7 @@ public partial class ThunderstoreView : UserControl
     }
     private void RefreshPackageIcons()
     {
-        foreach (var icon in CatalogList.GetVisualDescendants().OfType<ThunderstorePackageIconImage>()) icon.RefreshVisibility();
+        foreach (var icon in this.GetVisualDescendants().OfType<ThunderstorePackageIconImage>()) icon.RefreshVisibility();
     }
     private async void ImportZip(object? sender, RoutedEventArgs args) => await ImportAsync(false);
     private async void ImportPreset(object? sender, RoutedEventArgs args) => await ImportAsync(true);

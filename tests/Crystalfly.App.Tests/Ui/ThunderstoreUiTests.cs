@@ -21,7 +21,7 @@ using Crystalfly.Core.Thunderstore;
 
 namespace Crystalfly.App.Tests.Ui;
 
-public sealed class ThunderstoreUiTests
+public sealed partial class ThunderstoreUiTests
 {
     [AvaloniaTheory]
     [InlineData(false)]
@@ -255,7 +255,8 @@ public sealed class ThunderstoreUiTests
                 if (workspace == "Mods")
                 {
                     Assert.Contains(model.Loc["TsEnabled"], visibleText);
-                    Assert.Contains(model.Loc["TsPinned"], visibleText);
+                    Assert.Contains(view.GetVisualDescendants().OfType<Control>(), control => Visible(control)
+                        && Equals(ToolTip.GetTip(control), model.Loc["TsPinned"]));
                     Assert.True(view.FindControl<ListBox>("InstalledList")!.Bounds.Height > 120);
                 }
                 foreach (var button in view.GetVisualDescendants().OfType<Button>().Where(Visible))

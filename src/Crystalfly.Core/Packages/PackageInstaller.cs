@@ -10,7 +10,7 @@ namespace Crystalfly.Core.Packages;
 
 public static class PackageInstaller
 {
-    private const long MaxPackageBytes = 256L * 1024 * 1024;
+    private const long MaxPackageBytes = 1024L * 1024 * 1024;
     private const long MaxExtractedFileBytes = 512L * 1024 * 1024;
     private const long MaxExtractedPackageBytes = 1024L * 1024 * 1024;
     private static readonly HttpClient SharedHttpClient = new();

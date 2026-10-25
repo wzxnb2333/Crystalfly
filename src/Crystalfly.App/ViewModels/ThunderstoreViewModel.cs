@@ -19,7 +19,8 @@ public sealed partial class ThunderstoreViewModel(
     SilksongModTranslationSource? translationSource = null,
     ThunderstorePackageIconLoader? packageIconLoader = null,
     Action<string>? reportError = null,
-    Func<IReadOnlyList<InstanceRecord>>? getInstallTargets = null) : ViewModelBase
+    Func<IReadOnlyList<InstanceRecord>>? getInstallTargets = null,
+    Func<string, string>? getInstalledGraphLayoutPath = null) : ViewModelBase
 {
     private ThunderstoreCatalog? catalog;
     private ThunderstoreInstallPlan? pendingPlan;
@@ -69,10 +70,17 @@ public sealed partial class ThunderstoreViewModel(
         Sort = SortOptions[Math.Max(0, index)];
         OnPropertyChanged(nameof(TargetName));
         OnPropertyChanged(nameof(SelectedPackagesText));
+        OnPropertyChanged(nameof(InstalledSelectionText));
         RebuildCategories();
         NotifyTranslationProjection();
         ShowOriginalDocument = !Chinese;
         PresentDocument();
+        var installedStatus = InstalledStatus?.Value ?? "all";
+        OnPropertyChanged(nameof(InstalledStatusOptions));
+        InstalledStatus = InstalledStatusOptions.First(item => item.Value == installedStatus);
+        FilterInstalled();
+        RebuildInstalledGraph();
+        NotifyInstalledDetails();
         NotifyActions();
     }
     private void RebuildCategories()
@@ -112,6 +120,8 @@ public sealed partial class ThunderstoreViewModel(
     partial void OnSelectedInstalledChanged(ThunderstoreInstalledPackage? value)
     {
         PendingUninstall = null;
+        if (value is not null) InstalledGraph.FocusNode(value.FullName);
+        NotifyInstalledDetails();
         NotifyActions();
         NotifyTranslationProjection();
         if (value is null) return;
@@ -129,6 +139,11 @@ public sealed partial class ThunderstoreViewModel(
         }
         contextTargetKey = key;
         generation++;
+        selectedInstalled.Clear();
+        installedSelectionAnchor = null;
+        installedHealth = new Dictionary<string, ModHealthReport>();
+        InstalledGraph = Crystalfly.App.ViewModels.DependencyGraph.DependencyGraphModel.Create([], []);
+        NotifyInstalledSelection();
         ResetPlan();
         PendingUninstall = null;
         SelectedInstalled = null;
@@ -190,11 +205,14 @@ public sealed partial class ThunderstoreViewModel(
         var selectedName = SelectedInstalled?.FullName;
         Installed.Clear();
         InstalledMods.Clear();
-        if (target?.GameId != GameId.Silksong) { SelectedInstalled = null; NotifyActions(); return; }
+        NotifyTranslationProjection();
+        OnPropertyChanged(nameof(InstalledCount));
+        if (target?.GameId != GameId.Silksong) { SelectedInstalled = null; RebuildInstalledGraph(); NotifyActions(); return; }
         try
         {
             var state = await new ThunderstoreInstallService(target, store).ReadStateAsync();
             if (version != generation || getTarget()?.Id != target.Id) return;
+            installedHealth = new Dictionary<string, ModHealthReport>();
             foreach (var package in state.Packages) Installed.Add(package);
             if (catalog is not null)
             {
@@ -203,8 +221,12 @@ public sealed partial class ThunderstoreViewModel(
                 catalog = catalog with { Packages = catalog.Packages.Where(item => item.Owner != "Local" && !names.Contains(item.FullName)).Concat(local).ToArray() };
                 Filter();
             }
+            selectedInstalled.RemoveWhere(name => !Installed.Any(item => !item.IsLoader && item.FullName == name));
             FilterInstalled();
             SelectedInstalled = Installed.FirstOrDefault(item => item.FullName == selectedName);
+            RebuildInstalledGraph();
+            NotifyInstalledSelection();
+            NotifyInstalledDetails();
             NotifyActions();
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or JsonException)
@@ -271,13 +293,14 @@ public sealed partial class ThunderstoreViewModel(
     [RelayCommand(CanExecute = nameof(CanChangeInstalled))]
     private Task TogglePinnedAsync() => ChangeInstalledAsync(async (service, package) =>
         await service.SetPinnedAsync(package.FullName, !package.Pinned));
-    [RelayCommand(CanExecute = nameof(CanChangeInstalled))] private void RequestUninstall() { ResetPlan(); PendingUninstall = SelectedInstalled?.FullName; }
+    [RelayCommand(CanExecute = nameof(CanChangeInstalled))] private void RequestUninstall() { if (SelectedInstalled is { } item) PrepareUninstall([item.FullName]); }
     [RelayCommand] private void CancelUninstall() => PendingUninstall = null;
     [RelayCommand(CanExecute = nameof(CanUninstall))]
     private Task ConfirmUninstallAsync() => RunAsync(async () =>
     {
-        if (PendingUninstall is not { } name) return;
-        await new ThunderstoreInstallService(RequireTarget(), store).UninstallAsync(name);
+        if (PendingUninstall is null) return;
+        if (uninstallContext != ContextKey()) throw new InvalidOperationException(loc["TsTargetChanged"]);
+        await new ThunderstoreInstallService(RequireTarget(), store).UninstallAsync(uninstallNames);
         PendingUninstall = null;
         await RefreshInstalledAsync();
         await refreshInstance();

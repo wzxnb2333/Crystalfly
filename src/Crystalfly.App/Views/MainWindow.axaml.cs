@@ -83,12 +83,14 @@ public partial class MainWindow : Window
         HollowKnightCatalogList.AddHandler(InputElement.PointerPressedEvent,
             OnMarketModPointerPressed, RoutingStrategies.Tunnel);
         MainOverlayDialogHost.Children.CollectionChanged += OnOverlayHostChildrenChanged;
-        toastManager = new WindowToastManager(this) { MaxItems = 3 };
+        toastManager = new WindowToastManager(this) { MaxItems = 3, Margin = new Thickness(0, 64, 0, 0) };
         motionCoordinator = new MotionCoordinator(
             this,
             () => DataContext is MainViewModel { EffectiveMotionPreference: UiMotionPreference.FollowSystem },
             () => DataContext is MainViewModel { EffectiveMotionPreference: UiMotionPreference.Reduced },
             ClientAreaAnimationsOverride);
+        TopNavigationButtons.SizeChanged += (_, _) => Dispatcher.UIThread.Post(
+            () => motionCoordinator.UpdateTopNavigationIndicator(animate: true), DispatcherPriority.Render);
         DataContextChanged += OnDataContextChanged;
         OnDataContextChanged(this, EventArgs.Empty);
         Opened += OnOpened;
@@ -255,6 +257,7 @@ public partial class MainWindow : Window
         {
             closeRequested = true;
             SuspendExternalCommands();
+            UninstallToastManagerSynchronously();
             base.OnClosing(e);
             return;
         }
@@ -353,7 +356,7 @@ public partial class MainWindow : Window
         }
         if (e.Key != Key.Tab || e.KeyModifiers != KeyModifiers.Shift
             || MainOverlayDialogHost.Children.OfType<CustomDialogControl>().Any()
-            || DataContext is not MainViewModel viewModel)
+            || DataContext is not MainViewModel { IsManagePage: false } viewModel)
         {
             return;
         }
@@ -450,6 +453,7 @@ public partial class MainWindow : Window
             toastViewModel.Instances.SteamDirectoryRiskRequested += steamDirectoryRiskRequestedHandler;
         }
         motionCoordinator.UpdateGameAvatar(animate: false);
+        Dispatcher.UIThread.Post(() => motionCoordinator.UpdateTopNavigationIndicator(animate: false), DispatcherPriority.Render);
     }
 
     private async Task ConfirmGraphModRemovalAsync(MainViewModel viewModel)
@@ -469,7 +473,10 @@ public partial class MainWindow : Window
         if (eventArgs.PropertyName == nameof(MainViewModel.SelectedGameId))
             motionCoordinator.UpdateGameAvatar(animate: true);
         else if (eventArgs.PropertyName == nameof(MainViewModel.CurrentPage))
+        {
             motionCoordinator.UpdateGameAvatar(animate: false);
+            Dispatcher.UIThread.Post(() => motionCoordinator.UpdateTopNavigationIndicator(animate: true), DispatcherPriority.Render);
+        }
         if (eventArgs.PropertyName == nameof(MainViewModel.EffectiveMotionPreference))
         {
             motionCoordinator.UpdateMotionPreference(replayVisiblePages: true);
@@ -557,6 +564,31 @@ public partial class MainWindow : Window
             }
             await allClosed;
             await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
+        }
+        toastManager.Uninstall();
+        toastManagerUninstalled = true;
+    }
+
+    // closeAfterDispose 直连的 Close 会跳过 DisposeBeforeCloseAsync，ToastCard 仍挂在
+    // AdornerLayer 中。Ursa 会在视觉树分离期间把已关闭的卡片从宿主面板移除，破坏
+    // Avalonia 的分离迭代并抛出越界异常；而关闭动画未结束的卡片上直接赋 IsClosed
+    // 会被动画值覆盖、无法立即移出。因此在分离前把卡片逐个从宿主面板移除（每次
+    // 移除时没有正在进行的子项遍历），再卸载管理器，保证树分离时面板为空。
+    private void UninstallToastManagerSynchronously()
+    {
+        if (toastManagerUninstalled)
+        {
+            return;
+        }
+
+        DetachToastSubscriptions();
+        toastManagerClosing = true;
+        foreach (var card in toastManager.GetVisualDescendants().OfType<ToastCard>().ToArray())
+        {
+            if (card.GetVisualParent() is Panel host)
+            {
+                host.Children.Remove(card);
+            }
         }
         toastManager.Uninstall();
         toastManagerUninstalled = true;

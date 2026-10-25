@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -19,6 +20,86 @@ namespace Crystalfly.App.Tests.Ui;
 
 public sealed class PageTransitionMotionTests
 {
+    [AvaloniaTheory]
+    [InlineData(900, Crystalfly.Core.Configuration.UiLanguage.SimplifiedChinese, false)]
+    [InlineData(1100, Crystalfly.Core.Configuration.UiLanguage.English, true)]
+    public void Top_navigation_indicator_slides_between_real_button_bounds_and_respects_motion_settings(
+        int width, Crystalfly.Core.Configuration.UiLanguage language, bool dark)
+    {
+        MainWindow.ClientAreaAnimationsOverride = () => true;
+        var (window, viewModel, _) = CreateWindow();
+        try
+        {
+            window.Width = width;
+            window.RequestedThemeVariant = dark ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light;
+            viewModel.Loc.Apply(language);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var indicator = window.FindControl<Border>("TopNavigationIndicator");
+            Assert.NotNull(indicator);
+            var buttons = window.FindControl<StackPanel>("TopNavigationButtons")!;
+            var transform = Assert.IsType<TranslateTransform>(indicator.RenderTransform);
+            foreach (var page in new[] { "Settings", "Speedrun", "Downloads", "Launch", "Settings" })
+            {
+                viewModel.CurrentPage = page;
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                Assert.True(indicator.IsVisible);
+                var selected = buttons.Children.OfType<Button>().Single(button => button.CommandParameter?.ToString() == page);
+                Assert.Equal(selected.Bounds.Width, indicator.GetBaseValue(Control.WidthProperty).Value, 2);
+                Assert.Equal(selected.TranslatePoint(default, buttons)!.Value.X, transform.GetBaseValue(TranslateTransform.XProperty).Value, 2);
+                Assert.NotNull(transform.Transitions);
+                var transition = Assert.IsType<Avalonia.Animation.DoubleTransition>(Assert.Single(transform.Transitions));
+                Assert.Equal(TranslateTransform.XProperty, transition.Property);
+                Assert.Equal(TimeSpan.FromMilliseconds(220), transition.Duration);
+                Assert.False(indicator.IsHitTestVisible);
+            }
+            foreach (var preference in new[] { Crystalfly.Core.Configuration.UiMotionPreference.Reduced, Crystalfly.Core.Configuration.UiMotionPreference.Off })
+            {
+                viewModel.SelectedMotionPreference = new(preference, preference.ToString());
+                viewModel.CurrentPage = "Launch";
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                Assert.Null(transform.Transitions);
+                var selected = buttons.Children.OfType<Button>().Single(button => button.CommandParameter?.ToString() == "Launch");
+                Assert.Equal(selected.TranslatePoint(default, buttons)!.Value.X, transform.X, 2);
+            }
+            viewModel.CurrentPage = "Manage";
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(indicator.IsVisible);
+            viewModel.CurrentPage = "Versions";
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(indicator.IsVisible);
+            viewModel.CurrentPage = "Settings";
+            viewModel.ErrorMessage = language == Crystalfly.Core.Configuration.UiLanguage.English ? "Example notification" : "示例通知";
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+            Dispatcher.UIThread.RunJobs();
+            var settings = buttons.Children.OfType<Button>().Single(button => button.CommandParameter?.ToString() == "Settings");
+            Assert.Equal(settings.Bounds.Width, indicator.Bounds.Width, 2);
+            var center = settings.TranslatePoint(new Point(settings.Bounds.Width / 2, settings.Bounds.Height / 2), window)!.Value;
+            var hit = window.InputHitTest(center) as Control;
+            Assert.True(hit == settings || hit?.GetVisualAncestors().Contains(settings) == true,
+                $"Navigation center {center} hit {hit?.GetType().Name}; enabled={settings.IsEffectivelyEnabled}, busy={viewModel.IsBusy}.");
+            if (Environment.GetEnvironmentVariable("CRYSTALFLY_NAV_SCREENSHOTS") is { Length: > 0 } output)
+            {
+                Directory.CreateDirectory(output);
+                using var frame = window.GetLastRenderedFrame();
+                Assert.NotNull(frame);
+                frame.Save(Path.Combine(output, $"navigation-{width}-{language}-{(dark ? "dark" : "light")}.png"), new PngBitmapEncoderOptions());
+            }
+        }
+        finally
+        {
+            CloseImmediately(window);
+            CleanupRoot(viewModel);
+            MainWindow.ClientAreaAnimationsOverride = null;
+        }
+    }
+
     [AvaloniaTheory]
     [InlineData(true, false, 180, true)]
     [InlineData(false, true, 120, false)]
@@ -391,8 +472,9 @@ public sealed class PageTransitionMotionTests
         var root = Path.Combine(Path.GetTempPath(), $"crystalfly-motion-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
         var viewModel = new MainViewModel(root);
-        var window = new MainWindow { Width = 1100, Height = 720, DataContext = viewModel };
+        var window = new MainWindow { Width = 1100, Height = 720 };
         window.Show();
+        window.DataContext = viewModel;
         Dispatcher.UIThread.RunJobs();
         var coordinator = GetCoordinator(window);
         coordinator.Start();

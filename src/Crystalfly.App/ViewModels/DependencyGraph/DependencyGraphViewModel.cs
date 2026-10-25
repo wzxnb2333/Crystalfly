@@ -15,6 +15,9 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
     private readonly object layoutCacheLock = new();
     private readonly Dictionary<string, DependencyGraphLayout?> cachedLayouts = new(StringComparer.OrdinalIgnoreCase);
     private string? rebuildSignature;
+    private bool applyingSelection;
+    private IReadOnlyDictionary<string, InstalledModItemViewModel> installedById =
+        new Dictionary<string, InstalledModItemViewModel>(StringComparer.OrdinalIgnoreCase);
 
     public DependencyGraphViewModel(DependencyGraphDependencies dependencies)
     {
@@ -26,6 +29,8 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
 
     public event Action<string>? NodeSelectedRequested;
 
+    public event Action<IReadOnlyList<string>>? SelectionChangedRequested;
+
     public event Action<string>? NodeToggleRequested;
 
     public event Action<string>? NodeDeleteRequested;
@@ -33,6 +38,9 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
     public DependencyGraphModel Graph { get; private set; } = DependencyGraphModel.Create([], []);
 
     public string? SelectedNodeId { get; private set; }
+
+    public InstalledModItemViewModel? SelectedMod => Graph.SelectedNode is { } node
+        && installedById.TryGetValue(node.Id, out var mod) ? mod : null;
 
     public IReadOnlyList<string> MissingNodeIds => Graph.Nodes
         .Where(node => node.IsMissing)
@@ -42,7 +50,13 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
     public void SelectNode(string? id)
     {
         SelectedNodeId = id;
-        Graph.Select(id);
+        Graph.FocusNode(id);
+        OnPropertyChanged(nameof(SelectedMod));
+    }
+
+    public void SetSelectedNodes(IEnumerable<string> ids)
+    {
+        if (!applyingSelection) Graph.SetSelection(ids, Graph.SelectedNode?.Id);
     }
 
     public void Rebuild(
@@ -95,15 +109,30 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
                 CanDelete: mod.CanUninstall);
         }
 
-        foreach (var mod in mods.Where(mod => mod.Receipt is not null))
+        installedById = mods.ToDictionary(mod => mod.Id, StringComparer.OrdinalIgnoreCase);
+        var pending = new Queue<(string Id, IEnumerable<string> Dependencies)>();
+        foreach (var mod in mods)
         {
-            var dependencyIds = mod.Receipt!.Dependencies.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            var manifest = mod.CatalogManifest ?? dependencies.FindMarketMod(mod.Id)?.Manifest;
+            // Catalog updates must not replace the requirements of an installed older version.
+            var catalogDependencies = manifest is not null && (mod.Receipt is null
+                || string.Equals(mod.Version, manifest.Version, StringComparison.OrdinalIgnoreCase))
+                ? manifest.Dependencies : [];
+            pending.Enqueue((mod.Id, (mod.Receipt?.Dependencies ?? []).Concat(catalogDependencies)));
+        }
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (pending.TryDequeue(out var current))
+        {
+            if (!visited.Add(current.Id)) continue;
+            var dependencyIds = current.Dependencies.Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
             foreach (var dependencyId in dependencyIds)
             {
                 if (!definitions.ContainsKey(dependencyId))
                 {
                     var display = dependencies.FindMarketMod(dependencyId);
-                    var primaryName = display?.PrimaryName ?? dependencyId;
+                    var primaryName = display?.PrimaryName ?? (dependencyId.StartsWith("hkmod:", StringComparison.OrdinalIgnoreCase)
+                        ? dependencyId["hkmod:".Length..] : dependencyId);
                     var secondaryName = display?.SecondaryName ?? string.Empty;
                     var missingStatus = Loc["Missing"];
                     definitions[dependencyId] = new(
@@ -117,10 +146,11 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
                     AppendSignature(signature, secondaryName);
                     AppendSignature(signature, missingStatus);
                     AppendSignature(signature, DependencyGraphNodeState.Missing.ToString());
+                    pending.Enqueue((dependencyId, display?.Dependencies ?? []));
                 }
-                edges.Add(new DependencyGraphEdgeDefinition(dependencyId, mod.Id));
+                edges.Add(new DependencyGraphEdgeDefinition(dependencyId, current.Id));
                 AppendSignature(signature, dependencyId);
-                AppendSignature(signature, mod.Id);
+                AppendSignature(signature, current.Id);
             }
         }
         AppendSignature(signature, targetSelectedId);
@@ -128,19 +158,28 @@ public sealed partial class DependencyGraphViewModel : ViewModelBase
 
         if (string.Equals(signature.ToString(), rebuildSignature, StringComparison.Ordinal))
         {
+            OnPropertyChanged(nameof(SelectedMod));
             return;
         }
         rebuildSignature = signature.ToString();
 
         var graph = DependencyGraphModel.Create(definitions.Values, edges, targetSelectedId);
+        if (mods.Any(mod => mod.IsSelected)) graph.SetSelection(mods.Where(mod => mod.IsSelected).Select(mod => mod.Id), targetSelectedId);
+        graph.SelectionChanged = ids =>
+        {
+            applyingSelection = true;
+            try { SelectionChangedRequested?.Invoke(ids); }
+            finally { applyingSelection = false; }
+        };
         graph.NodeSelected = id =>
         {
-            SelectedNodeId = id;
+            SelectNode(id);
             NodeSelectedRequested?.Invoke(id);
         };
         Graph = graph;
         OnPropertyChanged(nameof(Graph));
         SelectedNodeId = targetSelectedId;
+        OnPropertyChanged(nameof(SelectedMod));
         if (string.IsNullOrWhiteSpace(instanceId))
         {
             return;

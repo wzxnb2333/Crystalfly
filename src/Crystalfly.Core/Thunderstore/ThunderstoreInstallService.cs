@@ -230,7 +230,15 @@ public sealed class ThunderstoreInstallService(InstanceRecord instance, Thunders
     public Task SetPinnedAsync(string name, bool pinned, CancellationToken token = default) => MutateAsync(name, null, pinned, false, token);
     public Task UninstallAsync(string name, CancellationToken token = default) => MutateAsync(name, null, null, true, token);
 
-    private async Task MutateAsync(string name, bool? enabled, bool? pinned, bool uninstall, CancellationToken token)
+    public Task SetEnabledAsync(IReadOnlyList<string> names, bool enabled, CancellationToken token = default) =>
+        MutateAsync(names, enabled, null, false, token);
+    public Task UninstallAsync(IReadOnlyList<string> names, CancellationToken token = default) =>
+        MutateAsync(names, null, null, true, token);
+
+    private Task MutateAsync(string name, bool? enabled, bool? pinned, bool uninstall, CancellationToken token) =>
+        MutateAsync([name], enabled, pinned, uninstall, token);
+
+    private async Task MutateAsync(IReadOnlyList<string> names, bool? enabled, bool? pinned, bool uninstall, CancellationToken token)
     {
         await Gate.WaitAsync(token);
         var staging = NewStaging();
@@ -239,58 +247,65 @@ public sealed class ThunderstoreInstallService(InstanceRecord instance, Thunders
             ValidateTarget();
             await RecoverAsync(token);
             var before = await ReadStateAsync(token);
-            var selected = before.Packages.Single(item => item.FullName == name);
-            var removesActivePackage = uninstall || enabled == false;
-            if (removesActivePackage)
-            {
-                var dependants = before.Packages.Where(item => item.FullName != name && (uninstall || item.Enabled)
-                    && item.Dependencies.Any(dependency => ThunderstoreIdentity.Dependency(dependency).Name == name)).ToArray();
-                if (dependants.Length != 0) throw new InvalidOperationException("Required by: " + string.Join(", ", dependants.Select(item => item.FullName)));
-            }
-            if (enabled == true)
-                foreach (var dependency in selected.Dependencies.Select(ThunderstoreIdentity.Dependency))
-                    if (!before.Packages.Any(item => item.FullName == dependency.Name && item.Enabled))
-                        throw new InvalidOperationException($"Enable the dependency first: {dependency.Name}");
+            var selectedNames = names.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (selectedNames.Count == 0) throw new ArgumentException("Select at least one package.", nameof(names));
+            var selectedPackages = selectedNames.Select(name => before.Packages.Single(item => item.FullName == name)).ToArray();
             var removals = new List<string>();
-            if (uninstall || enabled is not null && enabled != selected.Enabled)
-                foreach (var file in selected.Files.Where(file => !file.IsConfiguration))
+            foreach (var selected in selectedPackages)
+            {
+                var name = selected.FullName;
+                var removesActivePackage = uninstall || enabled == false;
+                if (removesActivePackage)
                 {
-                    var oldPath = selected.Enabled ? file.Path : DisabledPath(name, file.Path);
-                    var source = Resolve(oldPath);
-                    if (File.Exists(source))
+                    var dependants = before.Packages.Where(item => !selectedNames.Contains(item.FullName) && (uninstall || item.Enabled)
+                        && item.Dependencies.Any(dependency => ThunderstoreIdentity.Dependency(dependency).Name == name)).ToArray();
+                    if (dependants.Length != 0) throw new InvalidOperationException("Required by: " + string.Join(", ", dependants.Select(item => item.FullName)));
+                }
+                if (enabled == true)
+                    foreach (var dependency in selected.Dependencies.Select(ThunderstoreIdentity.Dependency))
+                        if (!before.Packages.Any(item => item.FullName == dependency.Name && (item.Enabled || selectedNames.Contains(item.FullName))
+                            && ThunderstoreIdentity.Version(item.Version) >= ThunderstoreIdentity.Version(dependency.Version)))
+                            throw new InvalidOperationException($"Enable the dependency first: {dependency.Name}");
+                if (uninstall || enabled is not null && enabled != selected.Enabled)
+                    foreach (var file in selected.Files.Where(file => !file.IsConfiguration))
                     {
-                        if (await ThunderstorePackageStore.HashAsync(source, token) != file.Sha256)
-                            throw new InvalidDataException($"Managed file was changed; export it or repair before removing: {file.Path}");
-                        if (!uninstall)
+                        var oldPath = selected.Enabled ? file.Path : DisabledPath(name, file.Path);
+                        var source = Resolve(oldPath);
+                        if (File.Exists(source))
                         {
-                            var nextPath = enabled == true ? file.Path : DisabledPath(name, file.Path);
-                            if (File.Exists(Resolve(nextPath))) throw new InvalidDataException($"File conflict: {nextPath}");
-                            var target = Path.Combine(staging, nextPath);
-                            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                            File.Copy(source, target);
+                            if (await ThunderstorePackageStore.HashAsync(source, token) != file.Sha256)
+                                throw new InvalidDataException($"Managed file was changed; export it or repair before removing: {file.Path}");
+                            if (!uninstall)
+                            {
+                                var nextPath = enabled == true ? file.Path : DisabledPath(name, file.Path);
+                                if (File.Exists(Resolve(nextPath))) throw new InvalidDataException($"File conflict: {nextPath}");
+                                var target = Path.Combine(staging, nextPath);
+                                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                                File.Copy(source, target);
+                            }
+                            removals.Add(oldPath);
                         }
-                        removals.Add(oldPath);
+                    }
+                if (uninstall && selected.IsLoader)
+                {
+                    foreach (var backup in selected.LoaderBackups)
+                    {
+                        var source = Resolve(backup.BackupPath);
+                        if (!File.Exists(source) || !string.Equals(await ThunderstorePackageStore.HashAsync(source, token), backup.Sha256,
+                                StringComparison.OrdinalIgnoreCase))
+                            throw new InvalidDataException($"Previous loader backup changed; refusing to restore: {backup.Path}");
+                        var restoreTarget = Resolve(backup.Path);
+                        if (File.Exists(restoreTarget) && !removals.Contains(backup.Path, StringComparer.OrdinalIgnoreCase))
+                            throw new InvalidDataException($"A user file blocks previous loader restoration: {backup.Path}");
+                        var target = Path.Combine(staging, backup.Path.Replace('/', Path.DirectorySeparatorChar));
+                        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                        File.Copy(source, target);
+                        removals.Add(backup.BackupPath);
                     }
                 }
-            if (uninstall && selected.IsLoader)
-            {
-                foreach (var backup in selected.LoaderBackups)
-                {
-                    var source = Resolve(backup.BackupPath);
-                    if (!File.Exists(source) || !string.Equals(await ThunderstorePackageStore.HashAsync(source, token), backup.Sha256,
-                            StringComparison.OrdinalIgnoreCase))
-                        throw new InvalidDataException($"Previous loader backup changed; refusing to restore: {backup.Path}");
-                    var restoreTarget = Resolve(backup.Path);
-                    if (File.Exists(restoreTarget) && !removals.Contains(backup.Path, StringComparer.OrdinalIgnoreCase))
-                        throw new InvalidDataException($"A user file blocks previous loader restoration: {backup.Path}");
-                    var target = Path.Combine(staging, backup.Path.Replace('/', Path.DirectorySeparatorChar));
-                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                    File.Copy(source, target);
-                    removals.Add(backup.BackupPath);
-                }
             }
-            var after = before with { Packages = before.Packages.Where(item => item.FullName != name)
-                .Concat(uninstall ? [] : new[] { selected with { Enabled = enabled ?? selected.Enabled, Pinned = pinned ?? selected.Pinned } }).ToArray() };
+            var after = before with { Packages = before.Packages.Where(item => !selectedNames.Contains(item.FullName))
+                .Concat(uninstall ? [] : selectedPackages.Select(selected => selected with { Enabled = enabled ?? selected.Enabled, Pinned = pinned ?? selected.Pinned })).ToArray() };
             await CommitAsync(staging, after, removals, "thunderstore-manage", token);
         }
         finally { CleanupStaging(staging); Gate.Release(); }

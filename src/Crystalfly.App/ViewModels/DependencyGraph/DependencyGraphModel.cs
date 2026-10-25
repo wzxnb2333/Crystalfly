@@ -30,6 +30,9 @@ public sealed record DependencyGraphEdgeDefinition(string SourceId, string Targe
 
 public sealed partial class DependencyGraphNodeViewModel : ObservableObject
 {
+    private double canvasLeft;
+    private double canvasTop;
+    private readonly bool missing;
     internal DependencyGraphNodeViewModel(DependencyGraphNodeDefinition definition)
     {
         Id = definition.Id;
@@ -37,6 +40,7 @@ public sealed partial class DependencyGraphNodeViewModel : ObservableObject
         SecondaryName = definition.SecondaryName;
         Status = definition.Status;
         State = definition.State;
+        missing = definition.State == DependencyGraphNodeState.Missing;
         Action = definition.Action;
         CanToggle = definition.CanToggle;
         ToggleActionLabel = definition.ToggleActionLabel;
@@ -67,7 +71,24 @@ public sealed partial class DependencyGraphNodeViewModel : ObservableObject
     [ObservableProperty]
     public partial double Y { get; private set; }
 
-    public bool IsMissing => State == DependencyGraphNodeState.Missing;
+    public double CanvasX => X - canvasLeft;
+
+    public double CanvasY => Y - canvasTop;
+
+    partial void OnXChanged(double value) => OnPropertyChanged(nameof(CanvasX));
+
+    partial void OnYChanged(double value) => OnPropertyChanged(nameof(CanvasY));
+
+    internal void SetCanvasOrigin(double left, double top)
+    {
+        if (canvasLeft == left && canvasTop == top) return;
+        canvasLeft = left;
+        canvasTop = top;
+        OnPropertyChanged(nameof(CanvasX));
+        OnPropertyChanged(nameof(CanvasY));
+    }
+
+    public bool IsMissing => missing;
 
     public bool IsWarning => State == DependencyGraphNodeState.Disabled;
 
@@ -158,7 +179,23 @@ public sealed partial class DependencyGraphModel : ObservableObject
 
     public double Height { get; private set; }
 
+    public double Left { get; private set; }
+
+    public double Top { get; private set; }
+
+    public DependencyGraphNodeViewModel? SelectedNode { get; private set; }
+
+    public string SelectedDependenciesText => string.Join(", ", edges
+        .Where(edge => edge.Target == SelectedNode).Select(edge => edge.Source.PrimaryName));
+
+    public string SelectedDependentsText => string.Join(", ", edges
+        .Where(edge => edge.Source == SelectedNode).Select(edge => edge.Target.PrimaryName));
+
     public bool HasNodes => Nodes.Count != 0;
+
+    public IReadOnlyList<DependencyGraphNodeViewModel> SelectedNodes => Nodes.Where(node => node.IsSelected).ToArray();
+
+    public Action<IReadOnlyList<string>>? SelectionChanged { get; set; }
 
     public Action<string>? NodeSelected { get; set; }
 
@@ -205,37 +242,56 @@ public sealed partial class DependencyGraphModel : ObservableObject
 
     public void Select(string? id)
     {
-        var selected = !string.IsNullOrWhiteSpace(id) && nodesById.TryGetValue(id, out var found)
-            ? found
-            : Nodes.FirstOrDefault();
-        var relatedIds = selected is null
-            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            : FindConnectedIds(selected.Id);
-        foreach (var node in Nodes)
-        {
-            node.SetHighlight(
-                selected is not null && string.Equals(node.Id, selected.Id, StringComparison.OrdinalIgnoreCase),
-                selected is null || relatedIds.Contains(node.Id));
-        }
+        var selected = id is not null && nodesById.TryGetValue(id, out var found) ? found : Nodes.FirstOrDefault();
+        SetSelection(selected is null ? [] : [selected.Id], selected?.Id);
+    }
+
+    public void FocusNode(string? id)
+    {
+        if (id is null || !nodesById.TryGetValue(id, out var node) || SelectedNode == node) return;
+        SelectedNode = node;
+        NotifyFocusedNode();
+    }
+
+    public void SetSelection(IEnumerable<string> ids, string? focusedId = null, bool notify = false)
+    {
+        var selected = ids.Where(nodesById.ContainsKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        SelectedNode = focusedId is not null && selected.Contains(focusedId) ? nodesById[focusedId]
+            : Nodes.FirstOrDefault(node => selected.Contains(node.Id));
+        var related = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var id in selected) related.UnionWith(FindConnectedIds(id));
+        foreach (var node in Nodes) node.SetHighlight(selected.Contains(node.Id), selected.Count == 0 || related.Contains(node.Id));
         foreach (var edge in edges)
         {
-            edge.IsHighlighted = selected is not null
-                && relatedIds.Contains(edge.Source.Id)
-                && relatedIds.Contains(edge.Target.Id);
-            edge.IsDimmed = selected is not null && !edge.IsHighlighted;
+            edge.IsHighlighted = selected.Count > 0 && related.Contains(edge.Source.Id) && related.Contains(edge.Target.Id);
+            edge.IsDimmed = selected.Count > 0 && !edge.IsHighlighted;
         }
+        NotifyFocusedNode();
+        OnPropertyChanged(nameof(SelectedNodes));
+        if (!notify) return;
+        SelectionChanged?.Invoke(SelectedNodes.Select(node => node.Id).ToArray());
+        if (SelectedNode is { } focused) NodeSelected?.Invoke(focused.Id);
+    }
+
+    private void NotifyFocusedNode()
+    {
+        OnPropertyChanged(nameof(SelectedNode));
+        OnPropertyChanged(nameof(SelectedDependenciesText));
+        OnPropertyChanged(nameof(SelectedDependentsText));
+    }
+
+    public void ToggleNodeSelection(string id)
+    {
+        if (!nodesById.TryGetValue(id, out var node)) return;
+        var selected = SelectedNodes.Select(item => item.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!selected.Add(id)) selected.Remove(id);
+        SetSelection(selected, node.IsSelected ? null : id, notify: true);
     }
 
     [RelayCommand]
     private void SelectNode(DependencyGraphNodeViewModel? node)
     {
-        if (node is null)
-        {
-            return;
-        }
-
-        Select(node.Id);
-        NodeSelected?.Invoke(node.Id);
+        if (node is not null) SetSelection([node.Id], node.Id, notify: true);
     }
 
     public DependencyGraphLayoutApplicationResult ApplySavedPositions(
@@ -257,7 +313,7 @@ public sealed partial class DependencyGraphModel : ObservableObject
                 continue;
             }
 
-            node.SetPosition(Math.Max(CanvasPadding, position.X), Math.Max(CanvasPadding, position.Y));
+            node.SetPosition(position.X, position.Y);
             appliedCount++;
         }
         RecalculateBounds();
@@ -273,7 +329,7 @@ public sealed partial class DependencyGraphModel : ObservableObject
             return false;
         }
 
-        node.SetPosition(Math.Max(CanvasPadding, x), Math.Max(CanvasPadding, y));
+        node.SetPosition(x, y);
         RecalculateBounds();
         return true;
     }
@@ -381,15 +437,15 @@ public sealed partial class DependencyGraphModel : ObservableObject
 
     private void RecalculateBounds()
     {
-        var maxX = CanvasPadding;
-        var maxY = CanvasPadding;
-        foreach (var node in Nodes)
-        {
-            maxX = Math.Max(maxX, node.X + NodeWidth);
-            maxY = Math.Max(maxY, node.Y + NodeHeight);
-        }
-        Width = maxX + CanvasPadding;
-        Height = maxY + CanvasPadding;
+        Left = Nodes.Select(node => node.X - CanvasPadding).DefaultIfEmpty(0).Min();
+        Top = Nodes.Select(node => node.Y - CanvasPadding).DefaultIfEmpty(0).Min();
+        var maxX = Nodes.Select(node => node.X + NodeWidth).DefaultIfEmpty(CanvasPadding).Max();
+        var maxY = Nodes.Select(node => node.Y + NodeHeight).DefaultIfEmpty(CanvasPadding).Max();
+        Width = maxX - Left + CanvasPadding;
+        Height = maxY - Top + CanvasPadding;
+        foreach (var node in Nodes) node.SetCanvasOrigin(Left, Top);
+        OnPropertyChanged(nameof(Left));
+        OnPropertyChanged(nameof(Top));
         OnPropertyChanged(nameof(Width));
         OnPropertyChanged(nameof(Height));
     }

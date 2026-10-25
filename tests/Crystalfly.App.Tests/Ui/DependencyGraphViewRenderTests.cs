@@ -19,6 +19,36 @@ public sealed class DependencyGraphViewRenderTests
     private const string EdgeColor = "#565C66";
     private const string AccentColor = "#5AAEFA";
 
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Multiple_selection_is_visible_on_normal_missing_and_warning_cards(bool dark)
+    {
+        var previous = Application.Current!.RequestedThemeVariant;
+        Application.Current.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
+        var graph = DependencyGraphModel.Create([
+            new("normal", "Normal", "", "Enabled", DependencyGraphNodeState.Normal),
+            new("missing", "Missing", "", "Missing", DependencyGraphNodeState.Missing),
+            new("disabled", "Disabled", "", "Disabled", DependencyGraphNodeState.Disabled)], []);
+        graph.SetSelection(graph.Nodes.Select(node => node.Id));
+        var window = new Window { Width = 900, Height = 650, Content = new DependencyGraphView { DataContext = graph } };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        try
+        {
+            var cards = window.GetVisualDescendants().OfType<Button>().Where(button => button.Classes.Contains("cfp-dependency-node")).ToArray();
+            Assert.Equal(3, cards.Length);
+            Assert.True(Application.Current.TryGetResource("CfAccentBrush", dark ? ThemeVariant.Dark : ThemeVariant.Light, out var resource));
+            var accent = Assert.IsAssignableFrom<ISolidColorBrush>(resource);
+            Assert.All(cards, card =>
+            {
+                Assert.Equal(new Thickness(2), card.BorderThickness);
+                Assert.Equal(accent.Color, Assert.IsAssignableFrom<ISolidColorBrush>(card.BorderBrush).Color);
+            });
+        }
+        finally { window.Close(); Application.Current.RequestedThemeVariant = previous; }
+    }
+
     [AvaloniaFact]
     public void DependencyGraphEdges_renders_regular_edges_with_the_line_brush_color()
     {
@@ -31,6 +61,12 @@ public sealed class DependencyGraphViewRenderTests
     {
         // A highlighted edge (the model selects a node by default) must use the accent highlight brush.
         AssertEdgeColor(highlighted: true, AccentColor);
+    }
+
+    [AvaloniaFact]
+    public void DependencyGraphEdges_keeps_edges_visible_after_nodes_cross_the_world_origin()
+    {
+        AssertEdgeColor(highlighted: true, AccentColor, negativeWorldPositions: true);
     }
 
     [AvaloniaFact]
@@ -61,6 +97,25 @@ public sealed class DependencyGraphViewRenderTests
     }
 
     [AvaloniaFact]
+    public void Initial_framing_keeps_a_tall_graph_against_the_viewport_instead_of_leaving_empty_space()
+    {
+        var definitions = Enumerable.Range(0, 10).Select(index => new DependencyGraphNodeDefinition(
+            $"node{index:D2}", "Node " + index, "", "Enabled", DependencyGraphNodeState.Normal)).ToArray();
+        var graph = DependencyGraphModel.Create(definitions, [], "node09");
+        var view = new DependencyGraphView { DataContext = graph };
+        var window = new Window { Width = 650, Height = 400, Content = view };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        try
+        {
+            Assert.True(view.Scale >= 0.7);
+            Assert.True(view.Translation.Y + (graph.Top + graph.Height) * view.Scale >= view.Bounds.Height - 1);
+            Assert.True(view.Translation.Y + graph.Top * view.Scale <= 1);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public void Node_title_text_starts_near_the_left_edge_of_the_card()
     {
         var graph = DependencyGraphModel.Create(
@@ -84,8 +139,8 @@ public sealed class DependencyGraphViewRenderTests
                 .Single(text => text.Text == "Node A");
             var titleInCard = title.TranslatePoint(new Point(0, 0), card);
             Assert.NotNull(titleInCard);
-            // Title sits after the 8px accent bar plus the 11px content margin, so its left edge
-            // must stay inside the first quarter of the card rather than floating toward the middle.
+            // Keep the title inside the first quarter and avoid decorative sidebars.
+            Assert.DoesNotContain(card.GetVisualDescendants().OfType<Border>(), border => border.Classes.Contains("cfp-dependency-node-accent"));
             Assert.InRange(titleInCard.Value.X, 0d, DependencyGraphModel.NodeWidth / 4);
         }
         finally
@@ -94,23 +149,24 @@ public sealed class DependencyGraphViewRenderTests
         }
     }
 
-    private static void AssertEdgeColor(bool highlighted, string expectedHex)
+    private static void AssertEdgeColor(bool highlighted, string expectedHex, bool negativeWorldPositions = false)
     {
         var previousTheme = Application.Current!.RequestedThemeVariant;
         Application.Current.RequestedThemeVariant = ThemeVariant.Dark;
         Window? window = null;
         try
         {
-            var source = new DependencyGraphNodeViewModel(
-                new DependencyGraphNodeDefinition("a", "A", string.Empty, "Enabled", DependencyGraphNodeState.Normal));
-            var target = new DependencyGraphNodeViewModel(
-                new DependencyGraphNodeDefinition("b", "B", string.Empty, "Enabled", DependencyGraphNodeState.Normal));
-            source.SetPosition(28, 28);
-            target.SetPosition(352, 28);
-            var edge = new DependencyGraphEdgeViewModel(source, target)
+            var graph = DependencyGraphModel.Create(
+                [new DependencyGraphNodeDefinition("a", "A", string.Empty, "Enabled", DependencyGraphNodeState.Normal),
+                 new DependencyGraphNodeDefinition("b", "B", string.Empty, "Enabled", DependencyGraphNodeState.Normal)],
+                [new DependencyGraphEdgeDefinition("a", "b")]);
+            if (negativeWorldPositions)
             {
-                IsHighlighted = highlighted
-            };
+                graph.MoveNode("a", -320, -180);
+                graph.MoveNode("b", 4, -180);
+            }
+            var edge = Assert.Single(graph.Edges);
+            edge.IsHighlighted = highlighted;
             var control = new DependencyGraphEdges
             {
                 Width = 608,

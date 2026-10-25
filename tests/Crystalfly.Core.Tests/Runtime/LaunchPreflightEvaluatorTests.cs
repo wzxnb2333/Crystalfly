@@ -27,16 +27,16 @@ public sealed class LaunchPreflightEvaluatorTests
     }
 
     [Fact]
-    public void Unknown_build_allows_BepInEx_with_a_compatibility_warning()
+    public void Unknown_build_allows_BepInEx_without_a_compatibility_warning()
     {
         var vanilla = LaunchPreflightEvaluator.Evaluate(false, true, LoaderState.Vanilla, [], true, true);
         var modded = LaunchPreflightEvaluator.Evaluate(false, true, LoaderState.BepInEx, [], true, true);
 
         Assert.True(vanilla.IsReady);
         Assert.True(modded.LoaderReady);
-        Assert.False(modded.IsReady);
+        Assert.True(modded.IsReady);
         Assert.DoesNotContain(modded.Issues, issue => issue.Code == LaunchIssueCode.UnsupportedBuildLoaderCombination);
-        Assert.Contains(modded.Issues, issue => issue.Code == LaunchIssueCode.LoaderCompatibilityUnverified);
+        Assert.Empty(modded.Issues);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class LaunchPreflightEvaluatorTests
     }
 
     [Fact]
-    public void Adopted_BepInEx_on_unknown_build_is_unverified_not_unsupported()
+    public void Adopted_BepInEx_on_unknown_build_does_not_require_compatibility_confirmation()
     {
         var result = LaunchPreflightEvaluator.Evaluate(false, true, LoaderState.BepInEx, [], true, true,
             instanceId: "silksong-old", modHealthReports: [],
@@ -60,25 +60,24 @@ public sealed class LaunchPreflightEvaluatorTests
                 State = LoaderState.BepInEx, PackageId = "bepinex-5.4.23.2", Ownership = LoaderOwnership.Managed
             }));
         Assert.True(result.LoaderReady);
-        Assert.Equal(LaunchIssueCode.LoaderCompatibilityUnverified, Assert.Single(result.Issues).Code);
-        Assert.Equal(LaunchIssueSeverity.Warning, result.Issues[0].Severity);
+        Assert.True(result.CanLaunchNormally);
+        Assert.Empty(result.Issues);
     }
 
-    [Fact]
-    public void Unverified_loader_acknowledgement_is_scoped_to_the_actual_launch_files()
+    [Theory]
+    [InlineData(LoaderState.BepInEx, false)]
+    [InlineData(LoaderState.BepInEx, true)]
+    [InlineData(LoaderState.ModdingApi, true)]
+    public void Unverified_loader_does_not_require_acknowledgement(LoaderState state, bool isKnownBuild)
     {
         var context = new LaunchCompatibilityContext("unknown", new LoaderInspection
         {
-            State = LoaderState.BepInEx, PackageId = "bepinex-silksong-5.4.23.4"
-        }, new string('A', 64));
-        LaunchPreflightResult Evaluate(LaunchCompatibilityContext value, ModHealthAcknowledgement[] acknowledgements) =>
-            LaunchPreflightEvaluator.Evaluate(false, true, LoaderState.BepInEx, [], true, true,
-                "silksong-old", [], acknowledgements, compatibility: value);
-        var first = Evaluate(context, []);
-        var acknowledgement = ModHealthAcknowledgement.Create("silksong-old", Assert.Single(first.Issues));
-        Assert.True(Evaluate(context, [acknowledgement]).CanLaunchNormally);
-        Assert.False(Evaluate(context with { FileFingerprint = new string('B', 64) }, [acknowledgement]).CanLaunchNormally);
-        Assert.False(Evaluate(context with { FileFingerprint = null }, [acknowledgement]).CanLaunchNormally);
+            State = state, IsVerified = false, SupportedBuildIds = []
+        });
+        var result = LaunchPreflightEvaluator.Evaluate(isKnownBuild, true, state, [], true, true,
+            "practice", [], compatibility: context);
+        Assert.True(result.CanLaunchNormally);
+        Assert.Empty(result.Issues);
     }
 
     [Theory]

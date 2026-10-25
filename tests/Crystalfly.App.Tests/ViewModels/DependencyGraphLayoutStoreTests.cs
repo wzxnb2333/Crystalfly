@@ -6,8 +6,10 @@ public sealed class DependencyGraphLayoutStoreTests : IDisposable
 {
     private readonly string directory = Path.Combine(Path.GetTempPath(), $"crystalfly-graph-layout-{Guid.NewGuid():N}");
 
-    [Fact]
-    public async Task Store_round_trips_each_instance_layout_without_cross_contamination()
+    [Theory]
+    [InlineData(120, 240)]
+    [InlineData(-120, -240)]
+    public async Task Store_round_trips_each_instance_layout_without_cross_contamination(double x, double y)
     {
         var firstPath = Path.Combine(directory, "instance-a", "dependency-graph.layout.json");
         var secondPath = Path.Combine(directory, "instance-b", "dependency-graph.layout.json");
@@ -15,7 +17,7 @@ public sealed class DependencyGraphLayoutStoreTests : IDisposable
         {
             Positions = new Dictionary<string, DependencyGraphNodePosition>(StringComparer.OrdinalIgnoreCase)
             {
-                ["mod-a"] = new(120, 240)
+                ["mod-a"] = new(x, y)
             }
         });
         await DependencyGraphLayoutStore.WriteAsync(secondPath, new DependencyGraphLayout
@@ -29,7 +31,7 @@ public sealed class DependencyGraphLayoutStoreTests : IDisposable
         var first = await DependencyGraphLayoutStore.TryReadAsync(firstPath);
         var second = await DependencyGraphLayoutStore.TryReadAsync(secondPath);
 
-        Assert.Equal(new DependencyGraphNodePosition(120, 240), first!.Positions["mod-a"]);
+        Assert.Equal(new DependencyGraphNodePosition(x, y), first!.Positions["mod-a"]);
         Assert.False(first.Positions.ContainsKey("mod-b"));
         Assert.Equal(new DependencyGraphNodePosition(360, 480), second!.Positions["mod-b"]);
         Assert.False(second.Positions.ContainsKey("mod-a"));

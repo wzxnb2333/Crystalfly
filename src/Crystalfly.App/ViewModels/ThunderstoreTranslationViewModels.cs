@@ -26,8 +26,20 @@ public sealed class ThunderstorePackageDisplayItem(ThunderstorePackage package, 
     public bool HasSecondaryName => !string.IsNullOrEmpty(SecondaryName);
 }
 
-public sealed record ThunderstoreInstalledDisplayItem(ThunderstoreInstalledPackage Package, string PrimaryName)
+public sealed class ThunderstoreInstalledDisplayItem(ThunderstoreInstalledPackage package, string primaryName) : ViewModelBase
 {
+    public ThunderstoreInstalledPackage Package { get; } = package;
+    public string PrimaryName { get; } = primaryName;
+    public string IconUrl { get; init; } = "";
+    public string Status { get; init; } = "";
+    public bool HasUpdate { get; init; }
+    public Action<bool>? SelectionChanged { get; init; }
+    private bool isSelected;
+    public bool IsSelected
+    {
+        get => isSelected;
+        set { if (SetProperty(ref isSelected, value)) SelectionChanged?.Invoke(value); }
+    }
     public string FullName => Package.FullName;
     public string Version => Package.Version;
     public bool Enabled => Package.Enabled;

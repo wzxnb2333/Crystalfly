@@ -35,6 +35,17 @@ public sealed class AccentThemeResourcesTests
     }
 
     [AvaloniaFact]
+    public void Light_theme_keeps_secondary_text_and_graph_boundaries_readable()
+    {
+        var surface = ResourceColor("CfSurfaceBrush", ThemeVariant.Light);
+        Assert.True(ContrastRatio(ResourceColor("CfMutedTextBrush", ThemeVariant.Light), surface) >= 7);
+        Assert.True(ContrastRatio(ResourceColor("CfBorderBrush", ThemeVariant.Light), surface) >= 2);
+        Assert.True(ContrastRatio(ResourceColor("CfGraphNodeBorderBrush", ThemeVariant.Light), surface) >= 3);
+        Assert.True(ContrastRatio(ResourceColor("CfEdgeBrush", ThemeVariant.Light),
+            ResourceColor("CfGraphCanvasBrush", ThemeVariant.Light)) >= 4.5);
+    }
+
+    [AvaloniaFact]
     public void Apply_updates_both_theme_resource_sets()
     {
         try

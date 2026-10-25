@@ -8,6 +8,7 @@ using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Instances;
 using Crystalfly.App.ViewModels;
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Runtime;
 using Crystalfly.Core.Serialization;
 
 namespace Crystalfly.App.Tests.ViewModels;
@@ -136,7 +137,7 @@ public sealed class LaunchReliabilityTests : IDisposable
     }
 
     [Fact]
-    public async Task Taken_over_loader_requires_acknowledgement_of_unverified_compatibility()
+    public async Task Taken_over_loader_launches_without_acknowledgement_of_unverified_compatibility()
     {
         var record = CreateInstance() with { BuildId = "build-a" };
         await WriteLoaderAsync(record, verified: false);
@@ -146,28 +147,22 @@ public sealed class LaunchReliabilityTests : IDisposable
 
         await viewModel.LaunchGameCommand.ExecuteAsync(null);
 
-        Assert.Equal(0, launched);
-        Assert.False(viewModel.LaunchPreflight.CanLaunchNormally);
-        Assert.NotEmpty(viewModel.LaunchPreflight.Issues);
-        await viewModel.AcknowledgeLaunchWarningsCommand.ExecuteAsync(null);
-        await viewModel.LaunchGameCommand.ExecuteAsync(null);
         Assert.Equal(1, launched);
         Assert.True(viewModel.LaunchPreflight.CanLaunchNormally);
+        Assert.False(viewModel.HasLaunchIssues);
+        Assert.Empty(viewModel.CreateLaunchIssueItems());
     }
 
     [Fact]
-    public async Task Silksong_unknown_build_shows_declared_version_and_remembers_only_unchanged_launch_files()
+    public async Task Silksong_unknown_build_keeps_declared_version_without_compatibility_prompt()
     {
         var record = await CreateSilksongInstanceAsync();
         var launched = 0;
         await using var viewModel = CreateViewModel(record, () => { launched++; return Task.CompletedTask; });
         await viewModel.LaunchGameCommand.ExecuteAsync(null);
-        var detail = Assert.Single(viewModel.CreateLaunchIssueItems()).Detail;
-        Assert.Contains("1.0.28324", detail);
-        Assert.Contains("BepInEx 5.4.23.4", detail);
-        Assert.DoesNotContain("unknown", detail, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("bepinex-silksong-", detail, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(0, launched);
+        Assert.Empty(viewModel.CreateLaunchIssueItems());
+        Assert.Equal(1, launched);
+        Assert.True(viewModel.LaunchPreflight.CanLaunchNormally);
 
         var projected = (InstanceItemViewModel)typeof(MainViewModel)
             .GetMethod("ProjectInstanceItem", BindingFlags.Instance | BindingFlags.NonPublic)!
@@ -175,28 +170,29 @@ public sealed class LaunchReliabilityTests : IDisposable
         Assert.Contains("1.0.28324", projected.DisplayVersion);
         Assert.Contains(viewModel.Loc["Unverified"], projected.DisplayVersion);
 
-        await viewModel.AcknowledgeLaunchWarningsCommand.ExecuteAsync(null);
         Assert.False(viewModel.HasLaunchIssues);
-        Assert.Empty(viewModel.CreateLaunchIssueItems());
-        var persisted = await CrystalflySettingsStore.LoadAsync(Path.Combine(root, "app-data", "settings.json"));
-        Assert.Single(persisted.ModHealthAcknowledgements);
-        await viewModel.LaunchGameCommand.ExecuteAsync(null);
-        Assert.Equal(1, launched);
-        Assert.True(Assert.Single(viewModel.LaunchPreflight.Issues).IsAcknowledged);
 
         await File.AppendAllTextAsync(Path.Combine(record.RootPath, GameDefinition.Silksong.DataDirectoryName, "Managed", "Assembly-CSharp.dll"), "changed game code");
         await viewModel.LaunchGameCommand.ExecuteAsync(null);
-        Assert.Equal(1, launched);
-        Assert.True(viewModel.HasLaunchIssues);
-        Assert.False(Assert.Single(viewModel.LaunchPreflight.Issues).IsAcknowledged);
+        Assert.Equal(2, launched);
+        Assert.False(viewModel.HasLaunchIssues);
+        Assert.Empty(viewModel.LaunchPreflight.Issues);
     }
 
     [Fact]
-    public async Task Failed_warning_persistence_keeps_compatibility_warning_unacknowledged()
+    public async Task Failed_warning_persistence_keeps_mod_warning_unacknowledged()
     {
         var record = await CreateSilksongInstanceAsync();
         await using var viewModel = CreateViewModel(record, () => Task.CompletedTask);
         await viewModel.LaunchGameCommand.ExecuteAsync(null);
+        viewModel.LaunchPreflight = new(true, true, true, true,
+        [
+            new LaunchPreflightIssue
+            {
+                Code = LaunchIssueCode.ModModifiedFile, Severity = LaunchIssueSeverity.Warning,
+                SubjectModId = "example", CurrentFileSha256 = Hash("modified mod")
+            }
+        ]);
         var settingsPath = Path.Combine(root, "app-data", "settings.json");
         await CrystalflySettingsStore.SaveAsync(settingsPath, new CrystalflySettings());
         using var lockedSettings = new FileStream(settingsPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);

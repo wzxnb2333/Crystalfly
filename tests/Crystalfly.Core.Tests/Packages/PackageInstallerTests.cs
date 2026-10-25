@@ -492,11 +492,56 @@ public sealed class PackageInstallerTests
     }
 
     [Fact]
+    public async Task InstallFromUri_accepts_large_mod_packages_and_reuses_verified_cache()
+    {
+        using var test = new TestDirectory();
+        var package = Path.Combine(test.CreateDirectory("source"), "large-mod.zip");
+        using (var stream = File.Create(package))
+        {
+            // A ZIP prefix crosses the old download limit without a large extracted payload.
+            stream.SetLength(256L * 1024 * 1024 + 1);
+            stream.Position = stream.Length;
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Create);
+            using var writer = new StreamWriter(archive.CreateEntry("mod.dll").Open());
+            writer.Write("large-mod");
+        }
+        var hash = FileSha256(package);
+        var size = new FileInfo(package).Length;
+        var cache = test.CreateDirectory("cache");
+        var transactions = test.CreateDirectory("transactions");
+        var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(File.OpenRead(package))
+        });
+        using var client = new HttpClient(handler);
+
+        var acquired = await PackageInstaller.AcquireVerifiedFileFromUriAsync(
+            new Uri("https://example.invalid/large-mod.zip"), transactions,
+            expectedSize: null, hash, cache, client);
+        Assert.Equal(size, new FileInfo(acquired).Length);
+
+        var target = test.CreateDirectory("cached-target");
+        await PackageInstaller.InstallFromUriAsync(
+            new Uri("https://example.invalid/large-mod.zip"), target, transactions,
+            size, hash, cache, client);
+        Assert.Equal("large-mod", await File.ReadAllTextAsync(Path.Combine(target, "mod.dll")));
+        Assert.Equal(1, handler.RequestCount);
+
+        var directTarget = test.CreateDirectory("direct-target");
+        await PackageInstaller.InstallFromUriAsync(
+            new Uri("https://example.invalid/large-mod.zip"), directTarget, transactions,
+            expectedSize: null, hash, cacheRoot: null, client);
+        Assert.Equal("large-mod", await File.ReadAllTextAsync(Path.Combine(directTarget, "mod.dll")));
+        Assert.Equal(2, handler.RequestCount);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(transactions));
+    }
+
+    [Fact]
     public async Task InstallFromUri_rejects_content_length_over_remote_limit()
     {
         using var test = new TestDirectory();
         var response = Response([]);
-        response.Content.Headers.ContentLength = 256L * 1024 * 1024 + 1;
+        response.Content.Headers.ContentLength = 1024L * 1024 * 1024 + 1;
         var handler = new StubHandler(_ => response);
         using var client = new HttpClient(handler);
 

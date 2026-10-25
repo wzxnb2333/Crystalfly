@@ -55,12 +55,15 @@ public sealed partial class ThunderstoreViewModel
         RequestLoaderUninstallCommand.NotifyCanExecuteChanged();
         ConfirmUninstallCommand.NotifyCanExecuteChanged();
         ReadDocumentCommand.NotifyCanExecuteChanged();
+        NotifyInstalledCommands();
     }
 
     partial void OnIsLoadingChanged(bool value) => NotifyActions();
     partial void OnHasPlanChanged(bool value) { OnPropertyChanged(nameof(PlanItems)); OnPropertyChanged(nameof(HasConfirmation)); NotifyActions(); }
     partial void OnPendingUninstallChanged(string? value)
     {
+        if (value is null) { uninstallNames = []; uninstallContext = null; }
+        else { if (uninstallNames.Count == 0) uninstallNames = [value]; uninstallContext = ContextKey(); }
         OnPropertyChanged(nameof(HasUninstallConfirmation));
         OnPropertyChanged(nameof(HasConfirmation));
         ConfirmUninstallCommand.NotifyCanExecuteChanged();
@@ -75,15 +78,14 @@ public sealed partial class ThunderstoreViewModel
     [RelayCommand(CanExecute = nameof(CanRemoveLoader))]
     private void RequestLoaderUninstall()
     {
-        ResetPlan();
-        PendingUninstall = InstalledLoader?.FullName;
+        if (InstalledLoader is { } loader) PrepareUninstall([loader.FullName]);
     }
 
     private void FilterInstalled()
     {
         var previous = SelectedInstalled?.FullName;
         InstalledMods.Clear();
-        foreach (var item in Installed.Where(item => !item.IsLoader && (string.IsNullOrWhiteSpace(InstalledSearchText)
+        foreach (var item in Installed.Where(item => !item.IsLoader && MatchesInstalledStatus(item) && (string.IsNullOrWhiteSpace(InstalledSearchText)
             || (item.FullName + "\n" + DisplayName(item.FullName)).Contains(InstalledSearchText.Trim(), StringComparison.OrdinalIgnoreCase))))
             InstalledMods.Add(item);
         SelectedInstalled = InstalledMods.FirstOrDefault(item => item.FullName == previous);
