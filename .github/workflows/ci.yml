@@ -3,15 +3,34 @@ name: CI
 on:
   push:
     branches: [main]
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '!docs/**'
+      - 'docs/releases/**'
+      - 'catalog/**'
+  workflow_dispatch:
+    inputs:
+      full_tests:
+        description: Run all modules and optional visual scans
+        type: boolean
+        default: false
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   build-and-test:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -26,18 +45,28 @@ jobs:
 
       - name: Test
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FULL_TESTS: ${{ github.event_name == 'workflow_dispatch' && inputs.full_tests }}
         run: |
-          $projects = @(
-            'tests/Crystalfly.Updater.Tests/Crystalfly.Updater.Tests.csproj',
-            'tests/Crystalfly.Steam.Tests/Crystalfly.Steam.Tests.csproj',
-            'tests/Crystalfly.Core.Tests/Crystalfly.Core.Tests.csproj',
-            'tests/Crystalfly.App.Tests/Crystalfly.App.Tests.csproj'
-          )
+          ./scripts/test-select-test-projects.ps1
+          $changedPaths = @()
+          # Include changes from failed or superseded runs, not just the latest commit.
+          $baseline = gh run list --workflow ci.yml --branch $env:GITHUB_REF_NAME --status success --limit 1 --json headSha --jq '.[0].headSha'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not find the last successful CI run.' }
+          if ($baseline) {
+            $changedPaths = @(git diff --name-only $baseline HEAD --)
+            if ($LASTEXITCODE -ne 0) { throw 'Could not determine changed paths.' }
+          }
+          $full = $env:FULL_TESTS -eq 'true'
+          $projects = @(./scripts/select-test-projects.ps1 -ChangedPaths $changedPaths -Full:$full)
+          $filter = if ($full) { 'FullyQualifiedName~Crystalfly' } else { 'Category!=VisualScan' }
+          Write-Host "Selected test projects: $($projects -join ', ')"
           $failed = @()
           foreach ($project in $projects) {
             $name = [IO.Path]::GetFileNameWithoutExtension($project)
             $log = Join-Path $env:RUNNER_TEMP "$name.log"
-            dotnet test $project -c Release --no-build --blame-hang --blame-hang-timeout 3m 2>&1 |
+            dotnet test $project -c Release --no-build --filter $filter --blame-hang --blame-hang-timeout 3m 2>&1 |
               Tee-Object -FilePath $log
             if ($LASTEXITCODE -ne 0) {
               $failed += $name

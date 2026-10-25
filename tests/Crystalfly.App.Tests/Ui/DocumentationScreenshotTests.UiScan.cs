@@ -39,6 +39,7 @@ public sealed partial class DocumentationScreenshotTests
     }
 
     [AvaloniaTheory]
+    [Trait("Category", "VisualScan")]
     [InlineData(1100, 720, UiLanguage.SimplifiedChinese)]
     [InlineData(900, 600, UiLanguage.English)]
     public async Task Workspace_pages_render_for_ui_scan(int width, int height, UiLanguage language)

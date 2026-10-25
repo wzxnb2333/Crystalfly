@@ -20,7 +20,6 @@ public sealed class LaunchLayoutAlignmentTests
 {
     [AvaloniaTheory]
     [InlineData(900, 600, UiLanguage.SimplifiedChinese)]
-    [InlineData(1100, 720, UiLanguage.SimplifiedChinese)]
     [InlineData(1280, 720, UiLanguage.English)]
     public async Task Empty_launch_shows_one_hint_and_no_status_badge(int width, int height, UiLanguage language)
     {
@@ -52,11 +51,8 @@ public sealed class LaunchLayoutAlignmentTests
     [AvaloniaTheory]
     [InlineData(900, 600, UiLanguage.SimplifiedChinese, true)]
     [InlineData(900, 600, UiLanguage.English, false)]
-    [InlineData(1100, 720, UiLanguage.SimplifiedChinese, true)]
     [InlineData(1100, 720, UiLanguage.English, false)]
     [InlineData(1180, 720, UiLanguage.English, true)]
-    [InlineData(1280, 720, UiLanguage.SimplifiedChinese, false)]
-    [InlineData(1600, 900, UiLanguage.English, true)]
     public async Task Launch_cards_actions_and_community_align_without_overlapping(
         int width, int height, UiLanguage language, bool dark)
     {

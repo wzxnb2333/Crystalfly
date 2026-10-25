@@ -18,10 +18,6 @@ public sealed partial class DocumentationScreenshotTests
 {
     [AvaloniaTheory]
     [InlineData(1100, 720, UiLanguage.SimplifiedChinese, true)]
-    [InlineData(900, 600, UiLanguage.SimplifiedChinese, true)]
-    [InlineData(900, 600, UiLanguage.English, true)]
-    [InlineData(1100, 720, UiLanguage.SimplifiedChinese, false)]
-    [InlineData(900, 600, UiLanguage.SimplifiedChinese, false)]
     [InlineData(900, 600, UiLanguage.English, false)]
     public async Task Hk_dependency_graph_uses_full_canvas_with_a_compact_inspector(int width, int height, UiLanguage language, bool dark)
     {

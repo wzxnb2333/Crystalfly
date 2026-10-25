@@ -20,7 +20,7 @@ dotnet build '.\Crystalfly.slnx' -c Release --no-restore
 dotnet run --project '.\src\Crystalfly.App\Crystalfly.App.csproj'
 ```
 
-Use `scripts/build-release.ps1` to produce the self-contained ZIP, installer, and checksums. After closing Crystalfly, `scripts/build-and-install.ps1` builds and updates `D:\Program Files\Crystalfly`. Both scripts skip the test suite by default; pass `-RunTests` explicitly when a full regression run is wanted.
+Use `scripts/build-release.ps1` to produce the self-contained ZIP, installer, and checksums. After closing Crystalfly, `scripts/build-and-install.ps1` builds and updates `D:\Program Files\Crystalfly`. Both scripts skip tests by default; `-RunTests` explicitly runs the standard regression suite, excluding optional visual scans.
 
 After completing changes and the relevant focused checks, always run `pwsh -NoProfile -File .\scripts\build-and-install.ps1 -UnsignedLocal` to build and overwrite the local installation before the final response. Verify the installed files match the build output. This is the user's standing local-delivery preference.
 
@@ -30,9 +30,13 @@ Use four-space indentation, file-scoped namespaces, nullable reference types, an
 
 ## Testing Guidelines
 
-Tests use xUnit; UI tests use `Avalonia.Headless.XUnit`. Name tests by behavior, for example `ApplyDirectory_rejects_reparse_point_staging_root`. Add regression coverage for changed behavior, including failure, cancellation, rollback, and path-safety cases where relevant. There is no fixed coverage percentage; CI runs the full solution suite for the merge gate.
+Tests use xUnit; UI tests use `Avalonia.Headless.XUnit`. Name tests by behavior, for example `ApplyDirectory_rejects_reparse_point_staging_root`. Add regression coverage for changed behavior, including failure, cancellation, rollback, and path-safety cases where relevant. There is no fixed coverage percentage. CI uses `scripts/select-test-projects.ps1` to select affected projects from changes since the last successful CI run, including changes from failed or superseded runs; Core, Steam, and Updater production changes also select App tests. Shared configuration and unknown paths select all projects. Documentation and screenshots do not trigger CI; embedded release notes and catalog documents still do. Manual CI with `full_tests` enabled runs all projects including visual scans.
 
 For routine development, run the smallest relevant check once. Prefer a focused `--filter` over an entire test project. Reuse passing results while the relevant code and inputs remain unchanged. Documentation and script-only changes need only their relevant lightweight checks. Do not automatically run full regression, perform desktop acceptance, or start another audit round after a focused check passes. The local build and overwrite installation required above remains part of delivery.
+
+Do not add tests for README wording, fixed release version strings, trivial property forwarding, or every theme/language/size combination. Use representative cases that cover distinct layout branches. Cosmetic changes need a build and, where useful, one affected screenshot; add a behavioral regression only for a real interaction or accessibility defect. Existing file safety, rollback, cancellation, credential, and save protection tests remain required.
+
+App tests exclude `Category=VisualScan` by default through the project's `VSTestTestCaseFilter`. Run optional scans explicitly with `dotnet test tests/Crystalfly.App.Tests -c Release --filter 'Category=VisualScan'`; an explicit `--filter` replaces the default filter. Full local regression is an explicit request: `dotnet test Crystalfly.slnx -c Release --filter 'FullyQualifiedName~Crystalfly'`.
 
 ### Change-to-Test Routing
 
@@ -44,7 +48,8 @@ Choose tests within the affected project; build changed test code before using `
 | `src/Crystalfly.Core/**` | `dotnet test tests/Crystalfly.Core.Tests -c Release --filter 'FullyQualifiedName~<affected test>'` |
 | `src/Crystalfly.Steam/**` | `dotnet test tests/Crystalfly.Steam.Tests -c Release --filter 'FullyQualifiedName~<affected test>'` |
 | `scripts/build*.ps1` | The corresponding `scripts/test-build*.ps1` check |
-| Cross-module or `Directory.*.props` changes | One build and relevant cross-module tests; full suite stays in CI or an explicit `-RunTests` run |
+| `.github/workflows/ci.yml` or test selection changes | `pwsh -NoProfile -File scripts/test-select-test-projects.ps1`; no product tests unless production behavior changes |
+| Cross-module or `Directory.*.props` changes | One build and relevant cross-module tests; full suite only for affected shared configuration in CI or an explicit local request |
 
 ## Commit & Pull Request Guidelines
 

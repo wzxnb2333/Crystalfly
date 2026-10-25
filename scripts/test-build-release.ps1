@@ -28,20 +28,10 @@ function Assert-Rejected {
 $buildScript = Join-Path $PSScriptRoot 'build-release.ps1'
 $source = Get-Content -Raw -LiteralPath $buildScript
 $root = Split-Path -Parent $PSScriptRoot
-$buildProps = Get-Content -Raw -LiteralPath (Join-Path $root 'Directory.Build.props')
 $installerSource = Get-Content -Raw -LiteralPath (Join-Path $root 'installer\Crystalfly.iss')
-$readme = Get-Content -Raw -LiteralPath (Join-Path $root 'README.md')
-$englishReadme = Get-Content -Raw -LiteralPath (Join-Path $root 'README.en.md')
 $ciWorkflow = Get-Content -Raw -LiteralPath (Join-Path $root '.github\workflows\ci.yml')
-$absoluteIsccPathPattern = '(?i)-IsccPath\s+[''"]?[A-Z]:[\\/]'
 if ($source -notmatch "\[ValidateSet\('win-x64'\)\]") {
     throw 'Runtime must be restricted to win-x64 before release paths are constructed.'
-}
-if ($source -notmatch '(?m)\[string\]\$Version\s*=\s*''1\.1\.8''') {
-    throw 'Release build must default to version 1.1.8.'
-}
-if ($buildProps -notmatch '(?m)<Version>1\.1\.8</Version>') {
-    throw 'Project version must be 1.1.8.'
 }
 if ($source -notmatch '\[switch\]\$UnsignedLocal' -or $source -notmatch '(?ms)if \(-not \$UnsignedLocal\).*?Signed update manifest') {
     throw 'Unsigned local builds must skip signing only behind an explicit switch.'
@@ -95,44 +85,6 @@ foreach ($protocolPattern in @(
         throw 'Inno Setup must register and remove the crystalfly:// protocol.'
     }
 }
-if ("-IsccPath 'D:\Tools\Inno Setup 6\ISCC.exe'" -notmatch $absoluteIsccPathPattern) {
-    throw 'The README absolute ISCC path check does not cover arbitrary drive paths.'
-}
-if ('-IsccPath "Z:/Tools/Inno Setup 6/ISCC.exe"' -notmatch $absoluteIsccPathPattern) {
-    throw 'The README absolute ISCC path check does not cover slash-based drive paths.'
-}
-if ($readme -match $absoluteIsccPathPattern) {
-    throw 'README must not hard-code a machine-specific Inno Setup path.'
-}
-$releaseCommandPattern = '(?i)build-release\.ps1[''"`\s\\\r\n]+-Version\s+[''"]1\.1\.8[''"]'
-if ($readme -notmatch $releaseCommandPattern) {
-    throw 'README must pin local release builds to version 1.1.8.'
-}
-foreach ($requiredDocumentation in @(
-    '永久删除实例',
-    '依赖影响树',
-    '测试延迟')) {
-    if ($readme -notmatch [regex]::Escape($requiredDocumentation)) {
-        throw "README must document: $requiredDocumentation"
-    }
-}
-foreach ($requiredDocumentation in @(
-    'permanently delete an instance',
-    'dependency-impact tree',
-    'testing each route latency')) {
-    if ($englishReadme -notmatch [regex]::Escape($requiredDocumentation)) {
-        throw "English README must document: $requiredDocumentation"
-    }
-}
-if (
-    $englishReadme -notmatch '(?i)pwsh\s+-NoProfile\s+-File\s+[''"]?\.\\scripts\\build-release\.ps1' -or
-    $englishReadme -notmatch '(?i)automatically[^\r\n]*Inno Setup 6' -or
-    $englishReadme -notmatch '(?i)-IsccPath' -or
-    $englishReadme -notmatch '(?i)`artifacts`[^\r\n]*portable[^\r\n]*installer[^\r\n]*SHA256SUMS\.txt'
-) {
-    throw 'English README must document release build, ISCC discovery/override, and artifacts.'
-}
-
 . $buildScript
 
 if ($RunTests) {
