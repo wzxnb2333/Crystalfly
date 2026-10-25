@@ -46,7 +46,7 @@ public sealed class BackgroundAppearanceViewModelTests : IDisposable
             });
         await using var viewModel = CreateViewModel(appData);
         SetInstanceDiscovery(viewModel, record);
-        await viewModel.InitializeAsync();
+        await InitializeAsync(viewModel);
 
         await viewModel.RefreshBackgroundAppearanceAsync();
 
@@ -81,7 +81,7 @@ public sealed class BackgroundAppearanceViewModelTests : IDisposable
             });
         await using var viewModel = CreateViewModel(appData);
         SetInstanceDiscovery(viewModel, record);
-        await viewModel.InitializeAsync();
+        await InitializeAsync(viewModel);
         viewModel.SelectedBackgroundScope = viewModel.BackgroundScopeOptions.Single(option =>
             option.Value == BackgroundEditScope.CurrentInstance);
         var source = CreateBmp(Path.Combine(root, "instance.bmp"), 3, 2);
@@ -113,11 +113,14 @@ public sealed class BackgroundAppearanceViewModelTests : IDisposable
             });
         await using var viewModel = CreateViewModel(appData);
         SetInstanceDiscovery(viewModel, first, second);
-        await viewModel.InitializeAsync();
+        await InitializeAsync(viewModel);
         viewModel.SelectedBackgroundScope = viewModel.BackgroundScopeOptions.Single(option =>
             option.Value == BackgroundEditScope.CurrentInstance);
         await viewModel.RefreshBackgroundAppearanceAsync();
 
+        Assert.Equal(first.Id, viewModel.SelectedInstance?.Id);
+        Assert.True(viewModel.CanChangeBackgroundOpacity);
+        Assert.Equal(30, viewModel.BackgroundOpacityPercent);
         viewModel.BackgroundOpacityPercent = 55;
         viewModel.SelectedInstance = viewModel.Instances.Instances.Single(instance => instance.Id == second.Id);
 
@@ -155,7 +158,7 @@ public sealed class BackgroundAppearanceViewModelTests : IDisposable
                 BackgroundImage = new BackgroundImageSettings { FileName = "global.bmp", OpacityPercent = 30 }
             });
         await using var viewModel = CreateViewModel(appData);
-        await viewModel.InitializeAsync();
+        await InitializeAsync(viewModel);
         await using var locked = new FileStream(settingsPath, FileMode.Open, FileAccess.Read, FileShare.None);
 
         viewModel.BackgroundOpacityPercent = 61;
@@ -181,13 +184,13 @@ public sealed class BackgroundAppearanceViewModelTests : IDisposable
             });
         await using (var first = CreateViewModel(appData))
         {
-            await first.InitializeAsync();
+            await InitializeAsync(first);
             first.BackgroundOpacityPercent = 63;
             await Task.Delay(700);
         }
 
         await using var second = CreateViewModel(appData);
-        await second.InitializeAsync();
+        await InitializeAsync(second);
 
         Assert.Equal(63, second.BackgroundOpacityPercent);
         Assert.Equal(0.63, second.ActiveBackgroundOpacity, 3);
@@ -207,12 +210,21 @@ public sealed class BackgroundAppearanceViewModelTests : IDisposable
                 BackgroundImage = new BackgroundImageSettings { FileName = "global.bmp", OpacityPercent = 35 }
             });
         var viewModel = CreateViewModel(appData);
-        await viewModel.InitializeAsync();
+        await InitializeAsync(viewModel);
 
         await viewModel.DisposeAsync();
         File.Delete(imagePath);
 
         Assert.False(File.Exists(imagePath));
+    }
+
+    private static async Task InitializeAsync(MainViewModel viewModel)
+    {
+        await viewModel.InitializeAsync();
+        // Complete startup refreshes before editing a specific instance's appearance.
+        var field = typeof(MainViewModel).GetField("catalogRefreshTask", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        await ((Task)field.GetValue(viewModel)!).WaitAsync(TimeSpan.FromSeconds(10));
+        await viewModel.WaitForBackgroundAppearanceRefreshAsync();
     }
 
     private static MainViewModel CreateViewModel(string appData)

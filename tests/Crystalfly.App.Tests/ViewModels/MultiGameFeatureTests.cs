@@ -1,3 +1,5 @@
+using System.Reflection;
+using Avalonia.Headless.XUnit;
 using Crystalfly.App.ViewModels;
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Models;
@@ -11,7 +13,7 @@ public sealed class MultiGameFeatureTests : IDisposable
 {
     private readonly string root = Path.Combine(Path.GetTempPath(), "Crystalfly.MultiGame.UI", Guid.NewGuid().ToString("N"));
 
-    [Fact]
+    [AvaloniaFact]
     public async Task Game_switch_restores_searches_directories_and_filters_after_restart()
     {
         var hk = Directory.CreateDirectory(Path.Combine(root, "hk")).FullName;
@@ -25,7 +27,7 @@ public sealed class MultiGameFeatureTests : IDisposable
         });
         await using (var vm = new MainViewModel(app))
         {
-            await vm.InitializeAsync();
+            await InitializeAsync(vm);
             vm.SearchText = "hk-search";
             vm.MarketSearchText = "hk-mod";
             vm.DownloadBuildSearchText = "1.5.78";
@@ -50,20 +52,20 @@ public sealed class MultiGameFeatureTests : IDisposable
             Assert.True(vm.Thunderstore.ShowDeprecated);
         }
         await using var reopened = new MainViewModel(app);
-        await reopened.InitializeAsync();
+        await InitializeAsync(reopened);
         Assert.True(reopened.IsSilksong);
         Assert.Equal(silk, reopened.VersionRoot);
         Assert.Equal("SilkMod", reopened.Thunderstore.SearchText);
         Assert.Equal(2, reopened.Thunderstore.SortIndex);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task Empty_managed_download_library_is_allowed_and_unsaved_edit_blocks_game_switch()
     {
         var app = Path.Combine(root, "app");
         await CrystalflySettingsStore.SaveAsync(Path.Combine(app, "settings.json"), new() { OfflineMode = true, CheckForUpdates = false });
         await using var vm = new MainViewModel(app);
-        await vm.InitializeAsync();
+        await InitializeAsync(vm);
         await vm.SelectGameCommand.ExecuteAsync("Silksong");
         var library = Directory.CreateDirectory(Path.Combine(root, "new-library")).FullName;
         await vm.Instances.UseDownloadDirectoryAsync(library);
@@ -104,6 +106,15 @@ public sealed class MultiGameFeatureTests : IDisposable
         Assert.True(editor.IsLoaded);
         Assert.False(editor.CanSave);
         Assert.Empty(editor.Entries);
+    }
+
+    private static async Task InitializeAsync(MainViewModel viewModel)
+    {
+        await viewModel.InitializeAsync();
+        // Initialization deliberately returns before the catalog refresh finishes.
+        var field = typeof(MainViewModel).GetField("catalogRefreshTask", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        await ((Task)field.GetValue(viewModel)!).WaitAsync(TimeSpan.FromSeconds(10));
+        await viewModel.WaitForBackgroundAppearanceRefreshAsync();
     }
 
     private sealed class Idle : IHollowKnightProcessProbe { public bool IsRunning() => false; }
