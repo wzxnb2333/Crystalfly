@@ -210,7 +210,10 @@ public sealed class SteamDepotDownloadService(
             {
                 try
                 {
-                    await chunkCache.PruneAsync(CancellationToken.None);
+                    if (operationFailure is null)
+                        await chunkCache.ClearAsync(CancellationToken.None);
+                    else
+                        await chunkCache.PruneAsync(CancellationToken.None);
                 }
                 catch (Exception cleanupException) when (cleanupException is IOException
                     or UnauthorizedAccessException

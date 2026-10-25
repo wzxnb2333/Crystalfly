@@ -270,7 +270,7 @@ public sealed class ThemeRenderingTests
     }
 
     [AvaloniaFact]
-    public async Task Main_window_shows_each_new_non_empty_error_and_keeps_inline_state()
+    public async Task Main_window_shows_errors_as_top_center_toasts_without_shifting_the_page()
     {
         var applicationDataRoot = Path.Combine(
             Path.GetTempPath(),
@@ -284,6 +284,9 @@ public sealed class ThemeRenderingTests
 
         try
         {
+            window.UpdateLayout();
+            var workspace = window.FindControl<Control>("GlobalLoadingHost")!;
+            var workspaceBounds = workspace.Bounds;
             viewModel.ErrorMessage = "";
             viewModel.ErrorMessage = "   ";
             Dispatcher.UIThread.RunJobs();
@@ -297,13 +300,20 @@ public sealed class ThemeRenderingTests
 
             viewModel.ErrorMessage = "second error";
             Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
             var cards = window.GetVisualDescendants().OfType<ToastCard>().ToArray();
             Assert.Equal(2, cards.Length);
             Assert.All(cards, card => Assert.Equal(NotificationType.Error, card.NotificationType));
             Assert.Equal("second error", viewModel.ErrorMessage);
-            Assert.Contains(
+            var errorText = Assert.Single(
                 window.GetVisualDescendants().OfType<TextBlock>(),
                 text => text.Text == "second error" && text.IsEffectivelyVisible);
+            Assert.Contains(cards[1], errorText.GetVisualAncestors());
+            Assert.Equal(workspaceBounds, workspace.Bounds);
+            var center = cards[1].TranslatePoint(new Point(cards[1].Bounds.Width / 2, 0), window)!.Value;
+            Assert.InRange(center.X, window.Bounds.Width / 2 - 2, window.Bounds.Width / 2 + 2);
+            Assert.InRange(center.Y, 0, 180);
         }
         finally
         {

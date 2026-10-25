@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Crystalfly.App.ViewModels.Dialogs" xmlns:items="using:Crystalfly.App.ViewModels"
+             x:Class="Crystalfly.App.Views.Dialogs.ThunderstoreConfirmationDialogView"
+             x:DataType="vm:ThunderstoreConfirmationDialogViewModel" Width="600" MinWidth="480" MaxHeight="480">
+    <UserControl.KeyBindings><KeyBinding Gesture="Escape" Command="{Binding CancelCommand}"/></UserControl.KeyBindings>
+    <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
+        <TextBlock Classes="cfp-section-title" Text="{Binding Model.Loc[InstallToInstance]}" IsVisible="{Binding Model.HasPlan}"/>
+        <TextBlock Classes="cfp-section-title" Text="{Binding Model.Loc[Uninstall]}" IsVisible="{Binding Model.HasUninstallConfirmation}"/>
+        <StackPanel Grid.Row="1" Spacing="4" IsVisible="{Binding Model.HasUninstallConfirmation}">
+            <TextBlock Classes="cfp-caption" Text="{Binding Model.Loc[TsTargetInstance]}"/>
+            <TextBlock Classes="cfp-row-title" Text="{Binding Model.TargetName}" TextWrapping="Wrap"/>
+        </StackPanel>
+        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" MaxHeight="330">
+            <StackPanel Spacing="8">
+                <ItemsControl ItemsSource="{Binding Model.InstallTargets}" IsVisible="{Binding Model.HasPlan}" IsEnabled="{Binding !Model.IsLoading}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="items:ThunderstoreInstallTargetOptionViewModel">
+                            <RadioButton GroupName="thunderstore-install-target" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                         HorizontalContentAlignment="Stretch" Padding="12,8" MinHeight="56" Margin="0,0,0,4"
+                                         AutomationProperties.Name="{Binding DisplayName}">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Classes="cfp-row-title" Text="{Binding DisplayName}" TextWrapping="Wrap"/>
+                                    <TextBlock Classes="cfp-meta" Text="{Binding BuildDisplayName}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </RadioButton>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Classes="cfp-section-title" Text="{Binding Model.Loc[InstallationPlan]}" IsVisible="{Binding Model.HasPlan}"/>
+                <ItemsControl ItemsSource="{Binding Model.PlanItems}" IsVisible="{Binding Model.HasPlan}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="items:ThunderstorePlanItemViewModel">
+                            <Grid ColumnDefinitions="72,*,Auto" ColumnSpacing="12" MinHeight="48" Margin="0,4">
+                                <Border Classes="cfp-badge" VerticalAlignment="Center"><TextBlock Classes="cfp-caption" Text="{Binding Kind}"/></Border>
+                                <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                    <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextWrapping="Wrap"/>
+                                    <TextBlock Classes="cfp-caption" Text="{Binding FullName}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding VersionChange}" VerticalAlignment="Center" MaxWidth="150" TextWrapping="Wrap"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="{Binding Model.PendingUninstallDisplay}" TextWrapping="Wrap" IsVisible="{Binding Model.HasUninstallConfirmation}"/>
+                <TextBlock Text="{Binding Model.Loc[TsUninstallNotice]}" TextWrapping="Wrap" IsVisible="{Binding Model.HasUninstallConfirmation}"/>
+            </StackPanel>
+        </ScrollViewer>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Classes="cfp-secondary" Content="{Binding Model.Loc[Cancel]}" Command="{Binding CancelCommand}" IsEnabled="{Binding !Model.IsLoading}"/>
+            <Button Classes="cfp-primary" Content="{Binding Model.Loc[TsConfirmInstall]}" Command="{Binding Model.ConfirmInstallCommand}" IsVisible="{Binding Model.HasPlan}"/>
+            <Button Classes="cfp-danger" Content="{Binding Model.Loc[Uninstall]}" Command="{Binding Model.ConfirmUninstallCommand}" IsVisible="{Binding Model.HasUninstallConfirmation}"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

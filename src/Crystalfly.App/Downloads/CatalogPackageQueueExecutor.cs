@@ -160,13 +160,13 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
                     Path.Combine(paths.StateRoot, "loader.json"),
                     paths.PackageRoot,
                     httpClient);
-                var requestedMod = group.Items.SingleOrDefault(candidate =>
-                    candidate.Kind == DownloadQueueItemKind.Mod);
-                if (requestedMod is null)
+                var requestedMods = group.Items.Where(candidate => candidate.Kind == DownloadQueueItemKind.Mod)
+                    .Select(candidate => candidate.PackageId).ToArray();
+                if (requestedMods.Length == 0)
                 {
                     if (item.Kind != DownloadQueueItemKind.Loader)
                     {
-                        throw new InvalidDataException("A mod install group must contain one requested mod.");
+                        throw new InvalidDataException("A mod install group must contain at least one requested mod.");
                     }
                     var inspection = await loaderManager.InspectAsync(token);
                     isSatisfied = inspection.State is LoaderState.ModdingApi or LoaderState.BepInEx
@@ -184,7 +184,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
                     httpClient);
                 var service = new ModInstallService(
                     instance, catalog.Mods, catalog.Loaders, loaderManager, modManager);
-                var plan = await service.CreatePlanAsync(requestedMod.PackageId, token);
+                var plan = await service.CreatePlanAsync(requestedMods, token);
                 isSatisfied = ResolvePlanItem(plan, item).State == ModInstallPlanItemState.Satisfied;
             },
             cancellationToken);
@@ -305,8 +305,9 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
             Path.Combine(paths.StateRoot, "mods"),
             paths.PackageRoot,
             httpClient);
-        var requestedMod = group.Items.SingleOrDefault(candidate => candidate.Kind == DownloadQueueItemKind.Mod);
-        if (requestedMod is null)
+        var requestedMods = group.Items.Where(candidate => candidate.Kind == DownloadQueueItemKind.Mod)
+            .Select(candidate => candidate.PackageId).ToArray();
+        if (requestedMods.Length == 0)
         {
             await InstallStandaloneLoaderAsync(
                 instance,
@@ -320,7 +321,7 @@ public sealed class CatalogPackageQueueExecutor : IDownloadQueueExecutor
 
         var service = new ModInstallService(
             instance, catalog.Mods, catalog.Loaders, loaderManager, modManager);
-        var plan = await service.CreatePlanAsync(requestedMod.PackageId, cancellationToken);
+        var plan = await service.CreatePlanAsync(requestedMods, cancellationToken);
         var planItem = ResolvePlanItem(plan, item);
         await VerifySatisfiedPrerequisitesAsync(
             plan.Items.TakeWhile(candidate => !ReferenceEquals(candidate, planItem)),

@@ -173,7 +173,7 @@ public static class SteamDownloadQueueGroupFactory
     }
 
     public static string GetChunkCacheDirectory(DownloadQueueGroup group) =>
-        Path.Combine(GetVersionRoot(group), ".crystalfly", "steam-chunks");
+        Path.Combine(GetVersionRoot(group), ".crystalfly", "steam-chunks", group.Id);
 
     private static string GetVersionRoot(DownloadQueueGroup group)
     {

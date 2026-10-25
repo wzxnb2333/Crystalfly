@@ -44,17 +44,37 @@ public sealed class InstanceDirectoryTests : IDisposable
     }
 
     [Fact]
-    public void PrepareVersionRootRegistration_rejects_a_missing_directory()
+    public void PrepareVersionRootRegistration_preserves_a_registered_non_empty_library()
+    {
+        var versionRoot = Path.Combine(root, "library");
+        var metadata = Directory.CreateDirectory(Path.Combine(versionRoot, ".crystalfly")).FullName;
+        var gameFile = Path.Combine(versionRoot, "keep.txt");
+        var metadataFile = Path.Combine(metadata, "keep.txt");
+        File.WriteAllText(gameFile, "game");
+        File.WriteAllText(metadataFile, "metadata");
+
+        InstanceDirectory.PrepareVersionRootRegistration(versionRoot, isRegisteredVersionRoot: true);
+
+        Assert.Equal("game", File.ReadAllText(gameFile));
+        Assert.Equal("metadata", File.ReadAllText(metadataFile));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PrepareVersionRootRegistration_rejects_a_missing_directory(bool isRegisteredVersionRoot)
     {
         var versionRoot = Path.Combine(root, "missing");
 
         Assert.Throws<DirectoryNotFoundException>(() =>
-            InstanceDirectory.PrepareVersionRootRegistration(versionRoot));
+            InstanceDirectory.PrepareVersionRootRegistration(versionRoot, isRegisteredVersionRoot));
         Assert.False(Directory.Exists(versionRoot));
     }
 
-    [Fact]
-    public void PrepareVersionRootRegistration_rejects_a_folder_nested_in_a_version_root()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PrepareVersionRootRegistration_rejects_a_folder_nested_in_a_version_root(bool isRegisteredVersionRoot)
     {
         var versionRoot = Path.Combine(root, "library");
         Directory.CreateDirectory(Path.Combine(versionRoot, ".crystalfly"));
@@ -62,12 +82,14 @@ public sealed class InstanceDirectoryTests : IDisposable
         Directory.CreateDirectory(nested);
 
         Assert.Throws<InvalidDataException>(() =>
-            InstanceDirectory.PrepareVersionRootRegistration(nested));
+            InstanceDirectory.PrepareVersionRootRegistration(nested, isRegisteredVersionRoot));
         Assert.False(Directory.Exists(Path.Combine(nested, ".crystalfly")));
     }
 
-    [Fact]
-    public void PrepareVersionRootRegistration_rejects_a_complete_game_installation()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PrepareVersionRootRegistration_rejects_a_complete_game_installation(bool isRegisteredVersionRoot)
     {
         var gameRoot = Path.Combine(root, "Hollow Knight");
         Directory.CreateDirectory(Path.Combine(gameRoot, "hollow_knight_Data"));
@@ -75,7 +97,7 @@ public sealed class InstanceDirectoryTests : IDisposable
         File.WriteAllText(Path.Combine(gameRoot, "hollow_knight_Data", "globalgamemanagers"), "data");
 
         Assert.Throws<InvalidDataException>(() =>
-            InstanceDirectory.PrepareVersionRootRegistration(gameRoot));
+            InstanceDirectory.PrepareVersionRootRegistration(gameRoot, isRegisteredVersionRoot));
         Assert.False(Directory.Exists(Path.Combine(gameRoot, ".crystalfly")));
     }
 

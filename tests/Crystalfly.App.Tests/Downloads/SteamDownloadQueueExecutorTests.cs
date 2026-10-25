@@ -41,8 +41,17 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
         Assert.Equal("257781644874438846", item.PackagePath);
         Assert.Equal("1.5.78.11833", item.Version);
         Assert.Equal(
-            Path.Combine(root, ".crystalfly", "steam-chunks"),
+            Path.Combine(root, ".crystalfly", "steam-chunks", group.Id),
             SteamDownloadQueueGroupFactory.GetChunkCacheDirectory(group));
+        var restored = JsonSerializer.Deserialize<DownloadQueueGroup>(
+            JsonSerializer.Serialize(group, Crystalfly.Core.Serialization.CrystalflyJson.Options),
+            Crystalfly.Core.Serialization.CrystalflyJson.Options)!;
+        Assert.Equal(SteamDownloadQueueGroupFactory.GetChunkCacheDirectory(group),
+            SteamDownloadQueueGroupFactory.GetChunkCacheDirectory(restored));
+        var other = SteamDownloadQueueGroupFactory.Create(
+            "1.5.78.11833", "1.5.78.11833", 257781644874438846, root, "other");
+        Assert.NotEqual(SteamDownloadQueueGroupFactory.GetChunkCacheDirectory(group),
+            SteamDownloadQueueGroupFactory.GetChunkCacheDirectory(other));
     }
 
     [Fact]
@@ -142,7 +151,7 @@ public sealed class SteamDownloadQueueExecutorTests : IDisposable
         Assert.Equal("steam-repair:known-build", item.PackageId);
         Assert.Equal(instanceRoot, captured?.RepairSourceDirectory);
         Assert.Equal(
-            Path.Combine(root, ".crystalfly", "steam-chunks"),
+            Path.Combine(root, ".crystalfly", "steam-chunks", group.Id),
             captured?.ChunkCacheDirectory);
         Assert.Equal("repaired", await File.ReadAllTextAsync(Path.Combine(instanceRoot, "hollow_knight.exe")));
         Assert.Equal("keep", await File.ReadAllTextAsync(Path.Combine(instanceRoot, "keep.png")));

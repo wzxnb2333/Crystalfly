@@ -10,6 +10,36 @@ public sealed class InstanceImportServiceTests : IDisposable
 {
     private readonly string root = Path.Combine(Path.GetTempPath(), $"crystalfly-import-{Guid.NewGuid():N}");
 
+    [Theory]
+    [InlineData(GameId.HollowKnight, GameId.Silksong)]
+    [InlineData(GameId.Silksong, GameId.HollowKnight)]
+    public async Task Game_scoped_discovery_skips_inactive_files_and_still_verifies_selected_builds(GameId selectedGame, GameId otherGame)
+    {
+        var selectedPath = await CreateGameAsync("selected", "known", selectedGame);
+        var otherPath = await CreateGameAsync("other", "other", otherGame);
+        var catalog = new GameCatalog
+        {
+            Builds = [new() { GameId = selectedGame, Id = "verified", DisplayVersion = "Known", ManifestId = "1",
+                ExecutableSha256 = Hash("known-exe"), UnityPlayerSha256 = Hash("known-unity"),
+                GlobalGameManagersSha256 = Hash("known-global") }]
+        };
+        using var inactiveFile = new FileStream(Path.Combine(otherPath, GameDefinition.Get(otherGame).ExecutableName),
+            FileMode.Open, FileAccess.Read, FileShare.None);
+
+        var discovered = await InstanceImportService.DiscoverAsync(root, catalog, selectedGame);
+
+        Assert.Empty(Assert.IsType<InstanceDiscoveryResult>(discovered).Issues);
+        var original = Assert.Single(discovered);
+        Assert.Equal("verified", original.BuildId);
+        Assert.Equal(selectedGame, original.GameId);
+        Assert.False(File.Exists(InstanceSidecar.GetMarkerPath(otherPath)));
+
+        await File.WriteAllTextAsync(Path.Combine(selectedPath, GameDefinition.Get(selectedGame).ExecutableName), "changed");
+        var refreshed = Assert.Single(await InstanceImportService.DiscoverAsync(root, catalog, selectedGame));
+        Assert.Equal(original.Id, refreshed.Id);
+        Assert.Equal("unknown", refreshed.BuildId);
+    }
+
     [Fact]
     public async Task Discover_imports_direct_game_directories_and_marks_unknown_builds()
     {
@@ -291,14 +321,15 @@ public sealed class InstanceImportServiceTests : IDisposable
         public bool IsRunning() => false;
     }
 
-    private async Task<string> CreateGameAsync(string directory, string content)
+    private async Task<string> CreateGameAsync(string directory, string content, GameId gameId = GameId.HollowKnight)
     {
+        var game = GameDefinition.Get(gameId);
         var gameRoot = Directory.CreateDirectory(Path.Combine(root, directory)).FullName;
-        Directory.CreateDirectory(Path.Combine(gameRoot, "hollow_knight_Data"));
-        await File.WriteAllTextAsync(Path.Combine(gameRoot, "hollow_knight.exe"), content + "-exe");
+        Directory.CreateDirectory(Path.Combine(gameRoot, game.DataDirectoryName));
+        await File.WriteAllTextAsync(Path.Combine(gameRoot, game.ExecutableName), content + "-exe");
         await File.WriteAllTextAsync(Path.Combine(gameRoot, "UnityPlayer.dll"), content + "-unity");
         await File.WriteAllTextAsync(
-            Path.Combine(gameRoot, "hollow_knight_Data", "globalgamemanagers"),
+            Path.Combine(gameRoot, game.GlobalGameManagersPath),
             content + "-global");
         return gameRoot;
     }

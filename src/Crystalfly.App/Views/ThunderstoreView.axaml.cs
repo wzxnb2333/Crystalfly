@@ -2,10 +2,15 @@ using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
+using Avalonia.Threading;
 using Crystalfly.App.ViewModels;
+using Crystalfly.App.ViewModels.Dialogs;
+using Crystalfly.App.Views.Dialogs;
+using Ursa.Controls;
 
 namespace Crystalfly.App.Views;
 
@@ -16,10 +21,12 @@ public partial class ThunderstoreView : UserControl
     public string Workspace { get => GetValue(WorkspaceProperty); set => SetValue(WorkspaceProperty, value); }
     private bool detailOpen;
     private bool initialized;
+    private Task? confirmationTask;
     private readonly List<Visual> visibilityAncestors = [];
     public ThunderstoreView()
     {
         InitializeComponent();
+        CatalogList.AddHandler(InputElement.PointerPressedEvent, OnCatalogPointerPressed, RoutingStrategies.Tunnel);
         initialized = true;
         UpdatePresentation();
     }
@@ -62,6 +69,35 @@ public partial class ThunderstoreView : UserControl
             detailOpen = (sender as ThunderstoreViewModel)?.SelectedPackage is not null;
         if (args.PropertyName is nameof(ThunderstoreViewModel.SelectedPackage) or nameof(ThunderstoreViewModel.TargetName))
             UpdatePresentation();
+        if (args.PropertyName == nameof(ThunderstoreViewModel.HasConfirmation))
+            Dispatcher.UIThread.Post(ShowConfirmation);
+    }
+
+    private async void ShowConfirmation()
+    {
+        if (confirmationTask is not null || !IsEffectivelyVisible
+            || DataContext is not ThunderstoreViewModel { HasConfirmation: true } model
+            || TopLevel.GetTopLevel(this) is not MainWindow window) return;
+        using var dialog = new ThunderstoreConfirmationDialogViewModel(model);
+        try
+        {
+            confirmationTask = OverlayDialog.ShowCustomAsync<ThunderstoreConfirmationDialogView,
+                ThunderstoreConfirmationDialogViewModel, object?>(dialog, MainWindow.OverlayHostId,
+                new OverlayDialogOptions { TopLevelHashCode = window.GetHashCode(), CanLightDismiss = false,
+                    CanDragMove = false, CanResize = false, IsCloseButtonVisible = false });
+            await confirmationTask;
+        }
+        finally { confirmationTask = null; }
+    }
+    private void OnCatalogPointerPressed(object? sender, PointerPressedEventArgs args)
+    {
+        if (args.KeyModifiers.HasFlag(KeyModifiers.Shift)
+            && args.GetCurrentPoint(this).Properties.PointerUpdateKind == PointerUpdateKind.LeftButtonPressed
+            && args.Source is Control { DataContext: ThunderstorePackageDisplayItem item })
+        {
+            item.IsSelected = !item.IsSelected;
+            args.Handled = true;
+        }
     }
     private void SelectCatalogPackage(object? sender, SelectionChangedEventArgs args)
     {
@@ -82,6 +118,8 @@ public partial class ThunderstoreView : UserControl
     {
         if (!initialized) return;
         var isMarket = Workspace == "Market";
+        SelectTargetInstance.IsVisible = !isMarket;
+        RefreshWorkspace.IsVisible = !isMarket;
         MarketWorkspace.IsVisible = isMarket && !detailOpen;
         PackageDetailWorkspace.IsVisible = isMarket && detailOpen;
         InstalledWorkspace.IsVisible = Workspace == "Mods";
@@ -89,12 +127,13 @@ public partial class ThunderstoreView : UserControl
         PresetsWorkspace.IsVisible = Workspace == "Presets";
         if (DataContext is ThunderstoreViewModel model)
         {
-            WorkspaceTitle.Text = model.Loc[Workspace switch { "Mods" => "InstalledMods", "Loader" => "Loader", "Presets" => "TsPresetsTitle", _ => "TsMarketTitle" }];
+            WorkspaceTitle.Text = model.Loc[Workspace switch { "Mods" => "InstalledMods", "Loader" => "Loader", "Presets" => "ModPacks", _ => "TsMarketTitle" }];
             WorkspaceHint.Text = model.Loc[Workspace switch { "Mods" => "TsInstalledHint", "Loader" => "TsLoaderHint", "Presets" => "TsPresetsHint", _ => "TsMarketHint" }];
         }
         CatalogPane.IsVisible = isMarket && !detailOpen;
         PackageDetailPane.IsVisible = isMarket && detailOpen;
         BackToCatalog.IsVisible = isMarket && detailOpen;
+        WorkspaceHeader.IsVisible = !isMarket || !detailOpen;
         RefreshPackageIcons();
     }
     private void RefreshPackageIcons()

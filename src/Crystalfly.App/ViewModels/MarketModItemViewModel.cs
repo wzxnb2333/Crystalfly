@@ -12,8 +12,15 @@ public enum MarketActivityFilter
     RecentlyUpdated
 }
 
-public sealed class MarketModItemViewModel
+public sealed class MarketModItemViewModel : ViewModelBase
 {
+    private bool isSelected;
+    public Action<bool>? SelectionChanged { get; init; }
+    public bool IsSelected
+    {
+        get => isSelected;
+        set { if (SetProperty(ref isSelected, value)) SelectionChanged?.Invoke(value); }
+    }
     public MarketModItemViewModel(
         ModManifest manifest,
         ModTranslationEntry? translation,
@@ -122,6 +129,7 @@ public sealed class MarketModItemViewModel
     public string SecondaryDescription { get; }
 
     public string? Description => PrimaryDescription;
+    public string ListDescription => HasPrimaryDescription ? PrimaryDescription! : string.Join(" · ", Tags.Select(tag => tag.Name).Append(SecondaryName).Where(value => !string.IsNullOrWhiteSpace(value)));
 
     public IReadOnlyList<string> Authors { get; }
 

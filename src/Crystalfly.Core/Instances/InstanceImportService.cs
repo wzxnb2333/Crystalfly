@@ -8,9 +8,16 @@ public static class InstanceImportService
 {
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> discoveryGates = new(StringComparer.OrdinalIgnoreCase);
 
+    public static Task<IReadOnlyList<InstanceRecord>> DiscoverAsync(
+        string versionRoot,
+        GameCatalog catalog,
+        CancellationToken cancellationToken = default) =>
+        DiscoverAsync(versionRoot, catalog, gameId: null, cancellationToken);
+
     public static async Task<IReadOnlyList<InstanceRecord>> DiscoverAsync(
         string versionRoot,
         GameCatalog catalog,
+        GameId? gameId,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(catalog);
@@ -19,7 +26,7 @@ public static class InstanceImportService
         await gate.WaitAsync(cancellationToken);
         try
         {
-            return await DiscoverCoreAsync(root, catalog, cancellationToken);
+            return await DiscoverCoreAsync(root, catalog, gameId, cancellationToken);
         }
         finally
         {
@@ -28,7 +35,7 @@ public static class InstanceImportService
     }
 
     private static async Task<IReadOnlyList<InstanceRecord>> DiscoverCoreAsync(
-        string versionRoot, GameCatalog catalog, CancellationToken cancellationToken)
+        string versionRoot, GameCatalog catalog, GameId? gameId, CancellationToken cancellationToken)
     {
         var instances = new List<InstanceRecord>();
         var issues = new List<InstanceDiscoveryIssue>();
@@ -39,6 +46,10 @@ public static class InstanceImportService
             try
             {
                 InstanceDirectory.RejectReparseAncestors(path);
+                if (gameId is not null && GameDefinition.Detect(path)?.Id != gameId)
+                {
+                    continue;
+                }
                 if (!GameDirectoryIntegrityChecker.Inspect(path).IsValid)
                 {
                     continue;

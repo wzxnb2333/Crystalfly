@@ -17,7 +17,9 @@ public sealed partial class ThunderstoreViewModel(
     Func<InstanceRecord, ThunderstoreInstallPlan, bool, Task>? installOffline = null,
     Action? chooseInstance = null, Action? browseMarket = null,
     SilksongModTranslationSource? translationSource = null,
-    ThunderstorePackageIconLoader? packageIconLoader = null) : ViewModelBase
+    ThunderstorePackageIconLoader? packageIconLoader = null,
+    Action<string>? reportError = null,
+    Func<IReadOnlyList<InstanceRecord>>? getInstallTargets = null) : ViewModelBase
 {
     private ThunderstoreCatalog? catalog;
     private ThunderstoreInstallPlan? pendingPlan;
@@ -47,13 +49,16 @@ public sealed partial class ThunderstoreViewModel(
     [ObservableProperty] public partial bool IsLoading { get; set; }
     [ObservableProperty] public partial string Status { get; set; } = "";
     [ObservableProperty] public partial string? Error { get; set; }
+    partial void OnErrorChanged(string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value)) reportError?.Invoke(value);
+    }
     [ObservableProperty] public partial ThunderstorePackage? SelectedPackage { get; set; }
     [ObservableProperty] public partial ThunderstoreVersion? SelectedVersion { get; set; }
     [ObservableProperty] public partial ThunderstoreInstalledPackage? SelectedInstalled { get; set; }
     [ObservableProperty] public partial IReadOnlyList<ThunderstoreVersion> Versions { get; set; } = [];
     [ObservableProperty] public partial string PreviewText { get; set; } = "";
     [ObservableProperty] public partial bool HasPlan { get; set; }
-    [ObservableProperty] public partial bool AcceptUnverified { get; set; }
     [ObservableProperty] public partial string Document { get; set; } = "";
     [ObservableProperty] public partial string? PendingUninstall { get; set; }
     public void RefreshLocalization()
@@ -63,6 +68,7 @@ public sealed partial class ThunderstoreViewModel(
         OnPropertyChanged(nameof(SortOptions));
         Sort = SortOptions[Math.Max(0, index)];
         OnPropertyChanged(nameof(TargetName));
+        OnPropertyChanged(nameof(SelectedPackagesText));
         RebuildCategories();
         NotifyTranslationProjection();
         ShowOriginalDocument = !Chinese;
@@ -84,6 +90,7 @@ public sealed partial class ThunderstoreViewModel(
         if (catalog is not null) requestedCategory = null;
     }
     public string TargetName => getTarget()?.Name ?? loc["NoInstance"];
+    public string TargetBuild => getTarget()?.BuildId ?? "—";
 
     partial void OnSearchTextChanged(string value)
     {
@@ -130,9 +137,10 @@ public sealed partial class ThunderstoreViewModel(
         Status = "";
         NotifyActions();
         OnPropertyChanged(nameof(TargetName));
+        OnPropertyChanged(nameof(TargetBuild));
         await RefreshInstalledAsync();
     }
-    private void ResetPlan() { HasPlan = false; pendingPlan = null; pendingTarget = null; AcceptUnverified = false; NeedsCompatibilityConfirmation = false; PreviewText = ""; NotifyActions(); }
+    private void ResetPlan() { HasPlan = false; pendingPlan = null; pendingTarget = null; installTarget = null; installRequests = []; PreviewText = ""; NotifyActions(); }
     private void Filter(string? locatedPackage = null)
     {
         if (catalog is null) return;
@@ -163,9 +171,8 @@ public sealed partial class ThunderstoreViewModel(
     private Task RefreshAsync() => RunAsync(RefreshCatalogAsync);
     private async Task RefreshCatalogAsync()
     {
-        var version = generation;
         var result = await source.LoadAsync(isOffline());
-        if (version != generation) return;
+        var version = generation;
         catalog = result;
         RebuildCategories();
         ApplyPackageLocatorSearch(SearchText);
@@ -208,7 +215,8 @@ public sealed partial class ThunderstoreViewModel(
     [RelayCommand(CanExecute = nameof(CanChangeInstalled))] private Task PreviewRepairAsync() => PreviewInstalledAsync(false, true);
     private Task PreviewAsync(bool latest, bool repair) => RunAsync(async () =>
     {
-        var target = RequireTarget();
+        var target = GetAvailableInstallTargets().FirstOrDefault(item => item.Id == getTarget()?.Id)
+            ?? GetAvailableInstallTargets().FirstOrDefault() ?? throw new InvalidOperationException(loc["NoInstance"]);
         if (catalog is null || SelectedPackage is null) throw new InvalidOperationException(loc["SelectMod"]);
         var selected = SelectedPackage;
         if (latest) SelectedVersion = selected.Latest;
@@ -217,23 +225,30 @@ public sealed partial class ThunderstoreViewModel(
     });
     private void PresentPlan(InstanceRecord target, ThunderstoreInstallPlan plan, bool repair)
     {
-        if (getTarget()?.Id != target.Id) return;
+        if (!GetAvailableInstallTargets().Contains(target)) return;
         PendingUninstall = null;
         pendingPlan = plan;
         pendingTarget = target.Id;
+        installTarget = target;
+        installContext = ContextKey();
+        installRequests = plan.Packages.Select(item => (item.Package.FullName, (string?)item.Version.VersionNumber)).ToArray();
+        InstallTargets.Clear();
+        foreach (var candidate in repair ? [target] : GetAvailableInstallTargets())
+            InstallTargets.Add(new(this, candidate));
+        NotifyInstallTarget();
         repairPlan = repair;
         PreviewText = PlanText(plan);
+        OnPropertyChanged(nameof(PlanItems));
         HasPlan = true;
-        NeedsCompatibilityConfirmation = plan.Warnings.Count > 0;
-        AcceptUnverified = plan.Warnings.Count == 0;
     }
     [RelayCommand(CanExecute = nameof(CanConfirm))]
     private Task ConfirmInstallAsync() => RunAsync(async () =>
     {
-        var target = RequireTarget();
+        var target = installTarget ?? throw new InvalidOperationException(loc["TsTargetChanged"]);
         var plan = pendingPlan ?? throw new InvalidOperationException(loc["TsPreviewFirst"]);
-        if (target.Id != pendingTarget) throw new InvalidOperationException(loc["TsTargetChanged"]);
-        if (!AcceptUnverified && plan.Warnings.Count > 0) throw new InvalidOperationException(loc["TsCompatibilityNotice"]);
+        if (ContextKey() != installContext || target.Id != pendingTarget || !GetAvailableInstallTargets().Any(item =>
+            item.Id == target.Id && item.RootPath == target.RootPath && item.BuildId == target.BuildId))
+            throw new InvalidOperationException(loc["TsTargetChanged"]);
         if (isOffline() && installOffline is not null)
         {
             await installOffline(target, plan, repairPlan);
@@ -244,7 +259,7 @@ public sealed partial class ThunderstoreViewModel(
         }
         else
         {
-            await enqueue(ThunderstoreQueueExecutor.Create(target, plan, SelectedPackage?.FullName ?? loc["TsPreset"], repairPlan));
+            await enqueue(ThunderstoreQueueExecutor.Create(target, plan, string.Join(" + ", installRequests.Select(item => DisplayName(item.Name))), repairPlan));
             ResetPlan();
             Status = loc["AddedToDownloadQueue"];
         }

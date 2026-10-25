@@ -26,13 +26,19 @@ public static class ModInstallQueueGroupFactory
             var reason = plan.Items.First(item => item.State == ModInstallPlanItemState.Blocked).Reason;
             throw new InvalidOperationException(reason);
         }
+        var requested = plan.RequestedModIds.Count > 0 ? plan.RequestedModIds : [plan.ModId];
+        var mainMods = plan.Items.Where(item => item.Kind == ModInstallPlanItemKind.Mod).ToArray();
+        if (!requested.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(mainMods.Select(item => item.Id))
+            || plan.Items.Select(item => item.LoaderId).Distinct(StringComparer.OrdinalIgnoreCase).Count() != 1
+            || plan.Items.Select(item => (item.Kind == ModInstallPlanItemKind.Loader, item.Id)).Distinct().Count() != plan.Items.Count)
+            throw new InvalidDataException("The batch install plan contains missing mods, duplicate packages or conflicting loaders.");
 
         return new DownloadQueueGroup
         {
             Id = Guid.NewGuid().ToString("N"),
-            DeduplicationKey = $"{instance.Id}:mod:{plan.ModId}",
+            DeduplicationKey = $"{instance.Id}:mod:{string.Join(';', requested.Order(StringComparer.OrdinalIgnoreCase))}",
             Kind = DownloadQueueGroupKind.ModInstall,
-            Name = plan.Items[^1].Name,
+            Name = string.Join(" + ", mainMods.Select(item => item.Name)),
             TargetInstanceId = instance.Id,
             TargetInstanceName = instance.Name,
             TargetInstanceRoot = instance.RootPath,

@@ -29,7 +29,21 @@ public partial class MainViewModel
         new SilksongModTranslationSource(metadataHttpClient,
             Path.Combine(paths.ApplicationDataRoot, "thunderstore", "silksong", "translations"), networkPolicy),
         new ThunderstorePackageIconLoader(ThunderstoreHttpClient,
-            Path.Combine(paths.ApplicationDataRoot, "thunderstore", "silksong", "icons"), () => IsOfflineMode));
+            Path.Combine(paths.ApplicationDataRoot, "thunderstore", "silksong", "icons"), () => IsOfflineMode),
+        reportError: message => { ErrorMessage = null; ErrorMessage = message; },
+        getInstallTargets: () => Instances.Instances.Select(item => item.Record).ToArray());
+
+    [RelayCommand]
+    private void ClearMarketFilters()
+    {
+        MarketSearchText = "";
+        SelectedMarketBuildOption = MarketBuildOptions.FirstOrDefault();
+        SelectedMarketLoaderOption = MarketLoaderOptions.FirstOrDefault();
+        SelectedMarketSourceOption = MarketSourceOptions.FirstOrDefault();
+        SelectedMarketTagOption = MarketTagOptions.FirstOrDefault();
+        SelectedMarketActivityOption = MarketActivityOptions.FirstOrDefault();
+    }
+
     public bool IsHollowKnightMarket => IsHollowKnight && IsModMarketDownloadSection;
     public bool IsSilksongMarket => IsSilksong && IsModMarketDownloadSection;
     public bool IsLegacyLoaderTab => IsHollowKnight && CurrentManageTab == "Loader";
@@ -87,26 +101,22 @@ public partial class MainViewModel
             settings = GameWorkspaceMigration.Select(settings, gameId);
             Interlocked.Increment(ref instanceRefreshVersion);
             Interlocked.Increment(ref detailsLoadGeneration);
-            ClearInstanceProjection();
-            SaveEditor = null;
+            detailsLoadCancellation?.Cancel();
             VersionRoot = settings.VersionRoot ?? string.Empty;
-            var target = settings.GameWorkspaces.FirstOrDefault(item => item.GameId == gameId);
-            SearchText = target?.InstanceSearch ?? string.Empty;
-            MarketSearchText = target?.MarketSearch ?? string.Empty;
-            Thunderstore.SearchText = target?.MarketSearch ?? string.Empty;
-            DownloadBuildSearchText = target?.DownloadSearch ?? string.Empty;
-            NotifyGameContextChanged();
             await Instances.InitializeGameDirectoriesAsync();
+            // Keep the current projection until the scan can replace it without an empty frame.
+            await RefreshInstancesAsync(showBusy: false);
+            NotifyGameContextChanged();
             PopulateDownloadBuilds();
             RebuildMarketCatalog();
             PopulateSpeedrunTemplates();
             RestoreGameFilters();
             if (IsSilksong) CurrentSpeedrunTab = "Activity";
             await QueueSettingsSave();
-            await RefreshInstancesAsync(showBusy: false);
-            if (IsSilksong && IsModMarketDownloadSection) await Thunderstore.RefreshCommand.ExecuteAsync(null);
+            if (IsSilksong && IsModMarketDownloadSection) _ = Thunderstore.EnsureLoadedAsync();
         }
         finally { IsSwitchingGame = false; }
+        NotifyToast(string.Format(Loc.Culture, Loc["GameSwitched"], SelectedGameName));
     }
 
     private bool gameUiStateReady;

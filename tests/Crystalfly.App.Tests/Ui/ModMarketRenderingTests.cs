@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Media.Imaging;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -23,6 +24,72 @@ namespace Crystalfly.App.Tests.Ui;
 
 public sealed class ModMarketRenderingTests
 {
+    [AvaloniaFact]
+    public async Task Market_shift_click_highlights_multiple_mods_and_opens_one_combined_plan()
+    {
+        var context = await ShowReadyMarketInstallAsync();
+        var model = context.ViewModel;
+        try
+        {
+            context.Dialog.Close();
+            model.BackToMarketCommand.Execute(null);
+            var catalogField = typeof(MainViewModel).GetField("catalog", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var original = Assert.Single(((GameCatalog)catalogField.GetValue(model)!).Mods);
+            var dependency = original with { Id = "library", Name = "Shared library", Dependencies = [] };
+            catalogField.SetValue(model, new GameCatalog { Mods = [dependency,
+                original with { Dependencies = ["library"] },
+                original with { Id = "second", Name = "Second Mod", Dependencies = ["library"] }] });
+            typeof(MainViewModel).GetMethod("RebuildMarketCatalog", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(model, null);
+            Dispatcher.UIThread.RunJobs();
+            var list = context.Window.GetVisualDescendants().OfType<ListBox>()
+                .Single(item => item.Classes.Contains("cfp-market-list") && item.IsEffectivelyVisible);
+            Assert.Empty(list.GetVisualDescendants().OfType<CheckBox>());
+            foreach (var id in new[] { original.Id, "second", original.Id, original.Id })
+            {
+                var row = list.GetVisualDescendants().OfType<Button>()
+                    .Single(item => item.DataContext is MarketModItemViewModel mod && mod.Id == id);
+                var point = row.TranslatePoint(new Point(row.Bounds.Width / 2, row.Bounds.Height / 2), context.Window)!.Value;
+                context.Window.MouseDown(point, MouseButton.Left, RawInputModifiers.Shift);
+                context.Window.MouseUp(point, MouseButton.Left, RawInputModifiers.Shift);
+                context.Window.MouseMove(new Point(1, 1), RawInputModifiers.None);
+                Dispatcher.UIThread.RunJobs();
+                Assert.False(model.IsMarketDetail);
+                var selected = ((MarketModItemViewModel)row.DataContext!).IsSelected;
+                Assert.Equal(selected, row.Classes.Contains("cfp-batch-selected"));
+                if (selected) Assert.True(Assert.IsAssignableFrom<Avalonia.Media.ISolidColorBrush>(row.Background).Color.A > 0);
+            }
+            Assert.Equal(2, model.SelectedMarketModCount);
+            var screenshotRoot = Environment.GetEnvironmentVariable("CRYSTALFLY_BATCH_MOD_PREVIEW_DIR");
+            if (!string.IsNullOrWhiteSpace(screenshotRoot))
+            {
+                Directory.CreateDirectory(screenshotRoot);
+                context.Window.CaptureRenderedFrame()!.Save(Path.Combine(screenshotRoot, "hk-market-selection.png"), new PngBitmapEncoderOptions());
+            }
+            model.MarketSearchText = "Second";
+            Assert.True(Assert.Single(model.VisibleMarketDisplayMods).IsSelected);
+            model.MarketSearchText = "";
+            Dispatcher.UIThread.RunJobs();
+            var open = context.Window.GetVisualDescendants().OfType<Button>()
+                .Single(item => item.IsEffectivelyVisible && Equals(item.Content, model.Loc["InstallSelectedMods"]));
+            open.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForConditionAsync(() => GetDialogs(context.Window).Length == 1, TimeSpan.FromSeconds(5));
+            var dialog = Assert.Single(GetDialogs(context.Window));
+            var install = dialog.GetVisualDescendants().OfType<Button>()
+                .Single(item => AutomationProperties.GetName(item) == model.Loc["AddToDownloadQueue"]);
+            var dialogModel = Assert.IsType<MarketInstallDialogViewModel>(install.DataContext);
+            await WaitForConditionAsync(() => !dialogModel.IsPlanLoading, TimeSpan.FromSeconds(5));
+            Assert.Null(dialogModel.DialogError);
+            Assert.Equal(4, dialogModel.PlanItems.Count);
+            Assert.True(dialogModel.CanInstall);
+            Assert.Single(dialogModel.Targets);
+            Assert.Contains("Sample Mod", dialogModel.ModName);
+            Assert.Contains("Second Mod", dialogModel.ModName);
+            if (!string.IsNullOrWhiteSpace(screenshotRoot))
+                context.Window.CaptureRenderedFrame()!.Save(Path.Combine(screenshotRoot, "hk-batch-install-plan.png"), new PngBitmapEncoderOptions());
+            dialogModel.CancelCommand.Execute(null);
+        }
+        finally { await CloseReadyMarketInstallAsync(context); }
+    }
 
     [AvaloniaFact]
     public void Market_list_items_receive_pointer_clicks()
@@ -52,7 +119,7 @@ public sealed class ModMarketRenderingTests
                 .OfType<ListBox>()
                 .Single(control => control.Classes.Contains("cfp-market-list") && control.IsEffectivelyVisible);
             var button = list.GetVisualDescendants().OfType<Button>()
-                .First(item => item.IsEffectivelyVisible);
+                .First(item => item.IsEffectivelyVisible && item is not CheckBox);
             var center = button.TranslatePoint(
                 new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window) ?? default;
             Assert.NotEqual(default, center);
@@ -157,6 +224,7 @@ public sealed class ModMarketRenderingTests
         {
             Id = "sample-mod",
             Name = "Sample Mod",
+            Description = "A useful practice tool.",
             Version = "1.0.0",
             DownloadUrl = "https://example.invalid/sample.zip",
             Sha256 = new string('0', 64),
@@ -178,9 +246,14 @@ public sealed class ModMarketRenderingTests
 
             var itemButton = list.GetVisualDescendants()
                 .OfType<Button>()
-                .Single(button => button.IsEffectivelyVisible);
+                .Single(button => button.IsEffectivelyVisible && button is not CheckBox);
             Assert.True(itemButton.Focusable);
             Assert.Equal("Sample Mod", AutomationProperties.GetName(itemButton));
+            Assert.Contains(itemButton.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "A useful practice tool.");
+            var title = itemButton.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == "Sample Mod");
+            var version = itemButton.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == "1.0.0");
+            Assert.InRange(Math.Abs(title.TranslatePoint(default, itemButton)!.Value.Y - version.TranslatePoint(default, itemButton)!.Value.Y), 0, 1);
+            Assert.True(version.TranslatePoint(default, itemButton)!.Value.X > title.TranslatePoint(default, itemButton)!.Value.X);
         }
         finally
         {

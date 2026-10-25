@@ -15,6 +15,38 @@ public sealed class ModInstallServiceTests : IDisposable
     private readonly string root = Path.Combine(Path.GetTempPath(), "Crystalfly.Tests", Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public async Task Batch_plan_deduplicates_shared_dependencies_and_keeps_all_requested_mods()
+    {
+        var service = CreateService(Instance(),
+        [
+            Manifest("one", "modding-api-77", dependencies: ["shared"]),
+            Manifest("two", "modding-api-77", dependencies: ["shared"]),
+            Manifest("shared", "modding-api-77")
+        ]);
+
+        var plan = await service.CreatePlanAsync(["one", "two"]);
+
+        Assert.False(plan.IsBlocked);
+        Assert.Single(plan.Items, item => item.Id == "shared");
+        Assert.Equal(2, plan.Items.Count(item => item.Kind == ModInstallPlanItemKind.Mod));
+        Assert.Equal(["one", "two"], plan.RequestedModIds);
+        Assert.True(plan.Items.ToList().FindIndex(item => item.Id == "shared") <
+            plan.Items.ToList().FindIndex(item => item.Id == "one"));
+    }
+
+    [Fact]
+    public async Task Batch_plan_blocks_mixed_loaders_and_honors_cancellation()
+    {
+        var service = CreateService(Instance(),
+            [Manifest("one", "modding-api-77"), Manifest("two", "bepinex-5.4.23.4")]);
+        Assert.True((await service.CreatePlanAsync(["one", "two"])).IsBlocked);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            service.CreatePlanAsync(["one", "two"], cancellation.Token));
+    }
+
+    [Fact]
     public async Task Vanilla_instance_requires_the_manifest_loader()
     {
         var service = CreateService(Instance(), [Manifest("feature", "modding-api-77")]);

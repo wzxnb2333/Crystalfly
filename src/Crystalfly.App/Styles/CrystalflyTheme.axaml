@@ -869,6 +869,33 @@
         <Setter Property="Padding" Value="8,6" />
     </Style>
 
+    <Style Selector="ListBox.cfp-catalog-list > ListBoxItem">
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="3,2,2,2" />
+    </Style>
+    <Style Selector="ListBox.cfp-catalog-list > ListBoxItem:pointerover">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+        <Setter Property="Padding" Value="3,2,2,2" />
+    </Style>
+    <Style Selector="ListBox.cfp-catalog-list > ListBoxItem:selected">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
+        <Setter Property="BorderThickness" Value="3,0,0,0" />
+        <Setter Property="Padding" Value="0,2,2,2" />
+    </Style>
+    <Style Selector="ListBox.cfp-catalog-list > ListBoxItem:selected:pointerover,
+                     ListBox.cfp-catalog-list > ListBoxItem:selected:pressed">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedHoverBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
+        <Setter Property="BorderThickness" Value="3,0,0,0" />
+        <Setter Property="Padding" Value="0,2,2,2" />
+    </Style>
+    <Style Selector="ListBox.cfp-catalog-list > ListBoxItem:focus-visible">
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentTextBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+        <Setter Property="Padding" Value="1,0,0,0" />
+    </Style>
+
     <Style Selector="Button.cfp-market-item">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
@@ -883,6 +910,38 @@
                      Button.cfp-market-item:pressed">
         <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+    </Style>
+
+    <Style Selector="Button.cfp-market-item.cfp-catalog-item">
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="Button.cfp-market-item.cfp-catalog-item:pointerover,
+                     Button.cfp-market-item.cfp-catalog-item:pressed">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+    </Style>
+    <Style Selector="Button.cfp-market-item.cfp-catalog-item:focus-visible">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+        <Setter Property="Padding" Value="6,4" />
+    </Style>
+
+    <Style Selector="Button.cfp-market-item.cfp-catalog-item.cfp-batch-selected">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedBrush}" />
+    </Style>
+    <Style Selector="Button.cfp-market-item.cfp-catalog-item.cfp-batch-selected:pointerover,
+                     Button.cfp-market-item.cfp-catalog-item.cfp-batch-selected:pressed">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedHoverBrush}" />
+    </Style>
+    <Style Selector="Border.cfp-batch-selected">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedBrush}" />
+    </Style>
+    <Style Selector="Border.cfp-batch-selected:pointerover">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceSelectedHoverBrush}" />
     </Style>
 
     <Style Selector="Border.cfp-market-tag">

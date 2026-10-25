@@ -141,7 +141,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         string,
         GameCatalog,
         CancellationToken,
-        Task<IReadOnlyList<InstanceRecord>>> instanceDiscovery;
+        Task<IReadOnlyList<InstanceRecord>>>? instanceDiscovery = null;
     private LoaderInspection currentLoaderInspection = new()
     {
         State = LoaderState.Vanilla,
@@ -214,7 +214,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         embeddedBuilds = catalog.Builds.ToArray();
         catalogLoader = LoadCatalogAsync;
         steamReconnect = TryReconnectSteamAsync;
-        instanceDiscovery = InstanceImportService.DiscoverAsync;
         modTranslations = EmbeddedModTranslationCatalog.Load();
         modActivityCatalog = EmbeddedModActivityCatalog.Load();
         networkPolicy = new NetworkPolicy();
@@ -280,7 +279,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             SetCurrentManageTab: value => CurrentManageTab = value,
             GetCloneInstanceName: () => CloneInstanceName,
             SetCloneInstanceName: value => CloneInstanceName = value,
-            DiscoverInstances: (root, catalog, token) => instanceDiscovery(root, catalog, token),
+            DiscoverInstances: (root, catalog, token) => instanceDiscovery?.Invoke(root, catalog, token)
+                ?? InstanceImportService.DiscoverAsync(root, catalog, SelectedGameId, token),
             GetSearchText: () => SearchText,
             HasBlockingDownloadForPath: path => downloadQueue.Groups.Any(group =>
                 string.Equals(
@@ -517,7 +517,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public string OnboardingNextActionText =>
         OnboardingNextTask?.ActionText ?? Loc["OnboardingReopen"];
 
-    public bool CanNavigate => !IsBusy && !IsGameRunning && !IsExternalCommandRunning && !IsSwitchingGame;
+    public bool IsWorkspaceEnabled => !IsBusy && !IsGameRunning && !IsExternalCommandRunning;
+
+    public bool CanNavigate => IsWorkspaceEnabled && !IsSwitchingGame;
 
     public bool CanCloneInstance => CanNavigate && !string.IsNullOrWhiteSpace(CloneInstanceName);
 
@@ -804,6 +806,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(CanSwitchGame))]
     [NotifyCanExecuteChangedFor(nameof(ToggleGameCommand))]
     [NotifyPropertyChangedFor(nameof(CanNavigate))]
+    [NotifyPropertyChangedFor(nameof(IsWorkspaceEnabled))]
     [NotifyPropertyChangedFor(nameof(CanCloneInstance))]
     [NotifyPropertyChangedFor(nameof(CanLaunch))]
     [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
@@ -814,6 +817,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(CanSwitchGame))]
     [NotifyCanExecuteChangedFor(nameof(ToggleGameCommand))]
     [NotifyPropertyChangedFor(nameof(CanNavigate))]
+    [NotifyPropertyChangedFor(nameof(IsWorkspaceEnabled))]
     [NotifyPropertyChangedFor(nameof(CanCloneInstance))]
     [NotifyPropertyChangedFor(nameof(CanLaunch))]
     [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
@@ -883,6 +887,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(CanSwitchGame))]
     [NotifyCanExecuteChangedFor(nameof(ToggleGameCommand))]
     [NotifyPropertyChangedFor(nameof(CanNavigate))]
+    [NotifyPropertyChangedFor(nameof(IsWorkspaceEnabled))]
     [NotifyPropertyChangedFor(nameof(CanCloneInstance))]
     [NotifyPropertyChangedFor(nameof(CanLaunch))]
     [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
@@ -1725,10 +1730,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     private async Task PrepareMarketInstallTargetsAsync()
     {
-        var mod = SelectedMarketMod;
+        var mods = GetMarketInstallModIds();
+        marketInstallModIds = mods;
         MarketInstallTargets.Clear();
         SelectedMarketInstallTarget = null;
-        if (mod is null)
+        if (mods.Count == 0)
         {
             return;
         }
@@ -1741,7 +1747,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             {
                 var service = CreateModInstallService(instance.Record);
                 var evaluation = await service.EvaluateAsync(
-                    mod.Id,
+                    mods,
                     lifetimeCancellation.Token);
                 var requiredLoader = catalog.Loaders.FirstOrDefault(loader =>
                     string.Equals(loader.Id, evaluation.RequiredLoaderId, StringComparison.OrdinalIgnoreCase)
@@ -1771,7 +1777,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             targets.Add(target);
         }
 
-        if (!ReferenceEquals(SelectedMarketMod, mod))
+        if (!GetMarketInstallModIds().SequenceEqual(mods, StringComparer.OrdinalIgnoreCase))
         {
             return;
         }
@@ -1929,10 +1935,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     var scanCatalog = catalog;
                     var inspections = await Task.Run(async () =>
                     {
-                        var records = await instanceDiscovery(
-                            scanRoot,
-                            scanCatalog,
-                            cancellationToken).ConfigureAwait(false);
+                        var records = await (instanceDiscovery?.Invoke(scanRoot, scanCatalog, cancellationToken)
+                            ?? InstanceImportService.DiscoverAsync(scanRoot, scanCatalog, scanGame, cancellationToken))
+                            .ConfigureAwait(false);
                         if (records is InstanceDiscoveryResult result)
                         {
                             foreach (var issue in result.Issues)
@@ -3840,6 +3845,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
     private void RebuildMarketCatalog()
     {
+        selectedMarketMods.IntersectWith(catalog.Mods.Where(item => item.GameId == SelectedGameId).Select(item => item.Id));
+        OnPropertyChanged(nameof(SelectedMarketModCount));
+        OnPropertyChanged(nameof(HasSelectedMarketMods));
+        OnPropertyChanged(nameof(SelectedMarketModsText));
         var selectedModId = SelectedMarketMod?.Id;
         var selectedBuild = SelectedMarketBuildOption?.Value;
         var selectedLoader = SelectedMarketLoaderOption?.Value;
@@ -3940,7 +3949,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             chinese ?? Loc.Culture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase),
             modActivityCatalog.Entries.FirstOrDefault(entry =>
                 string.Equals(entry.Id, manifest.Id, StringComparison.OrdinalIgnoreCase)),
-            modActivityCatalog.GeneratedAt.AddDays(-30));
+            modActivityCatalog.GeneratedAt.AddDays(-30))
+        {
+            IsSelected = selectedMarketMods.Contains(manifest.Id),
+            SelectionChanged = selected => SetMarketModSelected(manifest.Id, selected)
+        };
 
     internal MarketModItemViewModel? ProjectMarketMod(string id) =>
         catalog.Mods.FirstOrDefault(manifest =>
@@ -5089,7 +5102,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private bool IsMutationBlocked()
     {
-        if (IsBusy)
+        if (IsBusy || IsSwitchingGame)
         {
             return true;
         }
@@ -5724,8 +5737,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     InstallMarketModCommand.ExecutionTask ?? Task.CompletedTask,
                     AdoptExternalContentCommand.ExecutionTask ?? Task.CompletedTask,
                     TestGitHubLatencyCommand.ExecutionTask ?? Task.CompletedTask,
-                    DownloadCenter.RefreshSteamChunkCacheStatusCommand.ExecutionTask ?? Task.CompletedTask,
-                    DownloadCenter.ClearSteamChunkCacheCommand.ExecutionTask ?? Task.CompletedTask,
                     pendingExternalProtocolCommand,
                     steamOfflineTransitionTask,
                     pendingDetailsLoad,

@@ -506,12 +506,13 @@ public sealed partial class InstancesViewModel : ViewModelBase
         {
             return CustomGameDirectoryScanOutcome.CandidatesFound;
         }
-        if (result.Candidates.Count > 0)
+        var isRegisteredVersionRoot = IsRegisteredVersionRoot(path);
+        if (result.Candidates.Count > 0 && !isRegisteredVersionRoot)
         {
             dependencies.SetErrorMessage(dependencies.Loc()["NoGameDirectoryCandidates"]);
             return CustomGameDirectoryScanOutcome.OtherGameInstallation;
         }
-        if (!InstanceDirectory.IsEmptyVersionRoot(path))
+        if (!isRegisteredVersionRoot && !InstanceDirectory.IsEmptyVersionRoot(path))
         {
             dependencies.SetErrorMessage(dependencies.Loc()["VersionRootFolderMustBeEmpty"]);
             return CustomGameDirectoryScanOutcome.NotAnEmptyFolder;
@@ -526,8 +527,8 @@ public sealed partial class InstancesViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Registers the selected empty folder itself as a version root so a folder
-    /// can be managed before any game files exist. Game instances are still
+    /// Registers an empty folder or an existing library shared with another game
+    /// as a version root. Game instances are still
     /// discovered only from complete installations in its direct subdirectories.
     /// </summary>
     internal async Task<bool> AddGameDirectoryAsVersionRootAsync(string path)
@@ -536,7 +537,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
         try
         {
             root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
-            InstanceDirectory.PrepareVersionRootRegistration(root);
+            InstanceDirectory.PrepareVersionRootRegistration(root, IsRegisteredVersionRoot(root));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
             or InvalidDataException or ArgumentException or NotSupportedException)
@@ -604,6 +605,14 @@ public sealed partial class InstancesViewModel : ViewModelBase
         dependencies.SetStatusMessage(dependencies.Loc()["EmptyGameDirectoryAdded"]);
         OnPropertyChanged(nameof(IsGameDirectoryDiscoveryRequired));
         return true;
+    }
+
+    private bool IsRegisteredVersionRoot(string path)
+    {
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        return GameDefinition.Detect(root) is null && dependencies.GetSettings().GameDirectories.Any(directory =>
+            string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory.Path)), root,
+                StringComparison.OrdinalIgnoreCase));
     }
 
     private void AddCandidates(IEnumerable<GameDirectoryCandidate> candidates)

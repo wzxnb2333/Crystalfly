@@ -1,5 +1,6 @@
 using Crystalfly.App.ViewModels;
 using Crystalfly.Core.Instances;
+using Crystalfly.Core.Models;
 
 namespace Crystalfly.App.Tests.ViewModels;
 
@@ -75,14 +76,19 @@ public sealed class GameDirectoryFirstUseTests : IDisposable
         Assert.True(File.Exists(keptFile), "Registering a directory must not disturb existing .crystalfly state.");
     }
 
-    [Fact]
-    public async Task Adding_an_empty_folder_registers_it_as_the_version_root()
+    [Theory]
+    [InlineData(GameId.HollowKnight)]
+    [InlineData(GameId.Silksong)]
+    public async Task Adding_an_empty_folder_registers_it_as_the_version_root(GameId gameId)
     {
         var applicationDataRoot = testDirectory.CreateDirectory("app-data");
         var emptyRoot = testDirectory.CreateDirectory("empty-library");
 
         await using var viewModel = new MainViewModel(applicationDataRoot);
         await viewModel.InitializeAsync();
+
+        await viewModel.SelectGameCommand.ExecuteAsync(gameId.ToString());
+        Assert.Equal(gameId, viewModel.SelectedGameId);
 
         var outcome = await viewModel.Instances.AddCustomGameDirectoryAsync(emptyRoot);
         Assert.Equal(CustomGameDirectoryScanOutcome.NoGameInstallation, outcome);
@@ -94,12 +100,15 @@ public sealed class GameDirectoryFirstUseTests : IDisposable
             string.Equals(directory.Path, Path.GetFullPath(emptyRoot), StringComparison.OrdinalIgnoreCase));
         Assert.True(Directory.Exists(Path.Combine(emptyRoot, ".crystalfly")));
         Assert.Empty(viewModel.Instances.Instances);
+        Assert.Equal(gameId, Assert.Single(viewModel.Instances.GameDirectories).Registration.GameId);
         Assert.Null(viewModel.ErrorMessage);
         Assert.Equal(viewModel.Loc["EmptyGameDirectoryAdded"], viewModel.StatusMessage);
     }
 
-    [Fact]
-    public async Task Registered_empty_version_root_survives_restart()
+    [Theory]
+    [InlineData(GameId.HollowKnight)]
+    [InlineData(GameId.Silksong)]
+    public async Task Registered_empty_version_root_survives_restart(GameId gameId)
     {
         var applicationDataRoot = testDirectory.CreateDirectory("app-data");
         var emptyRoot = testDirectory.CreateDirectory("empty-library");
@@ -107,34 +116,44 @@ public sealed class GameDirectoryFirstUseTests : IDisposable
         await using (var first = new MainViewModel(applicationDataRoot))
         {
             await first.InitializeAsync();
+            await first.SelectGameCommand.ExecuteAsync(gameId.ToString());
             Assert.True(await first.Instances.AddGameDirectoryAsVersionRootAsync(emptyRoot));
         }
 
         await using var reopened = new MainViewModel(applicationDataRoot);
         await reopened.InitializeAsync();
 
+        Assert.Equal(gameId, reopened.SelectedGameId);
         Assert.Equal(Path.GetFullPath(emptyRoot), reopened.VersionRoot);
         Assert.Contains(reopened.Instances.GameDirectories, directory =>
             string.Equals(directory.Path, Path.GetFullPath(emptyRoot), StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact]
-    public async Task Game_files_added_to_a_subfolder_of_an_empty_version_root_are_discovered()
+    [Theory]
+    [InlineData(GameId.HollowKnight)]
+    [InlineData(GameId.Silksong)]
+    public async Task Game_files_added_to_a_subfolder_of_an_empty_version_root_are_discovered(GameId gameId)
     {
         var applicationDataRoot = testDirectory.CreateDirectory("app-data");
         var emptyRoot = testDirectory.CreateDirectory("empty-library");
 
         await using var viewModel = new MainViewModel(applicationDataRoot);
         await viewModel.InitializeAsync();
+        await viewModel.SelectGameCommand.ExecuteAsync(gameId.ToString());
         Assert.True(await viewModel.Instances.AddGameDirectoryAsVersionRootAsync(emptyRoot));
         Assert.True(await viewModel.Instances.AddGameDirectoryAsVersionRootAsync(emptyRoot));
         Assert.Single(viewModel.Instances.GameDirectories);
 
-        var gamePath = CreateGameDirectory(Path.Combine(emptyRoot, "Hollow Knight"));
+        var game = GameDefinition.Get(gameId);
+        var gamePath = Path.Combine(emptyRoot, gameId.ToString());
+        Directory.CreateDirectory(Path.Combine(gamePath, game.DataDirectoryName));
+        await File.WriteAllTextAsync(Path.Combine(gamePath, game.ExecutableName), "exe");
+        await File.WriteAllTextAsync(Path.Combine(gamePath, game.GlobalGameManagersPath), "data");
         await viewModel.RefreshCommand.ExecuteAsync(null);
 
         var instance = Assert.Single(viewModel.Instances.Instances);
         Assert.Equal(gamePath, instance.RootPath);
+        Assert.Equal(gameId, instance.Record.GameId);
     }
 
     [Fact]
@@ -155,6 +174,57 @@ public sealed class GameDirectoryFirstUseTests : IDisposable
         Assert.Equal(CustomGameDirectoryScanOutcome.OtherGameInstallation, outcome);
         Assert.Empty(viewModel.Instances.GameDirectoryCandidates);
         Assert.False(string.IsNullOrWhiteSpace(viewModel.ErrorMessage));
+    }
+
+    [Theory]
+    [InlineData(GameId.HollowKnight, GameId.Silksong)]
+    [InlineData(GameId.Silksong, GameId.HollowKnight)]
+    public async Task Registered_version_root_can_be_shared_without_mixing_game_instances(GameId originalGame, GameId addedGame)
+    {
+        var applicationDataRoot = testDirectory.CreateDirectory("app-data");
+        var library = testDirectory.CreateDirectory("shared-library");
+        string originalInstanceId;
+        await using (var viewModel = new MainViewModel(applicationDataRoot))
+        {
+            await viewModel.InitializeAsync();
+            await viewModel.SelectGameCommand.ExecuteAsync(originalGame.ToString());
+            Assert.True(await viewModel.Instances.AddGameDirectoryAsVersionRootAsync(library));
+            var originalPath = CreateGameDirectory(Path.Combine(library, originalGame.ToString()), originalGame);
+            await viewModel.RefreshCommand.ExecuteAsync(null);
+            originalInstanceId = Assert.Single(viewModel.Instances.Instances).Id;
+            var keptFile = Path.Combine(library, ".crystalfly", "keep.txt");
+            await File.WriteAllTextAsync(keptFile, "keep");
+
+            await viewModel.SelectGameCommand.ExecuteAsync(addedGame.ToString());
+            var outcome = await viewModel.Instances.AddCustomGameDirectoryAsync(library);
+            Assert.Equal(CustomGameDirectoryScanOutcome.NoGameInstallation, outcome);
+            Assert.Empty(viewModel.Instances.GameDirectoryCandidates);
+            Assert.True(await viewModel.Instances.AddGameDirectoryAsVersionRootAsync(library));
+            Assert.Equal(library, viewModel.VersionRoot);
+            Assert.Empty(viewModel.Instances.Instances);
+            Assert.Null(viewModel.ErrorMessage);
+            Assert.Equal("keep", await File.ReadAllTextAsync(keptFile));
+
+            var addedPath = CreateGameDirectory(Path.Combine(library, addedGame.ToString()), addedGame);
+            await viewModel.RefreshCommand.ExecuteAsync(null);
+            var addedInstance = Assert.Single(viewModel.Instances.Instances);
+            Assert.Equal(addedGame, addedInstance.Record.GameId);
+            Assert.Equal(addedPath, addedInstance.RootPath);
+            await viewModel.SelectGameCommand.ExecuteAsync(originalGame.ToString());
+            var originalInstance = Assert.Single(viewModel.Instances.Instances);
+            Assert.Equal(originalInstanceId, originalInstance.Id);
+            Assert.Equal(originalPath, originalInstance.RootPath);
+            await viewModel.SelectGameCommand.ExecuteAsync(addedGame.ToString());
+        }
+
+        await using var reopened = new MainViewModel(applicationDataRoot);
+        await reopened.InitializeAsync();
+        Assert.Equal(addedGame, reopened.SelectedGameId);
+        Assert.Equal(library, reopened.VersionRoot);
+        Assert.Equal(addedGame, Assert.Single(reopened.Instances.Instances).Record.GameId);
+        await reopened.SelectGameCommand.ExecuteAsync(originalGame.ToString());
+        Assert.Equal(library, reopened.VersionRoot);
+        Assert.Equal(originalInstanceId, Assert.Single(reopened.Instances.Instances).Id);
     }
 
     [Fact]
@@ -212,12 +282,13 @@ public sealed class GameDirectoryFirstUseTests : IDisposable
         Assert.False(string.IsNullOrWhiteSpace(viewModel.ErrorMessage));
     }
 
-    private static string CreateGameDirectory(string path)
+    private static string CreateGameDirectory(string path, GameId gameId = GameId.HollowKnight)
     {
-        Directory.CreateDirectory(Path.Combine(path, "hollow_knight_Data"));
-        File.WriteAllText(Path.Combine(path, "hollow_knight.exe"), "exe");
+        var game = GameDefinition.Get(gameId);
+        Directory.CreateDirectory(Path.Combine(path, game.DataDirectoryName));
+        File.WriteAllText(Path.Combine(path, game.ExecutableName), "exe");
         File.WriteAllText(Path.Combine(path, "UnityPlayer.dll"), "unity");
-        File.WriteAllText(Path.Combine(path, "hollow_knight_Data", "globalgamemanagers"), "data");
+        File.WriteAllText(Path.Combine(path, game.GlobalGameManagersPath), "data");
         return Path.GetFullPath(path);
     }
 

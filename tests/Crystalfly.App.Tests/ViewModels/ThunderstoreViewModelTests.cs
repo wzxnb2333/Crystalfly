@@ -12,6 +12,68 @@ public sealed class ThunderstoreViewModelTests : IDisposable
     private readonly string root = Path.Combine(Path.GetTempPath(), "Crystalfly.Thunderstore.UI", Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public async Task Batch_preview_merges_dependencies_and_retargets_before_queueing()
+    {
+        var dependency = Package("Author", "Shared", "1.0.0");
+        var one = Package("Author", "One", "1.0.0");
+        var two = Package("Author", "Two", "1.0.0");
+        one = one with { Versions = [one.Latest! with { Dependencies = ["Author-Shared-1.0.0"] }] };
+        two = two with { Versions = [two.Latest! with { Dependencies = ["Author-Shared-1.0.0"] }] };
+        var loader = Package("silksong_modding", "BepInExPack_Silksong", "1.0.3");
+        string catalogPath = Path.Combine(root, "batch-catalog.json");
+        await AtomicJsonStore.WriteAsync(catalogPath, new ThunderstoreCatalog { Packages = [one, two, dependency, loader] });
+        using var client = new HttpClient(new Handler(() => throw new InvalidOperationException("No network")));
+        var first = new InstanceRecord { Id = "first", GameId = GameId.Silksong, Name = "First", BuildId = "first-build", RootPath = Path.Combine(root, "first") };
+        var second = first with { Id = "second", Name = "Second", BuildId = "second-build", RootPath = Path.Combine(root, "second") };
+        var hk = first with { Id = "hk", GameId = GameId.HollowKnight };
+        var targets = new List<InstanceRecord> { first, second, hk };
+        Crystalfly.App.Downloads.DownloadQueueGroup? queued = null;
+        var vm = new ThunderstoreViewModel(new(), new(client, catalogPath), new(client, Path.Combine(root, "cache")),
+            () => first, () => true, group => { queued = group; return Task.CompletedTask; }, () => Task.CompletedTask,
+            getInstallTargets: () => targets);
+        await vm.RefreshCommand.ExecuteAsync(null);
+        vm.SetPackageSelected(one.FullName, true);
+        vm.SetPackageSelected(two.FullName, true);
+        vm.SearchText = "One";
+        Assert.Equal(2, vm.SelectedPackageCount);
+        await vm.PreviewSelectedCommand.ExecuteAsync(null);
+        Assert.True(vm.HasPlan);
+        Assert.Equal(2, vm.InstallTargets.Count);
+        Assert.Equal(4, vm.PlanItems.Count);
+        await vm.SelectInstallTargetAsync(second);
+        Assert.Equal(second.Name, vm.InstallTargetName);
+        await vm.ConfirmInstallCommand.ExecuteAsync(null);
+        Assert.NotNull(queued);
+        Assert.Equal(second.Id, queued.TargetInstanceId);
+        Assert.Equal(second.BuildId, queued.ThunderstorePlan!.BuildId);
+        Assert.Single(queued.ThunderstorePlan.Packages, item => item.Package.FullName == dependency.FullName);
+        Assert.False(vm.HasPlan);
+    }
+
+    [Fact]
+    public async Task Removed_install_target_cannot_receive_a_confirmed_plan()
+    {
+        var package = Package("Author", "Main", "1.0.0");
+        var loader = Package("silksong_modding", "BepInExPack_Silksong", "1.0.3");
+        var catalogPath = Path.Combine(root, "target-catalog.json");
+        await AtomicJsonStore.WriteAsync(catalogPath, new ThunderstoreCatalog { Packages = [package, loader] });
+        using var client = new HttpClient(new Handler(() => { }));
+        var target = new InstanceRecord { Id = "silk", GameId = GameId.Silksong, Name = "Silk", BuildId = "build", RootPath = Path.Combine(root, "game") };
+        var targets = new List<InstanceRecord> { target };
+        var queued = false;
+        var vm = new ThunderstoreViewModel(new(), new(client, catalogPath), new(client, Path.Combine(root, "cache")),
+            () => target, () => true, _ => { queued = true; return Task.CompletedTask; }, () => Task.CompletedTask,
+            getInstallTargets: () => targets);
+        await vm.RefreshCommand.ExecuteAsync(null);
+        vm.SelectedPackage = package;
+        await vm.PreviewInstallCommand.ExecuteAsync(null);
+        targets.Clear();
+        await vm.ConfirmInstallCommand.ExecuteAsync(null);
+        Assert.False(queued);
+        Assert.Equal(vm.Loc["TsTargetChanged"], vm.Error);
+    }
+
+    [Fact]
     public async Task Cached_catalog_filters_and_offline_confirmation_preserve_author_text_and_bind_target()
     {
         var main = Package("Author", "Main", "1.0.0") with { Categories = ["Mods"] };
@@ -36,11 +98,7 @@ public sealed class ThunderstoreViewModelTests : IDisposable
         Assert.Equal("Original author description", vm.SelectedPackage.Latest?.Description);
         await vm.PreviewInstallCommand.ExecuteAsync(null);
         Assert.True(vm.HasPlan);
-        Assert.False(vm.AcceptUnverified);
-        await vm.ConfirmInstallCommand.ExecuteAsync(null);
-        Assert.Null(installed);
-        Assert.Equal(loc["TsCompatibilityNotice"], vm.Error);
-        vm.AcceptUnverified = true;
+        Assert.True(vm.ConfirmInstallCommand.CanExecute(null));
         await vm.ConfirmInstallCommand.ExecuteAsync(null);
         Assert.NotNull(installed);
         Assert.Equal(GameId.Silksong, installed.GameId);

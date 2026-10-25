@@ -67,6 +67,11 @@ public partial class MainWindow : Window
         InitializeComponent();
         SizeChanged += (_, _) => UpdateLaunchLayout();
         UpdateLaunchLayout();
+        AddHandler(KeyDownEvent, OnGameSwitchKeyDown, RoutingStrategies.Tunnel);
+        AddHandler(TextInputEvent, (_, e) =>
+        {
+            if (DataContext is MainViewModel { IsSwitchingGame: true }) e.Handled = true;
+        }, RoutingStrategies.Tunnel);
         // 行的内容容器(ContentPresenter)会在行悬停/选中时拦截空白区域的指针按下,
         // 且 ListBoxItem 会在冒泡阶段标记事件已处理;因此选择逻辑必须在隧道阶段、
         // 以 ListBox 为根注册,才能覆盖行内任意非交互区域。
@@ -75,6 +80,8 @@ public partial class MainWindow : Window
             OnInstalledModPointerPressed,
             RoutingStrategies.Tunnel,
             handledEventsToo: true);
+        HollowKnightCatalogList.AddHandler(InputElement.PointerPressedEvent,
+            OnMarketModPointerPressed, RoutingStrategies.Tunnel);
         MainOverlayDialogHost.Children.CollectionChanged += OnOverlayHostChildrenChanged;
         toastManager = new WindowToastManager(this) { MaxItems = 3 };
         motionCoordinator = new MotionCoordinator(
@@ -113,10 +120,6 @@ public partial class MainWindow : Window
 
     private void OnWindowCloseClick(object? sender, RoutedEventArgs e) => Close();
 
-    private void DismissError(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel viewModel) viewModel.ErrorMessage = null;
-    }
 
     private async void OnOpened(object? sender, EventArgs eventArgs)
     {
@@ -338,6 +341,26 @@ public partial class MainWindow : Window
         foreach (var dialog in MainOverlayDialogHost.Children.OfType<CustomDialogControl>().ToArray())
         {
             dialog.Close();
+        }
+    }
+
+    private async void OnGameSwitchKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is MainViewModel { IsSwitchingGame: true })
+        {
+            e.Handled = true;
+            return;
+        }
+        if (e.Key != Key.Tab || e.KeyModifiers != KeyModifiers.Shift
+            || MainOverlayDialogHost.Children.OfType<CustomDialogControl>().Any()
+            || DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+        e.Handled = true;
+        if (viewModel.ToggleGameCommand.CanExecute(null))
+        {
+            await viewModel.ToggleGameCommand.ExecuteAsync(null);
         }
     }
 

@@ -17,6 +17,17 @@ namespace Crystalfly.App.Views;
 
 public partial class MainWindow
 {
+    private void OnMarketModPointerPressed(object? sender, PointerPressedEventArgs eventArgs)
+    {
+        if (eventArgs.KeyModifiers.HasFlag(KeyModifiers.Shift)
+            && eventArgs.GetCurrentPoint(this).Properties.PointerUpdateKind == PointerUpdateKind.LeftButtonPressed
+            && eventArgs.Source is Control { DataContext: MarketModItemViewModel item })
+        {
+            item.IsSelected = !item.IsSelected;
+            eventArgs.Handled = true;
+        }
+    }
+
     private void OnInstalledModPointerPressed(object? sender, PointerPressedEventArgs eventArgs)
     {
         if (eventArgs.GetCurrentPoint(this).Properties.PointerUpdateKind != PointerUpdateKind.LeftButtonPressed

@@ -9,10 +9,13 @@ namespace Crystalfly.App.ViewModels;
 public sealed partial class ThunderstoreViewModel
 {
     public ObservableCollection<ThunderstoreInstalledPackage> InstalledMods { get; } = [];
-    [ObservableProperty] public partial bool NeedsCompatibilityConfirmation { get; set; }
     [ObservableProperty] public partial string InstalledSearchText { get; set; } = "";
     public bool HasUninstallConfirmation => PendingUninstall is not null;
     public bool HasConfirmation => HasPlan || HasUninstallConfirmation;
+    public IReadOnlyList<ThunderstorePlanItemViewModel> PlanItems => pendingPlan?.Packages.Select(item => new ThunderstorePlanItemViewModel(
+        loc[item.Package.FullName == SilksongLoaderAdapter.PackageName ? "Loader" : "Mods"],
+        DisplayName(item.Package.FullName, item.Package.Name), item.Package.FullName,
+        $"{item.PreviousVersion ?? "—"} → {item.Version.VersionNumber}{(item.Pinned ? " · " + loc["TsPinned"] : "")}")).ToArray() ?? [];
     public bool HasTarget => getTarget()?.GameId == GameId.Silksong;
     public bool HasCatalog => catalog is not null;
     public bool HasPackageSelection => SelectedPackage is not null;
@@ -25,10 +28,10 @@ public sealed partial class ThunderstoreViewModel
     public string PinActionLabel => loc[SelectedInstalled?.Pinned == true ? "TsUnpin" : "TsPin"];
     public string CatalogEmptyTitle => loc[HasCatalog ? "TsNoSearchResults" : "TsCatalogEmpty"];
     public string CatalogEmptyHint => loc[HasCatalog ? "TsAdjustFilters" : "TsCatalogEmptyHint"];
-    private bool CanPreview() => CanManage && SelectedPackage is not null && SelectedVersion is not null;
+    private bool CanPreview() => !IsLoading && GetAvailableInstallTargets().Count > 0 && SelectedPackage is not null && SelectedVersion is not null;
     private bool CanChangeInstalled() => CanManage && SelectedInstalled is not null;
     private bool CanReadDocument() => !IsLoading && SelectedPackage is not null && SelectedVersion is not null;
-    private bool CanConfirm() => CanManage && HasPlan && (!NeedsCompatibilityConfirmation || AcceptUnverified);
+    private bool CanConfirm() => !IsLoading && HasPlan && installTarget is not null;
     private bool CanUninstall() => CanManage && PendingUninstall is not null;
     private bool CanRefresh() => !IsLoading;
 
@@ -40,6 +43,7 @@ public sealed partial class ThunderstoreViewModel
             OnPropertyChanged(name);
         RefreshCommand.NotifyCanExecuteChanged();
         PreviewInstallCommand.NotifyCanExecuteChanged();
+        PreviewSelectedCommand.NotifyCanExecuteChanged();
         PreviewUpdateCommand.NotifyCanExecuteChanged();
         PreviewRepairCommand.NotifyCanExecuteChanged();
         PreviewInstalledUpdateCommand.NotifyCanExecuteChanged();
@@ -54,9 +58,7 @@ public sealed partial class ThunderstoreViewModel
     }
 
     partial void OnIsLoadingChanged(bool value) => NotifyActions();
-    partial void OnHasPlanChanged(bool value) { OnPropertyChanged(nameof(HasConfirmation)); NotifyActions(); }
-    partial void OnAcceptUnverifiedChanged(bool value) => ConfirmInstallCommand.NotifyCanExecuteChanged();
-    partial void OnNeedsCompatibilityConfirmationChanged(bool value) => ConfirmInstallCommand.NotifyCanExecuteChanged();
+    partial void OnHasPlanChanged(bool value) { OnPropertyChanged(nameof(PlanItems)); OnPropertyChanged(nameof(HasConfirmation)); NotifyActions(); }
     partial void OnPendingUninstallChanged(string? value)
     {
         OnPropertyChanged(nameof(HasUninstallConfirmation));
@@ -120,10 +122,11 @@ public sealed partial class ThunderstoreViewModel
         var expectedGeneration = generation;
         var selectedCatalog = catalog ?? throw new InvalidOperationException(loc["TsCatalogRequired"]);
         var state = await new ThunderstoreInstallService(target, store).ReadStateAsync();
-        if (expectedGeneration != generation || getTarget()?.Id != target.Id) return;
+        if (expectedGeneration != generation || !GetAvailableInstallTargets().Contains(target)) return;
         var plan = new ThunderstoreDependencyResolver(selectedCatalog).Resolve(target.GameId, target.BuildId,
             [(package.FullName, version.VersionNumber)], state.Packages);
         PresentPlan(target, plan, repair);
+        installRequests = [(package.FullName, version.VersionNumber)];
     }
 
     public int ContextVersion => generation;

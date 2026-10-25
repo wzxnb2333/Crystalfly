@@ -227,10 +227,8 @@ public sealed class SteamChunkCache
 
     private void EnsureRootIsSafe()
     {
-        string? parent = Path.GetDirectoryName(root);
-        if (parent is not null)
-            EnsureNotReparsePoint(parent);
-        EnsureNotReparsePoint(root);
+        for (string? current = root; current is not null; current = Path.GetDirectoryName(current))
+            EnsureNotReparsePoint(current);
     }
 
     private static void EnsureNotReparsePoint(string path)

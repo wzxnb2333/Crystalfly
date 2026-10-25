@@ -12,12 +12,14 @@ public sealed partial class ThunderstoreViewModel
     private int documentRequest;
     private SilksongTranslatedDocument? loadedDocument;
     private bool Chinese => loc.Culture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
-    public IReadOnlyList<ThunderstorePackageDisplayItem> PackageDisplayItems => Packages.Select(item => Display(item, item.Latest)).ToArray();
+    private IReadOnlyList<ThunderstorePackageDisplayItem>? packageDisplayItems;
+    public IReadOnlyList<ThunderstorePackageDisplayItem> PackageDisplayItems => packageDisplayItems ??=
+        Packages.Select(item => Display(item, item.Latest)).ToArray();
     public IReadOnlyList<ThunderstoreInstalledDisplayItem> InstalledDisplayItems => InstalledMods
         .Select(item => new ThunderstoreInstalledDisplayItem(item, DisplayName(item.FullName))).ToArray();
     public ThunderstorePackageDisplayItem? SelectedDisplayPackage
     {
-        get => SelectedPackage is null ? null : Display(SelectedPackage, SelectedPackage.Latest);
+        get => PackageDisplayItems.FirstOrDefault(item => item.FullName == SelectedPackage?.FullName);
         set { if (!projecting && value is not null) SelectedPackage = value.Package; }
     }
     public ThunderstoreInstalledDisplayItem? SelectedInstalledDisplay
@@ -30,6 +32,8 @@ public sealed partial class ThunderstoreViewModel
     public bool HasSelectedOriginalName => Chinese && SelectedPackageName != SelectedPackageOriginalName;
     public string SelectedDescription => SelectedPackage is null ? "" : Display(SelectedPackage, SelectedVersion).Description;
     public string SelectedOriginalDescription => SelectedVersion?.Description ?? "";
+    public string SelectedCategories => string.Join(" · ", SelectedPackage?.Categories ?? []);
+    public string SelectedDependencies => string.Join("\n", SelectedVersion?.Dependencies ?? []);
     public bool HasSelectedOriginalDescription => SelectedDescription != SelectedOriginalDescription;
     public string PendingUninstallDisplay => PendingUninstall is null ? "" : DisplayName(PendingUninstall) + "\n" + PendingUninstall;
     public string SelectedInstalledName => SelectedInstalled is null ? "" : DisplayName(SelectedInstalled.FullName);
@@ -51,11 +55,15 @@ public sealed partial class ThunderstoreViewModel
         var translated = Chinese && translatedVersion?.Description is not null && version is not null
             && translatedVersion.DescriptionSha256?.Equals(SilksongModTranslationSource.Hash(version.Description), StringComparison.OrdinalIgnoreCase) == true;
         return new(package, name, Chinese && name != package.Name ? package.Name : "",
-            translated ? translatedVersion!.Description! : version?.Description ?? "", translated);
+            translated ? translatedVersion!.Description! : version?.Description ?? "", translated)
+        {
+            IsSelected = selectedPackages.Contains(package.FullName),
+            SelectionChanged = selected => SetPackageSelected(package.FullName, selected)
+        };
     }
 
     private string DisplayName(string fullName, string? original = null) => Chinese && translations.Find(fullName) is { } entry
-        ? entry.DisplayName : original ?? fullName;
+        ? entry.DisplayName : original ?? catalog?.Packages.FirstOrDefault(item => item.FullName == fullName)?.Name ?? fullName;
 
     private bool MatchesSearch(ThunderstorePackage package, string query)
     {
@@ -70,15 +78,17 @@ public sealed partial class ThunderstoreViewModel
 
     private void NotifyTranslationProjection()
     {
+        packageDisplayItems = null;
         projecting = true;
         try
         {
             foreach (var name in new[] { nameof(PackageDisplayItems), nameof(InstalledDisplayItems), nameof(SelectedDisplayPackage),
                 nameof(SelectedInstalledDisplay), nameof(SelectedPackageName), nameof(SelectedPackageOriginalName), nameof(HasSelectedOriginalName),
                 nameof(SelectedDescription), nameof(SelectedOriginalDescription), nameof(HasSelectedOriginalDescription), nameof(TranslationNotice),
-                nameof(PendingUninstallDisplay), nameof(SelectedInstalledName) })
+                nameof(PendingUninstallDisplay), nameof(SelectedInstalledName), nameof(SelectedCategories), nameof(SelectedDependencies) })
                 OnPropertyChanged(name);
             if (pendingPlan is not null) PreviewText = PlanText(pendingPlan);
+            OnPropertyChanged(nameof(PlanItems));
         }
         finally { projecting = false; }
     }

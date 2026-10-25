@@ -201,7 +201,7 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task VerifiedChunkCacheIsSharedAcrossSeparateDownloads()
+    public async Task SuccessfulDownloadClearsCacheInsteadOfKeepingItForAnotherDownload()
     {
         byte[] content = "shared steam chunk"u8.ToArray();
         string chunkId = Convert.ToHexString(SHA1.HashData(content));
@@ -216,13 +216,15 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
             var firstSource = new MemoryContentClient(manifest, content);
             await new SteamDepotDownloadService(firstSource).DownloadAsync(
                 new SteamDownloadRequest(firstStaging, 123, ChunkCacheDirectory: cacheRoot));
+            Assert.Empty(Directory.EnumerateFiles(cacheRoot, "*", SearchOption.AllDirectories));
             var secondSource = new MemoryContentClient(manifest, content);
 
             await new SteamDepotDownloadService(secondSource).DownloadAsync(
                 new SteamDownloadRequest(secondStaging, 123, ChunkCacheDirectory: cacheRoot));
 
             Assert.Equal(1, firstSource.DownloadedChunkCount);
-            Assert.Equal(0, secondSource.DownloadedChunkCount);
+            Assert.Equal(1, secondSource.DownloadedChunkCount);
+            Assert.Empty(Directory.EnumerateFiles(cacheRoot, "*", SearchOption.AllDirectories));
             Assert.Equal(content, await File.ReadAllBytesAsync(Path.Combine(secondStaging, "game.dat")));
         }
         finally
@@ -261,6 +263,7 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
             await source.WaitForFinishedAsync(firstId).WaitAsync(TimeSpan.FromSeconds(5));
             source.FailChunk(secondId, new IOException("failed"));
             await Assert.ThrowsAsync<IOException>(() => failed);
+            Assert.Single(Directory.EnumerateFiles(cacheRoot, "*.chunk", SearchOption.AllDirectories));
 
             var retrySource = new MemoryContentClient(manifest, first, second);
             await new SteamDepotDownloadService(retrySource).DownloadAsync(
@@ -269,6 +272,7 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
             Assert.Equal(1, retrySource.DownloadedChunkCount);
             Assert.Equal(first, await File.ReadAllBytesAsync(Path.Combine(retryStaging, "first.dat")));
             Assert.Equal(second, await File.ReadAllBytesAsync(Path.Combine(retryStaging, "second.dat")));
+            Assert.Empty(Directory.EnumerateFiles(cacheRoot, "*", SearchOption.AllDirectories));
         }
         finally
         {
@@ -279,6 +283,46 @@ public sealed class SteamDepotDownloadServiceTests : IDisposable
                 if (Directory.Exists(path))
                     Directory.Delete(path, recursive: true);
             }
+        }
+    }
+
+    [Fact]
+    public async Task CancelledDownloadKeepsChunksForRetryAndSuccessfulRetryPreservesOtherTaskCache()
+    {
+        byte[][] chunks = CreateChunks(17);
+        var manifest = new SteamDepotManifest(123, chunks.Select((bytes, index) =>
+            DepotFile($"{index}.dat", Convert.ToHexString(SHA1.HashData(bytes)), bytes)).ToArray());
+        string cacheRoot = Path.Combine(_staging, "cache");
+        string taskCache = Path.Combine(cacheRoot, "current-task");
+        string otherTaskCache = Directory.CreateDirectory(Path.Combine(cacheRoot, "paused-task")).FullName;
+        string sentinel = Path.Combine(otherTaskCache, "keep.chunk");
+        await File.WriteAllTextAsync(sentinel, "other task resume data");
+        var source = new ControlledContentClient(manifest, chunks);
+        using var cancellation = new CancellationTokenSource();
+        Task<SteamDownloadResult> cancelled = new SteamDepotDownloadService(source).DownloadAsync(
+            new SteamDownloadRequest(Path.Combine(_staging, "cancelled"), 123, ChunkCacheDirectory: taskCache),
+            cancellation.Token);
+        try
+        {
+            await source.WaitForStartedAsync(16).WaitAsync(TimeSpan.FromSeconds(5));
+            cancellation.Cancel();
+            source.ReleaseAll();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => cancelled);
+            Assert.Equal(16, Directory.EnumerateFiles(taskCache, "*.chunk", SearchOption.AllDirectories).Count());
+
+            var retrySource = new MemoryContentClient(manifest, chunks);
+            await new SteamDepotDownloadService(retrySource).DownloadAsync(
+                new SteamDownloadRequest(Path.Combine(_staging, "retry"), 123, ChunkCacheDirectory: taskCache));
+
+            Assert.Equal(1, retrySource.DownloadedChunkCount);
+            Assert.Empty(Directory.EnumerateFiles(taskCache, "*", SearchOption.AllDirectories));
+            Assert.Equal("other task resume data", await File.ReadAllTextAsync(sentinel));
+            Assert.Equal(chunks[16], await File.ReadAllBytesAsync(Path.Combine(_staging, "retry", "16.dat")));
+        }
+        finally
+        {
+            source.ReleaseAll();
+            await IgnoreFailureAsync(cancelled);
         }
     }
 

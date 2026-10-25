@@ -2,23 +2,192 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Headless;
+using Avalonia.Input;
+using Avalonia.Media.Imaging;
 using Avalonia.Interactivity;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using System.Net;
 using Crystalfly.App.ViewModels;
+using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views;
+using Crystalfly.App.Views.Dialogs;
 using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Serialization;
 using Crystalfly.Core.Thunderstore;
 
 namespace Crystalfly.App.Tests.Ui;
 
 public sealed class ThunderstoreUiTests
 {
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Install_target_radio_replans_and_restores_selection_on_conflict(bool conflict)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "Crystalfly.Ts.TargetUi", Guid.NewGuid().ToString("N"));
+        static ThunderstoreVersion Version(string owner, string name, string version) => new()
+        {
+            Name = name, FullName = $"{owner}-{name}-{version}", VersionNumber = version, FileSize = 100,
+            DownloadUrl = $"https://thunderstore.io/package/download/{owner}/{name}/{version}/"
+        };
+        var package = new ThunderstorePackage { Owner = "Author", Name = "Main", FullName = "Author-Main",
+            Versions = [Version("Author", "Main", "2.0.0"), Version("Author", "Main", "1.0.0")] };
+        var loader = new ThunderstorePackage { Owner = "silksong_modding", Name = "BepInExPack_Silksong", FullName = SilksongLoaderAdapter.PackageName,
+            Versions = [Version("silksong_modding", "BepInExPack_Silksong", SilksongLoaderAdapter.PackageVersion)] };
+        var path = Path.Combine(root, "catalog.json");
+        await AtomicJsonStore.WriteAsync(path, new ThunderstoreCatalog { Packages = [package, loader] });
+        var first = new InstanceRecord { Id = "first", GameId = GameId.Silksong, Name = "First instance", BuildId = "first-build", RootPath = Path.Combine(root, "first") };
+        var second = first with { Id = "second", Name = "Second instance", BuildId = "second-build", RootPath = Path.Combine(root, "second") };
+        if (conflict)
+            await AtomicJsonStore.WriteAsync(Path.Combine(second.RootPath, ThunderstoreInstallService.MetadataDirectory, "installed.json"),
+                new ThunderstoreInstallState { Packages = [new() { FullName = package.FullName, Version = "1.0.0", Pinned = true, ArchiveSha256 = new string('A', 64) }] });
+        using var client = new HttpClient();
+        var model = new ThunderstoreViewModel(new(), new(client, path), new(client, Path.Combine(root, "cache")),
+            () => first, () => true, _ => Task.CompletedTask, () => Task.CompletedTask, getInstallTargets: () => [first, second]);
+        await model.RefreshCommand.ExecuteAsync(null);
+        Assert.Null(model.Error);
+        model.SelectedPackage = package;
+        await model.PreviewInstallCommand.ExecuteAsync(null);
+        Assert.True(model.HasPlan, model.Error);
+        using var dialog = new ThunderstoreConfirmationDialogViewModel(model);
+        var view = new ThunderstoreConfirmationDialogView { DataContext = dialog };
+        var window = new Window { Content = view, Width = 700, Height = 510 };
+        window.Show();
+        try
+        {
+            Layout(window);
+            var radios = view.GetVisualDescendants().OfType<RadioButton>().ToArray();
+            Assert.True(radios[0].IsChecked);
+            var point = radios[1].TranslatePoint(new Point(30, radios[1].Bounds.Height / 2), window)!.Value;
+            window.MouseDown(point, MouseButton.Left, RawInputModifiers.None);
+            window.MouseUp(point, MouseButton.Left, RawInputModifiers.None);
+            for (var i = 0; i < 100 && model.IsLoading; i++) { Layout(window); await Task.Delay(10); }
+            Layout(window);
+            Assert.False(model.IsLoading);
+            Assert.Equal(conflict ? first.Name : second.Name, model.InstallTargetName);
+            Assert.Equal(conflict, radios[0].IsChecked);
+            Assert.Equal(!conflict, radios[1].IsChecked);
+            Assert.Equal(conflict, model.Error is not null);
+            Assert.True(model.HasPlan);
+            Assert.True(model.ConfirmInstallCommand.CanExecute(null));
+            var screenshotRoot = Environment.GetEnvironmentVariable("CRYSTALFLY_BATCH_MOD_PREVIEW_DIR");
+            if (!conflict && !string.IsNullOrWhiteSpace(screenshotRoot))
+            {
+                Directory.CreateDirectory(screenshotRoot);
+                window.CaptureRenderedFrame()!.Save(Path.Combine(screenshotRoot, "silksong-install-targets.png"), new PngBitmapEncoderOptions());
+            }
+        }
+        finally { window.Close(); Directory.Delete(root, true); }
+    }
+
     [AvaloniaFact]
-    public void Market_removes_target_card_and_separate_locator_and_keeps_accessible_instance_picker()
+    public void Catalog_shift_click_highlights_multiple_mods_without_opening_detail()
+    {
+        using var client = new HttpClient();
+        var model = CreateModel(client, UiLanguage.SimplifiedChinese);
+        foreach (var name in new[] { "First", "Second" })
+            model.Packages.Add(new ThunderstorePackage { Name = name, Owner = "Author", FullName = "Author-" + name,
+                Versions = [new() { Name = name, VersionNumber = "1.0.0" }] });
+        var view = new ThunderstoreView { DataContext = model };
+        var window = new Window { Content = view, Width = 700, Height = 600 };
+        window.Show();
+        try
+        {
+            Layout(window);
+            var list = view.FindControl<ListBox>("CatalogList")!;
+            Assert.Empty(list.GetVisualDescendants().OfType<CheckBox>());
+            var rows = list.GetVisualDescendants().OfType<ListBoxItem>().ToArray();
+            Assert.Equal(2, rows.Length);
+            foreach (var row in rows.Concat([rows[0], rows[0]]))
+            {
+                var point = row.TranslatePoint(new Point(row.Bounds.Width / 2, row.Bounds.Height / 2), window)!.Value;
+                window.MouseDown(point, MouseButton.Left, RawInputModifiers.Shift);
+                window.MouseUp(point, MouseButton.Left, RawInputModifiers.Shift);
+                window.MouseMove(new Point(1, 1), RawInputModifiers.None);
+                Layout(window);
+                Assert.True(view.FindControl<Border>("CatalogPane")!.IsVisible);
+                Assert.Null(model.SelectedPackage);
+                var selected = ((ThunderstorePackageDisplayItem)row.DataContext!).IsSelected;
+                Assert.Equal(selected, row.GetVisualDescendants().OfType<Border>().Any(border => border.Classes.Contains("cfp-batch-selected")));
+                if (selected)
+                    Assert.True(Assert.IsAssignableFrom<Avalonia.Media.ISolidColorBrush>(row.GetVisualDescendants().OfType<Border>()
+                        .Single(border => border.Classes.Contains("cfp-batch-selected")).Background).Color.A > 0);
+            }
+            Assert.Equal(2, model.SelectedPackageCount);
+            Assert.All(model.PackageDisplayItems, item => Assert.True(item.IsSelected));
+            Assert.True(model.PreviewSelectedCommand.CanExecute(null));
+            var screenshotRoot = Environment.GetEnvironmentVariable("CRYSTALFLY_BATCH_MOD_PREVIEW_DIR");
+            if (!string.IsNullOrWhiteSpace(screenshotRoot))
+            {
+                Directory.CreateDirectory(screenshotRoot);
+                window.CaptureRenderedFrame()!.Save(Path.Combine(screenshotRoot, "silksong-market-selection.png"), new PngBitmapEncoderOptions());
+            }
+            model.ClearPackageSelectionCommand.Execute(null);
+            Layout(window);
+            Assert.Equal(0, model.SelectedPackageCount);
+            Assert.All(model.PackageDisplayItems, item => Assert.False(item.IsSelected));
+            Assert.DoesNotContain(view.GetVisualDescendants().OfType<Border>(), border => border.Classes.Contains("cfp-batch-selected"));
+            var detailPoint = rows[0].TranslatePoint(new Point(80, rows[0].Bounds.Height / 2), window)!.Value;
+            window.MouseDown(detailPoint, MouseButton.Left, RawInputModifiers.None);
+            window.MouseUp(detailPoint, MouseButton.Left, RawInputModifiers.None);
+            Layout(window);
+            Assert.NotNull(model.SelectedPackage);
+            Assert.False(view.FindControl<Border>("CatalogPane")!.IsVisible);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Installed_rows_show_hover_and_selection_without_moving_content(bool dark)
+    {
+        using var client = new HttpClient();
+        var model = CreateModel(client, UiLanguage.SimplifiedChinese);
+        var package = new ThunderstoreInstalledPackage { FullName = "Author-Example", Version = "1.0.0" };
+        model.Installed.Add(package);
+        model.InstalledMods.Add(package);
+        var previous = Application.Current!.RequestedThemeVariant;
+        Application.Current.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
+        var view = new ThunderstoreView { DataContext = model, Workspace = "Mods" };
+        var window = new Window { Content = view, Width = 700, Height = 600 };
+        window.Show();
+        try
+        {
+            Layout(window);
+            var list = view.FindControl<ListBox>("InstalledList")!;
+            var row = Assert.Single(list.GetVisualDescendants().OfType<ListBoxItem>());
+            var bounds = row.Bounds;
+            var label = row.GetVisualDescendants().OfType<TextBlock>().First(text => text.Text == package.FullName);
+            var labelPosition = label.TranslatePoint(default, row);
+            var background = row.Background;
+            var point = row.TranslatePoint(new Point(40, row.Bounds.Height / 2), window)!.Value;
+            window.MouseMove(point, RawInputModifiers.None);
+            Layout(window);
+            Assert.True(row.IsPointerOver);
+            Assert.NotEqual(background, row.Background);
+            list.SelectedIndex = 0;
+            window.MouseMove(new Point(1, 1), RawInputModifiers.None);
+            Layout(window);
+            Assert.NotEqual(background, row.Background);
+            Assert.Equal(bounds.Height, row.Bounds.Height);
+            row = Assert.Single(list.GetVisualDescendants().OfType<ListBoxItem>());
+            label = row.GetVisualDescendants().OfType<TextBlock>().First(text => text.Text == package.FullName);
+            Assert.Equal(labelPosition, label.TranslatePoint(default, row));
+            Assert.True(row.Focus(NavigationMethod.Tab));
+            Layout(window);
+            Assert.Equal(new Thickness(2), row.BorderThickness);
+            Assert.Equal(labelPosition, label.TranslatePoint(default, row));
+        }
+        finally { window.Close(); Application.Current.RequestedThemeVariant = previous; }
+    }
+
+    [AvaloniaFact]
+    public void Market_omits_instance_and_refresh_buttons_while_management_keeps_them()
     {
         using var client = new HttpClient();
         var model = CreateModel(client, UiLanguage.SimplifiedChinese);
@@ -36,13 +205,19 @@ public sealed class ThunderstoreUiTests
             Assert.Equal(model.Loc["TsSearchOrLocate"], AutomationProperties.GetName(search));
             Assert.True(search.Bounds.Width > 200);
             var selector = view.FindControl<Button>("SelectTargetInstance")!;
-            Assert.True(Visible(selector));
-            Assert.Equal(model.Loc["SelectInstance"], AutomationProperties.GetName(selector));
+            var refresh = view.FindControl<Button>("RefreshWorkspace")!;
+            Assert.False(Visible(selector));
+            Assert.False(Visible(refresh));
             foreach (var button in view.GetVisualDescendants().OfType<Button>().Where(Visible))
             {
                 var position = button.TranslatePoint(default, view)!.Value;
                 Assert.True(position.X >= -1 && position.X + button.Bounds.Width <= view.Bounds.Width + 1);
             }
+            view.Workspace = "Mods";
+            Layout(window);
+            Assert.True(Visible(selector));
+            Assert.True(Visible(refresh));
+            Assert.Equal(model.Loc["SelectInstance"], AutomationProperties.GetName(selector));
         }
         finally { window.Close(); }
     }
@@ -103,21 +278,31 @@ public sealed class ThunderstoreUiTests
     {
         using var client = new HttpClient();
         var model = CreateModel(client, language);
-        model.PreviewText = string.Join(Environment.NewLine, Enumerable.Range(1, 40).Select(i => $"Author-Dependency{i} 1.0.0 → 2.0.0"));
+        var plan = new ThunderstoreInstallPlan(GameId.Silksong, "test", Enumerable.Range(1, 40).Select(i =>
+            new ThunderstoreResolvedPackage(new() { Name = $"Dependency{i}", FullName = $"Author-Dependency{i}" },
+                new() { VersionNumber = "2.0.0" }, "1.0.0")).ToArray(), ["unverified"]);
+        var target = new InstanceRecord { Id = "silk", GameId = GameId.Silksong, Name = "Test", BuildId = "test", RootPath = "C:/test" };
+        typeof(ThunderstoreViewModel).GetField("pendingPlan", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(model, plan);
+        typeof(ThunderstoreViewModel).GetField("installTarget", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(model, target);
+        model.InstallTargets.Add(new(model, target));
+        model.InstallTargets.Add(new(model, target with { Id = "second", Name = "Second instance" }));
+        model.InstallTargets.Add(new(model, target with { Id = "third", Name = "Third instance" }));
         model.HasPlan = true;
-        model.NeedsCompatibilityConfirmation = true;
-        var view = new ThunderstoreView { DataContext = model };
+        using var dialog = new ThunderstoreConfirmationDialogViewModel(model);
+        var closed = false;
+        dialog.RequestClose += (_, _) => closed = true;
+        var view = new ThunderstoreConfirmationDialogView { DataContext = dialog };
         var window = new Window { Content = view, Width = 700, Height = 510 };
         window.Show();
         try
         {
             Layout(window);
-            var confirmation = view.FindControl<Border>("InstallConfirmation")!;
-            Assert.True(Visible(confirmation));
+            var confirmation = view;
+            Assert.Equal(40, model.PlanItems.Count);
             var confirm = confirmation.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, model.Loc["TsConfirmInstall"]));
-            Assert.False(model.ConfirmInstallCommand.CanExecute(null));
-            Assert.False(confirm.IsEffectivelyEnabled);
-            model.AcceptUnverified = true;
+            Assert.Empty(confirmation.GetVisualDescendants().OfType<CheckBox>());
+            Assert.Equal(3, confirmation.GetVisualDescendants().OfType<RadioButton>().Count());
+            Assert.True(model.ConfirmInstallCommand.CanExecute(null));
             Layout(window);
             Assert.True(confirm.IsEffectivelyEnabled);
             foreach (var button in confirmation.GetVisualDescendants().OfType<Button>())
@@ -125,12 +310,52 @@ public sealed class ThunderstoreUiTests
                 var origin = button.TranslatePoint(default, view)!.Value;
                 Assert.True(origin.Y >= 0 && origin.Y + button.Bounds.Height <= view.Bounds.Height);
             }
-            model.CancelPreviewCommand.Execute(null);
+            dialog.CancelCommand.Execute(null);
             Layout(window);
-            Assert.False(Visible(confirmation));
-            Assert.True(Visible(view.FindControl<Grid>("MarketWorkspace")!));
+            Assert.True(closed);
+            Assert.False(model.HasConfirmation);
+            Assert.Empty(model.PlanItems);
         }
         finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void Confirmation_keeps_failed_plan_and_does_not_cancel_during_submission()
+    {
+        using var client = new HttpClient();
+        var model = CreateModel(client, UiLanguage.English);
+        model.HasPlan = true;
+        using var dialog = new ThunderstoreConfirmationDialogViewModel(model);
+        var closeCount = 0;
+        dialog.RequestClose += (_, _) => closeCount++;
+        model.Error = "failed install";
+        Assert.True(model.HasPlan);
+        Assert.Equal(0, closeCount);
+        model.IsLoading = true;
+        dialog.Close();
+        Assert.True(model.HasPlan);
+        model.IsLoading = false;
+        dialog.Close();
+        Assert.False(model.HasConfirmation);
+        Assert.Equal(1, closeCount);
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Confirmation_closes_when_target_context_is_replaced(bool uninstall)
+    {
+        using var client = new HttpClient();
+        var model = CreateModel(client, UiLanguage.English);
+        if (uninstall) model.PendingUninstall = "Author-Mod"; else model.HasPlan = true;
+        using var dialog = new ThunderstoreConfirmationDialogViewModel(model);
+        var closed = false;
+        dialog.RequestClose += (_, _) => closed = true;
+        await model.SetContextAsync();
+        Assert.True(closed);
+        Assert.False(model.HasConfirmation);
+        Assert.False(model.ConfirmInstallCommand.CanExecute(null));
+        Assert.False(model.ConfirmUninstallCommand.CanExecute(null));
     }
 
     [AvaloniaFact]

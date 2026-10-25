@@ -111,6 +111,27 @@ public sealed class SteamChunkCacheTests : IDisposable
     }
 
     [Fact]
+    public async Task NestedTaskCacheRejectsReparseAncestorBeforeReadWriteOrClear()
+    {
+        string outside = Directory.CreateDirectory(Path.Combine(root, "outside")).FullName;
+        string versionRoot = Directory.CreateDirectory(Path.Combine(root, "versions")).FullName;
+        string sentinel = Path.Combine(outside, "keep.txt");
+        await File.WriteAllTextAsync(sentinel, "keep");
+        Directory.CreateSymbolicLink(Path.Combine(versionRoot, ".crystalfly"), outside);
+        var cache = new SteamChunkCache(Path.Combine(versionRoot, ".crystalfly", "steam-chunks", "task"));
+
+        await Assert.ThrowsAsync<IOException>(() => cache.GetSnapshotAsync());
+        await Assert.ThrowsAsync<IOException>(() => cache.ClearAsync());
+        await Assert.ThrowsAsync<IOException>(() => cache.GetOrDownloadAsync(
+            Chunk("content"u8.ToArray()),
+            _ => throw new InvalidOperationException("Must reject before downloading"),
+            CancellationToken.None));
+
+        Assert.Equal("keep", await File.ReadAllTextAsync(sentinel));
+        Assert.False(Directory.Exists(Path.Combine(outside, "steam-chunks")));
+    }
+
+    [Fact]
     public async Task InvalidChunkIdIsRejectedBeforeDownload()
     {
         var cache = new SteamChunkCache(root);

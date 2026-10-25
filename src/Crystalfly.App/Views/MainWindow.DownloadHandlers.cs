@@ -9,24 +9,6 @@ namespace Crystalfly.App.Views;
 
 public partial class MainWindow
 {
-    private async void ConfirmClearSteamChunkCache(object? sender, RoutedEventArgs eventArgs)
-    {
-        if (DataContext is not MainViewModel viewModel
-            || !viewModel.DownloadCenter.CanClearSteamChunkCache)
-        {
-            return;
-        }
-
-        bool confirmed = await ShowConfirmationAsync(
-            viewModel.Loc["ConfirmClearSteamChunkCacheTitle"],
-            viewModel.Loc["ConfirmClearSteamChunkCacheMessage"],
-            string.Empty,
-            viewModel,
-            confirmText: viewModel.Loc["ClearSteamChunkCache"]);
-        if (confirmed)
-            await viewModel.DownloadCenter.ClearSteamChunkCacheCommand.ExecuteAsync(null);
-    }
-
     private async void ShowHistoricalManifestDownloadDialog(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is not MainViewModel viewModel)
@@ -71,7 +53,7 @@ public partial class MainWindow
 
     private async void OpenMarketInstallDialog(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel viewModel || viewModel.SelectedMarketMod is not { } mod)
+        if (DataContext is not MainViewModel viewModel || viewModel.GetMarketInstallModIds().Count == 0)
         {
             return;
         }
@@ -84,14 +66,15 @@ public partial class MainWindow
 
         try
         {
+            var requested = viewModel.GetMarketInstallModIds();
             await viewModel.PrepareMarketInstallTargetsCommand.ExecuteAsync(null);
-            if (!IsVisible || !ReferenceEquals(viewModel.SelectedMarketMod, mod))
+            if (!IsVisible || !viewModel.GetMarketInstallModIds().SequenceEqual(requested, StringComparer.OrdinalIgnoreCase))
             {
                 return;
             }
             using var dialogViewModel = new MarketInstallDialogViewModel(
                 viewModel,
-                mod.DisplayName ?? mod.Name);
+                viewModel.MarketInstallName);
             await dialogViewModel.LoadPlanAsync();
             marketInstallDialogTask = OverlayDialog.ShowCustomAsync<
                 MarketInstallDialogView,

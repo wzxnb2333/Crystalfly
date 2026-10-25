@@ -44,13 +44,19 @@ public sealed class ModInstallService
         _modManager = modManager;
     }
 
+    public Task<ModInstallPlan> CreatePlanAsync(string modId, CancellationToken cancellationToken = default) =>
+        CreatePlanAsync([modId], cancellationToken);
+
     public async Task<ModInstallPlan> CreatePlanAsync(
-        string modId,
+        IReadOnlyList<string> modIds,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var order = ModDependencyResolver.ResolveInstallOrder(_catalog, [modId]);
-        var evaluation = await EvaluateAsync(modId, cancellationToken);
+        ArgumentNullException.ThrowIfNull(modIds);
+        var requested = modIds.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (requested.Length == 0) throw new ArgumentException("Select at least one mod.", nameof(modIds));
+        var order = ModDependencyResolver.ResolveInstallOrder(_catalog, requested);
+        var evaluation = await EvaluateAsync(requested, cancellationToken);
         var installed = (await _modManager.GetInstalledAsync(cancellationToken))
             .ToDictionary(receipt => receipt.Id, StringComparer.OrdinalIgnoreCase);
         var loaderManifest = _loaders.FirstOrDefault(loader =>
@@ -119,7 +125,7 @@ public sealed class ModInstallService
 
             items.Add(new ModInstallPlanItem
             {
-                Kind = string.Equals(manifest.Id, modId, StringComparison.OrdinalIgnoreCase)
+                Kind = requested.Contains(manifest.Id, StringComparer.OrdinalIgnoreCase)
                     ? ModInstallPlanItemKind.Mod
                     : ModInstallPlanItemKind.Dependency,
                 State = state,
@@ -133,18 +139,25 @@ public sealed class ModInstallService
 
         return new ModInstallPlan
         {
-            ModId = modId,
+            ModId = order[^1].Id,
+            RequestedModIds = requested,
             InstanceId = _instance.Id,
             InstanceName = _instance.Name,
             Items = items
         };
     }
 
+    public Task<ModInstallEvaluation> EvaluateAsync(string modId, CancellationToken cancellationToken = default) =>
+        EvaluateAsync([modId], cancellationToken);
+
     public async Task<ModInstallEvaluation> EvaluateAsync(
-        string modId,
+        IReadOnlyList<string> modIds,
         CancellationToken cancellationToken = default)
     {
-        var order = ModDependencyResolver.ResolveInstallOrder(_catalog, [modId]);
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(modIds);
+        if (modIds.Count == 0) throw new ArgumentException("Select at least one mod.", nameof(modIds));
+        var order = ModDependencyResolver.ResolveInstallOrder(_catalog, modIds);
         var requiredLoaderId = order[^1].LoaderId;
         var loader = await _loaderManager.InspectAsync(cancellationToken);
         string? incompatibility = _instance.Purpose == InstancePurpose.OfficialSpeedrun

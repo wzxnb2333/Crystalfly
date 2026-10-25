@@ -20,6 +20,29 @@ public sealed class CatalogPackageQueueExecutorTests : IDisposable
     private readonly SemaphoreSlim networkGate = new(3, 3);
 
     [Fact]
+    public async Task Batch_installs_both_requested_mods_and_rechecks_satisfied_packages()
+    {
+        using var fixture = await CreateFixtureAsync();
+        var group = fixture.Group with { Items = fixture.Group.Items.Select(item =>
+            item.PackageId == "bridge" ? item with { Kind = DownloadQueueItemKind.Mod } : item).ToArray() };
+        foreach (var item in group.Items)
+        {
+            await fixture.Executor.TransferAsync(group, item, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+            await fixture.Executor.InstallAsync(group, item, CancellationToken.None);
+        }
+        var requests = fixture.Handler.RequestCount;
+        foreach (var item in group.Items.Select(item => item with { IsSatisfied = true }))
+        {
+            await fixture.Executor.TransferAsync(group, item, new InlineProgress(_ => { }), networkGate, CancellationToken.None);
+            await fixture.Executor.InstallAsync(group, item, CancellationToken.None);
+        }
+        Assert.Equal(4, requests);
+        Assert.Equal(requests, fixture.Handler.RequestCount);
+        Assert.True(File.Exists(Path.Combine(fixture.InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "Bridge", "bridge.dll")));
+        Assert.True(File.Exists(Path.Combine(fixture.InstanceRoot, "hollow_knight_Data", "Managed", "Mods", "Feature", "feature.dll")));
+    }
+
+    [Fact]
     public async Task Installs_loader_recursive_dependency_and_requested_mod()
     {
         using var fixture = await CreateFixtureAsync();

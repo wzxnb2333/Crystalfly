@@ -36,6 +36,8 @@ public sealed record ModInstallPlan
 {
     public required string ModId { get; init; }
 
+    public IReadOnlyList<string> RequestedModIds { get; init; } = [];
+
     public required string InstanceId { get; init; }
 
     public required string InstanceName { get; init; }

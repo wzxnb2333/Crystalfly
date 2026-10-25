@@ -51,13 +51,11 @@ public static class InstanceDirectory
     }
 
     /// <summary>
-    /// Validates that an empty folder can be registered as a version root and
-    /// prepares its managed metadata directory. Unlike
-    /// <see cref="PrepareRegistration"/>, this does not require the folder itself
-    /// to contain a complete game installation; it must only be empty (an
-    /// existing <c>.crystalfly</c> metadata directory is allowed).
+    /// Prepares a version root and its managed metadata directory. New roots
+    /// must be empty except for <c>.crystalfly</c> metadata; a root already
+    /// registered in settings may contain instances of another game.
     /// </summary>
-    public static void PrepareVersionRootRegistration(string versionRoot)
+    public static void PrepareVersionRootRegistration(string versionRoot, bool isRegisteredVersionRoot = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(versionRoot);
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(versionRoot));
@@ -72,7 +70,7 @@ public static class InstanceDirectory
             throw new InvalidDataException(
                 "The selected directory is a complete game installation, not a version root.");
         }
-        if (!IsEmptyVersionRoot(root))
+        if (!isRegisteredVersionRoot && !IsEmptyVersionRoot(root))
         {
             throw new InvalidDataException(
                 "The selected directory is not empty. A new version root must be an empty folder.");

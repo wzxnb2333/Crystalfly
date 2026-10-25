@@ -15,15 +15,10 @@ public partial class MainViewModel
 {
     private readonly InstanceOperationCoordinator instanceOperationCoordinator = new();
 
-    partial void OnVersionRootChanged(string value) =>
-        _ = DownloadCenter?.RefreshSteamChunkCacheStatusCommand.ExecuteAsync(null);
-
     partial void OnCurrentDownloadSectionChanged(string value)
     {
         NotifyGameSurfacesChanged();
         if (IsSilksong && value == "ModMarket") _ = Thunderstore.EnsureLoadedAsync();
-        if (value == "GameVersions")
-            _ = DownloadCenter.RefreshSteamChunkCacheStatusCommand.ExecuteAsync(null);
     }
 
     private DownloadQueueService CreateDownloadQueue()
@@ -101,15 +96,14 @@ public partial class MainViewModel
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(target);
-        var mod = SelectedMarketMod
-            ?? throw new InvalidOperationException(Loc["SelectMod"]);
+        if (marketInstallModIds.Count == 0) throw new InvalidOperationException(Loc["SelectMod"]);
         return await CreateModInstallService(target.Instance.Record)
-            .CreatePlanAsync(mod.Id, cancellationToken);
+            .CreatePlanAsync(marketInstallModIds, cancellationToken);
     }
 
     private async Task EnqueueSelectedMarketModAsync()
     {
-        if (SelectedMarketMod is null
+        if (marketInstallModIds.Count == 0
             || SelectedMarketInstallTarget is null
             || !SelectedMarketInstallTarget.IsAvailable)
         {

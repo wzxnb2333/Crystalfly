@@ -52,7 +52,7 @@
         <vm:MainViewModel />
     </Design.DataContext>
 
-    <Grid RowDefinitions="Auto,Auto,*">
+    <Grid RowDefinitions="Auto,Auto,*" IsHitTestVisible="{Binding !IsSwitchingGame}">
         <Image x:Name="ClientBackgroundImage"
                Grid.RowSpan="3"
                Source="{Binding Settings.ActiveBackgroundImage}"
@@ -71,7 +71,7 @@
                                 Spacing="2"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
-                                IsEnabled="{Binding CanNavigate}">
+                                IsEnabled="{Binding IsWorkspaceEnabled}">
                     <Button AutomationProperties.Name="{Binding Loc[NavLaunch]}"
                             Classes="cfp-nav"
                             Classes.active="{Binding IsLaunchPage}"
@@ -147,22 +147,6 @@
                     <Button Grid.Column="2" Classes="cfp-icon" Command="{Binding DismissErrorReportingNoticeCommand}"
                             AutomationProperties.Name="{Binding Loc[DismissErrorReportingNotice]}"
                             ToolTip.Tip="{Binding Loc[DismissErrorReportingNotice]}" Content="{LucideIconContent X, 16}" />
-                </Grid>
-            </Border>
-            <Border Classes="cfp-error"
-                    IsVisible="{Binding ErrorMessage, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                    <ScrollViewer MaxHeight="112"
-                                  HorizontalScrollBarVisibility="Disabled"
-                                  VerticalAlignment="Center">
-                        <TextBlock Text="{Binding ErrorMessage}"
-                                   Foreground="{DynamicResource CfErrorBrush}"
-                                   AutomationProperties.LiveSetting="Polite"
-                                   TextWrapping="Wrap" />
-                    </ScrollViewer>
-                    <Button Grid.Column="1" Classes="cfp-icon" Click="DismissError" VerticalAlignment="Center"
-                            ToolTip.Tip="{Binding Loc[DismissError]}"
-                            AutomationProperties.Name="{Binding Loc[DismissError]}" Content="{LucideIconContent X, 16}" />
                 </Grid>
             </Border>
             <Border Classes="cfp-speedrun-reminder"
@@ -324,7 +308,7 @@
                                     <TextBlock Classes="cfp-page-title" Text="{Binding LaunchReadinessTitle}" />
                                     <TextBlock Classes="cfp-meta" Text="{Binding LaunchReadinessHint}" TextWrapping="Wrap" />
                                 </StackPanel>
-                                <Grid Grid.Column="1" VerticalAlignment="Center">
+                                <Grid Grid.Column="1" VerticalAlignment="Center" IsVisible="{Binding HasInstance}">
                                     <Button Name="LaunchIssuesButton" Classes="cfp-secondary cfp-launch-action"
                                             Click="ShowLaunchIssues"
                                             IsVisible="{Binding HasLaunchIssues}"
@@ -455,10 +439,6 @@
                                 </StackPanel>
                             </Border>
 
-                            <TextBlock Classes="cfp-meta"
-                                       Text="{Binding Loc[ChooseRoot]}"
-                                       TextWrapping="Wrap"
-                                       IsVisible="{Binding HasInstance, Converter={x:Static converters:BoolConverters.Not}}" />
                         </StackPanel>
 
                         <Border x:Name="CommunityRail" Grid.Column="1" Grid.Row="1"
@@ -704,7 +684,7 @@
             <Grid Classes="cfp-page" IsVisible="{Binding IsManagePage}">
                 <Grid ColumnDefinitions="176,*">
                     <Border Grid.Column="0" Classes="cfp-rail" Padding="8,16">
-                        <StackPanel Classes="cfp-manage-nav" Spacing="4" IsEnabled="{Binding CanNavigate}">
+                        <StackPanel Classes="cfp-manage-nav" Spacing="4" IsEnabled="{Binding IsWorkspaceEnabled}">
                             <Button AutomationProperties.Name="{Binding Loc[Overview]}"
                                     Classes="cfp-local-nav"
                                     Classes.active="{Binding CurrentManageTab, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=Overview}"
@@ -1624,7 +1604,7 @@
                             </StackPanel>
                         </Grid>
                     </ScrollViewer>
-                    <views:ThunderstoreView Name="ThunderstoreManager" Grid.Column="1" IsEnabled="{Binding #Root.DataContext.CanNavigate}" Workspace="{Binding #Root.DataContext.CurrentManageTab}" IsVisible="{Binding #Root.DataContext.IsSilksongModsTab}" DataContext="{Binding Thunderstore}" />
+                    <views:ThunderstoreView Name="ThunderstoreManager" Grid.Column="1" IsEnabled="{Binding #Root.DataContext.IsWorkspaceEnabled}" Workspace="{Binding #Root.DataContext.CurrentManageTab}" IsVisible="{Binding #Root.DataContext.IsSilksongModsTab}" DataContext="{Binding Thunderstore}" />
                     <Grid Grid.Column="1"
                           Classes="cfp-mods-workspace cfp-tab-panel cfp-subpage"
                           Margin="16"
@@ -1909,7 +1889,7 @@
                                         <Button Classes="cfp-primary" Command="{Binding LaunchGameCommand}" Content="{Binding Loc[SpeedrunVerifyAndLaunch]}" />
                                         <Button Classes="cfp-icon"
                                                 Click="RenameSelectedSpeedrunEnvironment"
-                                                IsEnabled="{Binding CanNavigate}"
+                                                IsEnabled="{Binding IsWorkspaceEnabled}"
                                                 ToolTip.Tip="{Binding Loc[SpeedrunRename]}"
                                                 AutomationProperties.Name="{Binding Loc[SpeedrunRename]}"
                                                 Content="{LucideIconContent Pencil, 16}" />
@@ -2153,7 +2133,7 @@
             <Grid Classes="cfp-page" IsVisible="{Binding IsDownloadsPage}">
                 <Grid ColumnDefinitions="176,*" x:CompileBindings="False">
                     <Border Grid.Column="0" Classes="cfp-rail cfp-download-rail" Padding="8,16">
-                        <StackPanel Classes="cfp-manage-nav" Spacing="4" IsEnabled="{Binding CanNavigate}">
+                        <StackPanel Classes="cfp-manage-nav" Spacing="4" IsEnabled="{Binding IsWorkspaceEnabled}">
                             <Button Classes="cfp-local-nav"
                                     Classes.active="{Binding IsGameVersionsDownloadSection}"
                                     Command="{Binding SelectDownloadSectionCommand}"
@@ -2205,27 +2185,6 @@
                                     <TextBlock Classes="cfp-caption" Text="{Binding VersionRoot}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding VersionRoot}"
                                                IsVisible="{Binding VersionRoot, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
                                 </StackPanel>
-                                <Border x:Name="SteamChunkCacheCard"
-                                        Grid.Column="1"
-                                        VerticalAlignment="Center"
-                                        Margin="12,0"
-                                        ToolTip.Tip="{Binding Loc[SteamChunkCacheHint]}">
-                                    <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="10">
-                                        <LucideIcon Kind="Database" Size="17" VerticalAlignment="Center" />
-                                        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
-                                            <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SteamChunkCacheTitle]}" />
-                                            <TextBlock Classes="cfp-meta" Text="{Binding DownloadCenter.SteamChunkCacheUsageText}" />
-                                        </StackPanel>
-                                        <Button x:Name="SteamChunkCacheClearButton"
-                                                Grid.Column="2"
-                                                Classes="cfp-icon"
-                                                Click="ConfirmClearSteamChunkCache"
-                                                IsEnabled="{Binding DownloadCenter.CanClearSteamChunkCache}"
-                                                ToolTip.Tip="{Binding Loc[ClearSteamChunkCache]}"
-                                                AutomationProperties.Name="{Binding Loc[ClearSteamChunkCache]}"
-                                                Content="{LucideIconContent Trash2, 16}" />
-                                    </Grid>
-                                </Border>
                             </Grid>
                             <Border x:Name="SteamAccountCard" Classes="cfp-card">
                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
@@ -2367,36 +2326,23 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <views:ThunderstoreView Name="ThunderstoreMarket" Grid.Column="1" IsEnabled="{Binding #Root.DataContext.CanNavigate}" IsVisible="{Binding #Root.DataContext.IsSilksongMarket}" DataContext="{Binding Thunderstore}" />
+                    <views:ThunderstoreView Name="ThunderstoreMarket" Grid.Column="1" IsEnabled="{Binding #Root.DataContext.IsWorkspaceEnabled}" IsVisible="{Binding #Root.DataContext.IsSilksongMarket}" DataContext="{Binding Thunderstore}" />
                     <Grid Grid.Column="1" Classes="cfp-subpage" IsVisible="{Binding IsHollowKnightMarket}">
                         <Grid IsVisible="{Binding IsMarketList}" RowDefinitions="Auto,*">
                             <StackPanel Grid.Row="0" Margin="16,16,16,8" Spacing="8">
-                                <StackPanel Spacing="4">
+                                <StackPanel Spacing="2">
                                     <TextBlock Classes="cfp-page-title" Text="{Binding Loc[MarketTitle]}" />
                                     <TextBlock Classes="cfp-meta" Text="{Binding Loc[MarketHint]}" TextWrapping="Wrap" />
                                 </StackPanel>
-                                <Border Classes="cfp-card cfp-market-source">
-                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                        <TextBlock Classes="cfp-row-title"
-                                                   Text="{Binding OfficialModCatalogStatus}"
-                                                   VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="1"
-                                                   Classes="cfp-meta"
-                                                   Text="{Binding OfficialModCatalogSummary}"
-                                                   TextWrapping="Wrap"
-                                                   TextAlignment="Right"
-                                                   VerticalAlignment="Center" />
-                                        <TextBlock Foreground="{DynamicResource CfErrorBrush}"
-                                                   Text="{Binding OfficialModCatalogError}"
-                                                   TextWrapping="Wrap"
-                                                   Grid.ColumnSpan="2"
-                                                   IsVisible="{Binding OfficialModCatalogError, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-                                    </Grid>
-                                </Border>
-                                <TextBox Classes="cfp-input"
-                                         Text="{Binding MarketSearchText, Mode=TwoWay}"
-                                         PlaceholderText="{Binding Loc[MarketSearch]}"
-                                         AutomationProperties.Name="{Binding Loc[MarketSearch]}" />
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBox Classes="cfp-input" Text="{Binding MarketSearchText, Mode=TwoWay}" PlaceholderText="{Binding Loc[MarketSearch]}" AutomationProperties.Name="{Binding Loc[MarketSearch]}"/>
+                                    <Button Grid.Column="1" Classes="cfp-secondary" Content="{Binding Loc[TsImportZip]}" Click="ImportLocalModPackage" IsEnabled="{Binding HasInstance}" ToolTip.Tip="{Binding Loc[ImportLocalMod]}"/>
+                                </Grid>
+                                <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasSelectedMarketMods}">
+                                    <TextBlock Text="{Binding SelectedMarketModsText}" Classes="cfp-meta" VerticalAlignment="Center"/>
+                                    <Button Classes="cfp-primary" Content="{Binding Loc[InstallSelectedMods]}" Click="OpenMarketInstallDialog"/>
+                                    <Button Classes="cfp-secondary" Content="{Binding Loc[ClearSelection]}" Command="{Binding ClearMarketSelectionCommand}"/>
+                                </StackPanel>
                                 <Grid ColumnDefinitions="*,*,*,*,*" ColumnSpacing="8" Margin="0,4,0,-4">
                                     <TextBlock Grid.Column="0" Classes="cfp-caption" Text="{Binding Loc[MarketBuild]}" />
                                     <TextBlock Grid.Column="1" Classes="cfp-caption" Text="{Binding Loc[MarketLoader]}" />
@@ -2436,10 +2382,16 @@
                                         <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
                                     </ComboBox>
                                 </Grid>
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBlock Classes="cfp-caption" Text="{Binding OfficialModCatalogStatus}"/>
+                                    <TextBlock Grid.Column="1" Classes="cfp-caption" Text="{Binding OfficialModCatalogSummary}"/>
+                                </Grid>
+                                <TextBlock Classes="cfp-error-text" Text="{Binding OfficialModCatalogError}" TextWrapping="Wrap"
+                                           IsVisible="{Binding OfficialModCatalogError, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"/>
                             </StackPanel>
 
-                            <Grid Grid.Row="1" Margin="16,0,16,16">
-                                <ListBox Classes="cfp-list cfp-market-list"
+                            <Border Grid.Row="1" Margin="16,0,16,16" Classes="cfp-list-frame"><Grid>
+                                <ListBox Name="HollowKnightCatalogList" Classes="cfp-list cfp-market-list"
                                          ItemsSource="{Binding VisibleMarketDisplayMods}"
                                          AutomationProperties.Name="{Binding Loc[ModMarket]}">
                                     <ListBox.ItemsPanel>
@@ -2449,54 +2401,35 @@
                                     </ListBox.ItemsPanel>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="vm:MarketModItemViewModel" x:CompileBindings="False">
-                                            <Button Classes="cfp-market-item"
+                                            <Button Classes="cfp-market-item cfp-catalog-item" Classes.cfp-batch-selected="{Binding IsSelected}"
                                                     HorizontalAlignment="Stretch"
                                                     HorizontalContentAlignment="Stretch"
                                                     Command="{Binding #Root.DataContext.OpenMarketModCommand}"
                                                     CommandParameter="{Binding Manifest}"
                                                     AutomationProperties.Name="{Binding PrimaryName}">
-                                                <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="10">
-                                                    <Border Width="32" Height="32" CornerRadius="8"
-                                                            Classes="cfp-icon-tile">
-                                                        <LucideIcon Kind="Package" Size="16"
-                                                                    HorizontalAlignment="Center"
-                                                                    VerticalAlignment="Center" />
+                                                <Grid ColumnDefinitions="40,*" ColumnSpacing="10" Height="44">
+                                                    <Border Width="40" Height="40" CornerRadius="6" Classes="cfp-icon-tile" VerticalAlignment="Center">
+                                                        <LucideIcon Kind="Package" Size="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                     </Border>
-                                                    <StackPanel Grid.Column="1" Spacing="2">
-                                                        <TextBlock Classes="cfp-row-title" Text="{Binding PrimaryName}" TextTrimming="CharacterEllipsis" />
-                                                        <WrapPanel Orientation="Horizontal">
-                                                            <TextBlock Classes="cfp-caption"
-                                                                       Margin="0,0,10,0"
-                                                                       Text="{Binding SecondaryName}"
-                                                                       TextTrimming="CharacterEllipsis"
-                                                                       IsVisible="{Binding HasSecondaryName}" />
-                                                            <TextBlock Classes="cfp-caption" Margin="0,0,10,0" Text="{Binding Version}" />
-                                                            <TextBlock Classes="cfp-caption" Margin="0,0,10,0" Text="{Binding LoaderId}" />
-                                                            <TextBlock Classes="cfp-caption" Text="{Binding SourceName}" />
-                                                        </WrapPanel>
-                                                        <ItemsControl ItemsSource="{Binding Tags}">
-                                                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate><Border Classes="cfp-badge cfp-market-tag" Margin="0,2,6,0"><TextBlock Classes="cfp-caption" Text="{Binding Name}" /></Border></DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
-                                                    </StackPanel>
-                                                    <LucideIcon Grid.Column="2" Kind="ChevronRight" Size="16"
-                                                                Foreground="{DynamicResource CfMutedTextBrush}"
-                                                                VerticalAlignment="Center" />
+                                                    <Grid Grid.Column="1" RowDefinitions="*,*" RowSpacing="1" VerticalAlignment="Center">
+                                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                            <TextBlock Text="{Binding PrimaryName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding PrimaryName}"/>
+                                                            <TextBlock Grid.Column="1" Classes="cfp-meta" FontWeight="Normal" Text="{Binding Version}"/>
+                                                        </Grid>
+                                                        <TextBlock Grid.Row="1" Classes="cfp-meta" FontWeight="Normal" Text="{Binding ListDescription}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ListDescription}"/>
+                                                    </Grid>
                                                 </Grid>
                                             </Button>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
-                                <TextBlock Margin="16"
-                                           Classes="cfp-meta"
-                                           Text="{Binding Loc[MarketEmpty]}"
-                                           TextAlignment="Center"
-                                           TextWrapping="Wrap"
-                                           VerticalAlignment="Center"
-                                           IsVisible="{Binding VisibleMarketDisplayMods.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}" />
-                            </Grid>
+                                <StackPanel Margin="16" Spacing="6" VerticalAlignment="Center"
+                                            IsVisible="{Binding VisibleMarketDisplayMods.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}">
+                                    <TextBlock Classes="cfp-row-title" Text="{Binding Loc[MarketEmpty]}" TextAlignment="Center" TextWrapping="Wrap"/>
+                                    <TextBlock Classes="cfp-meta" Text="{Binding Loc[TsAdjustFilters]}" TextAlignment="Center" TextWrapping="Wrap"/>
+                                    <Button Classes="cfp-secondary" Content="{Binding Loc[TsClearFilters]}" Command="{Binding ClearMarketFiltersCommand}" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid></Border>
                         </Grid>
 
                         <ScrollViewer Classes="cfp-subpage"
@@ -2593,12 +2526,11 @@
                                 <Border Classes="cfp-card" IsVisible="{Binding SelectedMarketModDisplay.HasPrimaryDescription}">
                                     <StackPanel Spacing="10">
                                         <TextBlock Text="{Binding SelectedMarketModDisplay.PrimaryDescription}" TextWrapping="Wrap" />
-                                        <StackPanel Spacing="4" IsVisible="{Binding SelectedMarketModDisplay.HasSecondaryDescription}">
-                                            <TextBlock Classes="cfp-row-title" Text="{Binding Loc[OfficialEnglishDescription]}" />
+                                        <Expander Header="{Binding Loc[OfficialEnglishDescription]}" IsVisible="{Binding SelectedMarketModDisplay.HasSecondaryDescription}"><StackPanel Spacing="4">
                                             <TextBlock Classes="cfp-meta"
                                                        Text="{Binding SelectedMarketModDisplay.SecondaryDescription}"
                                                        TextWrapping="Wrap" />
-                                        </StackPanel>
+                                        </StackPanel></Expander>
                                     </StackPanel>
                                 </Border>
 
@@ -2876,7 +2808,7 @@
             <Grid Classes="cfp-page" IsVisible="{Binding IsSettingsPage}">
                 <Grid Classes="cfp-settings-layout" ColumnDefinitions="176,*">
                     <Border Grid.Column="0" Classes="cfp-rail" Padding="8,16">
-                        <StackPanel Classes="cfp-manage-nav" Spacing="4" IsEnabled="{Binding CanNavigate}">
+                        <StackPanel Classes="cfp-manage-nav" Spacing="4" IsEnabled="{Binding IsWorkspaceEnabled}">
                             <Button AutomationProperties.Name="{Binding Loc[SettingsGeneral]}"
                                     Classes="cfp-local-nav" Classes.active="{Binding Settings.IsGeneralSettingsSection}" Command="{Binding Settings.SelectSettingsSectionCommand}" CommandParameter="General">
                                 <StackPanel Orientation="Horizontal" Spacing="8"><LucideIcon Kind="Settings2" Size="16" /><TextBlock Text="{Binding Loc[SettingsGeneral]}" /></StackPanel>

@@ -6,6 +6,31 @@ namespace Crystalfly.App.Tests.Downloads;
 
 public sealed class ModInstallQueueGroupFactoryTests
 {
+    [Fact]
+    public void Batch_queue_preserves_requested_mods_and_shared_dependency_once()
+    {
+        var catalog = Catalog() with { Mods = [Mod("library", 20), Mod("feature", 30), Mod("second", 40)] };
+        var plan = Plan(
+            Item(ModInstallPlanItemKind.Loader, ModInstallPlanItemState.Satisfied, "loader"),
+            Item(ModInstallPlanItemKind.Dependency, ModInstallPlanItemState.NeedsInstall, "library"),
+            Item(ModInstallPlanItemKind.Mod, ModInstallPlanItemState.NeedsInstall, "second"),
+            Item(ModInstallPlanItemKind.Mod, ModInstallPlanItemState.NeedsInstall, "feature"))
+            with { RequestedModIds = ["feature", "second"] };
+
+        var group = ModInstallQueueGroupFactory.Create(plan, catalog, Instance());
+
+        Assert.Equal("practice:mod:feature;second", group.DeduplicationKey);
+        Assert.Equal("second + feature", group.Name);
+        Assert.Equal(4, group.Items.Count);
+        Assert.Single(group.Items, item => item.PackageId == "library");
+        Assert.Equal(2, group.Items.Count(item => item.Kind == DownloadQueueItemKind.Mod));
+        Assert.Equal(group.DeduplicationKey, ModInstallQueueGroupFactory.Create(
+            plan with { RequestedModIds = ["second", "feature"] }, catalog, Instance()).DeduplicationKey);
+        Assert.Throws<InvalidDataException>(() => ModInstallQueueGroupFactory.Create(
+            plan with { Items = [.. plan.Items.Take(2), plan.Items[1], .. plan.Items.Skip(2)] }, catalog, Instance()));
+        Assert.Throws<InvalidDataException>(() => ModInstallQueueGroupFactory.Create(
+            plan with { Items = plan.Items.Select(item => item.Id == "second" ? item with { LoaderId = "other" } : item).ToArray() }, catalog, Instance()));
+    }
 
     [Fact]
     public void Resolves_legacy_official_package_for_latest_api78_plan()

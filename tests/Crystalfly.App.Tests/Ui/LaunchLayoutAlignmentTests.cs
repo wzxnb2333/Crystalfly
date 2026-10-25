@@ -1,8 +1,10 @@
 using System.Reflection;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Layout;
+using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -16,6 +18,37 @@ namespace Crystalfly.App.Tests.Ui;
 
 public sealed class LaunchLayoutAlignmentTests
 {
+    [AvaloniaTheory]
+    [InlineData(900, 600, UiLanguage.SimplifiedChinese)]
+    [InlineData(1100, 720, UiLanguage.SimplifiedChinese)]
+    [InlineData(1280, 720, UiLanguage.English)]
+    public async Task Empty_launch_shows_one_hint_and_no_status_badge(int width, int height, UiLanguage language)
+    {
+        await using var fixture = await Fixture.CreateAsync(width, height, language, true);
+        var model = fixture.Model;
+        var window = fixture.Window;
+        model.SelectedInstance = null;
+        model.CompleteOnboardingFromUiCommand.Execute(null);
+        model.StatusMessage = model.Loc["ChooseRoot"];
+        Fixture.Layout(window);
+
+        if (Environment.GetEnvironmentVariable("CRYSTALFLY_EMPTY_LAUNCH_PREVIEW_DIR") is { Length: > 0 } output)
+        {
+            Directory.CreateDirectory(output);
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+            using var frame = window.GetLastRenderedFrame();
+            Assert.NotNull(frame);
+            frame.Save(Path.Combine(output, $"launch-empty-{width}x{height}-{language}.png"), new PngBitmapEncoderOptions());
+        }
+
+        var hint = Assert.Single(window.GetVisualDescendants().OfType<TextBlock>(),
+            text => text.IsEffectivelyVisible && text.Text == model.LaunchReadinessHint);
+        Assert.Contains(Find<Border>(window, "LaunchHeader"), hint.GetVisualAncestors());
+        Assert.False(Find<Border>(window, "LaunchStatusBadge").IsEffectivelyVisible);
+        Assert.False(Find<Button>(window, "LaunchIssuesButton").IsEffectivelyVisible);
+        Assert.True(Find<Border>(window, "CommunityRail").IsEffectivelyVisible);
+    }
+
     [AvaloniaTheory]
     [InlineData(900, 600, UiLanguage.SimplifiedChinese, true)]
     [InlineData(900, 600, UiLanguage.English, false)]
