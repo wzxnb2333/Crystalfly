@@ -90,7 +90,9 @@ public sealed class CommunityLinkDialogViewModelTests
         Assert.Equal("Updated", Assert.Single(vm.CustomLinks).Name);
         Assert.True(await vm.RemoveAsync(custom.Id));
         Assert.Empty(saved);
-        Assert.Equal(6, vm.Links.Count);
+        Assert.Equal(8, vm.Links.Count);
+        Assert.Contains(vm.HollowKnightLinks, link => link.Url == "https://www.speedrun.com/hkmemes");
+        Assert.Contains(vm.SilksongLinks, link => link.Url == "https://www.speedrun.com/silksongmemes");
         Assert.False(await vm.RemoveAsync(vm.Links[0].Id));
     }
 

@@ -177,25 +177,15 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.True(File.Exists(Path.Combine(root, "speedrun-activity.json")));
         Assert.False(viewModel.IsSpeedrunActivityLoading);
         Assert.NotEmpty(viewModel.SpeedrunActivityStatus);
+        var baseline = await AtomicJsonStore.ReadAsync<SpeedrunActivityDocument>(Path.Combine(root, "speedrun-activity.json"));
+        Assert.Equal(Enum.GetValues<SpeedrunGame>().Order(), baseline.Boards.Values.Select(board => board.Board.Game).Order());
     }
 
     [Fact]
-    public async Task Speedrun_activity_filter_keeps_only_selected_game()
+    public async Task Speedrun_activity_filter_keeps_only_selected_board()
     {
         string root = applicationData.CreateDirectory("speedrun-partial-leaderboard");
-        using var policy = new NetworkPolicy();
-        using var httpClient = new HttpClient(new PartialSpeedrunResponseHandler());
-        var speedrunClient = new SpeedrunComClient(
-            httpClient,
-            Path.Combine(root, "speedrun-cache"),
-            policy);
-        await using var viewModel = new MainViewModel(
-            root,
-            speedrunComClientOverride: speedrunClient)
-        {
-            CurrentPage = "Speedrun",
-            CurrentSpeedrunTab = "Activity"
-        };
+        await using var viewModel = new MainViewModel(root);
         viewModel.SpeedrunActivities.Add(new(new(
             "hollow", SpeedrunActivityKind.WorldRecord,
             new(SpeedrunGame.HollowKnight, "c", "Any%", null, null, []),
@@ -207,9 +197,31 @@ public sealed class MainViewModelStateTests : IDisposable
             new("silk", 2, "Runner", "PT2M", 120, DateTimeOffset.UtcNow, null),
             DateTimeOffset.UtcNow), "第二名", "空洞骑士：丝之歌 · Any%"));
 
-        viewModel.SelectSpeedrunActivityFilterCommand.Execute("HollowKnight");
+        foreach (var game in new[] { SpeedrunGame.HollowKnightExtensions, SpeedrunGame.SilksongExtensions })
+        {
+            var entry = new SpeedrunActivityEntry(game.ToString(), SpeedrunActivityKind.WorldRecord,
+                new(game, "c", "Extension", null, null, []),
+                new(game.ToString(), 1, "Runner", "PT1M", 60, DateTimeOffset.UtcNow, null), DateTimeOffset.UtcNow);
+            var item = (SpeedrunActivityItemViewModel)typeof(MainViewModel)
+                .GetMethod("ProjectActivity", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(viewModel, [entry])!;
+            Assert.Contains(viewModel.Loc["SpeedrunCategoryExtensions"], item.BoardName);
+            viewModel.SpeedrunActivities.Add(item);
+        }
 
-        Assert.Equal("hollow", Assert.Single(viewModel.VisibleSpeedrunActivities).RunId);
+        foreach (var (filter, expectedRunId) in new[]
+        {
+            ("HollowKnightExtensions", nameof(SpeedrunGame.HollowKnightExtensions)), ("HollowKnight", "hollow"),
+            ("Silksong", "silk"), ("SilksongExtensions", nameof(SpeedrunGame.SilksongExtensions))
+        })
+        {
+            viewModel.SelectSpeedrunActivityFilterCommand.Execute(filter);
+            Assert.Equal(expectedRunId, Assert.Single(viewModel.VisibleSpeedrunActivities).RunId);
+        }
+        viewModel.SelectSpeedrunActivityFilterCommand.Execute("All");
+        Assert.True(viewModel.IsSpeedrunActivityFilterAll);
+        Assert.Equal(4, viewModel.VisibleSpeedrunActivities.Count);
+        viewModel.SelectSpeedrunActivityFilterCommand.Execute("invalid");
+        Assert.True(viewModel.IsSpeedrunActivityFilterAll);
     }
 
     [Fact]
@@ -685,7 +697,7 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.Equal(viewModel.Loc["DownloadBuildFilesVerified"], current.VerificationText);
         Assert.True(current.IsDownloaded);
         var driftedBuild = Assert.Single(viewModel.DownloadBuilds, build => build.BuildId == "silksong-1.0.29980");
-        Assert.NotEqual(viewModel.Loc["DownloadBuildFilesVerified"], driftedBuild.VerificationText);
+        Assert.Empty(driftedBuild.VerificationText);
         Assert.False(driftedBuild.IsDownloaded);
 
         viewModel.SelectedDownloadBuild = driftedBuild;
@@ -4667,6 +4679,57 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
+    public async Task Opening_activity_after_restart_shows_cached_results_before_network_completes()
+    {
+        string root = applicationData.CreateDirectory("speedrun-cold-cache");
+        var checkedAt = DateTimeOffset.UtcNow.AddHours(-1);
+        var activities = Enum.GetValues<SpeedrunGame>().Select(game =>
+        {
+            var board = new SpeedrunBoardDescriptor(game, "cached", "Any%", null, null, []);
+            var run = new SpeedrunPodiumEntry(game.ToString(), 1, "Cached runner", "PT1M", 60, checkedAt, null);
+            return new SpeedrunActivityEntry(run.RunId, SpeedrunActivityKind.WorldRecord, board, run, checkedAt);
+        }).ToArray();
+        var document = new SpeedrunActivityDocument
+        {
+            Activities = activities,
+            Boards = activities.ToDictionary(activity => activity.Board.Key,
+                activity => new SpeedrunBoardBaseline(activity.Board, checkedAt, [activity.Run]))
+        };
+        var cachePath = Path.Combine(root, "speedrun-activity.json");
+        await AtomicJsonStore.WriteAsync(cachePath, document);
+        using var policy = new NetworkPolicy();
+        var handler = new BlockingSpeedrunResponseHandler();
+        using var httpClient = new HttpClient(handler);
+        var client = new SpeedrunComClient(httpClient, Path.Combine(root, "speedrun-cache"), policy);
+        await using var viewModel = new MainViewModel(root, speedrunComClientOverride: client) { CurrentPage = "Speedrun" };
+        var toasts = new List<string>();
+        viewModel.ToastRequested += toast => toasts.Add(toast);
+
+        viewModel.SelectSpeedrunTabCommand.Execute("Activity");
+        await handler.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.True(viewModel.IsSpeedrunActivityLoading);
+        Assert.Equal(4, viewModel.SpeedrunActivities.Count);
+        Assert.True(viewModel.IsSpeedrunActivityFilterAll);
+        Assert.Equal(4, viewModel.VisibleSpeedrunActivities.Count);
+        Assert.Equal(viewModel.Loc["SpeedrunActivityCached"], viewModel.SpeedrunActivityStatus);
+        foreach (var game in Enum.GetValues<SpeedrunGame>())
+        {
+            viewModel.SelectSpeedrunActivityFilterCommand.Execute(game.ToString());
+            Assert.Equal(game.ToString(), Assert.Single(viewModel.VisibleSpeedrunActivities).RunId);
+        }
+        Assert.Empty(toasts);
+        typeof(MainViewModel).GetMethod("BeginSpeedrunActivityLoad", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(viewModel, [true, false]);
+        Assert.True(viewModel.IsSpeedrunActivityLoading);
+        Assert.Equal(4, viewModel.SpeedrunActivities.Count);
+        await viewModel.DisposeAsync();
+        Assert.True(handler.Canceled.Task.IsCompleted);
+        Assert.False(viewModel.IsSpeedrunActivityLoading);
+        Assert.Equal(4, (await AtomicJsonStore.ReadAsync<SpeedrunActivityDocument>(cachePath)).Activities.Count);
+    }
+
+    [Fact]
     public async Task Switching_to_activity_tab_with_fresh_cache_does_not_reload()
     {
         string root = applicationData.CreateDirectory("speedrun-fresh-cache");
@@ -4965,10 +5028,11 @@ public sealed class MainViewModelStateTests : IDisposable
         {
             string json = request.RequestUri!.AbsolutePath switch
             {
+                var path when path.EndsWith("/levels", StringComparison.Ordinal) => """{"data":[]}""",
                 var path when path.EndsWith("/categories", StringComparison.Ordinal) => """
                 {
                   "data": [
-                    { "id": "category-any", "name": "Any%", "weblink": "https://www.speedrun.com/hollowknight" }
+                    { "id": "category-any", "name": "Any%", "type": "per-game", "weblink": "https://www.speedrun.com/hollowknight" }
                   ]
                 }
                 """,
@@ -4982,7 +5046,7 @@ public sealed class MainViewModelStateTests : IDisposable
                           "id": "leaderboard-run",
                           "weblink": "https://www.speedrun.com/hollowknight/runs/leaderboard-run",
                           "status": { "status": "verified", "verify-date": "2026-08-01T00:00:00Z" },
-                          "times": { "primary": "PT32M" },
+                          "times": { "primary": "PT32M", "primary_t": 1920 },
                           "players": [{ "rel": "user", "id": "leaderboard-player" }]
                         }
                       }

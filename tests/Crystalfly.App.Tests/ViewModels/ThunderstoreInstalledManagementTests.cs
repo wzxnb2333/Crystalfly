@@ -84,6 +84,61 @@ public sealed partial class ThunderstoreViewModelTests
         Assert.Equal(Path.GetFullPath(disabledDirectory), vm.GetInstalledDirectory(disabled));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Installed_health_refresh_preserves_checks_and_rechecks_changed_files(bool modifyFile)
+    {
+        var loc = new Crystalfly.App.ViewModels.LocalizationViewModel();
+        var target = new InstanceRecord
+        {
+            Id = "health-refresh", GameId = GameId.Silksong, Name = "Health refresh", BuildId = "test",
+            RootPath = Path.Combine(root, "health-refresh-game")
+        };
+        const string relativePath = "BepInEx/plugins/Author-Refresh/main.dll";
+        var file = Path.Combine(target.RootPath, relativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+        await File.WriteAllTextAsync(file, "original bytes");
+        var package = new ThunderstoreInstalledPackage
+        {
+            FullName = "Author-Refresh", Version = "1.0.0", ArchiveSha256 = new string('A', 64),
+            Files = [new(relativePath, await ThunderstorePackageStore.HashAsync(file))]
+        };
+        var receiptPath = Path.Combine(target.RootPath, ThunderstoreInstallService.MetadataDirectory, "installed.json");
+        await AtomicJsonStore.WriteAsync(receiptPath, new ThunderstoreInstallState { Packages = [package] });
+        using var client = new HttpClient(new Handler(() => throw new InvalidOperationException("No network expected")));
+        var vm = new Crystalfly.App.ViewModels.ThunderstoreViewModel(loc,
+            new(client, Path.Combine(root, "unused-catalog.json")), new(client, Path.Combine(root, "cache")),
+            () => target, () => true, _ => Task.CompletedTask, () => Task.CompletedTask);
+
+        await vm.SetContextAsync();
+        vm.SelectedInstalled = Assert.Single(vm.InstalledMods);
+        Assert.Equal(loc["Installed"], vm.InstalledHealthText);
+        await vm.CheckInstalledHealthCommand.ExecuteAsync(null);
+        Assert.Null(vm.Error);
+        Assert.Equal(loc["ModHealthHealthy"], vm.InstalledHealthText);
+        if (modifyFile) await File.WriteAllTextAsync(file, "changed bytes");
+
+        await vm.SetContextAsync();
+        Assert.Null(vm.Error);
+        Assert.Equal(loc[modifyFile ? "ModHealthModifiedFile" : "ModHealthHealthy"], vm.InstalledHealthText);
+
+        package = package with
+        {
+            Version = "2.0.0",
+            Files = [new(relativePath, await ThunderstorePackageStore.HashAsync(file))]
+        };
+        await AtomicJsonStore.WriteAsync(receiptPath, new ThunderstoreInstallState { Packages = [package] });
+        await vm.SetContextAsync();
+        Assert.Equal("2.0.0", vm.SelectedInstalled!.Version);
+        Assert.Equal(loc["ModHealthHealthy"], vm.InstalledHealthText);
+
+        target = target with { Id = "different-instance" };
+        await vm.SetContextAsync();
+        vm.SelectedInstalled = Assert.Single(vm.InstalledMods);
+        Assert.Equal(loc["Installed"], vm.InstalledHealthText);
+    }
+
     [Fact]
     public async Task Installed_batch_update_merges_dependencies_and_keeps_pinned_versions()
     {

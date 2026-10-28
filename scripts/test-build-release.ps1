@@ -30,6 +30,49 @@ $source = Get-Content -Raw -LiteralPath $buildScript
 $root = Split-Path -Parent $PSScriptRoot
 $installerSource = Get-Content -Raw -LiteralPath (Join-Path $root 'installer\Crystalfly.iss')
 $ciWorkflow = Get-Content -Raw -LiteralPath (Join-Path $root '.github\workflows\ci.yml')
+$releaseWorkflow = Get-Content -Raw -LiteralPath (Join-Path $root '.github\workflows\release.yml')
+$ciGate = [regex]::Match($releaseWorkflow,
+    '(?ms)      - name: Verify release CI\r?\n.*?        run: \|\r?\n(?<code>(?:          [^\r\n]*(?:\r?\n|$))+)')
+if (-not $ciGate.Success -or $releaseWorkflow -notmatch '(?m)^  actions: read\r?$') {
+    throw 'Release publishing must require CI for its exact commit and permission to read Actions.'
+}
+& {
+    $gate = [scriptblock]::Create(($ciGate.Groups['code'].Value -replace '(?m)^          ', ''))
+    $commit = (git rev-parse HEAD).Trim()
+    $repository = $env:GITHUB_REPOSITORY
+    $env:GITHUB_REPOSITORY = 'example/Crystalfly'
+    try {
+        $apiExitCode = 0
+        function gh {
+            $global:LASTEXITCODE = $apiExitCode
+            $fixture | ConvertTo-Json -Depth 6 -Compress
+        }
+        function New-Run([long]$id, [string]$sha, [string]$status, [string]$conclusion) {
+            @{ id = $id; head_sha = $sha; status = $status; conclusion = $conclusion
+               head_branch = 'main'; event = 'push'; head_repository = @{ full_name = $env:GITHUB_REPOSITORY } }
+        }
+        $good = New-Run 1 $commit 'completed' 'success'
+        $fixture = @{ workflow_runs = @($good) }
+        & $gate
+        foreach ($runs in @(
+            @{ workflow_runs = @() },
+            @{ workflow_runs = @((New-Run 2 ('0' * 40) 'completed' 'success')) },
+            @{ workflow_runs = @((New-Run 2 $commit 'in_progress' ''), $good) },
+            @{ workflow_runs = @((New-Run 2 $commit 'completed' 'failure'), $good) }
+        )) {
+            $fixture = $runs
+            Assert-Rejected -Message 'Release CI gate accepted a missing, stale, running or failed run.' `
+                -ExpectedMessage 'successful CI run' -Check { & $gate }
+        }
+        $fixture = @{ workflow_runs = @($good) }
+        $apiExitCode = 1
+        Assert-Rejected -Message 'Release CI gate accepted an API failure.' `
+            -ExpectedMessage 'Could not read release CI' -Check { & $gate }
+    }
+    finally {
+        $env:GITHUB_REPOSITORY = $repository
+    }
+}
 if ($source -notmatch "\[ValidateSet\('win-x64'\)\]") {
     throw 'Runtime must be restricted to win-x64 before release paths are constructed.'
 }

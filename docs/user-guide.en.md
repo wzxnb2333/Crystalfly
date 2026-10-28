@@ -64,7 +64,7 @@ The installer registers the validated `crystalfly://` protocol. External request
 
 ## Advanced local loaders
 
-A local loader requires a Crystalfly JSON manifest and a ZIP in the same directory; a bare loader ZIP is not accepted. The manifest contains the package identity, loader state, exact supported builds, managed paths, size, and SHA-256. Local sources always remain marked unverified.
+A local loader requires a Crystalfly JSON manifest and a ZIP in the same directory; a bare loader ZIP is not accepted. The manifest contains the package identity, loader state, exact supported builds, managed paths, size, and SHA-256. Local sources are displayed as “Local Loader”; this source label does not establish game or Mod compatibility.
 
 ```json
 {
@@ -81,7 +81,7 @@ A local loader requires a Crystalfly JSON manifest and a ZIP in the same directo
 }
 ```
 
-`loaderState` must be `moddingApi` or `bepInEx`. Paths, ZIP size, and SHA-256 are checked before modifying the instance. Settings can also replace the official ModLinks source with an HTTPS catalog bound to an exact build and Modding API loader; custom content remains unverified.
+`loaderState` must be `moddingApi` or `bepInEx`. Paths, ZIP size, and SHA-256 are checked before modifying the instance. Settings can also replace the official ModLinks source with an HTTPS catalog bound to an exact build and Modding API loader, displayed as “Custom source”.
 
 ## Data locations and recovery
 

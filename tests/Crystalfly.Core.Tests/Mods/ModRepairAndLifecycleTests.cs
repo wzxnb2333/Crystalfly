@@ -37,8 +37,10 @@ public sealed class ModRepairAndLifecycleTests : IDisposable
         await manager.UninstallAsync("first");
     }
 
-    [Fact]
-    public async Task Uninstall_suggests_only_unused_managed_unpinned_dependencies()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Uninstall_preserves_dependencies_and_standalone_mods(bool bulk)
     {
         var manager = CreateManager();
         await AddReceiptAsync(Receipt("unused"));
@@ -53,10 +55,20 @@ public sealed class ModRepairAndLifecycleTests : IDisposable
         await AddReceiptAsync(Receipt(
             "application", ["unused", "pinned", "local", "shared"]));
 
-        var result = await manager.UninstallWithSuggestionsAsync("application");
+        await AddReceiptAsync(Receipt("standalone"));
+        var before = (await manager.GetInstalledAsync())
+            .Where(mod => mod.Id != "application").ToArray();
+        if (bulk)
+        {
+            var result = await manager.UninstallBatchAsync(["application"]);
+            Assert.Equal(["application"], result.RemovedModIds);
+        }
+        else
+        {
+            await manager.UninstallAsync("application");
+        }
 
-        Assert.Equal("application", result.RemovedModId);
-        Assert.Equal(["unused"], result.UnusedDependencies.Select(mod => mod.Id));
+        Assert.Equal(CrystalflyJson.Serialize(before), CrystalflyJson.Serialize(await manager.GetInstalledAsync()));
         Assert.True(File.Exists(Path.Combine(
             InstanceRoot,
             "hollow_knight_Data",

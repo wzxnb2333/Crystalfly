@@ -42,8 +42,10 @@ public sealed class SpeedrunCommunityLinksViewModel : ViewModelBase
         new() { Id = "hk-speedrunning", Name = "HK Speedrunning", Group = SpeedrunCommunityGroup.HollowKnight, Url = "https://github.com/hk-speedrunning", IconKey = "github" },
         new() { Id = "hk-resources", Name = "HK Resources", Group = SpeedrunCommunityGroup.HollowKnight, Url = "https://github.com/hk-speedrunning/HK-Resources", IconKey = "github" },
         new() { Id = "hk-speedrun-com", Name = "Hollow Knight on Speedrun.com", Group = SpeedrunCommunityGroup.HollowKnight, Url = "https://www.speedrun.com/hollowknight", IconKey = "speedrun" },
+        new() { Id = "hk-speedrun-extensions", Name = "HK Category Extensions", Group = SpeedrunCommunityGroup.HollowKnight, Url = "https://www.speedrun.com/hkmemes", IconKey = "speedrun" },
         new() { Id = "hk-discord", Name = "Hollow Knight Discord", Group = SpeedrunCommunityGroup.HollowKnight, Url = "https://discord.com/invite/hollowknight", IconKey = "discord" },
         new() { Id = "silksong-speedrun-com", Name = "Silksong on Speedrun.com", Group = SpeedrunCommunityGroup.Silksong, Url = "https://www.speedrun.com/silksong", IconKey = "speedrun" },
+        new() { Id = "silksong-speedrun-extensions", Name = "Silksong Category Extensions", Group = SpeedrunCommunityGroup.Silksong, Url = "https://www.speedrun.com/silksongmemes", IconKey = "speedrun" },
         new() { Id = "silksong-discord", Name = "Silksong Speedrunning Discord", Group = SpeedrunCommunityGroup.Silksong, Url = "https://discord.gg/3JtHPsBjHD", IconKey = "discord" }
     ];
 

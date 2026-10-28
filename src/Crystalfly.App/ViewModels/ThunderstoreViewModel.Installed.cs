@@ -122,7 +122,7 @@ public sealed partial class ThunderstoreViewModel
             !Installed.Any(other => other.FullName == dependency.Name && (!item.Enabled || other.Enabled)
                 && ThunderstoreIdentity.Version(other.Version) >= ThunderstoreIdentity.Version(dependency.Version))).ToArray();
         if (dependencies.Length > 0) return loc["DependencyProblem"] + ": " + string.Join(", ", dependencies.Select(dependency => DisplayName(dependency.Name)));
-        return loc["ModHealth" + (installedHealth.TryGetValue(item.FullName, out var health) ? health.Status : ModHealthStatus.Indeterminate)];
+        return installedHealth.TryGetValue(item.FullName, out var health) ? loc["ModHealth" + health.Status] : loc["Installed"];
     }
     private bool InstalledNeedsAttention(ThunderstoreInstalledPackage item) =>
         installedHealth.TryGetValue(item.FullName, out var health) && health.Status != ModHealthStatus.Healthy

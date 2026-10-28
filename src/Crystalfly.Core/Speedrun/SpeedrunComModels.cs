@@ -5,8 +5,10 @@ namespace Crystalfly.Core.Speedrun;
 
 public enum SpeedrunGame
 {
-    HollowKnight,
-    Silksong
+    HollowKnight = 0,
+    Silksong = 1,
+    HollowKnightExtensions = 2,
+    SilksongExtensions = 3
 }
 
 public static class SpeedrunGameCatalog
@@ -15,6 +17,8 @@ public static class SpeedrunGameCatalog
     {
         SpeedrunGame.HollowKnight => "76rqmld8",
         SpeedrunGame.Silksong => "y65r7g81",
+        SpeedrunGame.HollowKnightExtensions => "9d3reryd",
+        SpeedrunGame.SilksongExtensions => "yd4r2x51",
         _ => throw new ArgumentOutOfRangeException(nameof(game), game, null)
     };
 
@@ -22,6 +26,15 @@ public static class SpeedrunGameCatalog
     {
         SpeedrunGame.HollowKnight => "hollowknight",
         SpeedrunGame.Silksong => "silksong",
+        SpeedrunGame.HollowKnightExtensions => "hkmemes",
+        SpeedrunGame.SilksongExtensions => "silksongmemes",
+        _ => throw new ArgumentOutOfRangeException(nameof(game), game, null)
+    };
+
+    public static SpeedrunGame GetBaseGame(SpeedrunGame game) => game switch
+    {
+        SpeedrunGame.HollowKnight or SpeedrunGame.HollowKnightExtensions => SpeedrunGame.HollowKnight,
+        SpeedrunGame.Silksong or SpeedrunGame.SilksongExtensions => SpeedrunGame.Silksong,
         _ => throw new ArgumentOutOfRangeException(nameof(game), game, null)
     };
 }

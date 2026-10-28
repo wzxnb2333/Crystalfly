@@ -166,9 +166,10 @@ public sealed class LaunchReliabilityTests : IDisposable
 
         var projected = (InstanceItemViewModel)typeof(MainViewModel)
             .GetMethod("ProjectInstanceItem", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .Invoke(viewModel, [(record, LoaderState.BepInEx, (InstalledPackageReceipt?)null, 0), new CrystalflySettings()])!;
-        Assert.Contains("1.0.28324", projected.DisplayVersion);
-        Assert.Contains(viewModel.Loc["Unverified"], projected.DisplayVersion);
+            .Invoke(viewModel, [(record, LoaderState.BepInEx,
+                new InstalledPackageReceipt { PackageId = "bepinex", IsVerified = false }, 0), new CrystalflySettings()])!;
+        Assert.Equal("1.0.28324", projected.DisplayVersion);
+        Assert.Equal("bepinex", projected.LoaderDisplay);
 
         Assert.False(viewModel.HasLaunchIssues);
 

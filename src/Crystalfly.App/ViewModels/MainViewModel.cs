@@ -1480,7 +1480,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             && string.Equals(candidate.Id, build.Id, StringComparison.OrdinalIgnoreCase));
         if (embedded is null)
         {
-            return Loc["DownloadBuildVerificationUnknown"];
+            return string.Empty;
         }
 
         bool filesMatch = embedded.DepotId == build.DepotId
@@ -1488,7 +1488,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             && HashMatches(embedded.ExecutableSha256, build.ExecutableSha256)
             && HashMatches(embedded.UnityPlayerSha256, build.UnityPlayerSha256)
             && HashMatches(embedded.GlobalGameManagersSha256, build.GlobalGameManagersSha256);
-        return Loc[filesMatch ? "DownloadBuildFilesVerified" : "DownloadBuildFilesUnverified"];
+        return filesMatch ? Loc["DownloadBuildFilesVerified"] : string.Empty;
     }
 
     private bool IsBuildDownloaded(GameBuild build) => Instances.Instances.Any(instance =>
@@ -2087,18 +2087,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             build?.DisplayVersion ?? (item.Record.DeclaredVersion is { } version
                 ? string.Format(CultureInfo.CurrentCulture, Loc["DeclaredVersionFormat"], version)
                 : Loc["UnknownBuild"]),
-            item.LoaderReceipt is null
-                ? item.LoaderState.ToString()
-                : item.LoaderReceipt.IsVerified
-                    ? item.LoaderReceipt.PackageId
-                    : $"{item.LoaderReceipt.PackageId} · {Loc["Unverified"]}",
+            item.LoaderReceipt?.PackageId ?? item.LoaderState.ToString(),
             item.ModCount,
             settings.FavoriteInstanceIds.Contains(item.Record.Id, StringComparer.Ordinal));
     }
 
     // Re-projects the instance list from the last disk inspection when the language
-    // switches so DisplayVersion/LoaderDisplay localized fragments ("Unknown build",
-    // "Unverified") refresh without re-scanning the game directory. The selected
+    // switches so localized version labels refresh without re-scanning the game directory. The selected
     // instances are re-resolved to their new items but the details reload is suppressed:
     // re-selecting the same instance must not clear and reload the Mod list or presets
     // that were just refreshed against the new language.
@@ -5080,11 +5075,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             await RefreshAsync();
             return;
         }
-        var loaderDisplay = receipt is null
-            ? inspection.State.ToString()
-            : receipt.IsVerified
-                ? receipt.PackageId
-                : $"{receipt.PackageId} · {Loc["Unverified"]}";
+        var loaderDisplay = receipt?.PackageId ?? inspection.State.ToString();
         var existing = Instances.Instances.FirstOrDefault(item => item.Record == record);
         if (existing is null || (existing.ModCount == modCount && existing.LoaderDisplay == loaderDisplay))
         {

@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Crystalfly.Core.Catalog;
@@ -38,8 +37,6 @@ public partial class ModManagementViewModel : ViewModelBase
 
     public ObservableCollection<SettingOption<ModStatusFilter>> ModStatusOptions { get; } = [];
 
-    public ObservableCollection<string> UnusedDependencySuggestions { get; } = [];
-
     public bool HasSelectedMods => InstalledMods.Any(mod => mod.IsSelected);
 
     public int SelectedModCount => InstalledMods.Count(mod => mod.IsSelected);
@@ -51,13 +48,6 @@ public partial class ModManagementViewModel : ViewModelBase
     public bool IsInstalledModListVisible => !IsInstalledModGraphVisible;
 
     public bool IsInstalledModBulkBarVisible => HasSelectedMods;
-
-    public bool HasUnusedDependencySuggestions => UnusedDependencySuggestions.Count > 0;
-
-    public string UnusedDependencySummary => string.Format(
-        CultureInfo.CurrentUICulture,
-        Loc["UnusedDependencyCountFormat"],
-        UnusedDependencySuggestions.Count);
 
     [ObservableProperty]
     public partial string ModSearchText { get; set; } = string.Empty;
@@ -118,13 +108,11 @@ public partial class ModManagementViewModel : ViewModelBase
 
     // Rebuilds every Loc-derived value of this view model after the application
     // language switches: filter option labels, installed Mod items (ownership and
-    // health display names) and the unused-dependency summary.
+    // health display names).
     internal void RefreshLocalization()
     {
         RebuildStatusOptions();
         RebuildCatalogProjection();
-        OnPropertyChanged(nameof(UnusedDependencySummary));
-        OnPropertyChanged(nameof(HasUnusedDependencySuggestions));
     }
 
     public void ReplaceAvailableMods(InstanceRecord record)
@@ -340,25 +328,9 @@ public partial class ModManagementViewModel : ViewModelBase
         await UninstallModAsync(null, SelectedInstalledMod.Id);
     }
 
-    internal async Task UninstallModAsync(InstanceRecord? target, string modId)
-    {
-        var instance = target ?? dependencies.GetSelectedInstance();
-        IReadOnlyList<InstalledModReceipt>? unused = null;
-        await RunModMutationAsync(target, async record =>
-        {
-            var manager = dependencies.CreateModManager(record);
-            var before = await manager.GetInstalledAsync(dependencies.LifetimeCancellation);
-            var removed = before.Single(mod => string.Equals(mod.Id, modId, StringComparison.OrdinalIgnoreCase));
-            await manager.UninstallIgnoringDependentsAsync(modId, dependencies.LifetimeCancellation);
-            var remaining = await manager.GetInstalledAsync(dependencies.LifetimeCancellation);
-            unused = InstalledModDependencyGraph.FindUnusedDependencies([removed], remaining);
-        });
-        if (unused is not null && !dependencies.LifetimeCancellation.IsCancellationRequested
-            && dependencies.GetSelectedInstance() == instance)
-        {
-            SetUnusedDependencySuggestions(unused);
-        }
-    }
+    internal Task UninstallModAsync(InstanceRecord? target, string modId) =>
+        RunModMutationAsync(target, record =>
+            dependencies.CreateModManager(record).UninstallIgnoringDependentsAsync(modId, dependencies.LifetimeCancellation));
 
     [RelayCommand]
     private async Task TakeOverSelectedModAsync()
@@ -559,31 +531,9 @@ public partial class ModManagementViewModel : ViewModelBase
         await UninstallModsAsync(null, selectedIds);
     }
 
-    internal async Task UninstallModsAsync(InstanceRecord? target, IReadOnlyList<string> selectedIds)
-    {
-        var instance = target ?? dependencies.GetSelectedInstance();
-        ModBatchUninstallResult? result = null;
-        await RunModMutationAsync(target, async record =>
-        {
-            result = await dependencies.CreateModManager(record).UninstallBatchAsync(selectedIds, dependencies.LifetimeCancellation);
-        });
-        if (result is not null && !dependencies.LifetimeCancellation.IsCancellationRequested
-            && dependencies.GetSelectedInstance() == instance)
-        {
-            SetUnusedDependencySuggestions(result.UnusedDependencies);
-        }
-    }
-
-    private void SetUnusedDependencySuggestions(IReadOnlyList<InstalledModReceipt> suggestions)
-    {
-        UnusedDependencySuggestions.Clear();
-        foreach (var suggestion in suggestions)
-        {
-            UnusedDependencySuggestions.Add(suggestion.Name);
-        }
-        OnPropertyChanged(nameof(HasUnusedDependencySuggestions));
-        OnPropertyChanged(nameof(UnusedDependencySummary));
-    }
+    internal Task UninstallModsAsync(InstanceRecord? target, IReadOnlyList<string> selectedIds) =>
+        RunModMutationAsync(target, record =>
+            dependencies.CreateModManager(record).UninstallBatchAsync(selectedIds, dependencies.LifetimeCancellation));
 
     public ModRemovalImpactPlan CreateModRemovalPlan(bool bulk)
     {

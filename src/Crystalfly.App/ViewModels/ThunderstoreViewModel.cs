@@ -203,6 +203,8 @@ public sealed partial class ThunderstoreViewModel(
         contextTargetKey ??= target is null ? "" : $"{target.GameId}:{target.Id}:{target.RootPath}";
         var version = generation;
         var selectedName = SelectedInstalled?.FullName;
+        var recheckHealth = installedHealth.Count > 0;
+        installedHealth = new Dictionary<string, ModHealthReport>();
         Installed.Clear();
         InstalledMods.Clear();
         NotifyTranslationProjection();
@@ -210,9 +212,11 @@ public sealed partial class ThunderstoreViewModel(
         if (target?.GameId != GameId.Silksong) { SelectedInstalled = null; RebuildInstalledGraph(); NotifyActions(); return; }
         try
         {
-            var state = await new ThunderstoreInstallService(target, store).ReadStateAsync();
-            if (version != generation || getTarget()?.Id != target.Id) return;
-            installedHealth = new Dictionary<string, ModHealthReport>();
+            var service = new ThunderstoreInstallService(target, store);
+            var state = await service.ReadStateAsync();
+            IReadOnlyList<ModHealthReport> reports = recheckHealth ? await service.AssessHealthAsync() : [];
+            if (version != generation || getTarget() != target) return;
+            installedHealth = reports.ToDictionary(item => item.ModId, StringComparer.OrdinalIgnoreCase);
             foreach (var package in state.Packages) Installed.Add(package);
             if (catalog is not null)
             {
@@ -229,7 +233,7 @@ public sealed partial class ThunderstoreViewModel(
             NotifyInstalledDetails();
             NotifyActions();
         }
-        catch (Exception exception) when (exception is IOException or InvalidDataException or JsonException)
+        catch (Exception exception) when (exception is IOException or InvalidDataException or JsonException or UnauthorizedAccessException)
         { if (version == generation) Error = exception.Message; }
     }
     [RelayCommand(CanExecute = nameof(CanPreview))] private Task PreviewInstallAsync() => PreviewAsync(false, false);

@@ -207,7 +207,7 @@ public sealed class ModManagementViewModelTests
     [InlineData(true, "drift")]
     [InlineData(false, "dependents")]
     [InlineData(true, "dependents")]
-    public async Task Targeted_mod_removal_preserves_guards_and_other_instance_feedback(bool bulk, string condition)
+    public async Task Targeted_mod_removal_preserves_guards_and_other_instance(bool bulk, string condition)
     {
         var root = Path.Combine(Path.GetTempPath(), "Crystalfly.Tests", Guid.NewGuid().ToString("N"));
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -274,7 +274,6 @@ public sealed class ModManagementViewModelTests
             operation = bulk ? viewModel.UninstallModsAsync(record, ["A"]) : viewModel.UninstallModAsync(record, "A");
             await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
             current = record with { Id = "other", RootPath = Path.Combine(root, "other") };
-            viewModel.UnusedDependencySuggestions.Add("Current instance feedback");
             if (condition == "cancel")
             {
                 await cancellation.CancelAsync();
@@ -304,7 +303,6 @@ public sealed class ModManagementViewModelTests
             var dependent = Assert.Single(remaining, mod => mod.Id == "B");
             Assert.Equal("B", await File.ReadAllTextAsync(Path.Combine(record.RootPath, dependent.Files.Single().RelativePath)));
             Assert.Equal(condition == "drift" || condition == "pinned" && !bulk || condition == "dependents" && bulk, error is not null);
-            Assert.Equal(["Current instance feedback"], viewModel.UnusedDependencySuggestions.ToArray());
         }
         finally
         {

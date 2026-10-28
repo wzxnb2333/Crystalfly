@@ -81,7 +81,7 @@ Steam 登录支持账号密码、扫码与 Steam Guard 验证。下载可选择 
 }
 ```
 
-`loaderState` 只能是 `moddingApi` 或 `bepInEx`。清单路径、ZIP 大小和 SHA-256 会在修改实例前验证；本地来源始终显示“未验证”。
+`loaderState` 只能是 `moddingApi` 或 `bepInEx`。清单路径、ZIP 大小和 SHA-256 会在修改实例前验证；本地来源显示为“本地模组加载器”，自定义 ModLinks 显示为“自定义来源”。来源名称不表示游戏或模组兼容性。
 
 ## 数据位置
 

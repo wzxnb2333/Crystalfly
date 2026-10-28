@@ -105,7 +105,6 @@ public sealed partial class DocumentationScreenshotTests
         }
         var selectedId = viewModel.SelectedInstance?.Id;
         var selectedMod = mods.SelectedInstalledMod;
-        mods.UnusedDependencySuggestions.Add("Later instance feedback");
         Assert.Null(viewModel.ErrorMessage);
         Exception? callbackException = null;
         void CaptureException(object? sender, DispatcherUnhandledExceptionEventArgs args)
@@ -171,7 +170,6 @@ public sealed partial class DocumentationScreenshotTests
         if (selection is "other" or "none")
         {
             Assert.Same(selectedMod, mods.SelectedInstalledMod);
-            Assert.Equal(["Later instance feedback"], mods.UnusedDependencySuggestions.ToArray());
         }
 
         Task DetailsTask() => Assert.IsAssignableFrom<Task>(typeof(MainViewModel)

@@ -710,21 +710,6 @@ public sealed class ModManager
         CancellationToken cancellationToken = default) =>
         await UninstallCoreAsync(id, ignoreDependents: true, cancellationToken);
 
-    public async Task<ModUninstallResult> UninstallWithSuggestionsAsync(
-        string id,
-        CancellationToken cancellationToken = default)
-    {
-        var before = await GetInstalledAsync(cancellationToken);
-        var removed = Find(before, id);
-        await UninstallCoreAsync(id, ignoreDependents: false, cancellationToken);
-        var remaining = await GetInstalledAsync(cancellationToken);
-        return new ModUninstallResult
-        {
-            RemovedModId = removed.Id,
-            UnusedDependencies = InstalledModDependencyGraph.FindUnusedDependencies([removed], remaining)
-        };
-    }
-
     public async Task<ModBatchUninstallResult> UninstallBatchAsync(
         IEnumerable<string> ids,
         CancellationToken cancellationToken = default)
@@ -752,12 +737,10 @@ public sealed class ModManager
         {
             await UninstallCoreAsync(receipt.Id, ignoreDependents: true, cancellationToken);
         }
-        var remaining = await GetInstalledAsync(cancellationToken);
         return new ModBatchUninstallResult
         {
             RemovedModIds = ordered.Select(receipt => receipt.Id).ToArray(),
-            SkippedPinnedModIds = skipped.Select(receipt => receipt.Id).ToArray(),
-            UnusedDependencies = InstalledModDependencyGraph.FindUnusedDependencies(ordered, remaining)
+            SkippedPinnedModIds = skipped.Select(receipt => receipt.Id).ToArray()
         };
     }
 

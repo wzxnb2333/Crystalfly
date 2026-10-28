@@ -22,18 +22,9 @@ public sealed record ModRepairPlan
     public required string Reason { get; init; }
 }
 
-public sealed record ModUninstallResult
-{
-    public required string RemovedModId { get; init; }
-
-    public IReadOnlyList<InstalledModReceipt> UnusedDependencies { get; init; } = [];
-}
-
 public sealed record ModBatchUninstallResult
 {
     public IReadOnlyList<string> RemovedModIds { get; init; } = [];
 
     public IReadOnlyList<string> SkippedPinnedModIds { get; init; } = [];
-
-    public IReadOnlyList<InstalledModReceipt> UnusedDependencies { get; init; } = [];
 }

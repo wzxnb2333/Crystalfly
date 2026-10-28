@@ -9,6 +9,39 @@ public sealed class SpeedrunComClientTests : IDisposable
 {
     private readonly string cacheRoot = Path.Combine(Path.GetTempPath(), $"crystalfly-speedrun-{Guid.NewGuid():N}");
 
+    [Theory]
+    [InlineData(SpeedrunGame.HollowKnightExtensions, "9d3reryd", SpeedrunGame.HollowKnight)]
+    [InlineData(SpeedrunGame.SilksongExtensions, "yd4r2x51", SpeedrunGame.Silksong)]
+    public async Task Extension_boards_use_their_own_api_and_cache_identity(
+        SpeedrunGame game, string gameId, SpeedrunGame baseGame)
+    {
+        var paths = new List<string>();
+        using var client = CreateClient((request, _) =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            paths.Add(path);
+            return Task.FromResult(JsonResponse(path.EndsWith("/categories", StringComparison.Ordinal)
+                ? """{"data":[{"id":"c","name":"Extension","type":"per-game"}]}"""
+                : path.Contains("/leaderboards/", StringComparison.Ordinal)
+                    ? """{"data":{"runs":[]}}""" : """{"data":[]}"""));
+        });
+        var speedrun = new SpeedrunComClient(client, cacheRoot, new NetworkPolicy());
+
+        var result = await speedrun.GetBoardsAsync(game);
+        var board = Assert.Single(result.Data!);
+        var podium = await speedrun.GetPodiumAsync(board);
+        await speedrun.GetBoardsAsync(baseGame);
+
+        Assert.Equal(SpeedrunDataStatus.Remote, podium.Status);
+        Assert.Equal(game, board.Game);
+        Assert.Equal(baseGame, SpeedrunGameCatalog.GetBaseGame(game));
+        Assert.NotEqual(board.Key, (board with { Game = baseGame }).Key);
+        Assert.Contains($"/api/v1/games/{gameId}/categories", paths);
+        Assert.Contains($"/api/v1/games/{gameId}/levels", paths);
+        Assert.Contains($"/api/v1/leaderboards/{gameId}/category/c", paths);
+        Assert.Contains($"/api/v1/games/{SpeedrunGameCatalog.GetId(baseGame)}/categories", paths);
+    }
+
     [Fact]
     public async Task GetBoardsAsync_enumerates_full_game_level_and_subcategory_boards()
     {

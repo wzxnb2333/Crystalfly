@@ -106,7 +106,9 @@ public partial class MainViewModel
     public bool IsSpeedrunActivityTab => CurrentSpeedrunTab == "Activity";
     public bool IsSpeedrunActivityFilterAll => SpeedrunActivityFilter == "All";
     public bool IsSpeedrunActivityFilterHollowKnight => SpeedrunActivityFilter == "HollowKnight";
+    public bool IsSpeedrunActivityFilterHollowKnightExtensions => SpeedrunActivityFilter == "HollowKnightExtensions";
     public bool IsSpeedrunActivityFilterSilksong => SpeedrunActivityFilter == "Silksong";
+    public bool IsSpeedrunActivityFilterSilksongExtensions => SpeedrunActivityFilter == "SilksongExtensions";
     public bool HasSpeedrunActivities => VisibleSpeedrunActivities.Count > 0;
     public bool ShowSpeedrunActivityEmptyState => !IsSpeedrunActivityLoading && !HasSpeedrunActivities;
     public bool HasSpeedrunActivityError => !string.IsNullOrWhiteSpace(SpeedrunActivityError);
@@ -119,7 +121,9 @@ public partial class MainViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSpeedrunActivityFilterAll))]
     [NotifyPropertyChangedFor(nameof(IsSpeedrunActivityFilterHollowKnight))]
+    [NotifyPropertyChangedFor(nameof(IsSpeedrunActivityFilterHollowKnightExtensions))]
     [NotifyPropertyChangedFor(nameof(IsSpeedrunActivityFilterSilksong))]
+    [NotifyPropertyChangedFor(nameof(IsSpeedrunActivityFilterSilksongExtensions))]
     public partial string SpeedrunActivityFilter { get; set; } = "All";
 
     [ObservableProperty]
@@ -160,7 +164,7 @@ public partial class MainViewModel
     [RelayCommand]
     private void SelectSpeedrunActivityFilter(string? filter)
     {
-        if (filter is "All" or "HollowKnight" or "Silksong")
+        if (filter is "All" or "HollowKnight" or "HollowKnightExtensions" or "Silksong" or "SilksongExtensions")
         {
             SpeedrunActivityFilter = filter;
         }
@@ -244,7 +248,7 @@ public partial class MainViewModel
             lifetimeCancellation.Token,
             replacement.Token);
         CancellationToken cancellationToken = linked.Token;
-        IsSpeedrunActivityLoading = showLoading;
+        IsSpeedrunActivityLoading = true;
         speedrunActivityLoadStarted = true;
         speedrunActivityShowLoading = showLoading;
         speedrunActivityStatusCleared = !showLoading;
@@ -256,6 +260,20 @@ public partial class MainViewModel
         try
         {
             SpeedrunActivityDocument document = await ReadSpeedrunActivityDocumentAsync(cancellationToken);
+            if (!IsCurrentSpeedrunActivityLoad(generation))
+            {
+                return;
+            }
+            if (SpeedrunActivities.Count == 0 && document.Activities.Count > 0)
+            {
+                Replace(SpeedrunActivities, document.Activities.Select(ProjectActivity));
+                ApplySpeedrunActivityFilter();
+                speedrunActivityStatuses = [SpeedrunDataStatus.Cached];
+                speedrunActivityFetchedAt = document.Boards.Values.MaxBy(board => board.LastSuccessfulCheck)?.LastSuccessfulCheck;
+                speedrunActivityShowLoading = false;
+                speedrunActivityStatusCleared = false;
+                UpdateSpeedrunActivityTexts();
+            }
             var successful = new List<SpeedrunBoardSnapshot>();
             var failures = new List<string>();
             var statuses = new List<SpeedrunDataStatus>();
@@ -434,16 +452,22 @@ public partial class MainViewModel
         }],
         ActivityBoardName(activity));
 
-    private string ActivityBoardName(SpeedrunActivityEntry activity) =>
-        $"{Loc[activity.Board.Game == SpeedrunGame.HollowKnight ? "SpeedrunGameHollowKnight" : "SpeedrunGameSilksong"]} · {activity.Board.DisplayName}";
+    private string ActivityBoardName(SpeedrunActivityEntry activity)
+    {
+        var game = SpeedrunGameCatalog.GetBaseGame(activity.Board.Game);
+        var extension = game == activity.Board.Game ? string.Empty : $" · {Loc["SpeedrunCategoryExtensions"]}";
+        return $"{Loc[game == SpeedrunGame.HollowKnight ? "SpeedrunGameHollowKnight" : "SpeedrunGameSilksong"]}{extension} · {activity.Board.DisplayName}";
+    }
 
     private void ApplySpeedrunActivityFilter()
     {
         SpeedrunGame? game = SpeedrunActivityFilter switch
         {
-            "HollowKnight" => SpeedrunGame.HollowKnight,
+            "All" => null,
+            "HollowKnightExtensions" => SpeedrunGame.HollowKnightExtensions,
             "Silksong" => SpeedrunGame.Silksong,
-            _ => null
+            "SilksongExtensions" => SpeedrunGame.SilksongExtensions,
+            _ => SpeedrunGame.HollowKnight
         };
         Replace(VisibleSpeedrunActivities, SpeedrunActivities.Where(item => game is null || item.Entry.Board.Game == game));
         OnPropertyChanged(nameof(HasSpeedrunActivities));
