@@ -7,6 +7,34 @@ namespace Crystalfly.App.Tests.ViewModels;
 public sealed partial class ThunderstoreViewModelTests
 {
     [Fact]
+    public async Task Concurrent_installed_refreshes_do_not_duplicate_packages()
+    {
+        var target = new InstanceRecord
+        {
+            Id = "concurrent", GameId = GameId.Silksong, Name = "Concurrent", BuildId = "test",
+            RootPath = Path.Combine(root, "concurrent-game")
+        };
+        var package = new ThunderstoreInstalledPackage
+        {
+            FullName = "Author-Refresh", Version = "1.0.0", ArchiveSha256 = new string('A', 64)
+        };
+        await AtomicJsonStore.WriteAsync(Path.Combine(target.RootPath, ThunderstoreInstallService.MetadataDirectory, "installed.json"),
+            new ThunderstoreInstallState { Packages = [package] });
+        using var client = new HttpClient(new Handler(() => throw new InvalidOperationException("No network expected")));
+        var vm = new Crystalfly.App.ViewModels.ThunderstoreViewModel(new(),
+            new(client, Path.Combine(root, "unused-catalog.json")), new(client, Path.Combine(root, "cache")),
+            () => target, () => true, _ => Task.CompletedTask, () => Task.CompletedTask);
+        await vm.SetContextAsync();
+
+        await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => vm.SetContextAsync()));
+
+        Assert.Null(vm.Error);
+        Assert.Equal(package.FullName, Assert.Single(vm.Installed).FullName);
+        Assert.Single(vm.InstalledMods);
+        Assert.Single(vm.InstalledDisplayItems);
+    }
+
+    [Fact]
     public async Task Installed_list_range_selection_and_graph_selection_keep_only_manageable_packages()
     {
         var packages = new[] { "First", "Second", "Third" }.Select(name => Package("Author", name, "2.0.0") with

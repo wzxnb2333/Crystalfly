@@ -27,6 +27,7 @@ public sealed partial class ThunderstoreViewModel(
     private string? pendingTarget;
     private bool repairPlan;
     private int generation;
+    private int installedRefreshGeneration;
     private string? requestedCategory;
     private string? contextTargetKey;
     public int SortIndex => Math.Max(0, SortOptions.ToList().IndexOf(Sort));
@@ -199,23 +200,23 @@ public sealed partial class ThunderstoreViewModel(
     }
     private async Task RefreshInstalledAsync()
     {
+        var refresh = ++installedRefreshGeneration;
         var target = getTarget();
         contextTargetKey ??= target is null ? "" : $"{target.GameId}:{target.Id}:{target.RootPath}";
         var version = generation;
         var selectedName = SelectedInstalled?.FullName;
         var recheckHealth = installedHealth.Count > 0;
-        installedHealth = new Dictionary<string, ModHealthReport>();
         Installed.Clear();
         InstalledMods.Clear();
         NotifyTranslationProjection();
         OnPropertyChanged(nameof(InstalledCount));
-        if (target?.GameId != GameId.Silksong) { SelectedInstalled = null; RebuildInstalledGraph(); NotifyActions(); return; }
+        if (target?.GameId != GameId.Silksong) { installedHealth = new Dictionary<string, ModHealthReport>(); SelectedInstalled = null; RebuildInstalledGraph(); NotifyActions(); return; }
         try
         {
             var service = new ThunderstoreInstallService(target, store);
             var state = await service.ReadStateAsync();
             IReadOnlyList<ModHealthReport> reports = recheckHealth ? await service.AssessHealthAsync() : [];
-            if (version != generation || getTarget() != target) return;
+            if (refresh != installedRefreshGeneration || version != generation || getTarget() != target) return;
             installedHealth = reports.ToDictionary(item => item.ModId, StringComparer.OrdinalIgnoreCase);
             foreach (var package in state.Packages) Installed.Add(package);
             if (catalog is not null)
@@ -234,7 +235,7 @@ public sealed partial class ThunderstoreViewModel(
             NotifyActions();
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or JsonException or UnauthorizedAccessException)
-        { if (version == generation) Error = exception.Message; }
+        { if (refresh == installedRefreshGeneration && version == generation && getTarget() == target) Error = exception.Message; }
     }
     [RelayCommand(CanExecute = nameof(CanPreview))] private Task PreviewInstallAsync() => PreviewAsync(false, false);
     [RelayCommand(CanExecute = nameof(CanPreview))] private Task PreviewUpdateAsync() => PreviewAsync(true, false);
