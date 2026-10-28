@@ -22,6 +22,7 @@ public sealed class SpeedrunComClient(
     private readonly string cacheRoot = Path.GetFullPath(cacheRoot ?? throw new ArgumentNullException(nameof(cacheRoot)));
     private readonly INetworkPolicy networkPolicy = networkPolicy ?? throw new ArgumentNullException(nameof(networkPolicy));
     private readonly TimeProvider timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly SemaphoreSlim cacheWriteGate = new(1, 1);
 
     public DateTimeOffset UtcNow => timeProvider.GetUtcNow();
 
@@ -148,7 +149,20 @@ public sealed class SpeedrunComClient(
         {
             T data = await FetchAsync(requestUri, parse, cancellationToken);
             var document = new CachedDocument<T>(CacheSchemaVersion, cacheKey, timeProvider.GetUtcNow(), data);
-            await AtomicJsonStore.WriteAsync(CachePath(cacheKey), document, cancellationToken);
+            await cacheWriteGate.WaitAsync(cancellationToken);
+            try
+            {
+                await AtomicJsonStore.WriteAsync(CachePath(cacheKey), document, cancellationToken);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // A cache failure must not discard a successfully fetched leaderboard.
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+            finally
+            {
+                cacheWriteGate.Release();
+            }
             return new SpeedrunDataResult<T>(
                 SpeedrunDataStatus.Remote,
                 data,

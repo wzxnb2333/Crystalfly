@@ -182,6 +182,64 @@ public sealed class SpeedrunComClientTests : IDisposable
     }
 
     [Fact]
+    public async Task Cache_write_failure_keeps_successfully_fetched_boards_and_podium()
+    {
+        Directory.CreateDirectory(cacheRoot);
+        string blockedCache = Path.Combine(cacheRoot, "blocked-cache");
+        await File.WriteAllTextAsync(blockedCache, "A file prevents creating the cache directory.");
+        using var client = CreateClient((request, _) => Task.FromResult(JsonResponse(
+            request.RequestUri!.AbsolutePath.EndsWith("/categories", StringComparison.Ordinal)
+                ? """{"data":[{"id":"c","name":"Any%","type":"per-game"}]}"""
+                : request.RequestUri.AbsolutePath.Contains("/leaderboards/", StringComparison.Ordinal)
+                    ? """{"data":{"runs":[]}}""" : """{"data":[]}""")));
+        using var policy = new NetworkPolicy();
+        var speedrun = new SpeedrunComClient(client, blockedCache, policy);
+
+        var boards = await speedrun.GetBoardsAsync(SpeedrunGame.HollowKnight, forceRefresh: true);
+
+        Assert.Equal(SpeedrunDataStatus.Remote, boards.Status);
+        var podium = await speedrun.GetPodiumAsync(Assert.Single(boards.Data!), forceRefresh: true);
+        Assert.Equal(SpeedrunDataStatus.Remote, podium.Status);
+        Assert.NotNull(podium.Data);
+        Assert.Equal("A file prevents creating the cache directory.", await File.ReadAllTextAsync(blockedCache));
+    }
+
+    [Fact]
+    public async Task Concurrent_first_loads_keep_all_remote_boards()
+    {
+        const int loads = 12;
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        int requests = 0;
+        using var client = CreateClient(async (request, cancellationToken) =>
+        {
+            if (Interlocked.Increment(ref requests) == loads * 2)
+            {
+                ready.SetResult();
+            }
+            await ready.Task.WaitAsync(cancellationToken);
+            return JsonResponse(request.RequestUri!.AbsolutePath.EndsWith("/categories", StringComparison.Ordinal)
+                ? """{"data":[{"id":"c","name":"Any%","type":"per-game"}]}"""
+                : """{"data":[]}""");
+        });
+        using var policy = new NetworkPolicy();
+        var speedrun = new SpeedrunComClient(client, cacheRoot, policy);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+
+        var results = await Task.WhenAll(Enumerable.Range(0, loads).Select(_ =>
+            speedrun.GetBoardsAsync(SpeedrunGame.HollowKnight, forceRefresh: true, timeout.Token)));
+
+        Assert.All(results, result =>
+        {
+            Assert.True(result.Status == SpeedrunDataStatus.Remote, result.Reason);
+            Assert.Single(result.Data!);
+        });
+        policy.SetOffline(true);
+        var cached = await speedrun.GetBoardsAsync(SpeedrunGame.HollowKnight);
+        Assert.Equal(SpeedrunDataStatus.Cached, cached.Status);
+        Assert.Single(cached.Data!);
+    }
+
+    [Fact]
     public async Task Podium_rejects_maliciously_large_response()
     {
         string runs = string.Join(',', Enumerable.Range(0, 101).Select(index =>
