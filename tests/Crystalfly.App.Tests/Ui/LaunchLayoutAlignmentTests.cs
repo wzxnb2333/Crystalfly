@@ -133,7 +133,8 @@ public sealed class LaunchLayoutAlignmentTests
         else AssertClose(Origin(silk, community).Y - Bottom(hk, community), 12);
         var links = community.GetVisualDescendants().OfType<Button>()
             .Where(button => button.Classes.Contains("cfp-community-link")).ToArray();
-        Assert.Equal(6, links.Length);
+        Assert.NotEmpty(links);
+        Assert.Equal(fixture.Model.SpeedrunCommunityLinks.Links.Count, links.Length);
         Assert.All(links, link =>
         {
             AssertClose(link.Bounds.Width, links[0].Bounds.Width);

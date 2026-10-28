@@ -4761,7 +4761,7 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
-    public async Task Background_refresh_loop_reloads_activity_without_loading_indicator()
+    public async Task Background_refresh_loop_shows_loading_until_refresh_is_cancelled()
     {
         string root = applicationData.CreateDirectory("speedrun-refresh-loop");
         using var policy = new NetworkPolicy();
@@ -4782,6 +4782,7 @@ public sealed class MainViewModelStateTests : IDisposable
         await viewModel.RefreshSpeedrunActivityCommand.ExecuteAsync(null);
         int callsAfterFirstLoad = handler.RequestCount;
 
+        handler.BlockRequests = true;
         // Shorten the production 15-minute interval so the test can observe a loop iteration.
         var intervalField = typeof(MainViewModel).GetField(
             "SpeedrunActivityRefreshInterval",
@@ -4791,9 +4792,11 @@ public sealed class MainViewModelStateTests : IDisposable
         try
         {
             _ = viewModel.StartSpeedrunActivityRefreshLoop();
-            await Task.Delay(500);
+            await handler.Blocked.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
             Assert.True(handler.RequestCount > callsAfterFirstLoad);
+            Assert.True(viewModel.IsSpeedrunActivityLoading);
+            await viewModel.DisposeAsync();
             Assert.False(viewModel.IsSpeedrunActivityLoading);
         }
         finally
@@ -5128,13 +5131,20 @@ public sealed class MainViewModelStateTests : IDisposable
     private sealed class CountingSpeedrunResponseHandler : SpeedrunResponseHandler
     {
         public int RequestCount { get; private set; }
+        public bool BlockRequests { get; set; }
+        public TaskCompletionSource Blocked { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        protected override Task<HttpResponseMessage> SendAsync(
+        protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
             RequestCount++;
-            return base.SendAsync(request, cancellationToken);
+            if (BlockRequests)
+            {
+                Blocked.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            return await base.SendAsync(request, cancellationToken);
         }
     }
 
