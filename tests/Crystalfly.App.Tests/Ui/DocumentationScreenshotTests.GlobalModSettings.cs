@@ -10,6 +10,7 @@ using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
 using Crystalfly.App.Views.Dialogs;
+using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Models;
 
 namespace Crystalfly.App.Tests.Ui;
@@ -31,6 +32,8 @@ public sealed partial class DocumentationScreenshotTests
         await using var fixture = CreateFixture();
         await fixture.PrepareAsync(ScreenshotState.InstanceDetail);
         var viewModel = fixture.ViewModel;
+        // Pointer hit testing must use the final dialog position, not an entrance animation frame.
+        viewModel.Settings.SelectedMotionPreference = new(UiMotionPreference.Off, "Off");
         var original = fixture.Instance.Record;
         var sourceRoot = viewModel.VersionRoot;
         var currentRoot = Path.Combine(sourceRoot, "other-root");
