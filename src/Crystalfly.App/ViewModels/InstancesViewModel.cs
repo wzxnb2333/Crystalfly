@@ -21,6 +21,8 @@ public sealed partial class InstancesViewModel : ViewModelBase
     internal InstancesViewModel(InstancesDependencies dependencies)
     {
         this.dependencies = dependencies;
+        SelectedInstances.CollectionChanged += (_, _) => NotifyInstanceSelectionChanged();
+        Instances.CollectionChanged += (_, _) => _ = RefreshStorageUsageAsync();
     }
 
     public event Action? GameDirectoryDiscoveryRequested;
@@ -51,17 +53,10 @@ public sealed partial class InstancesViewModel : ViewModelBase
 
     internal void ApplyInstanceFilter()
     {
+        ClearInstanceSelection();
         VisibleInstances.Clear();
-        foreach (var instance in Instances
-                     .Where(instance =>
-                         string.IsNullOrWhiteSpace(dependencies.GetSearchText())
-                         || instance.Name.Contains(dependencies.GetSearchText(), StringComparison.OrdinalIgnoreCase)
-                         || instance.DisplayVersion.Contains(dependencies.GetSearchText(), StringComparison.OrdinalIgnoreCase))
-                     .OrderByDescending(instance => instance.IsFavorite)
-                     .ThenBy(instance => instance.Name, StringComparer.CurrentCultureIgnoreCase))
-        {
+        foreach (var instance in BuildHierarchy(Instances, dependencies.GetSearchText(), dependencies.Loc()))
             VisibleInstances.Add(instance);
-        }
     }
 
     [RelayCommand]
@@ -105,12 +100,64 @@ public sealed partial class InstancesViewModel : ViewModelBase
         {
             return;
         }
+        if (IsSelectingInstances)
+        {
+            if (VisibleInstances.Contains(instance))
+            {
+                if (!SelectedInstances.Remove(instance)) SelectedInstances.Add(instance);
+            }
+            return;
+        }
         dependencies.SetSelectedInstance(instance);
         dependencies.SetCurrentPage("Launch");
     }
 
     [RelayCommand]
-    private async Task CloneSelectedInstanceAsync()
+    private Task OptimizeSelectedStorageAsync() => ChangeSelectedStorageAsync(materialize: false);
+
+    [RelayCommand]
+    private Task MaterializeSelectedStorageAsync() => ChangeSelectedStorageAsync(materialize: true);
+
+    private async Task ChangeSelectedStorageAsync(bool materialize)
+    {
+        if (dependencies.GetSelectedInstance() is not { } selected || dependencies.IsMutationBlocked()) return;
+        dependencies.SetIsBusy(true);
+        dependencies.SetErrorMessage(null);
+        try
+        {
+            if (!SharedGameContentStore.IsSupported(selected.RootPath))
+                throw new InvalidOperationException(dependencies.Loc()["SharedContentUnsupported"]);
+            if (!materialize && GameDirectories.Any(item => item.IsSteam
+                && string.Equals(item.Path, selected.RootPath, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException(dependencies.Loc()["SharedContentExcluded"]);
+            await dependencies.RunCoordinated(selected.Id, async token =>
+            {
+                var conditions = await dependencies.EvaluateDeletionConditions(selected.Id, token);
+                if (conditions.HasBlockingQueueTasks || !conditions.TransactionsHealthy)
+                    throw new InvalidOperationException(dependencies.Loc()["SharedContentBusy"]);
+                var store = new SharedGameContentStore(Path.GetDirectoryName(selected.RootPath)!);
+                if (materialize) await store.MaterializeAsync(selected.Record, token);
+                else await store.OptimizeAsync(selected.Record, token,
+                    new Progress<(int Completed, int Total)>(progress => dependencies.SetStatusMessage(
+                        string.Format(dependencies.Loc()["SharedContentProgress"], progress.Completed, progress.Total))));
+            }, dependencies.LifetimeCancellation);
+            await dependencies.RefreshInstancesQuietly();
+            dependencies.SetSelectedInstance(Instances.FirstOrDefault(item => item.Id == selected.Id));
+            dependencies.SetStatusMessage(dependencies.Loc()[materialize ? "IndependentContentReady" : "SharedContentReady"]);
+        }
+        catch (Exception error) when (error is IOException or InvalidDataException or InvalidOperationException
+            or UnauthorizedAccessException or ArgumentException)
+        { dependencies.SetErrorMessage(dependencies.Loc().ErrorMessageFor(error)); }
+        finally { dependencies.SetIsBusy(false); }
+    }
+
+    [RelayCommand]
+    private Task CloneSelectedInstanceAsync() => CloneInstanceAsync(shareContent: true);
+
+    [RelayCommand]
+    private Task CloneIndependentInstanceAsync() => CloneInstanceAsync(shareContent: false);
+
+    private async Task CloneInstanceAsync(bool shareContent)
     {
         if (dependencies.GetSelectedInstance() is null)
         {
@@ -148,7 +195,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
                     clone = await InstanceCloneService.CloneAsync(
                         source.RootPath,
                         dependencies.GetCloneInstanceName().Trim(),
-                        Guid.NewGuid().ToString("N"), token);
+                        Guid.NewGuid().ToString("N"), token, shareContent);
                 },
                 dependencies.LifetimeCancellation);
             var createdClone = clone
@@ -159,7 +206,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
             if (selectedClone is not null)
             {
                 dependencies.SetSelectedInstance(selectedClone);
-                dependencies.SetCurrentPage("Launch");
+                dependencies.SetCurrentPage("Versions");
             }
             dependencies.NotifyOperationCompleted();
         }
@@ -245,20 +292,22 @@ public sealed partial class InstancesViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task DeleteInstanceAsync(InstanceItemViewModel? instance)
+    private Task DeleteInstanceAsync(InstanceItemViewModel? instance) => DeleteInstanceAsync(instance, batch: false);
+
+    private async Task DeleteInstanceAsync(InstanceItemViewModel? instance, bool batch)
     {
-        if (instance is null || dependencies.IsMutationBlocked())
+        if (instance is null || !batch && dependencies.IsMutationBlocked())
         {
             return;
         }
 
         var originalIndex = Instances.IndexOf(instance);
-        bool wasSpeedrunInstance = instance.Record.Purpose == InstancePurpose.OfficialSpeedrun;
+        bool wasSpeedrunInstance = instance.Record.Purpose is InstancePurpose.OfficialSpeedrun or InstancePurpose.CustomSpeedrun;
         var nextId = Instances
             .Where(candidate => !string.Equals(candidate.Id, instance.Id, StringComparison.Ordinal))
             .ElementAtOrDefault(Math.Min(Math.Max(originalIndex, 0), Math.Max(Instances.Count - 2, 0)))
             ?.Id;
-        dependencies.SetIsBusy(true);
+        if (!batch) dependencies.SetIsBusy(true);
         dependencies.SetErrorMessage(null);
         try
         {
@@ -282,7 +331,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
                 dependencies.LifetimeCancellation);
 
             Instances.Remove(instance);
-            VisibleInstances.Remove(instance);
+            ApplyInstanceFilter();
             SpeedrunInstances.Remove(instance);
             if (dependencies.GetSelectedInstance()?.Id == instance.Id)
             {
@@ -304,14 +353,14 @@ public sealed partial class InstancesViewModel : ViewModelBase
                     .ToArray()
             });
             dependencies.QueueSettingsSave();
-            dependencies.SetCurrentPage(wasSpeedrunInstance ? "Speedrun" : "Launch");
+            if (!batch) dependencies.SetCurrentPage(wasSpeedrunInstance ? "Speedrun" : "Launch");
             if (result is { CleanupCompleted: false })
             {
                 var status = dependencies.Loc()["DeleteCleanupPending"];
                 dependencies.SetStatusMessage(status);
                 NotifyToast(status);
             }
-            else
+            else if (!batch)
             {
                 dependencies.NotifyOperationCompleted();
             }
@@ -327,7 +376,7 @@ public sealed partial class InstancesViewModel : ViewModelBase
         }
         finally
         {
-            dependencies.SetIsBusy(false);
+            if (!batch) dependencies.SetIsBusy(false);
         }
     }
 

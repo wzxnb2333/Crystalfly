@@ -4,15 +4,19 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels.DependencyGraph;
 using Crystalfly.App.Views.Controls;
+using Crystalfly.App.Services;
 
 namespace Crystalfly.App.Tests.Ui;
 
 public sealed class DependencyGraphViewInteractionTests
 {
-    [AvaloniaFact]
-    public void Graph_supports_modified_click_group_drag_marquee_and_selection_shortcuts()
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Graph_supports_modified_click_group_drag_marquee_and_selection_shortcuts(bool motionEnabled)
     {
         var graph = DependencyGraphModel.Create(
             [new("a", "A", "", "", DependencyGraphNodeState.Normal), new("b", "B", "", "", DependencyGraphNodeState.Normal),
@@ -21,9 +25,12 @@ public sealed class DependencyGraphViewInteractionTests
         { ["a"] = new(0, 80), ["b"] = new(300, 80), ["c"] = new(0, 280) });
         var view = new DependencyGraphView { DataContext = graph };
         var window = new Window { Width = 900, Height = 650, Content = view };
+        NameScope.SetNameScope(window, new NameScope());
         window.Show();
         Dispatcher.UIThread.RunJobs();
         view.ResetViewport();
+        var coordinator = new MotionCoordinator(window, () => motionEnabled, () => false, () => true);
+        coordinator.Start();
         try
         {
             Click("b", RawInputModifiers.Control);
@@ -60,7 +67,7 @@ public sealed class DependencyGraphViewInteractionTests
             Click("b", RawInputModifiers.None);
             Assert.Equal("b", Assert.Single(graph.SelectedNodes).Id);
         }
-        finally { window.Close(); }
+        finally { coordinator.Shutdown(); window.Close(); }
 
         Point NodePoint(string id)
         {
@@ -105,6 +112,119 @@ public sealed class DependencyGraphViewInteractionTests
         finally
         {
             window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void Changing_the_canvas_bottom_edge_preserves_the_current_view_and_node_screen_positions()
+    {
+        var graph = DependencyGraphModel.Create(
+            [new("a", "A", "", "", DependencyGraphNodeState.Normal),
+             new("b", "B", "", "", DependencyGraphNodeState.Normal)], [new("a", "b")]);
+        var view = new DependencyGraphView { DataContext = graph };
+        var window = new Window { Width = 900, Height = 650, Content = view };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        try
+        {
+            view.ResetViewport();
+            window.MouseWheel(new Point(240, 180), new Vector(0, 1));
+            Dispatcher.UIThread.RunJobs();
+            var scale = view.Scale;
+            var translation = view.Translation;
+            var positions = graph.GetPositions();
+            var nodeButton = view.GetVisualDescendants().OfType<Button>()
+                .Single(button => button.Classes.Contains("cfp-dependency-node") && button.DataContext == graph.Nodes[0]);
+            var origin = nodeButton.TranslatePoint(default, window);
+            var height = view.Bounds.Height;
+            foreach (var bottom in new[] { 12d, 38d, 60d, 31d, 0d })
+            {
+                view.Margin = new Thickness(0, 0, 0, bottom);
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                Assert.Equal(height - bottom, view.Bounds.Height, 3);
+                Assert.Equal(scale, view.Scale);
+                Assert.Equal(translation, view.Translation);
+                Assert.Equal(origin, nodeButton.TranslatePoint(default, window));
+                Assert.Equal(positions, graph.GetPositions());
+            }
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public async Task Selection_reveal_animates_only_the_bottom_edge_and_respects_motion_preferences(bool fullMotion, bool reducedMotion)
+    {
+        var graph = DependencyGraphModel.Create([new("mod", "Mod", "", "", DependencyGraphNodeState.Normal)], []);
+        var view = new DependencyGraphView { DataContext = graph };
+        var frame = new Border { Child = view, Classes = { "cfp-graph-selection-viewport" } };
+        var window = new Window { Width = 900, Height = 650, Content = frame };
+        NameScope.SetNameScope(window, new NameScope());
+        window.Show();
+        Render();
+        view.ResetViewport();
+        var scale = view.Scale;
+        var translation = view.Translation;
+        var origin = view.TranslatePoint(default, window);
+        var initialHeight = frame.Bounds.Height;
+        var node = view.GetVisualDescendants().OfType<Button>().Single(button => button.Classes.Contains("cfp-dependency-node"));
+        var nodeOrigin = node.TranslatePoint(default, window);
+        var coordinator = new MotionCoordinator(window, () => fullMotion, () => reducedMotion, () => true);
+        coordinator.Start();
+        coordinator.RegisterMotionTargets(animateNewTargets: false);
+        try
+        {
+            frame.Classes.Add("has-selection");
+            Render();
+            if (fullMotion)
+            {
+                await Task.Delay(75);
+                Render();
+                Assert.InRange(frame.Margin.Bottom, 0.1, 59.9);
+                Assert.InRange(frame.Bounds.Height, initialHeight - 59.9, initialHeight - 0.1);
+                AssertFixedView();
+                await Task.Delay(300);
+                Render();
+            }
+            Assert.Equal(60, frame.Margin.Bottom, 3);
+            AssertFixedView();
+            frame.Classes.Remove("has-selection");
+            Render();
+            if (fullMotion)
+            {
+                await Task.Delay(75);
+                Render();
+                Assert.InRange(frame.Margin.Bottom, 0.1, 59.9);
+                AssertFixedView();
+                // Reversing a running reveal must still preserve the current camera.
+                frame.Classes.Add("has-selection");
+                Render();
+                await Task.Delay(300);
+                Render();
+                Assert.Equal(60, frame.Margin.Bottom, 3);
+            }
+            else Assert.Equal(0, frame.Margin.Bottom);
+            AssertFixedView();
+        }
+        finally { coordinator.Shutdown(); window.Close(); }
+
+        void AssertFixedView()
+        {
+            Assert.Equal(scale, view.Scale);
+            Assert.Equal(translation, view.Translation);
+            Assert.Equal(origin, view.TranslatePoint(default, window));
+            Assert.Equal(nodeOrigin, node.TranslatePoint(default, window));
+        }
+        void Render()
+        {
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
         }
     }
 

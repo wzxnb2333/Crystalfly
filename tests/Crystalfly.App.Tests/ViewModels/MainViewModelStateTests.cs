@@ -291,6 +291,9 @@ public sealed class MainViewModelStateTests : IDisposable
         string sourceRoot = test.CreateDirectory("versions", "source");
         var source = Instance("source", sourceRoot);
         await InstanceSidecar.SaveAsync(source);
+        var data = Directory.CreateDirectory(Path.Combine(sourceRoot, "hollow_knight_Data")).FullName;
+        var resource = Path.Combine(data, "sharedassets0.assets");
+        await File.WriteAllBytesAsync(resource, new byte[1024 * 1024]);
 
         using var httpClient = new HttpClient(new FailingPackageHandler(canceled));
         await using var viewModel = new MainViewModel(
@@ -358,6 +361,49 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.False(string.IsNullOrWhiteSpace(viewModel.ErrorMessage));
         Assert.False(Directory.Exists(Path.Combine(versionRoot, "network-failure")));
         Assert.Empty(viewModel.Instances.SpeedrunInstances);
+        Assert.Equal(1024 * 1024, new FileInfo(resource).Length);
+        Assert.Equal(2u, SharedGameContentStore.LinkCount(resource));
+    }
+
+    [Fact]
+    public async Task Creating_HK_speedrun_environment_shares_resources_and_initializes_independent_saves()
+    {
+        using var test = new TestDirectory();
+        var library = test.CreateDirectory("versions");
+        var sourceRoot = test.CreateDirectory("versions", "source");
+        var data = test.CreateDirectory("versions", "source", "hollow_knight_Data");
+        await File.WriteAllTextAsync(Path.Combine(sourceRoot, "hollow_knight.exe"), "game");
+        await File.WriteAllTextAsync(Path.Combine(data, "globalgamemanagers"), "data");
+        var resource = Path.Combine(data, "sharedassets0.assets");
+        await File.WriteAllBytesAsync(resource, new byte[1024 * 1024]);
+        var source = Instance("source", sourceRoot);
+        await InstanceSidecar.SaveAsync(source);
+        var sharedSaves = test.CreateDirectory("shared-saves");
+        await File.WriteAllTextAsync(Path.Combine(sharedSaves, "user1.dat"), "original save");
+        await using var vm = new MainViewModel(test.CreateDirectory("app-data"), sharedLocalLowPathOverride: sharedSaves)
+        {
+            VersionRoot = library, SpeedrunEnvironmentName = "speedrun"
+        };
+        var template = new SpeedrunTemplate
+        {
+            Id = RuntimePatchesPolicy.GetTemplateId(source.BuildId)!, Name = "RuntimePatches", BuildId = source.BuildId,
+            IsOfficial = true, RulesRevision = RuntimePatchesPolicy.RulesRevision
+        };
+        SetCatalog(vm, new GameCatalog { SpeedrunTemplates = [template] });
+        vm.SelectedSpeedrunTemplate = template;
+        vm.Instances.Instances.Add(new InstanceItemViewModel(source, source.BuildId, "Vanilla", 0));
+        await vm.CreateSpeedrunEnvironmentCommand.ExecuteAsync(null);
+        Assert.Null(vm.ErrorMessage);
+        var created = Assert.Single(vm.Instances.SpeedrunInstances).Record;
+        Assert.Equal(InstancePurpose.OfficialSpeedrun, created.Purpose);
+        Assert.True(created.UsesSharedContent);
+        Assert.Equal(source.Id, created.ParentInstanceId);
+        Assert.Equal(SharedGameContentStore.Identity(resource), SharedGameContentStore.Identity(
+            Path.Combine(created.RootPath, "hollow_knight_Data", "sharedassets0.assets")));
+        var save = Path.Combine(library, ".crystalfly", "instances", created.Id, "local-low", "user1.dat");
+        Assert.Equal("original save", await File.ReadAllTextAsync(save));
+        await File.WriteAllTextAsync(save, "speedrun save");
+        Assert.Equal("original save", await File.ReadAllTextAsync(Path.Combine(sharedSaves, "user1.dat")));
     }
 
     [Fact]
@@ -490,6 +536,46 @@ public sealed class MainViewModelStateTests : IDisposable
         await viewModel.InitializeAsync();
 
         Assert.True(viewModel.IsOfflineMode);
+    }
+
+    [Theory]
+    [InlineData(false, 1)]
+    [InlineData(true, 2)]
+    public async Task Startup_catalog_refresh_only_rescans_instances_when_content_changes(bool changed, int expectedScans)
+    {
+        using var test = new TestDirectory();
+        var appRoot = test.CreateDirectory("app-data");
+        var versionRoot = test.CreateDirectory("versions");
+        await CrystalflySettingsStore.SaveAsync(Path.Combine(appRoot, "settings.json"), new CrystalflySettings
+        {
+            VersionRoot = versionRoot, OfflineMode = true, OnboardingCompleted = true,
+            GitHubDownloadRoute = GitHubDownloadRoute.Direct
+        });
+        await using var viewModel = new MainViewModel(appRoot);
+        var catalogReady = new TaskCompletionSource<GameCatalog>(TaskCreationOptions.RunContinuationsAsynchronously);
+        SetPrivateField(viewModel, "catalogLoader", new Func<CancellationToken, Task<GameCatalog>>(
+            token => catalogReady.Task.WaitAsync(token)));
+        var scans = 0;
+        SetPrivateField(viewModel, "instanceDiscovery",
+            new Func<string, GameCatalog, CancellationToken, Task<IReadOnlyList<InstanceRecord>>>((_, _, _) =>
+            {
+                Interlocked.Increment(ref scans);
+                return Task.FromResult<IReadOnlyList<InstanceRecord>>([]);
+            }));
+        await viewModel.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal(1, scans);
+        // A network response is a new object even when its contents match the disk cache.
+        var refreshed = CrystalflyJson.Deserialize<GameCatalog>(
+            CrystalflyJson.Serialize(GetPrivateField<GameCatalog>(viewModel, "catalog")));
+        if (changed)
+            refreshed = refreshed with { Builds = refreshed.Builds.Append(new GameBuild
+            {
+                Id = "new-build", DisplayVersion = "New build", ManifestId = "42",
+                ExecutableSha256 = new string('A', 64), GlobalGameManagersSha256 = new string('B', 64)
+            }).ToArray() };
+        catalogReady.SetResult(refreshed);
+        await GetPrivateAssignableField<Task>(viewModel, "catalogRefreshTask").WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal(expectedScans, scans);
     }
 
     [Fact]
@@ -887,6 +973,32 @@ public sealed class MainViewModelStateTests : IDisposable
         {
             releaseReconnect.TrySetResult();
         }
+    }
+
+    [Fact]
+    public async Task Initialize_shows_cached_HK_market_while_remote_catalog_is_pending()
+    {
+        using var test = new TestDirectory();
+        var data = test.CreateDirectory("market-cache");
+        await CrystalflySettingsStore.SaveAsync(Path.Combine(data, "settings.json"),
+            new CrystalflySettings { OfflineMode = true, OnboardingCompleted = true });
+        var loader = EmbeddedCatalog.Load().Loaders.Single(item => item.Id == "modding-api-77");
+        var mod = new ModManifest { Id = "hkmod:CachedMarket", Name = "Cached Market", Version = "1.0",
+            DownloadUrl = "https://example.invalid/mod.zip", Sha256 = new string('A', 64),
+            LoaderId = loader.Id, SupportedBuildIds = loader.SupportedBuildIds };
+        var cached = new GameCatalog { Loaders = [loader], Mods = [mod] };
+        await AtomicJsonStore.WriteAsync(Path.Combine(data, "catalog", "hk-modlinks.v77.json"), cached);
+        var release = new TaskCompletionSource<GameCatalog>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var vm = new MainViewModel(data);
+        SetPrivateField(vm, "catalogLoader", new Func<CancellationToken, Task<GameCatalog>>(token => release.Task.WaitAsync(token)));
+        try
+        {
+            await vm.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(release.Task.IsCompleted);
+            Assert.Contains(vm.MarketMods, item => item.Id == mod.Id);
+            Assert.True(vm.IsOfflineMode);
+        }
+        finally { release.TrySetResult(CatalogMerger.Merge(EmbeddedCatalog.Load(), null, null, [cached])); }
     }
 
     [Fact]
@@ -2392,8 +2504,44 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.True(viewModel.CanCloneInstance);
     }
 
-    [Fact]
-    public async Task Clone_success_requests_one_completion_toast()
+    [Theory]
+    [InlineData(InstancePurpose.General)]
+    [InlineData(InstancePurpose.OfficialSpeedrun)]
+    public async Task Instance_storage_commands_round_trip_resources_and_keep_selection(InstancePurpose purpose)
+    {
+        using var test = new TestDirectory();
+        var applicationDataRoot = test.CreateDirectory("app-data");
+        var versionRoot = test.CreateDirectory("versions");
+        var instanceRoot = test.CreateDirectory("versions", "source");
+        var data = test.CreateDirectory("versions", "source", "hollow_knight_Data");
+        await File.WriteAllTextAsync(Path.Combine(instanceRoot, "hollow_knight.exe"), "game");
+        await File.WriteAllTextAsync(Path.Combine(data, "globalgamemanagers"), "game");
+        var resource = Path.Combine(data, "sharedassets0.assets");
+        await File.WriteAllBytesAsync(resource, new byte[1024 * 1024]);
+        var record = Instance("source", instanceRoot) with { Name = "Source", Purpose = purpose };
+        await InstanceSidecar.SaveAsync(record);
+        await using var vm = new MainViewModel(applicationDataRoot)
+        {
+            VersionRoot = versionRoot,
+            SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "Vanilla", 0)
+        };
+        await vm.Instances.OptimizeSelectedStorageCommand.ExecuteAsync(null);
+        Assert.Null(vm.ErrorMessage);
+        Assert.Equal(record.Id, vm.SelectedInstance?.Id);
+        Assert.True(vm.SelectedInstance!.Record.UsesSharedContent);
+        Assert.Throws<UnauthorizedAccessException>(() => File.WriteAllText(resource, "edit"));
+        await vm.Instances.MaterializeSelectedStorageCommand.ExecuteAsync(null);
+        Assert.Null(vm.ErrorMessage);
+        Assert.Equal(record.Id, vm.SelectedInstance?.Id);
+        Assert.False(vm.SelectedInstance!.Record.UsesSharedContent);
+        Assert.Equal(1024 * 1024, new FileInfo(resource).Length);
+        await File.WriteAllTextAsync(resource, "independent edit");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Clone_success_requests_one_completion_toast(bool shared)
     {
         using var test = new TestDirectory();
         var applicationDataRoot = test.CreateDirectory("app-data");
@@ -2415,13 +2563,15 @@ public sealed class MainViewModelStateTests : IDisposable
         var notifications = new List<string>();
         viewModel.ToastRequested += notifications.Add;
 
-        await viewModel.Instances.CloneSelectedInstanceCommand.ExecuteAsync(null);
+        await (shared ? viewModel.Instances.CloneSelectedInstanceCommand
+            : viewModel.Instances.CloneIndependentInstanceCommand).ExecuteAsync(null);
 
         Assert.Null(viewModel.ErrorMessage);
         Assert.Equal(viewModel.Loc["OperationComplete"], Assert.Single(notifications));
         Assert.Equal("Clone", viewModel.SelectedInstance?.Name);
         Assert.NotEqual(record.Id, viewModel.SelectedInstance?.Id);
-        Assert.Equal("Launch", viewModel.CurrentPage);
+        Assert.Equal(record.Id, viewModel.SelectedInstance?.Record.ParentInstanceId);
+        Assert.Equal("Versions", viewModel.CurrentPage);
     }
 
     [Fact]
@@ -2524,7 +2674,7 @@ public sealed class MainViewModelStateTests : IDisposable
     }
 
     [Fact]
-    public void Busy_or_running_state_locks_navigation()
+    public void Busy_state_locks_navigation_but_a_running_game_allows_browsing()
     {
         var viewModel = CreateViewModel();
         Assert.True(viewModel.CanNavigate);
@@ -2534,7 +2684,7 @@ public sealed class MainViewModelStateTests : IDisposable
 
         viewModel.IsBusy = false;
         viewModel.IsGameRunning = true;
-        Assert.False(viewModel.CanNavigate);
+        Assert.True(viewModel.CanNavigate);
     }
 
     [Fact]
@@ -3853,7 +4003,7 @@ public sealed class MainViewModelStateTests : IDisposable
         Assert.NotNull(method);
         await Assert.IsAssignableFrom<Task>(method.Invoke(
             viewModel,
-            [record, generation, CancellationToken.None, false, null]));
+            [record, generation, CancellationToken.None, false, null, null]));
     }
 
     private static Task InvokeLoadModPresetsAsync(

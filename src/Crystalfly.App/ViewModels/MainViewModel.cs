@@ -30,6 +30,7 @@ using Crystalfly.Core.Logs;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Mods;
 using Crystalfly.Core.Runtime;
+using Crystalfly.Core.Serialization;
 using Crystalfly.Core.Snapshots;
 using Crystalfly.Core.Speedrun;
 using Crystalfly.Core.Transactions;
@@ -71,7 +72,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly object steamReconnectQueueLock = new();
     private readonly object disposeLock = new();
     private readonly Func<Task>? launchOverride;
-    private readonly Func<ProcessStartInfo, Process?> startGameProcess;
+    private readonly Func<ProcessStartInfo, Process?>? startGameProcess;
     private readonly Func<CancellationToken, Task>? downloadOverride;
     private readonly Func<Task>? disposeSteamOverride;
     private readonly Func<CancellationToken, Task<RefreshTokenCredential>>? qrSignInOverride;
@@ -115,7 +116,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private int steamQrChallengeReceived;
     private int steamQrRestartPending;
     private CancellationTokenSource? downloadCancellation;
-    private InstanceRuntimeSession? runtimeSession;
+    private readonly HashSet<string> runningInstancePaths = new(StringComparer.OrdinalIgnoreCase);
     private Bitmap? qrCodeImage;
     private long detailsLoadGeneration;
     private CancellationTokenSource? detailsLoadCancellation;
@@ -181,11 +182,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         HttpClient? packageHttpClientOverride = null,
         string? sharedLocalLowPathOverride = null,
         Func<ProcessStartInfo, Process?>? startGameProcessOverride = null,
-        Crystalfly.Core.Diagnostics.IErrorReporter? errorReporterOverride = null)
+        Crystalfly.Core.Diagnostics.IErrorReporter? errorReporterOverride = null,
+        Action<string>? openLiveSplitOverride = null)
     {
+        openLiveSplitFile = openLiveSplitOverride ?? (path =>
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true })?.Dispose());
         errorReporter = errorReporterOverride ?? Crystalfly.App.Diagnostics.ErrorReportingRuntime.Reporter;
         diagnostics = errorReporter as Crystalfly.App.Diagnostics.ErrorReportingService;
-        startGameProcess = startGameProcessOverride ?? Process.Start;
+        startGameProcess = startGameProcessOverride;
         this.sharedLocalLowPathOverride = sharedLocalLowPathOverride;
         this.launchOverride = launchOverride;
         this.downloadOverride = downloadOverride;
@@ -520,7 +524,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public string OnboardingNextActionText =>
         OnboardingNextTask?.ActionText ?? Loc["OnboardingReopen"];
 
-    public bool IsWorkspaceEnabled => !IsBusy && !IsGameRunning && !IsExternalCommandRunning;
+    public bool IsWorkspaceEnabled => !IsBusy && !IsExternalCommandRunning;
 
     public bool CanNavigate => IsWorkspaceEnabled && !IsSwitchingGame;
 
@@ -538,9 +542,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Loc["LaunchIssueCountFormat"],
         LaunchIssueCount);
 
-    public bool CanLaunch => HasInstance && CanNavigate && LaunchPreflight.IsReady;
+    public bool IsSelectedInstanceRunning => SelectedInstance is { } selected
+        && (runningInstancePaths.Contains(selected.RootPath)
+            || LaunchPreflight.Issues.Any(issue => issue.Code == LaunchIssueCode.GameAlreadyRunning));
+
+    public bool CanLaunch => HasInstance && CanNavigate && !IsSelectedInstanceRunning && LaunchPreflight.IsReady;
 
     public bool CanAttemptLaunch => HasInstance
+        && !IsSelectedInstanceRunning
         && CanNavigate
         && !IsLoadingInstanceDetails
         && LaunchPreflight.CanAttemptLaunch;
@@ -553,12 +562,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public string SaveIsolationStatus => LaunchPreflight.SaveIsolationReady ? Loc["Mounted"] : Loc["NeedsAttention"];
 
-    public string LaunchReadinessTitle => !HasInstance
+    public string LaunchReadinessTitle => IsInstanceInspectionPending ? Loc["StatusChecking"] : !HasInstance
         ? Loc["NoInstance"]
+        : IsSelectedInstanceRunning ? Loc["QueueStateRunning"]
         : LaunchPreflight.IsReady ? Loc["Ready"] : Loc["NeedsAttention"];
 
-    public string LaunchReadinessHint => !HasInstance
+    public string LaunchReadinessHint => IsInstanceInspectionPending ? string.Empty : !HasInstance
         ? Loc["ChooseRoot"]
+        : IsSelectedInstanceRunning ? Loc["InstanceAlreadyRunning"]
         : LaunchPreflight.IsReady ? Loc["ReadyHint"] : Loc["LaunchForceable"];
 
     public string OfficialModCatalogStatus => settings.CustomModLinks is not null
@@ -619,7 +630,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public string SelectedSpeedrunTechnicalStatus => SelectedSpeedrunInstance is null
         ? Loc["SpeedrunNoInstance"]
-        : IsSelectedSpeedrunLegacy
+        : SelectedSpeedrunInstance.Record.GameId == GameId.Silksong
+            ? Loc["SpeedrunCustomReady"]
+            : IsSelectedSpeedrunLegacy
             ? Loc["SpeedrunTemplateExpired"]
             : IsSelectedSpeedrunCurrent
                 ? Loc["SpeedrunTechnicalReady"]
@@ -828,6 +841,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
+    [NotifyPropertyChangedFor(nameof(IsInstanceInspectionPending))]
+    [NotifyPropertyChangedFor(nameof(LaunchReadinessTitle))]
+    [NotifyPropertyChangedFor(nameof(LaunchReadinessHint))]
     public partial bool IsLoadingInstanceDetails { get; set; }
 
     [ObservableProperty]
@@ -960,6 +976,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(CanLaunch))]
     [NotifyPropertyChangedFor(nameof(CanAttemptLaunch))]
     [NotifyPropertyChangedFor(nameof(GameFilesStatus))]
+    [NotifyPropertyChangedFor(nameof(IsSelectedInstanceRunning))]
     [NotifyPropertyChangedFor(nameof(LoaderPreflightStatus))]
     [NotifyPropertyChangedFor(nameof(ModDependencyStatus))]
     [NotifyPropertyChangedFor(nameof(HasModDependencyProblems))]
@@ -995,6 +1012,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelectedSpeedrunInstance))]
+    [NotifyPropertyChangedFor(nameof(HasRuntimePatchesEnvironment))]
     [NotifyPropertyChangedFor(nameof(IsSelectedSpeedrunLegacy))]
     [NotifyPropertyChangedFor(nameof(IsSelectedSpeedrunCurrent))]
     [NotifyPropertyChangedFor(nameof(SelectedSpeedrunTechnicalStatus))]
@@ -1214,13 +1232,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private async Task InitializeCoreAsync()
     {
-        ApplicationUpdateLauncher.CleanupExpiredAssets(
+        await Task.Run(() => ApplicationUpdateLauncher.CleanupExpiredAssets(
             Path.Combine(paths.ApplicationDataRoot, "updates"),
             DateTimeOffset.UtcNow,
-            TimeSpan.FromDays(7));
+            TimeSpan.FromDays(7)), lifetimeCancellation.Token);
         try
         {
-            settings = await CrystalflySettingsStore.LoadAsync(settingsPath);
+            settings = await Task.Run(() => CrystalflySettingsStore.LoadAsync(settingsPath, lifetimeCancellation.Token),
+                lifetimeCancellation.Token);
         }
         catch
         {
@@ -1250,6 +1269,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         // catalog refresh task still awaits the first instance scan before it
         // re-scans with the loaded catalog, so the scan ordering is unchanged.
         var downloadQueueTask = InitializeDownloadQueueAsync();
+        try { catalog = await LoadCatalogAsync(lifetimeCancellation.Token, cacheOnly: true); }
+        catch (Exception exception) when (exception is IOException or System.Text.Json.JsonException
+            or InvalidDataException or UnauthorizedAccessException)
+        {
+            ApplicationLog.Write(Path.Combine(paths.ApplicationDataRoot, "logs", "crystalfly.log"),
+                "catalog-cache", exception.Message);
+        }
         var catalogLoadTask = catalogLoader(lifetimeCancellation.Token);
         InitializeApplicationUpdateSettings();
         VersionRoot = settings.VersionRoot ?? string.Empty;
@@ -1563,13 +1589,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         try
         {
-            catalog = await catalogLoad;
+            var previousCatalog = catalog;
+            var refreshedCatalog = await catalogLoad;
+            var catalogChanged = await Task.Run(() =>
+                !string.Equals(CrystalflyJson.Serialize(previousCatalog), CrystalflyJson.Serialize(refreshedCatalog),
+                    StringComparison.Ordinal), lifetimeCancellation.Token);
+            catalog = refreshedCatalog;
             RebuildCustomModLinksOptions();
             ModManagement.RebuildStatusOptions();
             RebuildMarketCatalog();
             PopulateSpeedrunTemplates();
             PopulateDownloadBuilds();
-            if (Directory.Exists(VersionRoot))
+            if (catalogChanged && Directory.Exists(VersionRoot))
             {
                 await initialInstanceRefresh;
                 await RefreshInstancesAsync(showBusy: false);
@@ -1889,8 +1920,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     private Task RefreshAsync() => RefreshInstancesAsync(showBusy: true);
 
-    private async Task RefreshInstancesAsync(bool showBusy)
+    private async Task RefreshInstancesAsync(bool showBusy, CancellationToken refreshCancellation = default)
     {
+        if (!refreshCancellation.CanBeCanceled) gameSwitchRefreshCancellation?.Cancel();
+        var scanToken = refreshCancellation.CanBeCanceled ? refreshCancellation : lifetimeCancellation.Token;
         var refreshVersion = Interlocked.Increment(ref instanceRefreshVersion);
         var scanRoot = VersionRoot;
         var scanGame = SelectedGameId;
@@ -1915,7 +1948,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         try
         {
             var discoveryIssues = new System.Collections.Concurrent.ConcurrentBag<InstanceDiscoveryIssue>();
-            InstanceDirectory.RejectReparseAncestors(paths.GetVersionDataRoot(scanRoot, scanGame));
+            var scanInspections = new System.Collections.Concurrent.ConcurrentDictionary<string, InstanceScanInspection>(StringComparer.OrdinalIgnoreCase);
+            var saveStorage = paths.GetVersionDataRoot(scanRoot, scanGame);
+            var sharedSavePath = sharedLocalLowPathOverride ?? GameDefinition.Get(scanGame).GetLocalLowPath();
+            var scanCatalog = catalog;
+            var deletionRecoveryError = Loc["DeleteRecoveryNeedsAttention"];
+            var transactionRecoveryError = Loc["RecoveryNeedsAttention"];
             var discovered = new List<(
                 InstanceRecord Record,
                 LoaderState LoaderState,
@@ -1925,19 +1963,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 "transactions",
                 async cancellationToken =>
                 {
-                    var deletionRecoveries = await new InstanceDeletionService(scanRoot)
-                        .RecoverPendingAsync(cancellationToken);
-                    if (deletionRecoveries.Any(recovery => !recovery.Completed))
-                    {
-                        throw new InvalidOperationException(Loc["DeleteRecoveryNeedsAttention"]);
-                    }
-                    await EnsureTransactionsHealthyAsync(cancellationToken, scanRoot);
-                    bool canCompleteActiveSession = runtimeSession is null
-                        && !IsGameRunning
-                        && !new SystemHollowKnightProcessProbe(SelectedGame.ProcessName).IsRunning();
-                    var scanCatalog = catalog;
                     var inspections = await Task.Run(async () =>
                     {
+                        InstanceDirectory.RejectReparseAncestors(saveStorage);
+                        var deletionRecoveries = await new InstanceDeletionService(scanRoot)
+                            .RecoverPendingAsync(cancellationToken);
+                        if (deletionRecoveries.Any(recovery => !recovery.Completed))
+                            throw new InvalidOperationException(deletionRecoveryError);
+                        var recoveries = await FileTransaction.RecoverPendingAsync(
+                            Path.Combine(saveStorage, "transactions"), cancellationToken);
+                        if (recoveries.Any(recovery => recovery.State == TransactionState.NeedsAttention))
+                            throw new InvalidOperationException(transactionRecoveryError);
+                        bool canCompleteActiveSession = !new SystemHollowKnightProcessProbe(GameDefinition.Get(scanGame).ProcessName).IsRunning();
                         var records = await (instanceDiscovery?.Invoke(scanRoot, scanCatalog, cancellationToken)
                             ?? InstanceImportService.DiscoverAsync(scanRoot, scanCatalog, scanGame, cancellationToken))
                             .ConfigureAwait(false);
@@ -1948,8 +1985,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                                 discoveryIssues.Add(issue);
                             }
                         }
-                        var sharedSavePath = sharedLocalLowPathOverride ?? GameDefinition.Get(scanGame).GetLocalLowPath();
-                        var saveStorage = paths.GetVersionDataRoot(scanRoot, scanGame);
                         if (scanGame == GameId.Silksong)
                             await SilksongSavePathMigration.MigrateAsync(sharedSavePath, saveStorage,
                                 records.Where(record => record.GameId == scanGame).Select(record => record.Id),
@@ -1966,14 +2001,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                         {
                             try
                             {
+                                var state = record.GameId == GameId.Silksong
+                                    ? await new ThunderstoreInstallService(record, GetThunderstorePackageStore()).ReadStateAsync(cancellationToken)
+                                    : null;
                                 var loaderManager = CreateLoaderManager(record);
-                                var loaderInspection = await loaderManager
-                                    .InspectAsync(cancellationToken).ConfigureAwait(false);
+                                var loaderReceipt = await loaderManager.GetReceiptAsync(cancellationToken, state).ConfigureAwait(false);
+                                var loaderInspection = await LoaderStateDetector.InspectAsync(record.RootPath, loaderReceipt, cancellationToken).ConfigureAwait(false);
                                 var loaderState = loaderInspection.State;
-                                var loaderReceipt = await loaderManager
-                                    .GetReceiptAsync(cancellationToken).ConfigureAwait(false);
+                                scanInspections[record.RootPath] = new(loaderInspection, loaderReceipt, state);
                                 var modCount = record.GameId == GameId.Silksong
-                                    ? (await new ThunderstoreInstallService(record, GetThunderstorePackageStore()).ReadStateAsync(cancellationToken)).Packages.Count(item => !item.IsLoader)
+                                    ? state!.Packages.Count(item => !item.IsLoader)
                                     : (await CreateModManager(record).DiscoverAsync(loaderInspection.PackageId ?? loaderState.ToString(), cancellationToken).ConfigureAwait(false)).Mods.Count;
                                 return ((InstanceRecord Record, LoaderState LoaderState,
                                     InstalledPackageReceipt? LoaderReceipt, int ModCount)?)
@@ -1990,8 +2027,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     }, cancellationToken);
                     discovered.AddRange(inspections);
                 },
-                lifetimeCancellation.Token);
-            if (scanGame != SelectedGameId || refreshVersion != Volatile.Read(ref instanceRefreshVersion))
+                scanToken);
+            if (scanToken.IsCancellationRequested || (refreshCancellation.CanBeCanceled
+                && (IsBusy || SaveEditor?.IsDirty == true || GameConfig?.IsDirty == true))
+                || scanGame != SelectedGameId || refreshVersion != Volatile.Read(ref instanceRefreshVersion))
             {
                 return;
             }
@@ -2000,34 +2039,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 ClearInstanceProjection();
                 return;
             }
-            lastInstanceProjection = discovered;
-            var previousSelection = SelectedInstance;
-            suppressInstanceDetailsReload = true;
-            try
+            if (lastInstanceProjection is { } previousProjection)
             {
-                Instances.Instances.Clear();
-                foreach (var item in discovered)
-                {
-                    Instances.Instances.Add(ProjectInstanceItem(item, settings));
-                }
-
-                Instances.ApplyInstanceFilter();
-                SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == settings.CurrentInstanceId)
-                    ?? Instances.Instances.FirstOrDefault();
+                var unreadablePaths = discoveryIssues.Where(issue => IsTemporaryInstanceReadFailure(issue.Error))
+                    .Select(issue => issue.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                discovered.AddRange(previousProjection.Where(item =>
+                    unreadablePaths.Contains(item.Record.RootPath)
+                    && !discovered.Any(current => current.Record.Id == item.Record.Id)
+                    && CanRetainInstanceAfterScanFailure(item.Record, scanRoot, scanGame)));
+                discovered.Sort((left, right) => StringComparer.OrdinalIgnoreCase.Compare(left.Record.Name, right.Record.Name));
             }
-            finally
-            {
-                suppressInstanceDetailsReload = false;
-            }
-            OnSelectedInstanceChanged(previousSelection, SelectedInstance);
-            PopulateSpeedrunInstances();
-            PopulateDownloadBuilds();
-            // Restore the speedrun selection only when the remembered instance actually is one.
-            // Falling back to the first speedrun instance would otherwise overwrite the remembered
-            // regular-instance selection and make "remember last instance" appear broken.
-            SelectedSpeedrunInstance = Instances.SpeedrunInstances.FirstOrDefault(instance =>
-                instance.Id == settings.CurrentInstanceId)
-                ?? (settings.CurrentInstanceId is null ? Instances.SpeedrunInstances.FirstOrDefault() : null);
+            ApplyInstanceProjection(discovered, scanInspections);
             StatusMessage = Loc["StatusReady"];
             if (discoveryIssues.Count > 0)
             {
@@ -2037,6 +2059,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                         .Select(issue => $"{issue.Path}: {Loc.ErrorMessageFor(issue.Error)}"));
             }
         }
+        catch (OperationCanceledException) when (scanToken.IsCancellationRequested)
+        {
+        }
         catch (Exception exception) when (exception is IOException
             or UnauthorizedAccessException
             or InvalidDataException
@@ -2045,7 +2070,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             if (refreshVersion == Volatile.Read(ref instanceRefreshVersion))
             {
-                ClearInstanceProjection();
+                IsLoadingInstanceDetails = false;
+                if (!IsTemporaryInstanceReadFailure(exception)
+                    || lastInstanceProjection is not { Count: > 0 } previousProjection
+                    || previousProjection.Any(item => !CanRetainInstanceAfterScanFailure(item.Record, scanRoot, scanGame)))
+                {
+                    ClearInstanceProjection();
+                }
+                else
+                {
+                    LaunchPreflight = new(false, false, false, false);
+                }
                 if (string.Equals(scanRoot, VersionRoot, StringComparison.OrdinalIgnoreCase))
                 {
                     ErrorMessage = Loc.ErrorMessageFor(exception);
@@ -2058,11 +2093,73 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 && string.Equals(scanRoot, VersionRoot, StringComparison.OrdinalIgnoreCase))
             {
                 Instances.UpdateActiveDirectoryScanStatus();
+                if (refreshCancellation.CanBeCanceled && detailsLoadTask.IsCompleted)
+                    IsLoadingInstanceDetails = false;
             }
             if (showBusy)
             {
                 IsBusy = false;
             }
+        }
+    }
+
+    private void ApplyInstanceProjection(
+        IReadOnlyList<(InstanceRecord Record, LoaderState LoaderState, InstalledPackageReceipt? LoaderReceipt, int ModCount)> discovered,
+        IReadOnlyDictionary<string, InstanceScanInspection>? inspections = null, bool deferLoading = false)
+    {
+        lastInstanceProjection = discovered;
+        var previousSelection = SelectedInstance;
+        suppressInstanceDetailsReload = true;
+        try
+        {
+            Instances.Instances.Clear();
+            foreach (var item in discovered)
+            {
+                Instances.Instances.Add(ProjectInstanceItem(item, settings));
+            }
+
+            Instances.ApplyInstanceFilter();
+            SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == settings.CurrentInstanceId)
+                ?? Instances.Instances.FirstOrDefault();
+        }
+        finally
+        {
+            suppressInstanceDetailsReload = false;
+        }
+        UpdateSelectedInstanceDetails(previousSelection, SelectedInstance,
+            SelectedInstance is { } selected && inspections is not null ? inspections.GetValueOrDefault(selected.RootPath) : null,
+            deferLoading: deferLoading);
+        PopulateSpeedrunInstances();
+        PopulateDownloadBuilds();
+        // Restore the speedrun selection only when the remembered instance actually is one.
+        // Falling back to the first speedrun instance would otherwise overwrite the remembered
+        // regular-instance selection and make "remember last instance" appear broken.
+        SelectedSpeedrunInstance = Instances.SpeedrunInstances.FirstOrDefault(instance =>
+            instance.Id == settings.CurrentInstanceId)
+            ?? (settings.CurrentInstanceId is null ? Instances.SpeedrunInstances.FirstOrDefault() : null);
+    }
+
+    private static bool IsTemporaryInstanceReadFailure(Exception exception) =>
+        exception is IOException or UnauthorizedAccessException;
+
+    private bool CanRetainInstanceAfterScanFailure(InstanceRecord record, string scanRoot, GameId scanGame)
+    {
+        if (record.GameId != scanGame
+            || !string.Equals(Path.GetDirectoryName(record.RootPath), Path.TrimEndingDirectorySeparator(Path.GetFullPath(scanRoot)), StringComparison.OrdinalIgnoreCase)
+            || !GameDirectoryIntegrityChecker.Inspect(record.RootPath, gameId: scanGame).IsValid)
+        {
+            return false;
+        }
+        try
+        {
+            InstanceDirectory.RejectReparseAncestors(record.RootPath);
+            InstanceDirectory.RejectReparseAncestors(InstanceSidecar.GetMetadataPath(record.RootPath, record.Id));
+            InstanceDirectory.RejectReparseAncestors(paths.GetVersionDataRoot(scanRoot, scanGame));
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 
@@ -2134,7 +2231,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         Instances.SpeedrunInstances.Clear();
         foreach (InstanceItemViewModel instance in Instances.Instances.Where(instance =>
-                     instance.Record.Purpose == InstancePurpose.OfficialSpeedrun))
+                     instance.Record.Purpose is InstancePurpose.OfficialSpeedrun or InstancePurpose.CustomSpeedrun))
         {
             Instances.SpeedrunInstances.Add(instance);
         }
@@ -2145,16 +2242,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         string? selectedId = SelectedSpeedrunSourceInstance?.Id;
         SpeedrunSourceInstances.Clear();
-        if (SelectedSpeedrunTemplate is null)
+        if (IsHollowKnight && SelectedSpeedrunTemplate is null)
         {
             SelectedSpeedrunSourceInstance = null;
             return;
         }
         foreach (InstanceItemViewModel instance in Instances.Instances.Where(instance =>
                      instance.Record.Purpose == InstancePurpose.General
-                     && string.Equals(instance.Record.BuildId, SelectedSpeedrunTemplate.BuildId, StringComparison.Ordinal)
-                     && instance.ModCount == 0
-                     && string.Equals(instance.LoaderDisplay, LoaderState.Vanilla.ToString(), StringComparison.Ordinal)))
+                     && instance.Record.GameId == SelectedGameId
+                     && (IsSilksong || (string.Equals(instance.Record.BuildId, SelectedSpeedrunTemplate!.BuildId, StringComparison.Ordinal)
+                         && instance.ModCount == 0
+                         && string.Equals(instance.LoaderDisplay, LoaderState.Vanilla.ToString(), StringComparison.Ordinal)))))
         {
             SpeedrunSourceInstances.Add(instance);
         }
@@ -2190,10 +2288,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         };
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private Task LaunchGameAsync() => LaunchGameCoreAsync(force: false);
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private Task ForceLaunchGameAsync() => LaunchGameCoreAsync(force: true);
 
     private async Task LaunchGameCoreAsync(bool force)
@@ -2203,122 +2301,94 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             await launchOverride();
             return;
         }
-
+        if (IsBusy || IsSwitchingGame) return;
         ErrorMessage = null;
-        if (SelectedInstance is null)
+        if (SelectedInstance is not { } selected)
         {
             ErrorMessage = Loc["NoInstance"];
             return;
         }
-        var selected = SelectedInstance;
-        if (!await ReloadSelectedInstanceDetailsAsync() || !ReferenceEquals(selected, SelectedInstance))
+        var record = selected.Record;
+        var game = GameDefinition.Get(record.GameId);
+        var executable = Path.Combine(record.RootPath, game.ExecutableName);
+        if (runningInstancePaths.Contains(record.RootPath) || new InstanceProcessProbe(executable).IsRunning())
         {
+            ErrorMessage = Loc["InstanceAlreadyRunning"];
             return;
         }
-        if (force ? !LaunchPreflight.CanForceLaunch : !LaunchPreflight.CanLaunchNormally)
-        {
-            ErrorMessage ??= Loc["LaunchBlocked"];
-            return;
-        }
-        if (launchOverride is not null)
-        {
-            await launchOverride();
-            return;
-        }
-        if (new SystemHollowKnightProcessProbe(selected.Record.GameId == GameId.HollowKnight ? GameDefinition.HollowKnight.ProcessName : GameDefinition.Silksong.ProcessName).IsRunning())
-        {
-            ErrorMessage = Loc["SteamAlreadyRunning"];
-            return;
-        }
-
-        var executable = Path.Combine(SelectedInstance.RootPath, GameDefinition.Get(SelectedInstance.Record.GameId).ExecutableName);
-        if (!File.Exists(executable))
-        {
-            ErrorMessage = $"{Loc["OperationFailed"]}: {executable}";
-            return;
-        }
-
-        var record = SelectedInstance.Record;
-        var isolation = new LocalLowIsolationService(
-            GetSharedLocalLowPath(),
-            paths.GetVersionDataRoot(VersionRoot, SelectedGameId));
-        IsGameRunning = true;
+        var storageRoot = paths.GetVersionDataRoot(VersionRoot, record.GameId);
+        var isolation = new LocalLowIsolationService(GetSharedLocalLowPath(), storageRoot);
         Process? process = null;
+        var registered = false;
+        IsBusy = true;
         try
         {
-            await instanceOperationCoordinator.RunAsync(
-                record.Id,
-                async _ =>
+            if (!await ReloadSelectedInstanceDetailsAsync() || !ReferenceEquals(selected, SelectedInstance)) return;
+            if (force ? !LaunchPreflight.CanForceLaunch : !LaunchPreflight.CanLaunchNormally)
+            {
+                ErrorMessage ??= Loc["LaunchBlocked"];
+                return;
+            }
+            if (launchOverride is not null)
+            {
+                await launchOverride();
+                OpenBoundLiveSplit(record);
+                return;
+            }
+            await instanceOperationCoordinator.RunAsync(record.Id, async token =>
+            {
+                if (record.SpeedrunTemplateId is not null)
                 {
-                    if (new SystemHollowKnightProcessProbe(SelectedGame.ProcessName).IsRunning())
-                    {
-                        throw new InvalidOperationException(Loc["SteamAlreadyRunning"]);
-                    }
-                    if (record.SpeedrunTemplateId is not null)
-                    {
-                        SpeedrunReportPath = null;
-                        await VerifySpeedrunLaunchAsync(record);
-                    }
-                    else
-                    {
-                        await EnsureTransactionsHealthyAsync();
-                    }
-                    runtimeSession = await InstanceRuntimeSession.StartAsync(isolation, record.Id,
-                        record.GameId == GameId.HollowKnight ? HollowKnightProcessGuard.DefaultMutexName : GameDefinition.Get(record.GameId).MutexName,
-                        new SystemHollowKnightProcessProbe(GameDefinition.Get(record.GameId).ProcessName));
-                    var launchInfo = new ProcessStartInfo(executable)
-                    {
-                        WorkingDirectory = record.RootPath,
-                        UseShellExecute = record.GameId == GameId.HollowKnight
-                    };
-                    if (record.GameId == GameId.Silksong)
-                    {
-                        launchInfo.Environment["SteamAppId"] = GameDefinition.Silksong.SteamAppId.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                        launchInfo.Environment["SteamGameId"] = GameDefinition.Silksong.SteamAppId.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                    }
-                    process = startGameProcess(launchInfo) ?? throw new InvalidOperationException("The game process did not start.");
-                },
-                lifetimeCancellation.Token);
-            using (var startedProcess = process
-                   ?? throw new InvalidOperationException("The game process did not start."))
-            {
-                await startedProcess.WaitForExitAsync();
-            }
-            var probe = new SystemHollowKnightProcessProbe(GameDefinition.Get(record.GameId).ProcessName);
-            while (probe.IsRunning())
-            {
-                await Task.Delay(500);
-            }
-            var completedSession = runtimeSession
-                ?? throw new InvalidOperationException(Loc["ErrorRuntimeSessionNotCreated"]);
-            await completedSession.CompleteAsync();
-            runtimeSession = null;
+                    SpeedrunReportPath = null;
+                    await VerifySpeedrunLaunchAsync(record);
+                }
+                else await EnsureTransactionsHealthyAsync(token);
+                // Recover legacy switch-in journals before using the canonical saves directly.
+                await isolation.InitializeBaselinesAsync([record.Id],
+                    allowActiveSessionCompletion: !new SystemHollowKnightProcessProbe(game.ProcessName).IsRunning(), token);
+                var launchInfo = new ProcessStartInfo(executable) { WorkingDirectory = record.RootPath, UseShellExecute = false };
+                launchInfo.Environment["SteamAppId"] = game.SteamAppId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                launchInfo.Environment["SteamGameId"] = game.SteamAppId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                var savePath = isolation.GetInstanceLocalLowPath(record.Id);
+                var profileId = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(savePath.ToUpperInvariant())));
+                process = startGameProcess is not null
+                    ? startGameProcess(launchInfo) ?? throw new InvalidOperationException("The game process did not start.")
+                    : await WindowsIsolatedGameLauncher.StartAsync(launchInfo, savePath,
+                        Path.Combine(paths.ApplicationDataRoot, "runtime-profiles", profileId), record.GameId, token);
+            }, lifetimeCancellation.Token);
+            registered = runningInstancePaths.Add(record.RootPath);
+            NotifyRunningInstancesChanged();
+            OpenBoundLiveSplit(record);
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException
-            or UnauthorizedAccessException or Win32Exception or InvalidDataException or JsonException)
+            or UnauthorizedAccessException or Win32Exception or InvalidDataException or JsonException
+            or NotSupportedException or TimeoutException)
         {
-            if (!(SpeedrunReminderIsError && SpeedrunReportPath is not null))
-            {
-                ErrorMessage = Loc.ErrorMessageFor(exception);
-            }
-            if (runtimeSession is not null && !new SystemHollowKnightProcessProbe(SelectedGame.ProcessName).IsRunning())
-            {
-                try
-                {
-                    await runtimeSession.CompleteAsync();
-                    runtimeSession = null;
-                }
-                catch (Exception recoveryException) when (recoveryException is IOException or InvalidOperationException
-                    or UnauthorizedAccessException or InvalidDataException or JsonException)
-                {
-                    ErrorMessage += $" LocalLow: {recoveryException.Message}";
-                }
-            }
+            ErrorMessage = Loc.ErrorMessageFor(exception);
         }
+        finally { IsBusy = false; }
+        if (process is null) return;
+        try { using (process) await process.WaitForExitAsync(lifetimeCancellation.Token); }
+        catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested) { }
         finally
         {
-            IsGameRunning = false;
+            if (registered) runningInstancePaths.Remove(record.RootPath);
+            if (!lifetimeCancellation.IsCancellationRequested)
+            {
+                NotifyRunningInstancesChanged();
+                if (SelectedInstance?.Record == record) await ReloadSelectedInstanceDetailsAsync();
+            }
         }
+    }
+
+    private void NotifyRunningInstancesChanged()
+    {
+        IsGameRunning = runningInstancePaths.Count > 0;
+        OnPropertyChanged(nameof(IsSelectedInstanceRunning));
+        OnPropertyChanged(nameof(LaunchReadinessTitle));
+        OnPropertyChanged(nameof(LaunchReadinessHint));
+        OnPropertyChanged(nameof(CanLaunch));
+        OnPropertyChanged(nameof(CanAttemptLaunch));
     }
 
     private async Task<bool> ReloadSelectedInstanceDetailsAsync()
@@ -3195,6 +3265,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     private async Task CreateSpeedrunEnvironmentAsync()
     {
+        if (IsSilksong)
+        {
+            await CreateSilksongSpeedrunInstanceAsync();
+            return;
+        }
         if (SelectedSpeedrunTemplate is null || !Directory.Exists(VersionRoot))
         {
             ErrorMessage = Loc["SelectSpeedrunTemplate"];
@@ -3228,10 +3303,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     var name = string.IsNullOrWhiteSpace(SpeedrunEnvironmentName)
                         ? UniqueInstanceName(string.Format(Loc["SpeedrunDefaultNameFormat"], SelectedSpeedrunTemplate.Name))
                         : SpeedrunEnvironmentName.Trim();
-                    var clone = await InstanceCloneService.CloneAsync(
-                        source.RootPath,
-                        name,
-                        Guid.NewGuid().ToString("N"));
+                    var clone = await Task.Run(() => InstanceCloneService.CloneAsync(
+                        source.RootPath, name, Guid.NewGuid().ToString("N"), lifetimeCancellation.Token,
+                        shareContent: true), lifetimeCancellation.Token);
                     createdRoot = clone.RootPath;
                     if (SelectedSpeedrunTemplate.RequiredAssetIds.Count > 0)
                     {
@@ -3325,6 +3399,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 try
                 {
                     Directory.Delete(createdRoot, recursive: true);
+                    await new SharedGameContentStore(VersionRoot).CollectUnusedAsync();
                 }
                 catch (Exception cleanupException) when (cleanupException is IOException or UnauthorizedAccessException)
                 {
@@ -3417,9 +3492,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    partial void OnSelectedInstanceChanged(InstanceItemViewModel? oldValue, InstanceItemViewModel? newValue)
+    partial void OnSelectedInstanceChanged(InstanceItemViewModel? oldValue, InstanceItemViewModel? newValue) =>
+        UpdateSelectedInstanceDetails(oldValue, newValue);
+
+    private void UpdateSelectedInstanceDetails(InstanceItemViewModel? oldValue, InstanceItemViewModel? newValue,
+        InstanceScanInspection? inspection = null, bool deferLoading = false)
     {
         var value = newValue;
+        OnPropertyChanged(nameof(IsSelectedInstanceRunning));
         if (!suppressInstanceDetailsReload && oldValue?.Id != value?.Id && SaveEditor?.IsDirty == true)
         {
             suppressInstanceDetailsReload = true;
@@ -3428,13 +3508,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             ErrorMessage = Loc["SaveBeforeGameSwitch"];
             return;
         }
-        if (thunderstore is not null) _ = thunderstore.SetContextAsync();
+        Instances.RefreshListSelectedInstance();
         // A language-switch re-projection re-resolves the selection to a new item
         // instance without clearing and reloading the already-localized details.
         if (suppressInstanceDetailsReload)
         {
             return;
         }
+        if (thunderstore is not null) _ = thunderstore.SetContextAsync(refreshInstalled: false);
         var snapshotToRestore = oldValue?.Record == value?.Record ? SelectedSnapshot : null;
         long generation = Interlocked.Increment(ref detailsLoadGeneration);
         var previousLoadCancellation = Interlocked.Exchange(ref detailsLoadCancellation, null);
@@ -3485,10 +3566,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 IsLoadingInstanceDetails = false;
                 return;
             }
+            if (deferLoading) return;
             var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation.Token);
             detailsLoadCancellation = cancellation;
             detailsLoadTask = LoadInstanceDetailsAsync(value.Record, generation, cancellation.Token,
-                snapshotToRestore: snapshotToRestore);
+                snapshotToRestore: snapshotToRestore, scanInspection: inspection);
             if (CurrentManageTab == "Config")
             {
                 _ = LoadGameConfigAsync();
@@ -3591,8 +3673,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     partial void OnSelectedSpeedrunInstanceChanged(InstanceItemViewModel? value)
     {
+        OnPropertyChanged(nameof(SpeedrunLiveSplitPath));
+        OnPropertyChanged(nameof(SpeedrunLiveSplitName));
+        OnPropertyChanged(nameof(HasSpeedrunLiveSplitBinding));
         SpeedrunReportPath = null;
         SpeedrunReminderIsError = false;
+        if (value?.Record.GameId == GameId.Silksong)
+        {
+            SetSpeedrunReminder(null, visible: false);
+            SelectedInstance = Instances.Instances.FirstOrDefault(instance => instance.Id == value.Id) ?? value;
+            return;
+        }
         var isLegacyTemplate = value is not null
             && RuntimePatchesPolicy.IsLegacyTemplate(value.Record.SpeedrunTemplateId);
         // Only the expired-template warning deserves the banner; a freshly created
@@ -3805,8 +3896,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         GraphModRemovalRequested?.Invoke();
     }
 
+    private bool suppressMarketFilters;
+
     private void ApplyMarketFilters()
     {
+        if (suppressMarketFilters) return;
         VisibleMarketMods.Clear();
         VisibleMarketDisplayMods.Clear();
         foreach (var item in MarketDisplayMods.Where(item =>
@@ -3843,67 +3937,74 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
     private void RebuildMarketCatalog()
     {
-        selectedMarketMods.IntersectWith(catalog.Mods.Where(item => item.GameId == SelectedGameId).Select(item => item.Id));
-        OnPropertyChanged(nameof(SelectedMarketModCount));
-        OnPropertyChanged(nameof(HasSelectedMarketMods));
-        OnPropertyChanged(nameof(SelectedMarketModsText));
-        var selectedModId = SelectedMarketMod?.Id;
-        var selectedBuild = SelectedMarketBuildOption?.Value;
-        var selectedLoader = SelectedMarketLoaderOption?.Value;
-        var selectedSource = SelectedMarketSourceOption?.Value;
-        var selectedTag = SelectedMarketTagOption?.Value;
-        var selectedActivity = SelectedMarketActivityOption?.Value ?? MarketActivityFilter.All;
-        var chinese = Loc.Culture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
-        MarketMods.Clear();
-        MarketDisplayMods.Clear();
-        foreach (var mod in catalog.Mods.Where(item => item.GameId == SelectedGameId))
+        var wasSuppressed = suppressMarketFilters;
+        suppressMarketFilters = true;
+        try
         {
-            MarketMods.Add(mod);
-            MarketDisplayMods.Add(ProjectMarketMod(mod, chinese));
+            selectedMarketMods.IntersectWith(catalog.Mods.Where(item => item.GameId == SelectedGameId).Select(item => item.Id));
+            OnPropertyChanged(nameof(SelectedMarketModCount));
+            OnPropertyChanged(nameof(HasSelectedMarketMods));
+            OnPropertyChanged(nameof(SelectedMarketModsText));
+            var selectedModId = SelectedMarketMod?.Id;
+            var selectedBuild = SelectedMarketBuildOption?.Value;
+            var selectedLoader = SelectedMarketLoaderOption?.Value;
+            var selectedSource = SelectedMarketSourceOption?.Value;
+            var selectedTag = SelectedMarketTagOption?.Value;
+            var selectedActivity = SelectedMarketActivityOption?.Value ?? MarketActivityFilter.All;
+            var chinese = Loc.Culture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
+            MarketMods.Clear();
+            MarketDisplayMods.Clear();
+            foreach (var mod in catalog.Mods.Where(item => item.GameId == SelectedGameId))
+            {
+                MarketMods.Add(mod);
+                MarketDisplayMods.Add(ProjectMarketMod(mod, chinese));
+            }
+            var ordered = MarketDisplayMods
+                .OrderBy(item => item.PrimaryName, StringComparer.Create(Loc.Culture, ignoreCase: true))
+                .ToArray();
+            MarketDisplayMods.Clear();
+            foreach (var item in ordered)
+            {
+                MarketDisplayMods.Add(item);
+            }
+            RebuildMarketOptions(
+                MarketBuildOptions,
+                MarketDisplayMods.SelectMany(mod => mod.SupportedBuildIds),
+                value => catalog.Builds.FirstOrDefault(build =>
+                    string.Equals(build.Id, value, StringComparison.OrdinalIgnoreCase))?.DisplayVersion ?? value,
+                selectedBuild);
+            RebuildMarketOptions(
+                MarketLoaderOptions,
+                MarketDisplayMods.SelectMany(mod => mod.CompatibleLoaderIds),
+                value => catalog.Loaders.FirstOrDefault(loader =>
+                    string.Equals(loader.Id, value, StringComparison.OrdinalIgnoreCase)) is { } loader
+                        ? $"{loader.Name} {loader.Version}"
+                        : value,
+                selectedLoader);
+            RebuildMarketOptions(
+                MarketSourceOptions,
+                MarketDisplayMods.Select(mod => mod.SourceName).OfType<string>(),
+                selectedValue: selectedSource);
+            RebuildMarketOptions(
+                MarketTagOptions,
+                MarketDisplayMods.SelectMany(mod => mod.CanonicalTags),
+                DisplayMarketTag,
+                selectedTag);
+            RebuildMarketActivityOptions(selectedActivity);
+            ApplyMarketFilters();
+            selectedMarketModDisplay = selectedModId is null
+                ? null
+                : MarketDisplayMods.FirstOrDefault(item =>
+                    string.Equals(item.Id, selectedModId, StringComparison.OrdinalIgnoreCase));
+            if (selectedModId is not null)
+            {
+                SelectedMarketMod = MarketMods.FirstOrDefault(mod =>
+                    string.Equals(mod.Id, selectedModId, StringComparison.OrdinalIgnoreCase));
+            }
+            OnPropertyChanged(nameof(SelectedMarketModDisplay));
         }
-        var ordered = MarketDisplayMods
-            .OrderBy(item => item.PrimaryName, StringComparer.Create(Loc.Culture, ignoreCase: true))
-            .ToArray();
-        MarketDisplayMods.Clear();
-        foreach (var item in ordered)
-        {
-            MarketDisplayMods.Add(item);
-        }
-        RebuildMarketOptions(
-            MarketBuildOptions,
-            MarketDisplayMods.SelectMany(mod => mod.SupportedBuildIds),
-            value => catalog.Builds.FirstOrDefault(build =>
-                string.Equals(build.Id, value, StringComparison.OrdinalIgnoreCase))?.DisplayVersion ?? value,
-            selectedBuild);
-        RebuildMarketOptions(
-            MarketLoaderOptions,
-            MarketDisplayMods.SelectMany(mod => mod.CompatibleLoaderIds),
-            value => catalog.Loaders.FirstOrDefault(loader =>
-                string.Equals(loader.Id, value, StringComparison.OrdinalIgnoreCase)) is { } loader
-                    ? $"{loader.Name} {loader.Version}"
-                    : value,
-            selectedLoader);
-        RebuildMarketOptions(
-            MarketSourceOptions,
-            MarketDisplayMods.Select(mod => mod.SourceName).OfType<string>(),
-            selectedValue: selectedSource);
-        RebuildMarketOptions(
-            MarketTagOptions,
-            MarketDisplayMods.SelectMany(mod => mod.CanonicalTags),
-            DisplayMarketTag,
-            selectedTag);
-        RebuildMarketActivityOptions(selectedActivity);
+        finally { suppressMarketFilters = wasSuppressed; }
         ApplyMarketFilters();
-        selectedMarketModDisplay = selectedModId is null
-            ? null
-            : MarketDisplayMods.FirstOrDefault(item =>
-                string.Equals(item.Id, selectedModId, StringComparison.OrdinalIgnoreCase));
-        if (selectedModId is not null)
-        {
-            SelectedMarketMod = MarketMods.FirstOrDefault(mod =>
-                string.Equals(mod.Id, selectedModId, StringComparison.OrdinalIgnoreCase));
-        }
-        OnPropertyChanged(nameof(SelectedMarketModDisplay));
     }
 
     private void RebuildMarketOptions(
@@ -3976,7 +4077,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         // computed string property can be refreshed against the new language.
         var previousReadyText = Loc["StatusReady"];
         Loc.Apply(language);
-        OnPropertyChanged(nameof(Loc));
+        OnPropertyChanged(nameof(SpeedrunLiveSplitName));
+        NotifySpeedrunLabels();
         OnPropertyChanged(nameof(SelectedGameName));
         OnPropertyChanged(nameof(GameAvatarHint));
         // Computed properties capture Loc[key] values at evaluation time; notify them all
@@ -4451,7 +4553,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         long generation,
         CancellationToken cancellationToken,
         bool verifyGameFiles = false,
-        NamedSnapshot? snapshotToRestore = null)
+        NamedSnapshot? snapshotToRestore = null,
+        InstanceScanInspection? scanInspection = null)
     {
         try
         {
@@ -4462,139 +4565,153 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 return;
             }
             LaunchPreflight = new(false, false, false, false);
-            var loaderManager = CreateLoaderManager(record);
-            var loaderState = LoaderState.Vanilla;
-            var loaderInspection = new LoaderInspection
-            {
-                State = LoaderState.Vanilla,
-                Ownership = LoaderOwnership.None
-            };
-            InstalledPackageReceipt? loaderReceipt = null;
-            IReadOnlyList<InstalledModReceipt> installed = [];
-            ModDiscoveryResult discovery = new();
-            IReadOnlyList<ModHealthReport> modHealthReports = [];
-            IReadOnlyList<TransactionJournal> recoveries = [];
-            var effectiveBuildId = record.BuildId;
-            BuildFingerprint? gameFingerprint = null;
-            string? launchFileFingerprint = null;
-            string? declaredVersion = null;
-            IReadOnlyList<string> missingGameFiles = [];
-            var stateLoaded = false;
-            await instanceOperationCoordinator.RunAsync(record.Id, async cancellationToken =>
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (generation != Volatile.Read(ref detailsLoadGeneration)
-                    || SelectedInstance?.Id != record.Id)
-                {
-                    return;
-                }
-                recoveries = await FileTransaction.RecoverPendingAsync(
-                    Path.Combine(paths.GetVersionDataRoot(VersionRoot, SelectedGameId), "transactions"),
-                    cancellationToken);
-                if (verifyGameFiles)
-                {
-                    var requiredDataFiles = new List<string> { GameDefinition.Get(record.GameId).GlobalGameManagersPath };
-                    var recordedBuild = catalog.Builds.FirstOrDefault(build =>
-                        build.GameId == record.GameId && string.Equals(build.Id, record.BuildId, StringComparison.OrdinalIgnoreCase));
-                    if (recordedBuild?.UnityPlayerSha256 is not null)
-                    {
-                        requiredDataFiles.Add("UnityPlayer.dll");
-                    }
-                    missingGameFiles = requiredDataFiles
-                        .Where(path => !File.Exists(Path.Combine(record.RootPath, path)))
-                        .ToArray();
-                    if (missingGameFiles.Count == 0
-                        && File.Exists(Path.Combine(record.RootPath, GameDefinition.Get(record.GameId).ExecutableName))
-                        && catalog.Builds.Count > 0)
-                    {
-                        gameFingerprint = await BuildFingerprintService.CalculateAsync(record.RootPath, record.GameId, cancellationToken);
-                        effectiveBuildId = BuildFingerprintService.FindBuild(catalog.Builds, gameFingerprint)?.Id
-                            ?? (BuildIdentity.TryGetSteamManifestId(record.BuildId, out _) ? record.BuildId : "unknown");
-                    }
-                }
-                loaderInspection = await loaderManager.InspectAsync(cancellationToken);
-                loaderState = loaderInspection.State;
-                loaderReceipt = await loaderManager.GetReceiptAsync(cancellationToken);
-                declaredVersion = BuildFingerprintService.ReadDeclaredVersion(record.RootPath, record.GameId);
-                if (loaderState is LoaderState.BepInEx or LoaderState.ModdingApi
-                    && File.Exists(Path.Combine(record.RootPath, GameDefinition.Get(record.GameId).ExecutableName))
-                    && File.Exists(Path.Combine(record.RootPath, GameDefinition.Get(record.GameId).GlobalGameManagersPath)))
-                {
-                    gameFingerprint ??= await BuildFingerprintService.CalculateAsync(record.RootPath, record.GameId, cancellationToken);
-                    launchFileFingerprint = await BuildFingerprintService.CalculateLaunchFingerprintAsync(
-                        record.RootPath, gameFingerprint, cancellationToken, loaderReceipt?.Files);
-                }
-                var modManager = CreateModManager(record);
-                discovery = record.GameId == GameId.Silksong
-                    ? ThunderstoreReceiptProjection.Mods(await new ThunderstoreInstallService(record, GetThunderstorePackageStore()).ReadStateAsync(cancellationToken), record.RootPath)
-                    : await modManager.DiscoverAsync(loaderInspection.PackageId ?? loaderState.ToString(), cancellationToken);
-                installed = discovery.InstalledReceipts;
-                var healthService = new ModHealthService(record.RootPath);
-                var reports = new List<ModHealthReport>(discovery.Mods.Count);
-                foreach (var mod in discovery.Mods.Where(_ => record.GameId == GameId.HollowKnight))
-                {
-                    var receipt = installed.FirstOrDefault(candidate =>
-                        string.Equals(candidate.Id, mod.Id, StringComparison.OrdinalIgnoreCase));
-                    reports.Add(receipt is null
-                        ? await healthService.AssessExternalAsync(mod, cancellationToken)
-                        : await healthService.AssessAsync(receipt, installed, cancellationToken));
-                }
-                if (record.GameId == GameId.Silksong)
-                    reports.AddRange(await new ThunderstoreInstallService(record, GetThunderstorePackageStore()).AssessHealthAsync(cancellationToken));
-                modHealthReports = reports;
-                stateLoaded = true;
-            }, cancellationToken);
-            if (!stateLoaded
-                || generation != Volatile.Read(ref detailsLoadGeneration)
-                || SelectedInstance?.Id != record.Id)
-            {
-                return;
-            }
-            var snapshots = await CreateSnapshotService().ListAsync(record.Id, cancellationToken);
+            var detailCatalog = catalog;
+            var versionDataRoot = paths.GetVersionDataRoot(VersionRoot, record.GameId);
+            var sharedLocalLowPath = GetSharedLocalLowPath();
+            var acknowledgements = settings.ModHealthAcknowledgements;
+            var snapshotService = CreateSnapshotService();
             var presetService = CreateModPresetService(record);
-            var presets = await presetService.GetAllAsync(cancellationToken);
-            var hasPresetRestorePoint = await presetService.HasRestorePointAsync(cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-            var logs = InstanceLogService.Discover(record.RootPath, GetSharedLocalLowPath());
-            var isolation = new LocalLowIsolationService(
-                GetSharedLocalLowPath(),
-                paths.GetVersionDataRoot(VersionRoot, SelectedGameId));
-            var preflight = LaunchPreflightEvaluator.Evaluate(
-                BuildIdentity.IsKnown(effectiveBuildId),
-                File.Exists(Path.Combine(record.RootPath, GameDefinition.Get(record.GameId).ExecutableName)),
-                loaderState,
-                installed,
-                recoveries.All(recovery => recovery.State != TransactionState.NeedsAttention),
-                Directory.Exists(isolation.GetInstanceLocalLowPath(record.Id)),
-                record.Id,
-                modHealthReports,
-                settings.ModHealthAcknowledgements,
-                new SystemHollowKnightProcessProbe(SelectedGame.ProcessName).IsRunning(),
-                new LaunchCompatibilityContext(effectiveBuildId, loaderInspection with
-                {
-                    SupportedBuildIds = catalog.Loaders.FirstOrDefault(loader =>
-                        string.Equals(loader.Id, loaderInspection.PackageId, StringComparison.OrdinalIgnoreCase))
-                        ?.SupportedBuildIds ?? loaderInspection.SupportedBuildIds
-                }, launchFileFingerprint, declaredVersion),
-                steamSaveProfileUnavailable: record.GameId == GameId.Silksong
-                    && !new SystemHollowKnightProcessProbe("steam").IsRunning()
-                    && Crystalfly.Core.Saves.SaveSlotPath.HasSteamProfileSaves(isolation.GetInstanceLocalLowPath(record.Id)));
-            if (missingGameFiles.Count > 0)
+            var thunderstoreStore = record.GameId == GameId.Silksong ? GetThunderstorePackageStore() : null;
+            // Async file APIs can complete synchronously on cached files; keep the entire inspection off the UI thread.
+            var (loaderState, loaderInspection, loaderReceipt, installed, discovery, modHealthReports,
+                snapshots, presets, hasPresetRestorePoint, logs, preflight, stateLoaded, thunderstoreState) = await Task.Run(async () =>
             {
-                preflight = preflight with
+                var loaderManager = CreateLoaderManager(record);
+                var loaderState = LoaderState.Vanilla;
+                var loaderInspection = new LoaderInspection
                 {
-                    GameFilesReady = false,
-                    Issues = preflight.Issues.Concat(missingGameFiles.Select(path => new LaunchPreflightIssue
-                    {
-                        Code = LaunchIssueCode.GameDataMissing,
-                        Severity = LaunchIssueSeverity.Forceable,
-                        RelativeFilePath = path,
-                        Arguments = [path]
-                    })).ToArray()
+                    State = LoaderState.Vanilla,
+                    Ownership = LoaderOwnership.None
                 };
-            }
+                InstalledPackageReceipt? loaderReceipt = null;
+                IReadOnlyList<InstalledModReceipt> installed = [];
+                ModDiscoveryResult discovery = new();
+                IReadOnlyList<ModHealthReport> modHealthReports = [];
+                IReadOnlyList<TransactionJournal> recoveries = [];
+                var effectiveBuildId = record.BuildId;
+                BuildFingerprint? gameFingerprint = null;
+                string? launchFileFingerprint = null;
+                string? declaredVersion = null;
+                IReadOnlyList<string> missingGameFiles = [];
+                var stateLoaded = false;
+                ThunderstoreInstallState? thunderstoreState = null;
+                await instanceOperationCoordinator.RunAsync(record.Id, async cancellationToken =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (generation != Volatile.Read(ref detailsLoadGeneration))
+                    {
+                        return;
+                    }
+                    recoveries = await FileTransaction.RecoverPendingAsync(
+                        Path.Combine(versionDataRoot, "transactions"),
+                        cancellationToken);
+                    if (verifyGameFiles)
+                    {
+                        var requiredDataFiles = new List<string> { GameDefinition.Get(record.GameId).GlobalGameManagersPath };
+                        var recordedBuild = detailCatalog.Builds.FirstOrDefault(build =>
+                            build.GameId == record.GameId && string.Equals(build.Id, record.BuildId, StringComparison.OrdinalIgnoreCase));
+                        if (recordedBuild?.UnityPlayerSha256 is not null)
+                        {
+                            requiredDataFiles.Add("UnityPlayer.dll");
+                        }
+                        missingGameFiles = requiredDataFiles
+                            .Where(path => !File.Exists(Path.Combine(record.RootPath, path)))
+                            .ToArray();
+                        if (missingGameFiles.Count == 0
+                            && File.Exists(Path.Combine(record.RootPath, GameDefinition.Get(record.GameId).ExecutableName))
+                            && detailCatalog.Builds.Count > 0)
+                        {
+                            gameFingerprint = await BuildFingerprintService.CalculateAsync(record.RootPath, record.GameId, cancellationToken);
+                            effectiveBuildId = BuildFingerprintService.FindBuild(detailCatalog.Builds, gameFingerprint)?.Id
+                                ?? (BuildIdentity.TryGetSteamManifestId(record.BuildId, out _) ? record.BuildId : "unknown");
+                        }
+                    }
+                    thunderstoreState = record.GameId == GameId.Silksong
+                        ? scanInspection?.ThunderstoreState ?? await new ThunderstoreInstallService(record, thunderstoreStore!).ReadStateAsync(cancellationToken)
+                        : null;
+                    loaderReceipt = scanInspection is not null ? scanInspection.LoaderReceipt
+                        : await loaderManager.GetReceiptAsync(cancellationToken, thunderstoreState);
+                    loaderInspection = scanInspection?.LoaderInspection
+                        ?? await LoaderStateDetector.InspectAsync(record.RootPath, loaderReceipt, cancellationToken);
+                    loaderState = loaderInspection.State;
+                    declaredVersion = BuildFingerprintService.ReadDeclaredVersion(record.RootPath, record.GameId);
+                    if (loaderState is LoaderState.BepInEx or LoaderState.ModdingApi
+                        && File.Exists(Path.Combine(record.RootPath, GameDefinition.Get(record.GameId).ExecutableName))
+                        && File.Exists(Path.Combine(record.RootPath, GameDefinition.Get(record.GameId).GlobalGameManagersPath)))
+                    {
+                        gameFingerprint ??= await BuildFingerprintService.CalculateAsync(record.RootPath, record.GameId, cancellationToken);
+                        launchFileFingerprint = await BuildFingerprintService.CalculateLaunchFingerprintAsync(
+                            record.RootPath, gameFingerprint, cancellationToken, loaderReceipt?.Files);
+                    }
+                    var modManager = CreateModManager(record);
+                    discovery = record.GameId == GameId.Silksong
+                        ? ThunderstoreReceiptProjection.Mods(thunderstoreState!, record.RootPath)
+                        : await modManager.DiscoverAsync(loaderInspection.PackageId ?? loaderState.ToString(), cancellationToken);
+                    installed = discovery.InstalledReceipts;
+                    var healthService = new ModHealthService(record.RootPath);
+                    var reports = new List<ModHealthReport>(discovery.Mods.Count);
+                    foreach (var mod in discovery.Mods.Where(_ => record.GameId == GameId.HollowKnight))
+                    {
+                        var receipt = installed.FirstOrDefault(candidate =>
+                            string.Equals(candidate.Id, mod.Id, StringComparison.OrdinalIgnoreCase));
+                        reports.Add(receipt is null
+                            ? await healthService.AssessExternalAsync(mod, cancellationToken)
+                            : await healthService.AssessAsync(receipt, installed, cancellationToken));
+                    }
+                    if (record.GameId == GameId.Silksong)
+                        reports.AddRange(await new ThunderstoreInstallService(record, thunderstoreStore!).AssessHealthAsync(thunderstoreState!, cancellationToken));
+                    modHealthReports = reports;
+                    stateLoaded = true;
+                }, cancellationToken);
+                var snapshots = await snapshotService.ListAsync(record.Id, cancellationToken);
+                var presets = await presetService.GetAllAsync(cancellationToken);
+                var hasPresetRestorePoint = await presetService.HasRestorePointAsync(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                var logs = InstanceLogService.Discover(record.RootPath,
+                    Path.Combine(versionDataRoot, "instances", record.Id, "local-low"));
+                var isolation = new LocalLowIsolationService(
+                    sharedLocalLowPath,
+                    versionDataRoot);
+                var preflight = LaunchPreflightEvaluator.Evaluate(
+                    BuildIdentity.IsKnown(effectiveBuildId),
+                    File.Exists(Path.Combine(record.RootPath, GameDefinition.Get(record.GameId).ExecutableName)),
+                    loaderState,
+                    installed,
+                    recoveries.All(recovery => recovery.State != TransactionState.NeedsAttention),
+                    Directory.Exists(isolation.GetInstanceLocalLowPath(record.Id)),
+                    record.Id,
+                    modHealthReports,
+                    acknowledgements,
+                    new InstanceProcessProbe(Path.Combine(record.RootPath, GameDefinition.Get(record.GameId).ExecutableName)).IsRunning(),
+                    new LaunchCompatibilityContext(effectiveBuildId, loaderInspection with
+                    {
+                        SupportedBuildIds = detailCatalog.Loaders.FirstOrDefault(loader =>
+                            string.Equals(loader.Id, loaderInspection.PackageId, StringComparison.OrdinalIgnoreCase))
+                            ?.SupportedBuildIds ?? loaderInspection.SupportedBuildIds
+                    }, launchFileFingerprint, declaredVersion),
+                    steamSaveProfileUnavailable: record.GameId == GameId.Silksong
+                        && !new SystemHollowKnightProcessProbe("steam").IsRunning()
+                        && Crystalfly.Core.Saves.SaveSlotPath.HasSteamProfileSaves(isolation.GetInstanceLocalLowPath(record.Id)));
+                if (missingGameFiles.Count > 0)
+                {
+                    preflight = preflight with
+                    {
+                        GameFilesReady = false,
+                        Issues = preflight.Issues.Concat(missingGameFiles.Select(path => new LaunchPreflightIssue
+                        {
+                            Code = LaunchIssueCode.GameDataMissing,
+                            Severity = LaunchIssueSeverity.Forceable,
+                            RelativeFilePath = path,
+                            Arguments = [path]
+                        })).ToArray()
+                    };
+                }
 
-            if (generation != Volatile.Read(ref detailsLoadGeneration)
+                return (loaderState, loaderInspection, loaderReceipt, installed, discovery, modHealthReports,
+                    snapshots, presets, hasPresetRestorePoint, logs, preflight, stateLoaded, thunderstoreState);
+            }, cancellationToken);
+
+            if (!stateLoaded || generation != Volatile.Read(ref detailsLoadGeneration)
                 || SelectedInstance?.Id != record.Id)
             {
                 return;
@@ -4659,6 +4776,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             SelectedLogFile = InstanceLogs.FirstOrDefault();
             LaunchPreflight = preflight;
+            if (thunderstore is not null && thunderstoreState is not null)
+                await thunderstore.SetInstalledStateAsync(record, thunderstoreState, modHealthReports);
             lock (disposeLock)
             {
                 if (generation == Volatile.Read(ref detailsLoadGeneration)
@@ -5465,13 +5584,22 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         exception is IOException or HttpRequestException or TimeoutException or OperationCanceledException
         || (exception.InnerException is not null && IsTransientSteamNetworkFailure(exception.InnerException));
 
-    private async Task<GameCatalog> LoadCatalogAsync(CancellationToken cancellationToken = default)
+    private Task<GameCatalog> LoadCatalogAsync(CancellationToken cancellationToken = default) =>
+        LoadCatalogAsync(cancellationToken, cacheOnly: false);
+
+    private async Task<GameCatalog> LoadCatalogAsync(CancellationToken cancellationToken, bool cacheOnly)
     {
-        var result = await CatalogProvider.LoadAsync(
+        // Reuse each source's validated cache fallback without changing the user's network mode.
+        using var cachePolicy = cacheOnly ? new NetworkPolicy(isOffline: true) : null;
+        using var cacheClient = cachePolicy is null ? null
+            : new HttpClient(new NetworkPolicyHandler(cachePolicy, new HttpClientHandler()));
+        var metadataClient = cacheClient ?? metadataHttpClient;
+        var directClient = cacheClient ?? directMetadataHttpClient;
+        var result = await Task.Run(() => CatalogProvider.LoadAsync(
             new Uri("https://raw.githubusercontent.com/wzxnb2333/Crystalfly/main/catalog/catalog.v1.json"),
             Path.Combine(paths.ApplicationDataRoot, "catalog", "catalog.v1.json"),
-            metadataHttpClient,
-            cancellationToken: cancellationToken);
+            metadataClient,
+            cancellationToken: cancellationToken), cancellationToken);
         officialCatalogResult = null;
         customModLinksResult = null;
         customModLinksError = null;
@@ -5479,11 +5607,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             try
             {
-                customModLinksResult = await CustomModLinksSource.LoadAsync(
+                customModLinksResult = await Task.Run(() => CustomModLinksSource.LoadAsync(
                     customModLinks,
-                    directMetadataHttpClient,
+                    directClient,
                     Path.Combine(paths.ApplicationDataRoot, "catalog", "custom-modlinks.json"),
-                    cancellationToken);
+                    cancellationToken), cancellationToken);
                 result = CatalogMerger.Merge(result, null, null, [customModLinksResult.Catalog]);
             }
             catch (Exception exception) when (exception is HttpRequestException
@@ -5497,24 +5625,24 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         else
         {
-            officialCatalogResult = await OfficialCatalogSource.LoadAsync(
-                metadataHttpClient,
+            officialCatalogResult = await Task.Run(() => OfficialCatalogSource.LoadAsync(
+                metadataClient,
                 Path.Combine(paths.ApplicationDataRoot, "catalog", "hk-modlinks.v77.json"),
-                cancellationToken);
+                cancellationToken), cancellationToken);
             if (officialCatalogResult.Status != OfficialCatalogLoadStatus.Failed)
             {
                 result = CatalogMerger.Merge(result, null, null, [officialCatalogResult.Catalog]);
             }
         }
-        modTranslationResult = await ModTranslationSource.LoadAsync(
-            metadataHttpClient,
+        modTranslationResult = await Task.Run(() => ModTranslationSource.LoadAsync(
+            metadataClient,
             Path.Combine(paths.ApplicationDataRoot, "catalog", "mod-translations.zh-CN.v1.json"),
-            cancellationToken);
+            cancellationToken), cancellationToken);
         modTranslations = modTranslationResult.Catalog;
-        modActivityResult = await ModActivitySource.LoadAsync(
-            metadataHttpClient,
+        modActivityResult = await Task.Run(() => ModActivitySource.LoadAsync(
+            metadataClient,
             Path.Combine(paths.ApplicationDataRoot, "catalog", "mod-activity.v1.json"),
-            cancellationToken);
+            cancellationToken), cancellationToken);
         modActivityCatalog = modActivityResult.Catalog;
         ApplicationLog.Write(
             Path.Combine(paths.ApplicationDataRoot, "logs", "crystalfly.log"),
@@ -5540,12 +5668,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             try
             {
-                var customResult = await CustomCatalogSource.LoadWithCacheAsync(
+                var customResult = await Task.Run(() => CustomCatalogSource.LoadWithCacheAsync(
                     definition.Namespace,
                     new Uri(definition.Url),
                     GetCustomCatalogCachePath(definition),
-                    directMetadataHttpClient,
-                    cancellationToken);
+                    directClient,
+                    cancellationToken), cancellationToken);
                 customCatalogs.Add(customResult.Catalog);
                 if (customResult.Status == CustomCatalogLoadStatus.Cached)
                 {
@@ -5565,7 +5693,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         var customMerge = CatalogProvider.MergeCustomCatalogs(result, customCatalogs);
         customCatalogErrors.AddRange(customMerge.RejectedReasons);
-        if (customCatalogErrors.Count > 0)
+        if (customCatalogErrors.Count > 0 && !cacheOnly)
         {
             ErrorMessage = string.Join(Environment.NewLine, customCatalogErrors);
         }
@@ -5734,6 +5862,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                     pendingExternalProtocolCommand,
                     steamOfflineTransitionTask,
                     pendingDetailsLoad,
+                    gameSwitchRefreshTask,
                     externalContentAdoptionTask,
                     pendingContentLoad);
                 try

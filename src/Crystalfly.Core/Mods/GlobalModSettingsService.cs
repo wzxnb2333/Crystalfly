@@ -58,6 +58,8 @@ public sealed class GlobalModSettingsService : IGlobalModSettingsService
     {
         ArgumentNullException.ThrowIfNull(officialMods);
         cancellationToken.ThrowIfCancellationRequested();
+        if (processProbe.IsRunning())
+            throw new InvalidOperationException("Close the game before deleting mod settings.");
 
         var localLowPath = GetCurrentLocalLowPath(instanceId);
         var files = ResolveFiles(localLowPath, officialMods);
@@ -99,8 +101,7 @@ public sealed class GlobalModSettingsService : IGlobalModSettingsService
 
     private string GetCurrentLocalLowPath(string instanceId)
     {
-        var instancePath = isolation.GetInstanceLocalLowPath(instanceId);
-        return processProbe.IsRunning() ? isolation.SharedLocalLowPath : instancePath;
+        return isolation.GetInstanceLocalLowPath(instanceId);
     }
 
     private static IReadOnlyList<GlobalModSettingsFile> ResolveFiles(

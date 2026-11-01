@@ -182,6 +182,20 @@ public partial class ThunderstoreView : UserControl
     }
     private async void ImportZip(object? sender, RoutedEventArgs args) => await ImportAsync(false);
     private async void ImportPreset(object? sender, RoutedEventArgs args) => await ImportAsync(true);
+    private void ImportSharedPreset(object? sender, RoutedEventArgs args)
+    {
+        if (DataContext is ThunderstoreViewModel { CanManage: true } && TopLevel.GetTopLevel(this) is MainWindow window)
+            window.ShowImportSharedModPackDialog(sender, args);
+    }
+    private void SharePreset(object? sender, RoutedEventArgs args)
+    {
+        if (DataContext is ThunderstoreViewModel { CanManage: true } && TopLevel.GetTopLevel(this) is MainWindow window)
+            window.ShareSilksongPreset(sender, args);
+    }
+    private void CopyPresetLink(object? sender, RoutedEventArgs args)
+    {
+        if (TopLevel.GetTopLevel(this) is MainWindow window) window.CopySilksongPresetLink(sender, args);
+    }
     private async Task ImportAsync(bool preset)
     {
         if (DataContext is not ThunderstoreViewModel model || TopLevel.GetTopLevel(this) is not { } top) return;

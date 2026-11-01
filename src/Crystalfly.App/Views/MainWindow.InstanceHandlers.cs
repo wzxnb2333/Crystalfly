@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using Crystalfly.App.ViewModels;
 using Crystalfly.App.ViewModels.Dialogs;
@@ -11,17 +12,6 @@ namespace Crystalfly.App.Views;
 
 public partial class MainWindow
 {
-    private async void ChooseDownloadLibrary(object? sender, RoutedEventArgs args)
-    {
-        if (DataContext is not MainViewModel model || !model.CanNavigate) return;
-        var game = model.SelectedGameId;
-        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = model.Loc["ChooseDownloadLibrary"], AllowMultiple = false });
-        if (folders.FirstOrDefault()?.TryGetLocalPath() is not { } path || game != model.SelectedGameId) return;
-        try { await model.Instances.UseDownloadDirectoryAsync(path); }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
-        { model.ErrorMessage = model.Loc.ErrorMessageFor(error); }
-    }
-
     private async void AddCustomGameDirectory(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is MainViewModel viewModel)
@@ -186,6 +176,12 @@ public partial class MainWindow
     }
 
     private async void CloneInstanceWithName(object? sender, RoutedEventArgs eventArgs)
+        => await CloneInstanceWithNameAsync(sender, shareContent: true);
+
+    private async void CloneIndependentInstanceWithName(object? sender, RoutedEventArgs eventArgs)
+        => await CloneInstanceWithNameAsync(sender, shareContent: false);
+
+    private async Task CloneInstanceWithNameAsync(object? sender, bool shareContent)
     {
         if (DataContext is not MainViewModel viewModel
             || sender is not Control { DataContext: InstanceItemViewModel instance })
@@ -194,8 +190,8 @@ public partial class MainWindow
         }
         viewModel.SelectedInstance = instance;
         var dialog = new TextInputDialogViewModel(
-            viewModel.Loc["CloneInstance"],
-            viewModel.Loc["CloneInstanceName"],
+            viewModel.Loc[shareContent ? "CloneSharedInstance" : "CloneIndependentInstance"],
+            viewModel.Loc[shareContent ? "CloneSharedHint" : "CloneIndependentHint"],
             $"{instance.Name} {viewModel.Loc["CopySuffix"]}",
             viewModel.Loc["CloneInstanceName"],
             viewModel.Loc["Confirm"],
@@ -209,11 +205,30 @@ public partial class MainWindow
             return;
         }
         viewModel.CloneInstanceName = name;
-        await viewModel.Instances.CloneSelectedInstanceCommand.ExecuteAsync(null);
+        await (shareContent ? viewModel.Instances.CloneSelectedInstanceCommand
+            : viewModel.Instances.CloneIndependentInstanceCommand).ExecuteAsync(null);
         if (viewModel.SelectedInstance is { } selected
             && !string.Equals(selected.Id, instance.Id, StringComparison.Ordinal))
         {
-            viewModel.CurrentPage = "Launch";
+            viewModel.CurrentPage = "Versions";
+        }
+    }
+
+    private async void OptimizeInstanceStorage(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel viewModel && sender is Control { DataContext: InstanceItemViewModel instance })
+        {
+            viewModel.SelectedInstance = instance;
+            await viewModel.Instances.OptimizeSelectedStorageCommand.ExecuteAsync(null);
+        }
+    }
+
+    private async void MaterializeInstanceStorage(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel viewModel && sender is Control { DataContext: InstanceItemViewModel instance })
+        {
+            viewModel.SelectedInstance = instance;
+            await viewModel.Instances.MaterializeSelectedStorageCommand.ExecuteAsync(null);
         }
     }
 
@@ -225,6 +240,34 @@ public partial class MainWindow
             return;
         }
         await ConfirmDeleteInstanceAsync(viewModel, instance);
+    }
+
+    private async void ConfirmDeleteSelectedInstances(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel || !viewModel.CanNavigate) return;
+        var instances = viewModel.Instances.SelectedInstances.ToArray();
+        if (instances.Length == 0) return;
+        if (viewModel.Instances.SelectedGameDirectory?.IsSteam == true)
+        {
+            await ConfirmDeleteInstanceAsync(viewModel, instances[0]);
+            return;
+        }
+        if (await ShowConfirmationAsync(
+            viewModel.Loc["DeleteSelectedInstances"], viewModel.Loc["DeleteInstanceMessage"],
+            string.Join("\n\n", instances.Select(instance => $"{instance.Name} · {instance.DisplayVersion}\n{instance.RootPath}")),
+            viewModel, isDangerous: true))
+            await viewModel.Instances.DeleteSelectedInstancesCommand.ExecuteAsync(instances);
+    }
+
+    private void OnInstancesKeyDown(object? sender, KeyEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel viewModel || !viewModel.Instances.IsSelectingInstances) return;
+        if (eventArgs.Key == Key.A && eventArgs.KeyModifiers.HasFlag(KeyModifiers.Control))
+            viewModel.Instances.SelectAllInstancesCommand.Execute(null);
+        else if (eventArgs.Key == Key.Escape)
+            viewModel.Instances.IsSelectingInstances = false;
+        else return;
+        eventArgs.Handled = true;
     }
 
     private async void ConfirmDeleteSelectedInstance(object? sender, RoutedEventArgs eventArgs)

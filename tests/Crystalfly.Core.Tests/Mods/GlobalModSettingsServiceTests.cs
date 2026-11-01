@@ -8,7 +8,7 @@ namespace Crystalfly.Core.Tests.Mods;
 public sealed class GlobalModSettingsServiceTests
 {
     [Fact]
-    public void Resolve_file_uses_shared_LocalLow_only_while_the_game_is_running()
+    public void Resolve_file_always_uses_the_instance_LocalLow_even_while_a_game_is_running()
     {
         using var test = new TestDirectory();
         var shared = test.CreateDirectory("local-low", "Hollow Knight");
@@ -27,7 +27,7 @@ public sealed class GlobalModSettingsServiceTests
             Path.Combine(isolation.GetInstanceLocalLowPath("practice"), "ExampleMod.GlobalSettings.json"),
             inactive.ResolveFile("practice", mod).FilePath);
         Assert.Equal(
-            Path.Combine(shared, "ExampleMod.GlobalSettings.json"),
+            Path.Combine(isolation.GetInstanceLocalLowPath("practice"), "ExampleMod.GlobalSettings.json"),
             active.ResolveFile("practice", mod).FilePath);
     }
 
@@ -54,7 +54,9 @@ public sealed class GlobalModSettingsServiceTests
         var activeFile = Assert.Single(active.ListFiles("practice", [mod]));
 
         Assert.Equal("isolated", await File.ReadAllTextAsync(inactiveFile.FilePath));
-        Assert.Equal("shared", await File.ReadAllTextAsync(activeFile.FilePath));
+        Assert.Equal("isolated", await File.ReadAllTextAsync(activeFile.FilePath));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => active.DeleteAsync("practice", [mod]));
+        Assert.Equal("shared", await File.ReadAllTextAsync(Path.Combine(shared, "ExampleMod.GlobalSettings.json")));
     }
 
     [Fact]

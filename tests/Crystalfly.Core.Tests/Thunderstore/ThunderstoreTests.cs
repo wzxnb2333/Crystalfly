@@ -66,6 +66,47 @@ public sealed partial class ThunderstoreTests : IDisposable
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Resolver_rechecks_conflicts_after_modpack_changes_parent_version(bool reverseRequests)
+    {
+        var main = Package("Main", "1.0.0", "Author-Lib-1.0.0");
+        var pack = Package("Pack", "1.0.0", "Author-Lib-1.0.0", "Author-Transitive-1.0.0") with { Categories = ["Modpacks"] };
+        var lib = Package("Lib", "1.0.0", "Author-Transitive-1.0.0");
+        lib = lib with { Versions = [lib.Versions[0], Package("Lib", "2.0.0", "Author-Transitive-2.0.0").Versions[0]] };
+        var transitive = Package("Transitive") with { Versions = [Package("Transitive").Versions[0], Package("Transitive", "2.0.0").Versions[0]] };
+        var bridge = Package("Bridge", "1.0.0", "Author-Pack-1.0.0");
+        var requests = new (string Name, string? Version)[] { (main.FullName, null), (bridge.FullName, null) };
+        if (reverseRequests) Array.Reverse(requests);
+
+        var plan = new ThunderstoreDependencyResolver(Catalog(main, bridge, pack, lib, transitive))
+            .Resolve(GameId.Silksong, "test", requests);
+
+        Assert.Equal("1.0.0", plan.Packages.Single(item => item.Package.FullName == lib.FullName).Version.VersionNumber);
+        Assert.Equal("1.0.0", plan.Packages.Single(item => item.Package.FullName == transitive.FullName).Version.VersionNumber);
+        Assert.Contains(transitive.FullName, plan.RequiredEnabled);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Resolver_discards_unreachable_missing_or_cyclic_dependencies_after_version_change(bool missing)
+    {
+        var main = Package("Main", "1.0.0", "Author-Lib-1.0.0", "Author-Bridge-1.0.0");
+        var bridge = Package("Bridge", "1.0.0", "Author-Pack-1.0.0");
+        var pack = Package("Pack", "1.0.0", "Author-Lib-1.0.0") with { Categories = ["Modpacks"] };
+        var lib = Package("Lib") with { Versions = [Package("Lib").Versions[0], Package("Lib", "2.0.0", "Author-Obsolete-1.0.0").Versions[0]] };
+        var packages = new List<ThunderstorePackage> { main, bridge, pack, lib };
+        if (!missing) packages.Add(Package("Obsolete", "1.0.0", "Author-Obsolete-1.0.0"));
+
+        var plan = new ThunderstoreDependencyResolver(Catalog(packages.ToArray()))
+            .Resolve(GameId.Silksong, "test", [(main.FullName, null)]);
+
+        Assert.Equal("1.0.0", plan.Packages.Single(item => item.Package.FullName == lib.FullName).Version.VersionNumber);
+        Assert.DoesNotContain(plan.Packages, item => item.Package.FullName == "Author-Obsolete");
+    }
+
+    [Theory]
     [InlineData("5.4.2303")]
     [InlineData("5.4.2304")]
     [InlineData("5.4.75304")]
@@ -88,6 +129,26 @@ public sealed partial class ThunderstoreTests : IDisposable
         Assert.Throws<InvalidDataException>(() => new ThunderstoreDependencyResolver(cyclic).Resolve(GameId.Silksong, "test", [(main.FullName, null)]));
         var rules = new[] { new ThunderstoreCompatibilityRule(main.FullName, "1.0.0", "test", GameCompatibility.Incompatible, "Known conflict") };
         Assert.Throws<InvalidDataException>(() => new ThunderstoreDependencyResolver(Catalog(Package("Main")), rules).Resolve(GameId.Silksong, "test", [(main.FullName, null)]));
+    }
+
+    [Fact]
+    public async Task Catalog_cache_probe_ignores_missing_or_corrupt_data_and_recovers_backup_without_network()
+    {
+        var path = Path.Combine(root, "probe.json");
+        using var client = new HttpClient(new Handler(_ => throw new InvalidOperationException("No network expected")));
+        var source = new ThunderstoreCatalogSource(client, path);
+        Assert.Null(await source.TryReadCacheAsync());
+        Directory.CreateDirectory(root);
+        await File.WriteAllTextAsync(path, "broken");
+        Assert.Null(await source.TryReadCacheAsync());
+        await AtomicJsonStore.WriteAsync(path + ".bak", Catalog(Package("Cached")));
+        var cached = await source.TryReadCacheAsync();
+        Assert.NotNull(cached);
+        Assert.Contains(cached.Packages, item => item.Name == "Cached");
+        Assert.True(source.UsingCache);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => source.TryReadCacheAsync(cancellation.Token));
     }
 
     [Fact]
@@ -179,6 +240,29 @@ public sealed partial class ThunderstoreTests : IDisposable
         await service.UninstallAsync(installed.FullName);
         Assert.Empty((await service.ReadStateAsync()).Packages);
         Assert.Equal("user", await File.ReadAllTextAsync(config));
+    }
+
+    [Fact]
+    public async Task Health_inspection_reuses_receipt_snapshot_but_reads_current_mod_files()
+    {
+        var (archive, package) = await ArchiveAsync("Snapshot", ("plugins/mod.txt", "original"));
+        var store = Store;
+        await store.ImportLocalAsync(archive, package);
+        var service = new ThunderstoreInstallService(Instance, store, () => false);
+        await service.InstallAsync(new(GameId.Silksong, Instance.BuildId, [package], [package.Package.FullName]),
+            offline: true, confirmUnverified: true);
+        var state = await service.ReadStateAsync();
+        var file = Assert.Single(Assert.Single(state.Packages).Files);
+        await File.WriteAllTextAsync(Path.Combine(Instance.RootPath, file.Path), "modified");
+        using (var locked = new FileStream(Path.Combine(Instance.RootPath, ThunderstoreInstallService.MetadataDirectory, "installed.json"),
+            FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var report = Assert.Single(await service.AssessHealthAsync(state));
+            Assert.Contains(file.Path, report.ModifiedFiles);
+        }
+        await File.WriteAllTextAsync(Path.Combine(Instance.RootPath, file.Path), "original");
+        Assert.Empty(Assert.Single(await service.AssessHealthAsync()).ModifiedFiles);
+        await Assert.ThrowsAsync<InvalidDataException>(() => service.AssessHealthAsync(state with { GameId = GameId.HollowKnight }));
     }
 
     [Fact]

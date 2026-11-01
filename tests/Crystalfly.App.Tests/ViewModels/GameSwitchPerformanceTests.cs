@@ -5,12 +5,36 @@ using Crystalfly.Core.Configuration;
 using Crystalfly.Core.Instances;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Thunderstore;
+using Crystalfly.Core.Runtime;
+using Crystalfly.Core.Snapshots;
 
 namespace Crystalfly.App.Tests.ViewModels;
 
 public sealed class GameSwitchPerformanceTests : IDisposable
 {
     private readonly string root = Path.Combine(Path.GetTempPath(), "Crystalfly.GameSwitch", Guid.NewGuid().ToString("N"));
+
+    [Fact]
+    public async Task Rebuilding_market_options_publishes_the_filtered_list_only_once()
+    {
+        await using var model = new MainViewModel(Path.Combine(root, "app"));
+        typeof(MainViewModel).GetField("catalog", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(model,
+            new GameCatalog { Mods = [new ModManifest
+            {
+                Id = "fixture", Name = "Fixture", Version = "1.0.0", LoaderId = "api",
+                DownloadUrl = "https://example.invalid/mod.zip", Sha256 = new string('A', 64),
+                SupportedBuildIds = ["1.5.78.11833"], Tags = ["Utility"], SourceName = "Fixture"
+            }] });
+        var resets = 0;
+        model.VisibleMarketDisplayMods.CollectionChanged += (_, args) =>
+        {
+            if (args.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset) resets++;
+        };
+        typeof(MainViewModel).GetMethod("RebuildMarketCatalog", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(model, null);
+        Assert.Equal(1, resets);
+        Assert.Equal("fixture", Assert.Single(model.VisibleMarketDisplayMods).Manifest.Id);
+    }
 
     [Theory]
     [InlineData(GameId.HollowKnight, GameId.Silksong)]
@@ -34,10 +58,12 @@ public sealed class GameSwitchPerformanceTests : IDisposable
         var targetPath = CreateGame(target);
 
         await model.SelectGameCommand.ExecuteAsync(target.ToString());
+        await model.WaitForGameInstanceRefreshAsync();
 
         Assert.Equal(targetPath, Assert.Single(model.Instances.Instances).RootPath);
         Assert.False(File.Exists(InstanceSidecar.GetMarkerPath(originalPath)), "Switching must not read and register instances of the inactive game.");
         await model.SelectGameCommand.ExecuteAsync(original.ToString());
+        await model.WaitForGameInstanceRefreshAsync();
         Assert.Equal(originalPath, Assert.Single(model.Instances.Instances).RootPath);
     }
 
@@ -102,6 +128,85 @@ public sealed class GameSwitchPerformanceTests : IDisposable
         File.WriteAllText(Path.Combine(path, game.GlobalGameManagersPath), "data");
         return path;
     }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Cached_switch_returns_before_scan_and_reconciles_external_changes(bool deleteInstance, bool preserveEdits)
+    {
+        var library = Directory.CreateDirectory(Path.Combine(root, "library")).FullName;
+        var app = Path.Combine(root, "app");
+        CreateGame(GameId.HollowKnight);
+        var silk = CreateGame(GameId.Silksong);
+        await CrystalflySettingsStore.SaveAsync(Path.Combine(app, "settings.json"), new()
+        {
+            OfflineMode = true, CheckForUpdates = false, OnboardingCompleted = true, VersionRoot = library,
+            GameDirectories = [new() { Path = library, DisplayName = "HK" },
+                new() { GameId = GameId.Silksong, Path = library, DisplayName = "Silk" }],
+            GameWorkspaces = [new() { VersionRoot = library }, new() { GameId = GameId.Silksong, VersionRoot = library }]
+        });
+        await using var model = new MainViewModel(app, sharedLocalLowPathOverride: Path.Combine(root, "saves"));
+        await model.InitializeAsync();
+        await ((Task)typeof(MainViewModel).GetField("catalogRefreshTask", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(model)!)
+            .WaitAsync(TimeSpan.FromSeconds(10));
+        await model.SelectGameCommand.ExecuteAsync("Silksong");
+        await model.WaitForGameInstanceRefreshAsync();
+        var cachedId = Assert.Single(model.Instances.Instances).Id;
+        await model.SelectGameCommand.ExecuteAsync("HollowKnight");
+        await model.WaitForGameInstanceRefreshAsync();
+        if (deleteInstance) Directory.Delete(silk, recursive: true);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Func<string, GameCatalog, CancellationToken, Task<IReadOnlyList<InstanceRecord>>> discovery = async (path, catalog, token) =>
+        {
+            var game = model.SelectedGameId;
+            if (game == GameId.Silksong)
+            {
+                started.TrySetResult();
+                await release.Task.WaitAsync(token);
+            }
+            return await InstanceImportService.DiscoverAsync(path, catalog, game, token);
+        };
+        typeof(MainViewModel).GetField("instanceDiscovery", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(model, discovery);
+        try
+        {
+            await model.SelectGameCommand.ExecuteAsync("Silksong").WaitAsync(TimeSpan.FromSeconds(3));
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.False(release.Task.IsCompleted);
+            Assert.True(model.CanNavigate);
+            Assert.True(model.IsInstanceInspectionPending);
+            Assert.False(model.CanAttemptLaunch);
+            Assert.Equal(cachedId, Assert.Single(model.Instances.Instances).Id);
+            Assert.Equal(GameId.Silksong, model.SelectedInstance!.Record.GameId);
+            if (preserveEdits)
+                model.SaveEditor = new SaveEditorViewModel(new NamedSnapshotService(Path.Combine(root, "edit-saves"),
+                    "Crystalfly.Switch." + Guid.NewGuid().ToString("N"), new IdleProbe()), "test", null, "test") { IsDirty = true };
+            if (!deleteInstance && !preserveEdits)
+            {
+                // Switching back cancels the blocked scan; its late result cannot overwrite HK.
+                await model.SelectGameCommand.ExecuteAsync("HollowKnight").WaitAsync(TimeSpan.FromSeconds(3));
+                await model.WaitForGameInstanceRefreshAsync().WaitAsync(TimeSpan.FromSeconds(10));
+                Assert.Equal(GameId.HollowKnight, Assert.Single(model.Instances.Instances).Record.GameId);
+            }
+        }
+        finally { release.TrySetResult(); }
+        await model.WaitForGameInstanceRefreshAsync().WaitAsync(TimeSpan.FromSeconds(10));
+        if (deleteInstance)
+        {
+            Assert.Empty(model.Instances.Instances);
+            Assert.Null(model.SelectedInstance);
+            Assert.False(model.IsInstanceInspectionPending);
+        }
+        else if (preserveEdits)
+        {
+            Assert.True(model.SaveEditor?.IsDirty);
+            Assert.Equal(GameId.Silksong, model.SelectedInstance!.Record.GameId);
+        }
+        else Assert.Equal(GameId.HollowKnight, model.SelectedInstance!.Record.GameId);
+    }
+
+    private sealed class IdleProbe : IHollowKnightProcessProbe { public bool IsRunning() => false; }
 
     private sealed class DelayedCatalogHandler : HttpMessageHandler
     {

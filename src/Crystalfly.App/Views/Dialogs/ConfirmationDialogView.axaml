@@ -17,9 +17,11 @@
                    TextWrapping="Wrap" />
         <TextBlock Text="{Binding Message}"
                    TextWrapping="Wrap" />
-        <TextBlock Classes="cfp-meta"
-                   Text="{Binding Target}"
-                   TextWrapping="Wrap" />
+        <ScrollViewer MaxHeight="200" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <TextBlock Classes="cfp-meta"
+                       Text="{Binding Target}"
+                       TextWrapping="Wrap" />
+        </ScrollViewer>
         <StackPanel Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Spacing="8">

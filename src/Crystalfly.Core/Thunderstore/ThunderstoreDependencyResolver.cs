@@ -66,26 +66,41 @@ public sealed class ThunderstoreDependencyResolver(ThunderstoreCatalog catalog,
         for (var iteration = 0; iteration < 128; iteration++)
         {
             var requirements = roots.ToDictionary(item => item.Key, item => item.Value.ToList(), StringComparer.OrdinalIgnoreCase);
-            foreach (var item in selected.Values)
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            void CollectRequirements(string name)
             {
+                if (!visited.Add(name) || !selected.TryGetValue(name, out var item)) return;
                 foreach (var raw in item.Version.Dependencies)
                 {
                     var dependency = ThunderstoreIdentity.Dependency(SilksongLoaderAdapter.CanonicalDependency(raw));
                     Add(requirements, dependency.Name, new(dependency.Version, item.Package.IsModpack, item.Package.FullName));
+                    CollectRequirements(dependency.Name);
                 }
             }
+            foreach (var name in roots.Keys) CollectRequirements(name);
             var next = new Dictionary<string, ThunderstoreResolvedPackage>(StringComparer.OrdinalIgnoreCase);
+            string? resolutionError = null;
             foreach (var (name, constraints) in requirements)
             {
-                if (!packages.TryGetValue(name, out var package)) throw new InvalidDataException($"Missing dependency: {name}");
+                if (!packages.TryGetValue(name, out var package))
+                {
+                    resolutionError ??= $"Missing dependency: {name}";
+                    continue;
+                }
                 bool Accepts(ThunderstoreVersion candidate) => candidate.IsActive && constraints.All(requirement => requirement.Exact
                     ? candidate.VersionNumber == requirement.Version
                     : ThunderstoreIdentity.Version(candidate.VersionNumber) >= ThunderstoreIdentity.Version(requirement.Version));
                 previous.TryGetValue(name, out var old);
                 var chosen = old is not null ? package.Versions.FirstOrDefault(version => version.VersionNumber == old.Version && Accepts(version)) : null;
                 chosen ??= package.Versions.Where(Accepts).OrderByDescending(version => ThunderstoreIdentity.Version(version.VersionNumber)).FirstOrDefault();
-                if (chosen is null) throw new InvalidDataException($"Dependency conflict: {name}: "
-                    + string.Join(", ", constraints.Select(item => $"{item.Parent} {(item.Exact ? "=" : ">=")} {item.Version}")));
+                if (chosen is null)
+                {
+                    resolutionError ??= $"Dependency conflict: {name}: "
+                        + string.Join(", ", constraints.Select(item => $"{item.Parent} {(item.Exact ? "=" : ">=")} {item.Version}"));
+                    // Keep the provisional choice until changing parents stop contributing stale constraints.
+                    if (selected.TryGetValue(name, out var pending)) next[name] = pending;
+                    continue;
+                }
                 if (old?.Pinned == true && old.Version != chosen.VersionNumber)
                     throw new InvalidDataException($"Version is locked: {name} {old.Version}");
                 next[name] = new(package, chosen, old?.Version, old?.Pinned ?? false) { IsLocal = old?.IsLocal == true || package.Owner == "Local" };
@@ -94,6 +109,7 @@ public sealed class ThunderstoreDependencyResolver(ThunderstoreCatalog catalog,
                 && item.Value.Version.VersionNumber == old.Version.VersionNumber);
             selected = next;
             if (!stable) continue;
+            if (resolutionError is not null) throw new InvalidDataException(resolutionError);
             var warnings = new List<string>();
             foreach (var item in selected.Values)
             {

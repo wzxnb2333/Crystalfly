@@ -231,6 +231,7 @@ public sealed partial class ThunderstoreUiTests
     {
         using var client = new HttpClient();
         var model = CreateModel(client, language);
+        model.LastSharedPresetUrl = "https://crystalflyapi.jwst233.top/share/A1B2C3D4E5F6";
         model.RestoreFilters(null, 0, false);
         var installed = new ThunderstoreInstalledPackage { FullName = "Author-Long_Package_Name", Version = "1.2.3", Enabled = true, Pinned = true };
         model.Installed.Add(installed);
@@ -252,6 +253,19 @@ public sealed partial class ThunderstoreUiTests
                     Assert.Equal(name == expected, view.FindControl<Control>(name)!.IsVisible);
                 var visibleText = view.GetVisualDescendants().OfType<TextBlock>().Where(Visible).Select(item => item.Text ?? "").ToArray();
                 Assert.DoesNotContain(visibleText, text => text.StartsWith("Ts", StringComparison.Ordinal) || text.Contains("SettingOption {", StringComparison.Ordinal));
+                if (workspace == "Presets")
+                {
+                    Assert.Contains(view.GetVisualDescendants().OfType<Button>(), button => Visible(button)
+                        && Equals(button.Content, model.Loc["ImportSharedPreset"]));
+                    Assert.Contains(view.GetVisualDescendants().OfType<TextBox>(), input => Visible(input)
+                        && input.IsReadOnly && input.Text == model.LastSharedPresetUrl);
+                    var screenshotRoot = Environment.GetEnvironmentVariable("CRYSTALFLY_SHARE_PREVIEW_DIR");
+                    if (width == 700 && language == UiLanguage.SimplifiedChinese && !dark && !string.IsNullOrWhiteSpace(screenshotRoot))
+                    {
+                        Directory.CreateDirectory(screenshotRoot);
+                        window.CaptureRenderedFrame()!.Save(Path.Combine(screenshotRoot, "silksong-shared-presets.png"), new PngBitmapEncoderOptions());
+                    }
+                }
                 if (workspace == "Mods")
                 {
                     Assert.Contains(model.Loc["TsEnabled"], visibleText);

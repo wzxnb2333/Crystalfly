@@ -25,7 +25,15 @@ public sealed record InstanceRecord
 
     public InstanceProvisioningMode ProvisioningMode { get; init; }
 
+    public bool UsesSharedContent { get; init; }
+
+    public string? ParentInstanceId { get; init; }
+
+    public string? ParentInstanceName { get; init; }
+
     public string? SpeedrunTemplateId { get; init; }
+
+    public string? SpeedrunLiveSplitPath { get; init; }
 
     public SpeedrunSaveStatesMode SpeedrunSaveStatesMode { get; init; }
 

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Instances;
 using Crystalfly.Core.Serialization;
 using Crystalfly.Core.Speedrun;
 
@@ -27,6 +28,54 @@ public sealed class SpeedrunEnvironmentVerifierTests : IDisposable
         Assert.Equal(result.Report.ActualBuildFingerprint, saved.ActualBuildFingerprint);
         Assert.Equal(result.Report.RuntimePatchesConfiguration, saved.RuntimePatchesConfiguration);
         Assert.Equal(result.Report.Issues, saved.Issues);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Official_environment_accepts_shared_or_independent_resources(bool shared)
+    {
+        var fixture = await CreateFixtureAsync();
+        var request = fixture.Request with { Instance = fixture.Request.Instance with { UsesSharedContent = shared } };
+        var result = await fixture.Verifier.VerifyAndWriteReportAsync(request);
+        Assert.True(result.Report.IsOfficiallyVerified);
+        Assert.DoesNotContain(result.Report.Issues, issue => issue.Code == SpeedrunIssueCode.InstanceNotFullCopy);
+    }
+
+    [Fact]
+    public async Task Optimized_official_environment_checks_resource_hashes_and_keeps_patch_files_private()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var fixture = await CreateFixtureAsync();
+        var resource = Path.Combine(fixture.InstanceRoot, "hollow_knight_Data", "sharedassets0.assets");
+        await File.WriteAllBytesAsync(resource, new byte[1024 * 1024]);
+        await InstanceSidecar.SaveAsync(fixture.Request.Instance);
+        var source = await InstanceCloneService.CloneAsync(fixture.InstanceRoot, "sibling", "sibling");
+        var optimized = (await InstanceSidecar.LoadAsync(fixture.InstanceRoot))!;
+        var request = fixture.Request with
+        {
+            Instance = optimized,
+            FileManifest = fixture.Request.FileManifest with
+            {
+                Files = [.. fixture.Request.FileManifest.Files, new SpeedrunFileRule
+                {
+                    RelativePath = "hollow_knight_Data/sharedassets0.assets", Sha256 = await HashAsync(resource), Kind = SpeedrunFileKind.Game
+                }]
+            }
+        };
+        Assert.True(optimized.UsesSharedContent);
+        Assert.Equal(SharedGameContentStore.Identity(resource), SharedGameContentStore.Identity(
+            Path.Combine(source.RootPath, "hollow_knight_Data", "sharedassets0.assets")));
+        var patch = Path.Combine(fixture.InstanceRoot, "hollow_knight_Data", "Managed", "Assembly-CSharp.dll");
+        Assert.NotEqual(SharedGameContentStore.Identity(patch), SharedGameContentStore.Identity(
+            Path.Combine(source.RootPath, "hollow_knight_Data", "Managed", "Assembly-CSharp.dll")));
+        Assert.True((await fixture.Verifier.VerifyAndWriteReportAsync(request)).Report.IsOfficiallyVerified);
+        File.Delete(resource);
+        await File.WriteAllTextAsync(resource, "damaged resource");
+        var report = (await fixture.Verifier.VerifyAndWriteReportAsync(request)).Report;
+        Assert.False(report.IsReadyToLaunch);
+        Assert.Contains(report.Issues, issue => issue.Code == SpeedrunIssueCode.HashMismatch);
+        Assert.Equal(1024 * 1024, new FileInfo(Path.Combine(source.RootPath, "hollow_knight_Data", "sharedassets0.assets")).Length);
     }
 
     [Theory]

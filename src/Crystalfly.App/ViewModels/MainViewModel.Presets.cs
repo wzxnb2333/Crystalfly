@@ -7,6 +7,7 @@ using Crystalfly.Core.Models;
 using Crystalfly.Core.Mods;
 using Crystalfly.Core.Runtime;
 using Crystalfly.Core.Serialization;
+using Crystalfly.Core.Thunderstore;
 
 namespace Crystalfly.App.ViewModels;
 
@@ -280,6 +281,15 @@ public partial class MainViewModel
         var cancellationToken = lifetimeCancellation.Token;
         try
         {
+            if (record.GameId == GameId.Silksong)
+            {
+                var preset = await GetPresetShareClient().GetSilksongAsync(code, cancellationToken);
+                if (SelectedInstance?.Record != record) throw new InvalidOperationException(Loc["TsTargetChanged"]);
+                CurrentManageTab = "Presets";
+                CurrentPage = "Manage";
+                await Thunderstore.ImportSharedPresetAsync(record, preset);
+                return;
+            }
             var shared = await GetPresetShareClient().GetAsync(code, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             string? importedId = null;
@@ -301,7 +311,28 @@ public partial class MainViewModel
             or InvalidDataException
             or InvalidOperationException
             or ArgumentException
+            or ProtocolCommandException
             or OperationCanceledException)
+        {
+            ErrorMessage = Loc.ErrorMessageFor(exception);
+        }
+    }
+
+    internal async Task ShareSilksongPresetAsync(InstanceRecord record, string name)
+    {
+        ErrorMessage = null;
+        try
+        {
+            var preset = await new ThunderstoreInstallService(record, GetThunderstorePackageStore())
+                .CreatePresetAsync(name, lifetimeCancellation.Token);
+            var result = await GetPresetShareClient().CreateAsync(preset, lifetimeCancellation.Token);
+            LastPresetShareCode = result.Code;
+            LastPresetDeleteToken = result.DeleteToken;
+            Thunderstore.LastSharedPresetUrl = LastPresetShareUrl;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or IOException
+            or InvalidDataException or InvalidOperationException or UnauthorizedAccessException
+            or ArgumentException or OperationCanceledException or System.Text.Json.JsonException)
         {
             ErrorMessage = Loc.ErrorMessageFor(exception);
         }

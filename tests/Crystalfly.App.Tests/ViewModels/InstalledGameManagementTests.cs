@@ -50,6 +50,76 @@ public sealed class InstalledGameManagementTests : IDisposable
         Assert.Contains("broken", viewModel.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(GameId.HollowKnight, true)]
+    [InlineData(GameId.HollowKnight, false)]
+    [InlineData(GameId.Silksong, true)]
+    [InlineData(GameId.Silksong, false)]
+    public async Task Background_refresh_keeps_known_instances_when_files_are_temporarily_locked(GameId gameId, bool lockMarker)
+    {
+        var appData = CreateDirectory("app-data");
+        var versions = CreateDirectory("versions");
+        var game = CreateGame(versions, "a-game", gameId);
+        var healthy = CreateGame(versions, "healthy", gameId);
+        await SaveSettingsAsync(appData, versions, gameId);
+        await using var viewModel = CreateViewModel(appData);
+        await InitializeAsync(viewModel);
+        await (Task)typeof(MainViewModel).GetField("detailsLoadTask", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(viewModel)!;
+        var selectedId = viewModel.SelectedInstance!.Id;
+        Assert.Equal(game, viewModel.SelectedInstance.RootPath);
+        var lockPath = lockMarker ? InstanceSidecar.GetMarkerPath(game) : Path.Combine(
+            Path.GetDirectoryName(InstanceSidecar.GetMetadataPath(game, selectedId))!, "loader.json");
+        if (!lockMarker) await File.WriteAllTextAsync(lockPath, "{}");
+
+        using (var lockedFile = new FileStream(lockPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            var refresh = typeof(MainViewModel).GetMethod("RefreshInstancesAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            await ((Task)refresh.Invoke(viewModel, [false, CancellationToken.None])!).WaitAsync(TimeSpan.FromSeconds(10));
+
+            Assert.Equal(2, viewModel.Instances.Instances.Count);
+            Assert.Equal(selectedId, viewModel.SelectedInstance?.Id);
+            Assert.Contains(viewModel.Instances.VisibleInstances, instance => instance.RootPath == game);
+            Assert.Contains(viewModel.Instances.Instances, instance => instance.RootPath == healthy);
+            Assert.False(string.IsNullOrWhiteSpace(viewModel.ErrorMessage));
+        }
+        if (!lockMarker) File.Delete(lockPath);
+
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        Assert.Equal(2, viewModel.Instances.Instances.Count);
+        Assert.Equal(selectedId, viewModel.SelectedInstance?.Id);
+        Assert.Null(viewModel.ErrorMessage);
+        Directory.Delete(game, recursive: true);
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+        Assert.Equal(healthy, Assert.Single(viewModel.Instances.Instances).RootPath);
+    }
+
+    [Fact]
+    public async Task Transient_scan_failure_keeps_the_last_instance_projection()
+    {
+        var appData = CreateDirectory("app-data");
+        var versions = CreateDirectory("versions");
+        var game = CreateGame(versions, "game");
+        await SaveSettingsAsync(appData, versions);
+        await using var viewModel = CreateViewModel(appData);
+        await InitializeAsync(viewModel);
+        var selectedId = viewModel.SelectedInstance!.Id;
+        SetField(viewModel, "instanceDiscovery", new Func<string, GameCatalog, CancellationToken, Task<IReadOnlyList<InstanceRecord>>>(
+            (_, _, _) => Task.FromException<IReadOnlyList<InstanceRecord>>(new IOException("Temporarily busy."))));
+
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        Assert.Equal(game, Assert.Single(viewModel.Instances.Instances).RootPath);
+        Assert.Equal(selectedId, viewModel.SelectedInstance?.Id);
+        Assert.False(string.IsNullOrWhiteSpace(viewModel.ErrorMessage));
+        Assert.False(viewModel.LaunchPreflight.CanAttemptLaunch);
+        SetField(viewModel, "instanceDiscovery", new Func<string, GameCatalog, CancellationToken, Task<IReadOnlyList<InstanceRecord>>>(
+            (scanRoot, catalog, token) => InstanceImportService.DiscoverAsync(scanRoot, catalog, token)));
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+        Assert.Equal(selectedId, viewModel.SelectedInstance?.Id);
+        Assert.Null(viewModel.ErrorMessage);
+    }
+
     [Fact]
     public async Task Disconnected_disk_clears_stale_instances_and_recovers_when_it_returns()
     {
@@ -219,20 +289,21 @@ public sealed class InstalledGameManagementTests : IDisposable
     private static void SetField(MainViewModel viewModel, string name, object value) =>
         typeof(MainViewModel).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(viewModel, value);
 
-    private static Task SaveSettingsAsync(string appData, string versions) =>
+    private static Task SaveSettingsAsync(string appData, string versions, GameId gameId = GameId.HollowKnight) =>
         CrystalflySettingsStore.SaveAsync(Path.Combine(appData, "settings.json"), new CrystalflySettings
         {
-            VersionRoot = versions, OfflineMode = true, OnboardingCompleted = true
+            VersionRoot = versions, SelectedGameId = gameId, OfflineMode = true, OnboardingCompleted = true
         });
 
     private string CreateDirectory(string name) => Directory.CreateDirectory(Path.Combine(root, name)).FullName;
 
-    private static string CreateGame(string versions, string name)
+    private static string CreateGame(string versions, string name, GameId gameId = GameId.HollowKnight)
     {
         var game = Path.Combine(versions, name);
-        Directory.CreateDirectory(Path.Combine(game, "hollow_knight_Data"));
-        File.WriteAllText(Path.Combine(game, "hollow_knight.exe"), "exe");
-        File.WriteAllText(Path.Combine(game, "hollow_knight_Data", "globalgamemanagers"), "data");
+        var definition = GameDefinition.Get(gameId);
+        Directory.CreateDirectory(Path.Combine(game, definition.DataDirectoryName));
+        File.WriteAllText(Path.Combine(game, definition.ExecutableName), "exe");
+        File.WriteAllText(Path.Combine(game, definition.GlobalGameManagersPath), "data");
         return game;
     }
 

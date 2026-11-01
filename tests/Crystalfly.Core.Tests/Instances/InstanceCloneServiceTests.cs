@@ -105,4 +105,48 @@ public sealed class InstanceCloneServiceTests : IDisposable
             Directory.Delete(root, recursive: true);
         }
     }
+
+    [Theory]
+    [InlineData(GameId.HollowKnight, InstancePurpose.General)]
+    [InlineData(GameId.Silksong, InstancePurpose.CustomSpeedrun)]
+    public async Task Custom_speedrun_rejects_ineligible_sources(GameId game, InstancePurpose purpose)
+    {
+        var source = Directory.CreateDirectory(Path.Combine(root, "source")).FullName;
+        await InstanceSidecar.SaveAsync(new InstanceRecord
+        {
+            Id = "source", Name = "Source", RootPath = source, BuildId = "test", GameId = game, Purpose = purpose
+        });
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            InstanceCloneService.CloneAsync(source, "speedrun", "new", customSpeedrun: true));
+        Assert.False(Directory.Exists(Path.Combine(root, "speedrun")));
+        Assert.Equal(purpose, (await InstanceSidecar.LoadAsync(source))!.Purpose);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Custom_speedrun_copy_failure_or_cancellation_leaves_no_partial_instance(bool cancel)
+    {
+        var source = Directory.CreateDirectory(Path.Combine(root, "source")).FullName;
+        var config = Path.Combine(source, "settings.cfg");
+        await File.WriteAllTextAsync(config, "original");
+        await InstanceSidecar.SaveAsync(new InstanceRecord
+        {
+            Id = "source", Name = "Source", RootPath = source, BuildId = "test", GameId = GameId.Silksong
+        });
+        using var cancellation = new CancellationTokenSource();
+        using (var locked = new FileStream(config, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            if (cancel) cancellation.Cancel();
+            var error = await Record.ExceptionAsync(() => InstanceCloneService.CloneAsync(source, "speedrun", "new",
+                cancellation.Token, shareContent: false, customSpeedrun: true));
+            if (cancel) Assert.IsAssignableFrom<OperationCanceledException>(error);
+            else Assert.IsAssignableFrom<IOException>(error);
+        }
+        Assert.False(Directory.Exists(Path.Combine(root, "speedrun")));
+        var staging = Path.Combine(root, ".crystalfly", "staging");
+        if (Directory.Exists(staging)) Assert.Empty(Directory.EnumerateFileSystemEntries(staging));
+        Assert.Equal("original", await File.ReadAllTextAsync(config));
+        Assert.Equal(InstancePurpose.General, (await InstanceSidecar.LoadAsync(source))!.Purpose);
+    }
 }

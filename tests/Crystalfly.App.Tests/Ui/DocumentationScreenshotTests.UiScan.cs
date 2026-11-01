@@ -17,6 +17,47 @@ namespace Crystalfly.App.Tests.Ui;
 public sealed partial class DocumentationScreenshotTests
 {
     [AvaloniaFact]
+    public async Task Speedrun_lss_binding_tracks_the_selected_instance_and_fits_its_card()
+    {
+        await using var fixture = CreateFixture();
+        await fixture.PrepareAsync(ScreenshotState.Speedrun);
+        var model = fixture.ViewModel;
+        var original = model.SelectedSpeedrunInstance!;
+        var bound = original with { Record = original.Record with { SpeedrunLiveSplitPath = @"D:\LiveSplit\练习分段 Any Percent.lss" } };
+        model.SelectedSpeedrunInstance = bound;
+        fixture.Window.Width = 1100;
+        fixture.Window.Height = 720;
+        fixture.Window.Show();
+        fixture.Window.DataContext = model;
+        model.Settings.SelectedMotionPreference = new(UiMotionPreference.Off, model.Loc["MotionOff"]);
+        Dispatcher.UIThread.RunJobs();
+        fixture.Window.UpdateLayout();
+        var binding = fixture.Window.FindControl<Grid>("SpeedrunLiveSplitBinding")!;
+        Assert.True(binding.IsEffectivelyVisible);
+        Assert.Equal("练习分段 Any Percent.lss", model.SpeedrunLiveSplitName);
+        Assert.True(model.HasSpeedrunLiveSplitBinding);
+        foreach (var button in binding.Children.OfType<Button>())
+        {
+            Assert.True(button.IsEffectivelyVisible);
+            var point = button.TranslatePoint(default, binding)!.Value;
+            Assert.InRange(point.X, 0, binding.Bounds.Width - button.Bounds.Width);
+        }
+        if (Environment.GetEnvironmentVariable("CRYSTALFLY_UI_SCAN_DIR") is { Length: > 0 } output)
+        {
+            Directory.CreateDirectory(output);
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+            using var frame = fixture.Window.GetLastRenderedFrame();
+            Assert.NotNull(frame);
+            frame.Save(Path.Combine(output, "speedrun-livesplit.png"), new PngBitmapEncoderOptions());
+        }
+        model.SelectedSpeedrunInstance = original;
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(model.HasSpeedrunLiveSplitBinding);
+        Assert.Equal(model.Loc["SpeedrunLiveSplitChoose"], model.SpeedrunLiveSplitName);
+        Assert.False(binding.Children.OfType<Button>().Last().IsVisible);
+    }
+
+    [AvaloniaFact]
     public async Task Speedrun_board_entries_select_all_and_individual_boards_at_minimum_width()
     {
         await using var fixture = CreateFixture();
@@ -92,6 +133,24 @@ public sealed partial class DocumentationScreenshotTests
         AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
         if (Environment.GetEnvironmentVariable("CRYSTALFLY_UI_SCAN_DIR") is { Length: > 0 } output)
         {
+            fixture.ViewModel.SpeedrunActivities.Clear();
+            foreach (var (game, kind, place, label) in new[] {
+                (SpeedrunGame.HollowKnight, SpeedrunActivityKind.WorldRecord, 1, "HK · Any%"),
+                (SpeedrunGame.Silksong, SpeedrunActivityKind.TiedWorldRecord, 1, "Silksong · Any%"),
+                (SpeedrunGame.HollowKnightExtensions, SpeedrunActivityKind.SecondPlace, 2, "HK Extensions · All Bosses"),
+                (SpeedrunGame.SilksongExtensions, SpeedrunActivityKind.ThirdPlace, 3, "Silksong Extensions · All Bosses") })
+            {
+                var entry = new SpeedrunPodiumEntry("badge-" + game, place, "Runner " + (place + 1), "PT32M16S", 1936,
+                    DateTimeOffset.Parse("2026-10-31T12:00:00Z"), "https://www.speedrun.com/");
+                var descriptor = new SpeedrunBoardDescriptor(game, "badge", "Any%", null, null, []);
+                var item = new SpeedrunActivityItemViewModel(new(entry.RunId, kind, descriptor, entry, DateTimeOffset.UtcNow), kind.ToString(), label);
+                fixture.ViewModel.SpeedrunActivities.Add(item);
+                fixture.ViewModel.VisibleSpeedrunActivities.Add(item);
+            }
+            list.Offset = default;
+            Dispatcher.UIThread.RunJobs();
+            fixture.Window.UpdateLayout();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
             Directory.CreateDirectory(output);
             using var frame = fixture.Window.GetLastRenderedFrame();
             Assert.NotNull(frame);

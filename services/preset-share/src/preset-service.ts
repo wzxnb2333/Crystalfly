@@ -1,12 +1,12 @@
 import { timingSafeEqual } from "node:crypto";
 
-import { createDeleteTokenHash, hashDeleteToken, parsePreset, type Preset, type ShareSecrets } from "./core.js";
+import { createDeleteTokenHash, hashDeleteToken, parsePreset, type SharedPreset, type ShareSecrets } from "./core.js";
 
 export const PRESET_TTL_SECONDS = 180 * 24 * 60 * 60;
 export const MAX_CREATES_PER_HOUR = 10;
 
 export interface PresetRecord {
-    preset: Preset;
+    preset: SharedPreset;
     deleteTokenHash: string;
 }
 
@@ -45,7 +45,7 @@ export class PresetService {
         throw new Error("暂时无法生成唯一分享码，请重试。");
     }
 
-    async get(code: string): Promise<Preset | null> {
+    async get(code: string): Promise<SharedPreset | null> {
         const record = await this.store.get(code);
         if (record === null) {
             return null;

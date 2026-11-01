@@ -10,7 +10,9 @@ public static class InstanceCloneService
         string sourceRoot,
         string name,
         string instanceId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool shareContent = true,
+        bool customSpeedrun = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
 
@@ -29,6 +31,11 @@ public static class InstanceCloneService
             ?? throw new InvalidDataException(
                 $"Instance sidecar metadata is missing; expected '{InstanceSidecar.GetMarkerPath(sourceRoot)}'. "
                 + "The instance may be corrupted.");
+        if (customSpeedrun && (sourceRecord.GameId != GameId.Silksong || sourceRecord.Purpose != InstancePurpose.General))
+            throw new InvalidOperationException("A custom Silksong speedrun instance requires a general Silksong source.");
+        shareContent &= SharedGameContentStore.IsSupported(sourceRoot);
+        if (shareContent && !SharedGameContentStore.IsSteamDirectory(sourceRoot))
+            sourceRecord = await new SharedGameContentStore(versionRoot).OptimizeAsync(sourceRecord, cancellationToken);
         var stagingRoot = Path.Combine(versionRoot, ".crystalfly", "staging", $"clone-{Guid.NewGuid():N}");
         var gameDataRoot = new CrystalflyPaths(versionRoot, false).GetVersionDataRoot(versionRoot, sourceRecord.GameId);
         var sourceState = InstanceDirectory.ResolveUnderRoot(Path.Combine(gameDataRoot, "instances"), sourceRecord.Id);
@@ -41,7 +48,7 @@ public static class InstanceCloneService
         var stateOwned = false;
         try
         {
-            await CopyDirectoryAsync(sourceRoot, stagingRoot, cancellationToken);
+            await CopyDirectoryAsync(sourceRoot, stagingRoot, cancellationToken, shareContent ? sourceRecord.GameId : null);
             if (copyGameState)
             {
                 InstanceDirectory.RejectReparseAncestors(sourceState);
@@ -77,9 +84,25 @@ public static class InstanceCloneService
                 Id = instanceId,
                 Name = name,
                 RootPath = destinationRoot,
+                ParentInstanceId = sourceRecord.Id,
+                ParentInstanceName = sourceRecord.Name,
+                UsesSharedContent = shareContent && sourceRecord.UsesSharedContent,
                 CreatedAt = DateTimeOffset.UtcNow
             };
+            if (customSpeedrun)
+                clone = clone with
+                {
+                    Purpose = InstancePurpose.CustomSpeedrun,
+                    ProvisioningMode = InstanceProvisioningMode.FullCopy,
+                    SpeedrunTemplateId = null,
+                    SpeedrunRulesRevision = null,
+                    SpeedrunSaveStatesMode = SpeedrunSaveStatesMode.None,
+                    LoadNormaliserSeconds = null,
+                    SpeedrunLiveSplitPath = null
+                };
             await InstanceSidecar.SaveAsync(clone, cancellationToken);
+            if (shareContent && !clone.UsesSharedContent && !SharedGameContentStore.IsSteamDirectory(destinationRoot))
+                clone = await new SharedGameContentStore(versionRoot).OptimizeAsync(clone, cancellationToken);
             return clone;
         }
         catch
@@ -103,7 +126,8 @@ public static class InstanceCloneService
     private static async Task CopyDirectoryAsync(
         string sourceRoot,
         string destinationRoot,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        GameId? sharedGame = null)
     {
         Directory.CreateDirectory(destinationRoot);
         foreach (var directory in Directory.EnumerateDirectories(sourceRoot, "*", SearchOption.AllDirectories))
@@ -124,6 +148,8 @@ public static class InstanceCloneService
 
             var destination = Path.Combine(destinationRoot, Path.GetRelativePath(sourceRoot, file));
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            if (sharedGame is { } game && SharedGameContentStore.TryCloneFile(file, destination,
+                    Path.GetRelativePath(sourceRoot, file), game)) continue;
             await using var input = new FileStream(
                 file,
                 FileMode.Open,

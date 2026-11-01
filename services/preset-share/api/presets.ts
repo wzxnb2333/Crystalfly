@@ -33,5 +33,5 @@ function handleError(request: Request, error: unknown): Response {
         return json(request, 400, { error: error.message });
     }
     console.error(error);
-    return json(request, 500, { error: "服务暂时不可用。" });
+    return json(request, 503, { error: "分享存储暂时不可用，请稍后重试。" });
 }

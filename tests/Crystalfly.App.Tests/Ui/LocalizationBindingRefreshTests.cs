@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Headless.XUnit;
@@ -40,6 +40,22 @@ public sealed class LocalizationBindingRefreshTests
         holder.Loc.Apply(UiLanguage.SimplifiedChinese);
 
         Assert.Equal("就绪", textBlock.Text);
+    }
+
+    [AvaloniaFact]
+    public void Reapplying_the_current_language_does_not_invalidate_all_bindings()
+    {
+        var loc = new LocalizationViewModel();
+        var notifications = 0;
+        loc.PropertyChanged += (_, _) => notifications++;
+        loc.Apply(UiLanguage.SimplifiedChinese);
+        Assert.Equal(0, notifications);
+        loc.Apply(UiLanguage.English);
+        Assert.Equal(1, notifications);
+        loc.Apply(UiLanguage.English);
+        Assert.Equal(1, notifications);
+        loc.Apply(UiLanguage.SimplifiedChinese);
+        Assert.Equal(2, notifications);
     }
 
     private sealed class SilentProbe : INotifyPropertyChanged

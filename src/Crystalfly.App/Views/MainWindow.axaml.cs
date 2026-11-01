@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -140,7 +140,6 @@ public partial class MainWindow : Window
             {
                 await viewModel.InitializeAsync();
                 initialized = true;
-                motionCoordinator.RegisterMotionTargets(animateNewTargets: true);
                 Dispatcher.UIThread.Post(
                     () => motionCoordinator.AnimateSpeedrunTabIndicator(SpeedrunTabIndicator),
                     DispatcherPriority.Render);

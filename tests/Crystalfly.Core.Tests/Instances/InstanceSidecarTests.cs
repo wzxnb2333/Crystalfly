@@ -10,6 +10,20 @@ public sealed class InstanceSidecarTests : IDisposable
     private readonly string root = Path.Combine(Path.GetTempPath(), $"crystalfly-sidecar-{Guid.NewGuid():N}");
 
     [Fact]
+    public async Task LiveSplit_binding_roundtrips_per_instance_and_can_be_removed()
+    {
+        var first = CreateRecord(Directory.CreateDirectory(Path.Combine(root, "first")).FullName);
+        var second = CreateRecord(Directory.CreateDirectory(Path.Combine(root, "second")).FullName) with { Id = "second" };
+        await InstanceSidecar.SaveAsync(first with { SpeedrunLiveSplitPath = Path.Combine(root, "练习 分段.lss") });
+        await InstanceSidecar.SaveAsync(second);
+        var bound = await InstanceSidecar.LoadAsync(first.RootPath);
+        Assert.Equal(Path.Combine(root, "练习 分段.lss"), bound!.SpeedrunLiveSplitPath);
+        Assert.Null((await InstanceSidecar.LoadAsync(second.RootPath))!.SpeedrunLiveSplitPath);
+        await InstanceSidecar.SaveAsync(bound with { SpeedrunLiveSplitPath = null });
+        Assert.Null((await InstanceSidecar.LoadAsync(first.RootPath))!.SpeedrunLiveSplitPath);
+    }
+
+    [Fact]
     public async Task Load_uses_the_renamed_instance_directory_as_root_path()
     {
         var versionRoot = Directory.CreateDirectory(Path.Combine(root, "versions")).FullName;

@@ -63,8 +63,10 @@ public sealed class MultiGameTests : IDisposable
         Assert.Equal("Hollow Knight Silksong", Path.GetFileName(GameDefinition.Silksong.GetLocalLowPath()));
     }
 
-    [Fact]
-    public async Task Silksong_clone_copies_mod_files_current_save_and_independent_snapshot_paths()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Silksong_clone_copies_mod_files_current_save_and_independent_snapshot_paths(bool customSpeedrun)
     {
         var source = Directory.CreateDirectory(Path.Combine(root, "source")).FullName;
         var plugins = Directory.CreateDirectory(Path.Combine(source, "BepInEx/plugins/Author-Mod")).FullName;
@@ -76,7 +78,12 @@ public sealed class MultiGameTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(saves, "user1.dat"), "source save");
         var snapshots = new NamedSnapshotService(storage, "Crystalfly.CloneTest." + Guid.NewGuid().ToString("N"), new IdleProbe(), GameId.Silksong);
         var snapshot = await snapshots.CreateAsync("old", "Before boss");
-        var clone = await InstanceCloneService.CloneAsync(source, "copy", "new");
+        var clone = await InstanceCloneService.CloneAsync(source, "copy", "new", customSpeedrun: customSpeedrun);
+        Assert.Equal(customSpeedrun ? InstancePurpose.CustomSpeedrun : InstancePurpose.General, clone.Purpose);
+        Assert.Equal(clone, await InstanceSidecar.LoadAsync(clone.RootPath));
+        Assert.Null(clone.SpeedrunTemplateId);
+        Assert.Null(clone.SpeedrunLiveSplitPath);
+        Assert.Equal(InstancePurpose.General, (await InstanceSidecar.LoadAsync(source))!.Purpose);
         Assert.Equal(GameId.Silksong, clone.GameId);
         Assert.Equal("payload", await File.ReadAllTextAsync(Path.Combine(clone.RootPath, "BepInEx/plugins/Author-Mod/mod.txt")));
         var clonedSaves = Path.Combine(storage, "instances/new/local-low");

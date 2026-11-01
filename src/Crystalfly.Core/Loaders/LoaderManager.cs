@@ -37,10 +37,12 @@ public sealed class LoaderManager
         await LoaderStateDetector.InspectAsync(
             _instanceRoot, await GetReceiptAsync(cancellationToken), cancellationToken);
 
-    public async Task<InstalledPackageReceipt?> GetReceiptAsync(CancellationToken cancellationToken = default)
+    public async Task<InstalledPackageReceipt?> GetReceiptAsync(CancellationToken cancellationToken = default,
+        Crystalfly.Core.Thunderstore.ThunderstoreInstallState? thunderstoreState = null)
     {
-        var thunderstoreReceipt = await Crystalfly.Core.Thunderstore.ThunderstoreReceiptProjection.ReadLoaderAsync(
-            _instanceRoot, cancellationToken);
+        var thunderstoreReceipt = thunderstoreState is null
+            ? await Crystalfly.Core.Thunderstore.ThunderstoreReceiptProjection.ReadLoaderAsync(_instanceRoot, cancellationToken)
+            : Crystalfly.Core.Thunderstore.ThunderstoreReceiptProjection.Loader(thunderstoreState);
         if (thunderstoreReceipt is not null) return thunderstoreReceipt;
         if (!File.Exists(_receiptPath) && !File.Exists(_receiptPath + ".bak"))
         {

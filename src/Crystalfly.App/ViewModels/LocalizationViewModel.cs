@@ -8,6 +8,7 @@ public sealed class LocalizationViewModel : ViewModelBase
     private static readonly IReadOnlyDictionary<string, string> English = new Dictionary<string, string>
     {
         ["ChooseDownloadLibrary"] = "Choose download directory",
+        ["DownloadDirectoryEmpty"] = "Add a game directory on the Instances page first.",
         ["ChooseDownloadLibraryHint"] = "Select a library folder, not an existing game's root. Downloads create separate instance folders.",
         ["SaveImport"] = "Import save",
         ["SaveImportSlot"] = "Import target slot",
@@ -62,7 +63,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["TsPresetsTitle"] = "Mod Packs",
         ["TsPresetsHint"] = "Save or restore the version and enabled state of this instance's mods.",
         ["TsExportPresetHint"] = "Export a JSON list of package versions and settings. Game files and saves are not included.",
-        ["TsImportPresetHint"] = "Import a Mod Pack JSON, review dependencies and changes, then confirm installation.",
+        ["TsImportPresetHint"] = "Import a code, link or JSON, then review and confirm installation.",
         ["GameHollowKnight"] = "Hollow Knight",
         ["GameAvatarSwitchHint"] = "Current game: {0}. Click the portrait or press Shift+Tab outside instance settings to switch to {1}.",
         ["GameSwitched"] = "Switched to {0}",
@@ -145,7 +146,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["ForceLaunch"] = "Force launch",
         ["DoNotRemindLaunchWarnings"] = "Do not remind me again while these exact issues stay unchanged",
         ["LaunchIssueExecutableMissing"] = "The game executable is missing",
-        ["LaunchIssueGameAlreadyRunning"] = "Hollow Knight is already running",
+        ["LaunchIssueGameAlreadyRunning"] = "This instance is already running",
         ["LaunchIssueUnknownBuild"] = "The build and Loader combination is unsupported",
         ["LaunchIssueLoaderConflict"] = "Conflicting Loader files were detected",
         ["LaunchIssueLoaderDrifted"] = "Loader files have drifted",
@@ -172,7 +173,25 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["NoConflicts"] = "No conflicts",
         ["Mounted"] = "Ready",
         ["Instances"] = "Instances",
-        ["InstancesHint"] = "Known versions and full-copy environments under the selected root.",
+        ["InstancesHint"] = "Grouped by version and clone source.",
+        ["CloneSharedInstance"] = "Create shared instance",
+        ["CloneIndependentInstance"] = "Create independent copy",
+        ["CloneSharedHint"] = "Reuse protected game resources; mods, configuration and saves stay independent. Unsupported locations use a full copy.",
+        ["CloneIndependentHint"] = "Copy all game files into a fully independent instance.",
+        ["InstanceStorageActions"] = "More actions",
+        ["InstanceOrigin"] = "Source instance",
+        ["ToggleInstanceBranch"] = "Expand / collapse derived instances",
+        ["InstanceSharedMode"] = "Shared resources",
+        ["InstanceIndependentMode"] = "Independent files",
+        ["InstanceSource"] = "From {0}",
+        ["StorageCalculating"] = "Measuring storage…",
+        ["StorageActual"] = "On disk  {0}",
+        ["StoragePartial"] = "Measured  ≥ {0}",
+        ["StoragePartialHint"] = "Some files could not be read",
+        ["StorageSavings"] = "Shared savings  {0}",
+        ["StorageUnavailable"] = "Storage unavailable",
+        ["RefreshStorageUsage"] = "Refresh storage usage",
+        ["StorageScope"] = "Current directory and game: registered game files, shared resource pool, and instance saves/snapshots. Physical allocation deduplicated by file ID; excludes filesystem metadata and external/unregistered files. Savings counts duplicate game resources only. Updated on opening this page or refreshing.",
         ["SearchInstances"] = "Search instances",
         ["Overview"] = "Overview",
         ["Loader"] = "Loader",
@@ -212,13 +231,17 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["SaveTypeUnknown"] = "Unknown",
         ["SaveBooleanTrue"] = "Yes",
         ["SaveBooleanFalse"] = "No",
+        ["SpeedrunCustomTitle"] = "Custom speedrun instances",
+        ["SpeedrunCustomHint"] = "Reuse a source instance with shared resources and independent saves. No official template is applied.",
+        ["SpeedrunCustomReady"] = "Independent saves · LiveSplit binding available",
+        ["SpeedrunSelectSource"] = "Select a source instance",
         ["SpeedrunTitle"] = "Official speedrun environments",
-        ["SpeedrunHint"] = "Create a dedicated verified copy. Daily instances are never modified.",
+        ["SpeedrunHint"] = "Share game resources while keeping speedrun patches and saves independent.",
         ["SpeedrunComingSoon"] = "Coming soon",
         ["SpeedrunComingSoonHint"] = "The official speedrun workflow is being rebuilt for direct plugin installation.",
         ["SpeedrunCreate"] = "Create environment",
         ["SpeedrunInstances"] = "Speedrun environments",
-        ["SpeedrunInstancesHint"] = "Dedicated full copies with fixed RuntimePatches assets.",
+        ["SpeedrunInstancesHint"] = "Dedicated instances with fixed RuntimePatches assets and shared game resources.",
         ["SpeedrunNoInstance"] = "Select an environment or create a new one.",
         ["SpeedrunTemplateExpired"] = "Template expired. Recreate this environment before an official run.",
         ["SpeedrunTechnicalReady"] = "RuntimePatches environment",
@@ -241,6 +264,10 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["LiveSplitFiles"] = "LiveSplit timer files",
         ["LiveSplitFavoriteInvalid"] = "Select an existing .lss file.",
         ["LiveSplitFavoriteMissing"] = "This LiveSplit file is no longer available.",
+        ["SpeedrunLiveSplitChoose"] = "Choose .lss",
+        ["SpeedrunLiveSplitBind"] = "Bind .lss to this instance; open it when the game starts",
+        ["SpeedrunLiveSplitUnbind"] = "Remove this instance's LiveSplit binding",
+        ["SpeedrunLiveSplitOpenFailed"] = "The game started, but LiveSplit could not open: {0}",
         ["SpeedrunEnvironmentName"] = "Environment name",
         ["SpeedrunRename"] = "Rename environment",
         ["SpeedrunRenameHint"] = "Renaming also changes the environment folder name. The game version, runtime patches, and saves are preserved.",
@@ -538,7 +565,8 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["LoaderRequired"] = "Install the required Loader first."
         ,["WrongLoader"] = "This Mod requires another Loader"
         ,["UpdateRequired"] = "Update is required before reinstalling"
-        ,["CloseGameFirst"] = "Close every Hollow Knight process before changing this instance."
+        ,["CloseGameFirst"] = "Close the running game before changing its files or saves."
+        ,["InstanceAlreadyRunning"] = "This instance is already running. Select or clone another instance to play alongside it."
         ,["NoVanillaSource"] = "No clean vanilla instance matches this template."
         ,["SpeedrunNeedsVerification"] = "Dedicated copy created. Run verification before an official attempt."
         ,["ErrorSpeedrunNotCreated"] = "The speedrun instance was not created."
@@ -569,7 +597,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["SearchModPackContents"] = "Search this Mod list"
         ,["NoModPackSelected"] = "Select a Mod Pack"
         ,["NoModPackSelectedHint"] = "Choose one on the left to review compatibility and apply it to the current instance."
-        ,["ImportSharedPresetHint"] = "Enter the 12-character share code. The imported Mod Pack remains a local JSON document."
+        ,["ImportSharedPresetHint"] = "Paste a share code, HTTPS share link, or crystalfly:// Mod Pack link."
         ,["PresetName"] = "Mod Pack name"
         ,["PresetMode"] = "Apply mode"
         ,["PresetModeAppend"] = "Append"
@@ -581,8 +609,8 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["ImportPreset"] = "Import JSON"
         ,["ExportPreset"] = "Export JSON"
         ,["SharePreset"] = "Share Mod Pack"
-        ,["PresetShareCode"] = "12-character share code"
-        ,["ImportSharedPreset"] = "Import share code"
+        ,["PresetShareCode"] = "Share code or link"
+        ,["ImportSharedPreset"] = "Import code or link"
         ,["ApplyPreset"] = "Apply Mod Pack"
         ,["RestorePresetState"] = "Restore pre-apply state"
         ,["PresetEntries"] = "Mod Pack entries"
@@ -592,6 +620,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["PresetExported"] = "Mod Pack exported."
         ,["PresetShared"] = "Mod Pack share created."
         ,["PresetShareLink"] = "Share link"
+        ,["CopyPresetLink"] = "Copy share link"
         ,["PresetShareLinkCopied"] = "Mod Pack share link copied."
         ,["PresetTargetInstance"] = "Target instance"
         ,["PresetJsonFiles"] = "JSON files"
@@ -689,6 +718,18 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["CompleteInstanceFiles"] = "Complete files"
         ,["CompleteInstanceFilesHint"] = "Restore missing files and damaged core files from this build's Steam manifest. Extra files, Loader, Mods and saves are kept."
         ,["DeleteInstance"] = "Delete instance"
+        ,["DeleteSelectedInstances"] = "Delete selected instances"
+        ,["SelectedInstanceCount"] = "{0} instances selected"
+        ,["DeletedInstanceCount"] = "Deleted {0} of {1} instances"
+        ,["OptimizeInstanceStorage"] = "Save space: share game resources"
+        ,["MaterializeInstanceStorage"] = "Create independent files for external editing"
+        ,["SharedContentActive"] = "Shared resources · independent Mods and saves"
+        ,["SharedContentReady"] = "Storage optimization completed."
+        ,["SharedContentProgress"] = "Optimizing resources · {0}/{1}"
+        ,["IndependentContentReady"] = "Instance files are now independent."
+        ,["SharedContentUnsupported"] = "Shared resources require a local NTFS drive. Full copies remain supported."
+        ,["SharedContentExcluded"] = "Steam installations remain independent; create a shared instance first."
+        ,["SharedContentBusy"] = "Finish or remove pending downloads and recover transactions before changing storage."
         ,["DeleteInstanceTitle"] = "Permanently delete instance"
         ,["DeleteInstanceMessage"] = "The game directory, Loader, Mods, isolated saves and snapshots will be permanently deleted."
         ,["PermanentDeleteWarning"] = "This action permanently deletes the instance and cannot be undone."
@@ -1005,6 +1046,7 @@ public sealed class LocalizationViewModel : ViewModelBase
     private static readonly IReadOnlyDictionary<string, string> Chinese = new Dictionary<string, string>
     {
         ["ChooseDownloadLibrary"] = "选择下载目录",
+        ["DownloadDirectoryEmpty"] = "请先在实例页面添加游戏目录。",
         ["ChooseDownloadLibraryHint"] = "请选择存放多个版本的库目录，而非已有游戏本体目录。下载会创建独立实例文件夹。",
         ["SaveImport"] = "导入存档",
         ["SaveImportSlot"] = "导入目标槽位",
@@ -1059,7 +1101,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["TsPresetsTitle"] = "整合包",
         ["TsPresetsHint"] = "保存或恢复当前实例的模组版本、启停与锁定状态。",
         ["TsExportPresetHint"] = "导出包含包版本和状态的 JSON 清单，不包含游戏文件和存档。",
-        ["TsImportPresetHint"] = "导入整合包 JSON 后先查看依赖和变更，确认后才安装。",
+        ["TsImportPresetHint"] = "通过代码、链接或 JSON 导入，预览后确认安装。",
         ["GameHollowKnight"] = "空洞骑士",
         ["GameAvatarSwitchHint"] = "当前：{0}。点击头像或在实例设置之外按 Shift+Tab 切换到{1}。",
         ["GameSwitched"] = "已切换到{0}",
@@ -1142,7 +1184,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["ForceLaunch"] = "强制启动",
         ["DoNotRemindLaunchWarnings"] = "这些问题及文件哈希不变时不再提醒",
         ["LaunchIssueExecutableMissing"] = "游戏主程序缺失",
-        ["LaunchIssueGameAlreadyRunning"] = "空洞骑士已经在运行",
+        ["LaunchIssueGameAlreadyRunning"] = "该实例已经在运行",
         ["LaunchIssueUnknownBuild"] = "游戏构建与模组加载器组合不受支持",
         ["LaunchIssueLoaderConflict"] = "检测到冲突的模组加载器文件",
         ["LaunchIssueLoaderDrifted"] = "模组加载器文件已经漂移",
@@ -1169,7 +1211,25 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["NoConflicts"] = "无冲突",
         ["Mounted"] = "已就绪",
         ["Instances"] = "实例",
-        ["InstancesHint"] = "所选根目录中的已知版本与完整复制环境。",
+        ["InstancesHint"] = "按版本与克隆来源整理。",
+        ["CloneSharedInstance"] = "创建共享实例",
+        ["CloneIndependentInstance"] = "创建完整副本",
+        ["CloneSharedHint"] = "复用受保护的游戏资源；模组、配置和存档各自独立。不支持共享的位置会完整复制。",
+        ["CloneIndependentHint"] = "完整复制游戏文件，创建独立实例。",
+        ["InstanceStorageActions"] = "更多操作",
+        ["InstanceOrigin"] = "来源实例",
+        ["ToggleInstanceBranch"] = "展开 / 收起派生实例",
+        ["InstanceSharedMode"] = "共享资源",
+        ["InstanceIndependentMode"] = "独立文件",
+        ["InstanceSource"] = "源自 {0}",
+        ["StorageCalculating"] = "正在统计空间…",
+        ["StorageActual"] = "实际占用  {0}",
+        ["StoragePartial"] = "已统计  ≥ {0}",
+        ["StoragePartialHint"] = "部分文件无法读取",
+        ["StorageSavings"] = "共享节省  {0}",
+        ["StorageUnavailable"] = "空间统计暂不可用",
+        ["RefreshStorageUsage"] = "刷新空间占用",
+        ["StorageScope"] = "当前目录、当前游戏：已登记实例的游戏文件、共享资源库及实例存档/快照。按文件标识去重统计实际分配空间，不含文件系统元数据、外部及未登记文件。节省量仅计算游戏文件重复共享部分；进入页面或刷新时更新。",
         ["SearchInstances"] = "搜索实例",
         ["Overview"] = "概览",
         ["Loader"] = "模组加载器",
@@ -1209,13 +1269,17 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["SaveTypeUnknown"] = "未知",
         ["SaveBooleanTrue"] = "是",
         ["SaveBooleanFalse"] = "否",
+        ["SpeedrunCustomTitle"] = "自定义速通实例",
+        ["SpeedrunCustomHint"] = "基于现有实例共享资源，独立存档；不套用正式速通模板。",
+        ["SpeedrunCustomReady"] = "独立存档 · 可绑定 LiveSplit",
+        ["SpeedrunSelectSource"] = "选择来源实例",
         ["SpeedrunTitle"] = "正式速通环境",
-        ["SpeedrunHint"] = "创建专用验证副本，不修改日常实例。",
+        ["SpeedrunHint"] = "共享游戏资源，速通补丁与存档独立。",
         ["SpeedrunComingSoon"] = "仍在开发中",
         ["SpeedrunComingSoonHint"] = "正式速通环境正在按直接插件安装方式重新设计。",
         ["SpeedrunCreate"] = "创建环境",
         ["SpeedrunInstances"] = "速通环境",
-        ["SpeedrunInstancesHint"] = "使用固定运行补丁资源的独立完整副本。",
+        ["SpeedrunInstancesHint"] = "使用固定运行补丁的专用实例，可共享游戏资源。",
         ["SpeedrunNoInstance"] = "选择一个速通环境，或创建新环境。",
         ["SpeedrunTemplateExpired"] = "模板已过期，正式速通前请重新创建环境。",
         ["SpeedrunTechnicalReady"] = "运行补丁环境",
@@ -1238,6 +1302,10 @@ public sealed class LocalizationViewModel : ViewModelBase
         ["LiveSplitFiles"] = "LiveSplit 计时器文件",
         ["LiveSplitFavoriteInvalid"] = "请选择现有的 .lss 文件。",
         ["LiveSplitFavoriteMissing"] = "此 LiveSplit 文件已不可用。",
+        ["SpeedrunLiveSplitChoose"] = "选择 .lss",
+        ["SpeedrunLiveSplitBind"] = "绑定此实例的 .lss，游戏启动后自动打开",
+        ["SpeedrunLiveSplitUnbind"] = "解除此实例的 LiveSplit 绑定",
+        ["SpeedrunLiveSplitOpenFailed"] = "游戏已启动，但 LiveSplit 未能打开：{0}",
         ["SpeedrunEnvironmentName"] = "环境名称",
         ["SpeedrunRename"] = "重命名环境",
         ["SpeedrunRenameHint"] = "修改环境名称时会同时重命名文件夹；游戏版本、运行补丁和存档保持不变。",
@@ -1535,7 +1603,8 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["LoaderRequired"] = "请先安装所需模组加载器。"
         ,["WrongLoader"] = "此模组需要其他模组加载器"
         ,["UpdateRequired"] = "重新安装前需要先更新"
-        ,["CloseGameFirst"] = "修改实例前请关闭所有空洞骑士进程。"
+        ,["CloseGameFirst"] = "修改游戏文件或存档前，请先关闭对应游戏。"
+        ,["InstanceAlreadyRunning"] = "该实例已在运行。请选择或克隆另一个实例后多开。"
         ,["NoVanillaSource"] = "没有与此模板匹配的纯净原版实例。"
         ,["SpeedrunNeedsVerification"] = "专用副本已创建，正式开跑前请执行验证。"
         ,["ErrorSpeedrunNotCreated"] = "速通环境未创建。"
@@ -1566,7 +1635,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["SearchModPackContents"] = "搜索此模组清单"
         ,["NoModPackSelected"] = "选择一个整合包"
         ,["NoModPackSelectedHint"] = "在左侧选择整合包，即可检查兼容范围并应用到当前实例。"
-        ,["ImportSharedPresetHint"] = "输入 12 位分享码。导入后仍保存为本地整合包 JSON。"
+        ,["ImportSharedPresetHint"] = "粘贴分享码、HTTPS 分享地址或 crystalfly:// 整合包链接。"
         ,["PresetName"] = "整合包名称"
         ,["PresetMode"] = "应用模式"
         ,["PresetModeAppend"] = "追加"
@@ -1578,8 +1647,8 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["ImportPreset"] = "导入 JSON"
         ,["ExportPreset"] = "导出 JSON"
         ,["SharePreset"] = "分享整合包"
-        ,["PresetShareCode"] = "12 位分享码"
-        ,["ImportSharedPreset"] = "导入分享码"
+        ,["PresetShareCode"] = "分享码或链接"
+        ,["ImportSharedPreset"] = "导入代码或链接"
         ,["ApplyPreset"] = "应用整合包"
         ,["RestorePresetState"] = "恢复应用前状态"
         ,["PresetEntries"] = "整合包条目"
@@ -1589,6 +1658,7 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["PresetExported"] = "整合包已导出。"
         ,["PresetShared"] = "整合包分享已创建。"
         ,["PresetShareLink"] = "分享链接"
+        ,["CopyPresetLink"] = "复制分享链接"
         ,["PresetShareLinkCopied"] = "整合包分享链接已复制。"
         ,["PresetTargetInstance"] = "目标实例"
         ,["PresetJsonFiles"] = "JSON 文件"
@@ -1686,6 +1756,18 @@ public sealed class LocalizationViewModel : ViewModelBase
         ,["CompleteInstanceFiles"] = "补全文件"
         ,["CompleteInstanceFilesHint"] = "按当前版本的 Steam Manifest 补回缺失文件和损坏的核心文件；额外文件、模组加载器、模组与存档都会保留。"
         ,["DeleteInstance"] = "删除实例"
+        ,["DeleteSelectedInstances"] = "删除所选实例"
+        ,["SelectedInstanceCount"] = "已选 {0} 个实例"
+        ,["DeletedInstanceCount"] = "已删除 {0} / {1} 个实例"
+        ,["OptimizeInstanceStorage"] = "节省空间：共享游戏资源"
+        ,["MaterializeInstanceStorage"] = "转为独立副本，供外部工具修改"
+        ,["SharedContentActive"] = "资源共享 · 模组与存档独立"
+        ,["SharedContentReady"] = "实例空间优化完成。"
+        ,["SharedContentProgress"] = "正在优化资源 · {0}/{1}"
+        ,["IndependentContentReady"] = "实例文件已恢复独立。"
+        ,["SharedContentUnsupported"] = "共享资源需要本地 NTFS 磁盘；其他磁盘仍可使用完整副本。"
+        ,["SharedContentExcluded"] = "Steam 原始安装保留独立文件，请先创建共享实例。"
+        ,["SharedContentBusy"] = "请先完成或移除未结束的下载任务，并处理待恢复事务。"
         ,["DeleteInstanceTitle"] = "永久删除实例"
         ,["DeleteInstanceMessage"] = "游戏目录、模组加载器、模组、隔离存档和存档快照将被永久删除。"
         ,["PermanentDeleteWarning"] = "此操作会永久删除实例，且无法撤销。"
@@ -2010,8 +2092,10 @@ public sealed class LocalizationViewModel : ViewModelBase
         var useChinese = language == UiLanguage.SimplifiedChinese
             || (language == UiLanguage.FollowSystem
                 && CultureInfo.CurrentUICulture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase));
+        var nextValues = useChinese ? Chinese : English;
+        if (ReferenceEquals(values, nextValues)) return;
         Culture = CultureInfo.GetCultureInfo(useChinese ? "zh-CN" : "en-US");
-        values = useChinese ? Chinese : English;
+        values = nextValues;
         // Avalonia registers indexer binding paths (Loc[key]) under the CLR indexer
         // property name "Item"; WPF-style "Item[]" notifications are ignored by its
         // INPC accessor, so indexer bindings never refreshed after a language switch.

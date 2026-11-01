@@ -70,18 +70,18 @@ public partial class MainWindow
 
     private async void ShowCreateSpeedrunEnvironmentDialog(object? sender, RoutedEventArgs eventArgs)
     {
-        if (DataContext is not MainViewModel { SelectedSpeedrunTemplate: { } template } viewModel)
+        if (DataContext is not MainViewModel viewModel || (viewModel.IsHollowKnight && viewModel.SelectedSpeedrunTemplate is null))
         {
             return;
         }
         var dialog = new TextInputDialogViewModel(
             viewModel.Loc["SpeedrunCreate"],
-            viewModel.Loc["SpeedrunHint"],
+            viewModel.SpeedrunEnvironmentHint,
             string.IsNullOrWhiteSpace(viewModel.SpeedrunEnvironmentName)
                 ? string.Format(
                     System.Globalization.CultureInfo.CurrentUICulture,
                     viewModel.Loc["SpeedrunDefaultNameFormat"],
-                    template.Name)
+                    viewModel.IsSilksong ? viewModel.SelectedGameName : viewModel.SelectedSpeedrunTemplate!.Name)
                 : viewModel.SpeedrunEnvironmentName,
             viewModel.Loc["SpeedrunEnvironmentName"],
             viewModel.Loc["Confirm"],
@@ -126,6 +126,18 @@ public partial class MainWindow
         {
             viewModel.ErrorMessage = viewModel.Loc.ErrorMessageFor(exception);
         }
+    }
+
+    private async void BindSpeedrunLiveSplit(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel { SelectedSpeedrunInstance: { } selected } viewModel || !viewModel.CanNavigate) return;
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = viewModel.Loc["SpeedrunLiveSplitBind"], AllowMultiple = false,
+            FileTypeFilter = [new FilePickerFileType(viewModel.Loc["LiveSplitFiles"]) { Patterns = ["*.lss"] }]
+        });
+        if (files.FirstOrDefault()?.TryGetLocalPath() is { } path)
+            await viewModel.BindSpeedrunLiveSplitAsync(selected.Record, path);
     }
 
     private async void AddLiveSplitFavorite(object? sender, RoutedEventArgs eventArgs)

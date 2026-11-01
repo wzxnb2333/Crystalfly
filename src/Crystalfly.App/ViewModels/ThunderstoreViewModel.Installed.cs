@@ -192,21 +192,39 @@ public sealed partial class ThunderstoreViewModel
                 : InstalledNeedsAttention(item) ? loc["NeedsAttention"] : loc[item.Enabled ? "TsEnabled" : "TsDisabled"],
                 InstalledNeedsAttention(item) ? DependencyGraphNodeState.Attention : item.Enabled ? DependencyGraphNodeState.Normal : DependencyGraphNodeState.Disabled,
                 CanToggle: !item.IsLoader, ToggleActionLabel: loc[item.Enabled ? "TsDisable" : "TsEnable"], CanDelete: !item.IsLoader);
-        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        void AddDependencies(string name, IReadOnlyList<string> dependencies)
+        var installedByName = Installed.ToDictionary(item => item.FullName, StringComparer.OrdinalIgnoreCase);
+        var catalogByName = catalog?.Packages.ToDictionary(item => item.FullName, StringComparer.OrdinalIgnoreCase);
+        var missingVersions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        for (var iteration = 0; iteration < 128; iteration++)
         {
-            if (!visited.Add(name)) return;
-            foreach (var raw in dependencies)
+            var requiredVersions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            edges.Clear();
+            void AddDependencies(string name, IReadOnlyList<string> dependencies)
             {
-                var (dependency, version) = ThunderstoreIdentity.Dependency(raw);
-                edges.Add(new(dependency, name));
-                if (definitions.ContainsKey(dependency)) continue;
-                definitions[dependency] = new(dependency, DisplayName(dependency), "≥ " + version, loc["Missing"], DependencyGraphNodeState.Missing);
-                var package = catalog?.Packages.FirstOrDefault(item => item.FullName == dependency);
-                AddDependencies(dependency, package?.Versions.FirstOrDefault(item => item.VersionNumber == version)?.Dependencies ?? []);
+                if (!visited.Add(name)) return;
+                foreach (var raw in dependencies)
+                {
+                    var (dependency, version) = ThunderstoreIdentity.Dependency(SilksongLoaderAdapter.CanonicalDependency(raw));
+                    edges.Add(new(dependency, name));
+                    if (installedByName.ContainsKey(dependency)) continue;
+                    if (!requiredVersions.TryGetValue(dependency, out var required)
+                        || ThunderstoreIdentity.Version(version) > ThunderstoreIdentity.Version(required))
+                        requiredVersions[dependency] = version;
+                    if (!missingVersions.TryGetValue(dependency, out var selectedVersion)) continue;
+                    var package = catalogByName?.GetValueOrDefault(dependency);
+                    AddDependencies(dependency, package?.Versions.FirstOrDefault(item => item.VersionNumber == selectedVersion)?.Dependencies ?? []);
+                }
             }
+            // Rebuild from reachable parents so replaced versions leave no obsolete branches behind.
+            foreach (var item in Installed) AddDependencies(item.FullName, item.Dependencies);
+            var stable = requiredVersions.Count == missingVersions.Count
+                && requiredVersions.All(item => missingVersions.TryGetValue(item.Key, out var version) && version == item.Value);
+            missingVersions = requiredVersions;
+            if (stable) break;
         }
-        foreach (var item in Installed) AddDependencies(item.FullName, item.Dependencies);
+        foreach (var (name, version) in missingVersions)
+            definitions[name] = new(name, DisplayName(name), "≥ " + version, loc["Missing"], DependencyGraphNodeState.Missing);
         var graph = DependencyGraphModel.Create(definitions.Values.ToArray(), edges, SelectedInstalled?.FullName);
         graph.ApplySavedPositions(positions);
         if (selectedInstalled.Count > 0) graph.SetSelection(selectedInstalled, SelectedInstalled?.FullName);

@@ -120,7 +120,7 @@ public partial class MainWindow
         await viewModel.CopyPresetAsync(instance.Record, preset.Id, name.Trim());
     }
 
-    private async void ShowImportSharedModPackDialog(object? sender, RoutedEventArgs eventArgs)
+    internal async void ShowImportSharedModPackDialog(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is not MainViewModel { SelectedInstance: { } instance } viewModel)
         {
@@ -144,6 +144,25 @@ public partial class MainWindow
         }
 
         await viewModel.ImportSharedPresetAsync(instance.Record, code);
+    }
+
+    internal async void ShareSilksongPreset(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is not MainViewModel { SelectedInstance: { IsSilksong: true } instance } viewModel) return;
+        var dialog = new TextInputDialogViewModel(viewModel.Loc["SharePreset"], viewModel.Loc["PresetName"],
+            instance.Name, viewModel.Loc["PresetName"], viewModel.Loc["Confirm"], viewModel.Loc["Cancel"]);
+        var name = await OverlayDialog.ShowCustomAsync<TextInputDialogView, TextInputDialogViewModel, string?>(
+            dialog, OverlayHostId, CreateOverlayOptions());
+        if (string.IsNullOrWhiteSpace(name) || closeRequested || DataContext != viewModel || viewModel.SelectedInstance?.Record != instance.Record) return;
+        await viewModel.ShareSilksongPresetAsync(instance.Record, name.Trim());
+        if (viewModel.ErrorMessage is null && await TryCopyPresetShareLinkAsync(viewModel))
+            ShowToast(viewModel, viewModel.Loc["PresetShareLinkCopied"], NotificationType.Success);
+    }
+
+    internal async void CopySilksongPresetLink(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel viewModel && await TryCopyPresetShareLinkAsync(viewModel, viewModel.Thunderstore.LastSharedPresetUrl))
+            ShowToast(viewModel, viewModel.Loc["PresetShareLinkCopied"], NotificationType.Success);
     }
 
     private async void ShareAndCopyPresetLink(object? sender, RoutedEventArgs eventArgs)
@@ -241,10 +260,10 @@ public partial class MainWindow
         await viewModel.ExportPresetToFileAsync(instance.Record, preset.Id, path);
     }
 
-    private async Task<bool> TryCopyPresetShareLinkAsync(MainViewModel viewModel)
+    private async Task<bool> TryCopyPresetShareLinkAsync(MainViewModel viewModel, string? url = null)
     {
         if (Clipboard is null
-            || !Uri.TryCreate(viewModel.LastPresetShareUrl, UriKind.Absolute, out var link)
+            || !Uri.TryCreate(url ?? viewModel.LastPresetShareUrl, UriKind.Absolute, out var link)
             || link.Scheme != Uri.UriSchemeHttps)
         {
             return false;

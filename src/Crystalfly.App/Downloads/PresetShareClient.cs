@@ -4,6 +4,8 @@ using System.Text.Json;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Networking;
 using Crystalfly.Core.Serialization;
+using Crystalfly.Core.Runtime;
+using Crystalfly.Core.Thunderstore;
 
 namespace Crystalfly.App.Downloads;
 
@@ -26,9 +28,13 @@ public sealed class PresetShareClient
         }
     }
 
-    public async Task<PresetShareCreateResult> CreateAsync(
-        ModPreset preset,
-        CancellationToken cancellationToken = default)
+    public Task<PresetShareCreateResult> CreateAsync(ModPreset preset, CancellationToken cancellationToken = default) =>
+        CreateDocumentAsync(preset, cancellationToken);
+
+    public Task<PresetShareCreateResult> CreateAsync(ThunderstorePreset preset, CancellationToken cancellationToken = default) =>
+        CreateDocumentAsync(preset, cancellationToken);
+
+    private async Task<PresetShareCreateResult> CreateDocumentAsync<T>(T preset, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(preset);
         using var linked = LinkedCancellation(cancellationToken);
@@ -46,10 +52,52 @@ public sealed class PresetShareClient
     }
 
     public async Task<ModPreset> GetAsync(
-        string code,
+        string input,
         CancellationToken cancellationToken = default)
     {
-        EnsureCode(code);
+        var preset = await GetDocumentAsync<ModPreset>(input, cancellationToken);
+        if (preset.GameId != GameId.HollowKnight || preset.SchemaVersion != ModPreset.CurrentSchemaVersion)
+            throw new InvalidDataException("This Mod Pack does not belong to Hollow Knight.");
+        return preset;
+    }
+
+    public async Task<ThunderstorePreset> GetSilksongAsync(string input, CancellationToken cancellationToken = default)
+    {
+        var preset = await GetDocumentAsync<ThunderstorePreset>(input, cancellationToken);
+        if (preset.GameId != GameId.Silksong || preset.Packages is null)
+            throw new InvalidDataException("This Mod Pack does not belong to Silksong.");
+        return preset;
+    }
+
+    internal string ParseShareCode(string input)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(input);
+        var value = input.Trim();
+        if (IsValidCode(value)) return value;
+        if (Uri.TryCreate(value, UriKind.Absolute, out var uri) && value.Length <= ProtocolCommandParser.MaxUriLength)
+        {
+            if (uri.Scheme == "crystalfly")
+            {
+                try
+                {
+                    var command = ProtocolCommandParser.Parse(value);
+                    if (command.Kind == ProtocolCommandKind.ImportPresetShare) return command.ShareCode!;
+                }
+                catch (ProtocolCommandException) { }
+            }
+            if (uri.Scheme == Uri.UriSchemeHttps && uri.IdnHost == baseUri.IdnHost && uri.Port == baseUri.Port
+                && uri.UserInfo.Length == 0 && uri.Query.Length == 0 && uri.Fragment.Length == 0)
+            {
+                var segments = uri.AbsolutePath.Split('/');
+                if (segments.Length == 3 && segments[1] == "share" && IsValidCode(segments[2])) return segments[2];
+            }
+        }
+        throw new ArgumentException("Enter a 12-character share code or a Crystalfly Mod Pack link.", nameof(input));
+    }
+
+    private async Task<T> GetDocumentAsync<T>(string input, CancellationToken cancellationToken)
+    {
+        var code = ParseShareCode(input);
         using var linked = LinkedCancellation(cancellationToken);
         using var response = await httpClient.GetAsync(
             new Uri(baseUri, $"api/presets/{code}"),
@@ -57,12 +105,24 @@ public sealed class PresetShareClient
             linked.Token);
         var payload = await ReadSuccessAsync<GetResponse>(response, linked.Token);
         if (!string.Equals(payload.Code, code, StringComparison.Ordinal)
-            || payload.Preset is null
-            || payload.Preset.SchemaVersion != ModPreset.CurrentSchemaVersion)
+            || payload.Preset.ValueKind != JsonValueKind.Object)
         {
             throw new InvalidDataException("Preset sharing service returned a mismatched preset.");
         }
-        return payload.Preset;
+        var expectedGame = typeof(T) == typeof(ThunderstorePreset) ? "silksong" : "hollowKnight";
+        var actualGame = payload.Preset.TryGetProperty("gameId", out var game)
+            ? game.ValueKind == JsonValueKind.String ? game.GetString() : null : "hollowKnight";
+        if (actualGame != expectedGame)
+            throw new InvalidDataException("The Mod Pack belongs to a different game. Select its game workspace and try again.");
+        try
+        {
+            return payload.Preset.Deserialize<T>(CrystalflyJson.Options)
+                ?? throw new InvalidDataException("Preset sharing service returned an empty preset.");
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidDataException("Preset sharing service returned an invalid preset.", exception);
+        }
     }
 
     public async Task DeleteAsync(
@@ -145,7 +205,7 @@ public sealed class PresetShareClient
 
     private sealed record CreateResponse(string Code, string DeleteToken);
 
-    private sealed record GetResponse(string Code, ModPreset Preset);
+    private sealed record GetResponse(string Code, JsonElement Preset);
 
     private sealed record ErrorResponse(string Error);
 }

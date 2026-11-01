@@ -35,6 +35,7 @@ public partial class DependencyGraphView : UserControl
     private bool panned;
     private bool isNodeDragActive;
     private DependencyGraphModel? observedGraph;
+    private bool needsInitialView = true;
     public DependencyGraphView()
     {
         InitializeComponent();
@@ -55,6 +56,7 @@ public partial class DependencyGraphView : UserControl
             SelectionRectangle.IsVisible = false;
             if (observedGraph is not null) observedGraph.PropertyChanged -= OnGraphBoundsChanged;
             observedGraph = DataContext as DependencyGraphModel;
+            needsInitialView = true;
             if (observedGraph is not null) observedGraph.PropertyChanged += OnGraphBoundsChanged;
             Dispatcher.UIThread.Post(ShowInitialView, DispatcherPriority.Loaded);
         };
@@ -360,6 +362,10 @@ public partial class DependencyGraphView : UserControl
 
     private void ShowInitialView()
     {
+        if (!needsInitialView || DataContext is not DependencyGraphModel { HasNodes: true }
+            || Viewport.Bounds.Width <= 0 || Viewport.Bounds.Height <= 0) return;
+        // Resizing the viewport only changes its crop; it must preserve the user's framing.
+        needsInitialView = false;
         FitToView();
         if (scale >= 0.7 || DataContext is not DependencyGraphModel { SelectedNode: { } node }) return;
         scale = 0.75;

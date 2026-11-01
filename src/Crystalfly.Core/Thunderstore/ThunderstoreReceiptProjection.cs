@@ -13,6 +13,11 @@ public static class ThunderstoreReceiptProjection
         InstanceDirectory.RejectReparseAncestors(path);
         InstanceDirectory.RejectReparseAncestors(path + ".bak");
         var state = await AtomicJsonStore.ReadAsync<ThunderstoreInstallState>(path, token);
+        return Loader(state);
+    }
+
+    public static InstalledPackageReceipt? Loader(ThunderstoreInstallState state)
+    {
         if (state.GameId != GameId.Silksong || state.SchemaVersion != 1 || state.Packages is null
             || state.Packages.Any(item => item is null)
             || state.Packages.Select(item => item.FullName).Distinct(StringComparer.OrdinalIgnoreCase).Count() != state.Packages.Count)

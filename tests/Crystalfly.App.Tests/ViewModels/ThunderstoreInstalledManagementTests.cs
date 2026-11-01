@@ -241,4 +241,46 @@ public sealed partial class ThunderstoreViewModelTests
         Assert.False(vm.HasUninstallConfirmation);
         Assert.Empty(vm.InstalledGraph.Nodes);
     }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task Installed_graph_merges_missing_requirements_and_removes_replaced_branches(bool reverse, bool indirect)
+    {
+        var shared = Package("Author", "Shared", "2.0.0") with { Versions = [
+            Version("Author", "Shared", "1.0.0") with { Dependencies = ["Author-Old-1.0.0"] },
+            Version("Author", "Shared", "2.0.0") with { Dependencies = ["Author-New-1.0.0"] }] };
+        var bridge = Package("Author", "Bridge", "1.0.0") with { Versions = [
+            Version("Author", "Bridge", "1.0.0") with { Dependencies = ["Author-Shared-2.0.0"] }] };
+        var obsolete = Package("Author", "Old", "1.0.0") with { Versions = [
+            Version("Author", "Old", "1.0.0") with { Dependencies = ["Author-Old-1.0.0"] }] };
+        var catalogPath = Path.Combine(root, "merged-graph.json");
+        await AtomicJsonStore.WriteAsync(catalogPath, new ThunderstoreCatalog { Packages = [shared, bridge, obsolete] });
+        var target = new InstanceRecord { Id = "silk", GameId = GameId.Silksong, Name = "Silk", BuildId = "test", RootPath = Path.Combine(root, "merged-graph-game") };
+        var packages = new[] {
+            new ThunderstoreInstalledPackage { FullName = "Author-A", Version = "1.0.0", ArchiveSha256 = new string('A', 64), Dependencies = ["Author-Shared-1.0.0"] },
+            new ThunderstoreInstalledPackage { FullName = "Author-B", Version = "1.0.0", ArchiveSha256 = new string('A', 64), Dependencies = [indirect ? "Author-Bridge-1.0.0" : "Author-Shared-2.0.0"] } };
+        if (reverse) Array.Reverse(packages);
+        await AtomicJsonStore.WriteAsync(Path.Combine(target.RootPath, ThunderstoreInstallService.MetadataDirectory, "installed.json"),
+            new ThunderstoreInstallState { Packages = packages });
+        using var client = new HttpClient(new Handler(() => throw new InvalidOperationException("No network")));
+        var vm = new Crystalfly.App.ViewModels.ThunderstoreViewModel(new(), new(client, catalogPath), new(client, Path.Combine(root, "cache")),
+            () => target, () => true, _ => Task.CompletedTask, () => Task.CompletedTask);
+
+        await vm.RefreshCommand.ExecuteAsync(null);
+
+        Assert.Null(vm.Error);
+        Assert.Equal("≥ 2.0.0", vm.InstalledGraph.Nodes.Single(node => node.Id == shared.FullName).SecondaryName);
+        Assert.Contains(vm.InstalledGraph.Nodes, node => node.Id == "Author-New" && node.IsMissing);
+        Assert.DoesNotContain(vm.InstalledGraph.Nodes, node => node.Id == obsolete.FullName);
+        Assert.Equal(indirect ? 4 : 3, vm.InstalledGraph.Edges.Count);
+        Assert.All(packages, expected =>
+        {
+            var actual = vm.Installed.Single(item => item.FullName == expected.FullName);
+            Assert.Equal(expected.Version, actual.Version);
+            Assert.Equal(expected.Dependencies, actual.Dependencies);
+        });
+    }
 }

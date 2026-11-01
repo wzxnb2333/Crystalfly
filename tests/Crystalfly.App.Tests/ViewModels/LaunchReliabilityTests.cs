@@ -17,6 +17,168 @@ public sealed class LaunchReliabilityTests : IDisposable
 {
     private readonly string root = Path.Combine(Path.GetTempPath(), $"crystalfly-launch-{Guid.NewGuid():N}");
 
+    [Fact]
+    public async Task Running_game_opens_its_bound_lss_without_waiting_for_game_exit()
+    {
+        var lss = Path.Combine(root, "splits.lss");
+        var record = CreateInstance() with { Purpose = InstancePurpose.OfficialSpeedrun, SpeedrunLiveSplitPath = lss };
+        await File.WriteAllTextAsync(lss, "<Run />");
+        Process? child = null;
+        var opened = new List<string>();
+        await using var model = CreateViewModel(record, null, _ =>
+        {
+            var info = new ProcessStartInfo("pwsh.exe") { UseShellExecute = false, CreateNoWindow = true };
+            info.ArgumentList.Add("-NoProfile"); info.ArgumentList.Add("-NonInteractive");
+            info.ArgumentList.Add("-Command"); info.ArgumentList.Add("Start-Sleep -Seconds 30");
+            return child = Process.Start(info)!;
+        }, openLiveSplit: opened.Add);
+        var run = model.LaunchGameCommand.ExecuteAsync(null);
+        try
+        {
+            await WaitUntilAsync(() => opened.Count == 1);
+            Assert.Equal(lss, opened[0]);
+            Assert.True(model.IsGameRunning);
+            Assert.False(run.IsCompleted);
+            await model.LaunchGameCommand.ExecuteAsync(null);
+            Assert.Single(opened);
+        }
+        finally
+        {
+            if (child is not null && !child.HasExited) child.Kill();
+            await run.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Bound_lss_opens_only_after_a_successful_game_start(bool gameFails, bool force)
+    {
+        var lss = Path.Combine(root, "练习 分段.lss");
+        var record = CreateInstance() with { Purpose = InstancePurpose.OfficialSpeedrun, SpeedrunLiveSplitPath = lss };
+        await File.WriteAllTextAsync(lss, "<Run />");
+        var actions = new List<string>();
+        await using var model = CreateViewModel(record, () =>
+        {
+            actions.Add("game");
+            if (gameFails) throw new Win32Exception(2);
+            return Task.CompletedTask;
+        }, openLiveSplit: path => actions.Add(path));
+        await (force ? model.ForceLaunchGameCommand : model.LaunchGameCommand).ExecuteAsync(null);
+        Assert.Equal(gameFails ? new[] { "game" } : new[] { "game", lss }, actions);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Missing_lss_or_missing_file_association_does_not_turn_game_start_into_failure(bool missing)
+    {
+        var lss = Path.Combine(root, "splits.lss");
+        var record = CreateInstance() with { Purpose = InstancePurpose.OfficialSpeedrun, SpeedrunLiveSplitPath = lss };
+        if (!missing) await File.WriteAllTextAsync(lss, "<Run />");
+        var started = false;
+        var openAttempts = 0;
+        await using var model = CreateViewModel(record, () => { started = true; return Task.CompletedTask; },
+            openLiveSplit: _ => { openAttempts++; throw new Win32Exception(1155); });
+        await model.LaunchGameCommand.ExecuteAsync(null);
+        Assert.True(started);
+        Assert.Equal(missing ? 0 : 1, openAttempts);
+        Assert.Contains("游戏已启动", model.ErrorMessage);
+        Assert.False(model.IsBusy);
+    }
+
+    [Fact]
+    public async Task LiveSplit_binding_saves_changes_rejects_other_extensions_and_unbinds()
+    {
+        var record = CreateInstance() with { Purpose = InstancePurpose.OfficialSpeedrun };
+        await InstanceSidecar.SaveAsync(record);
+        var first = Path.Combine(root, "first.lss");
+        var second = Path.Combine(root, "second.lss");
+        await File.WriteAllTextAsync(first, "<Run />");
+        await File.WriteAllTextAsync(second, "<Run />");
+        await using var model = CreateViewModel(record, () => Task.CompletedTask);
+        await model.BindSpeedrunLiveSplitAsync(record, first);
+        Assert.Null(model.ErrorMessage);
+        Assert.Equal(first, (await InstanceSidecar.LoadAsync(record.RootPath))!.SpeedrunLiveSplitPath);
+        await model.BindSpeedrunLiveSplitAsync(record, second);
+        Assert.Equal(second, (await InstanceSidecar.LoadAsync(record.RootPath))!.SpeedrunLiveSplitPath);
+        await model.BindSpeedrunLiveSplitAsync(record, Path.Combine(record.RootPath, "hollow_knight.exe"));
+        Assert.NotNull(model.ErrorMessage);
+        Assert.Equal(second, (await InstanceSidecar.LoadAsync(record.RootPath))!.SpeedrunLiveSplitPath);
+        await model.BindSpeedrunLiveSplitAsync(record, null);
+        Assert.Null(model.ErrorMessage);
+        Assert.Null((await InstanceSidecar.LoadAsync(record.RootPath))!.SpeedrunLiveSplitPath);
+    }
+
+    [Fact]
+    public async Task Different_instances_can_run_together_and_exiting_one_does_not_unlock_the_other()
+    {
+        var first = CreateInstance();
+        var second = first with { Id = "second", Name = "Second", RootPath = Path.Combine(Path.GetDirectoryName(first.RootPath)!, "Second") };
+        Directory.CreateDirectory(Path.Combine(second.RootPath, "hollow_knight_Data"));
+        File.Copy(Path.Combine(first.RootPath, "hollow_knight.exe"), Path.Combine(second.RootPath, "hollow_knight.exe"));
+        File.Copy(Path.Combine(first.RootPath, "hollow_knight_Data", "globalgamemanagers"), Path.Combine(second.RootPath, "hollow_knight_Data", "globalgamemanagers"));
+        Directory.CreateDirectory(Path.Combine(GetStateRoot(second), "local-low"));
+        var children = new List<Process>();
+        await using var model = CreateViewModel(first, null, _ =>
+        {
+            var info = new ProcessStartInfo("pwsh.exe") { UseShellExecute = false, CreateNoWindow = true };
+            info.ArgumentList.Add("-NoProfile"); info.ArgumentList.Add("-NonInteractive");
+            info.ArgumentList.Add("-Command"); info.ArgumentList.Add("Start-Sleep -Seconds 60");
+            var process = Process.Start(info)!;
+            children.Add(process);
+            return process;
+        });
+        Task? firstRun = null, secondRun = null;
+        try
+        {
+            firstRun = model.LaunchGameCommand.ExecuteAsync(null);
+            await WaitUntilAsync(() => model.IsGameRunning && !model.IsBusy);
+            Assert.True(model.CanNavigate);
+            Assert.False(model.CanAttemptLaunch);
+            await model.LaunchGameCommand.ExecuteAsync(null);
+            Assert.Single(children);
+            model.SelectPageCommand.Execute("Speedrun");
+            Assert.Equal("Speedrun", model.CurrentPage);
+            typeof(MainViewModel).GetField("<SelectedInstance>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .SetValue(model, new InstanceItemViewModel(second, second.BuildId, "Vanilla", 0));
+            secondRun = model.LaunchGameCommand.ExecuteAsync(null);
+            await WaitUntilAsync(() => children.Count == 2 && !model.IsBusy);
+            Assert.True(model.IsSelectedInstanceRunning);
+            children[0].Kill();
+            await firstRun.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.True(model.IsGameRunning);
+            Assert.True(model.IsSelectedInstanceRunning);
+            Assert.False(model.CanAttemptLaunch);
+            // Closing the launcher must not wait for or terminate the remaining game.
+            var remainingId = children[1].Id;
+            await model.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+            await secondRun.WaitAsync(TimeSpan.FromSeconds(10));
+            using var remaining = Process.GetProcessById(remainingId);
+            Assert.False(remaining.HasExited);
+            remaining.Kill();
+            remaining.WaitForExit();
+        }
+        finally
+        {
+            foreach (var child in children)
+            {
+                try { if (!child.HasExited) child.Kill(); }
+                catch (InvalidOperationException) { }
+            }
+            if (firstRun is not null) await firstRun;
+            if (secondRun is not null) await secondRun;
+        }
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        while (!condition()) await Task.Delay(20, timeout.Token);
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]
@@ -67,7 +229,7 @@ public sealed class LaunchReliabilityTests : IDisposable
     [InlineData(193)]
     [InlineData(740)]
     [InlineData(1223)]
-    public async Task Windows_start_failure_restores_saves_and_allows_retry(int nativeError)
+    public async Task Windows_start_failure_leaves_shared_and_instance_saves_untouched_and_allows_retry(int nativeError)
     {
         var record = CreateInstance();
         var shared = Path.Combine(root, "shared-saves");
@@ -80,7 +242,7 @@ public sealed class LaunchReliabilityTests : IDisposable
         {
             attempts++;
             Assert.Equal(record.RootPath, info.WorkingDirectory);
-            Assert.Equal("instance-save", File.ReadAllText(Path.Combine(shared, "user1.dat")));
+            Assert.Equal("original-save", File.ReadAllText(Path.Combine(shared, "user1.dat")));
             throw new Win32Exception(nativeError, "Simulated native start failure");
         });
 
@@ -225,6 +387,25 @@ public sealed class LaunchReliabilityTests : IDisposable
     }
 
     [Fact]
+    public async Task Silksong_custom_speedrun_launch_opens_its_bound_LiveSplit_without_a_template()
+    {
+        var lss = Path.Combine(root, "silksong.lss");
+        var record = await CreateSilksongInstanceAsync();
+        await File.WriteAllTextAsync(lss, "<Run />");
+        record = record with { Purpose = InstancePurpose.CustomSpeedrun, SpeedrunLiveSplitPath = lss };
+        await InstanceSidecar.SaveAsync(record);
+        var launched = false;
+        string? opened = null;
+        await using var vm = CreateViewModel(record, () => { launched = true; return Task.CompletedTask; },
+            openLiveSplit: path => { Assert.True(launched); opened = path; });
+        await vm.LaunchGameCommand.ExecuteAsync(null);
+        Assert.True(launched);
+        Assert.Equal(lss, opened);
+        Assert.Null(vm.ErrorMessage);
+        Assert.Null(vm.SpeedrunReportPath);
+    }
+
+    [Fact]
     public async Task Launch_rechecks_game_fingerprint_after_an_external_update()
     {
         var record = CreateInstance() with { BuildId = "build-a" };
@@ -319,14 +500,16 @@ public sealed class LaunchReliabilityTests : IDisposable
     private MainViewModel CreateViewModel(
         InstanceRecord record,
         Func<Task>? launch,
-        Func<ProcessStartInfo, Process?>? processStarter = null)
+        Func<ProcessStartInfo, Process?>? processStarter = null,
+        Action<string>? openLiveSplit = null)
     {
         var viewModel = new MainViewModel(
             Path.Combine(root, "app-data"),
             launchOverride: launch,
             gameProcessRunningOverride: () => false,
             sharedLocalLowPathOverride: Path.Combine(root, "shared-saves"),
-            startGameProcessOverride: processStarter)
+            startGameProcessOverride: processStarter,
+            openLiveSplitOverride: openLiveSplit)
         {
             VersionRoot = Path.GetDirectoryName(record.RootPath)!
         };

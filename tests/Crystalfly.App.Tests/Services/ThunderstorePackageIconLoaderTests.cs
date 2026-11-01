@@ -27,6 +27,7 @@ public sealed class ThunderstorePackageIconLoaderTests : IDisposable
         first.Dispose();
 
         offline = true;
+        loader = new ThunderstorePackageIconLoader(client, root, () => offline);
         var cached = await loader.LoadAsync("https://ccdn.thunderstore.io/icon.png");
         Assert.NotNull(cached);
         Assert.Equal((256, 256), (cached!.PixelSize.Width, cached.PixelSize.Height));
@@ -50,6 +51,7 @@ public sealed class ThunderstorePackageIconLoaderTests : IDisposable
         await File.WriteAllBytesAsync(cache, new byte[1024 * 1024 + 1]);
 
         offline = true;
+        loader = new ThunderstorePackageIconLoader(client, root, () => offline);
         Assert.Null(await loader.LoadAsync("https://ccdn.thunderstore.io/icon.png"));
         Assert.Equal(1, requests);
     }
@@ -120,6 +122,41 @@ public sealed class ThunderstorePackageIconLoaderTests : IDisposable
         var loader = new ThunderstorePackageIconLoader(client, root, () => false);
         Assert.Null(await loader.LoadAsync("https://ccdn.thunderstore.io/icon.png"));
         Assert.Equal(1, requests);
+    }
+
+    [AvaloniaFact]
+    public async Task Concurrent_icons_download_once_and_memory_cache_owns_no_shared_bitmap()
+    {
+        var requests = 0;
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var client = new HttpClient(new AsyncHandler(async token =>
+        {
+            Interlocked.Increment(ref requests);
+            await release.Task.WaitAsync(token);
+            return new(HttpStatusCode.OK) { Content = new ByteArrayContent(Convert.FromBase64String(Png256)) };
+        }));
+        var loader = new ThunderstorePackageIconLoader(client, root, () => false);
+        var loads = Enumerable.Range(0, 6).Select(_ => loader.LoadAsync("https://ccdn.thunderstore.io/icon.png")).ToArray();
+        using var cancellation = new CancellationTokenSource();
+        var canceled = loader.LoadAsync("https://ccdn.thunderstore.io/icon.png", cancellation.Token);
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => canceled);
+        release.SetResult();
+        var icons = await Task.WhenAll(loads).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.All(icons, icon => Assert.NotNull(icon));
+        Assert.Equal(1, requests);
+        Assert.NotSame(icons[0], icons[1]);
+        foreach (var icon in icons) icon!.Dispose();
+
+        File.Delete(Assert.Single(Directory.GetFiles(root)));
+        using var memory = await loader.LoadAsync("https://ccdn.thunderstore.io/icon.png");
+        Assert.NotNull(memory);
+        Assert.Equal(1, requests);
+    }
+
+    private sealed class AsyncHandler(Func<CancellationToken, Task<HttpResponseMessage>> response) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => response(cancellationToken);
     }
 
     private sealed class Handler(Func<HttpResponseMessage> response) : HttpMessageHandler

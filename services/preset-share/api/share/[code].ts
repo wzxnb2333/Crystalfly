@@ -9,18 +9,26 @@ async function handler(request: Request): Promise<Response> {
         return new Response("Not found", { status: 404 });
     }
 
-    const preset = await new PresetService(new RedisPresetStore()).get(code);
-    if (preset === null) {
-        return new Response("Not found", { status: 404 });
-    }
+    try {
+        const preset = await new PresetService(new RedisPresetStore()).get(code);
+        if (preset === null) {
+            return new Response("Not found", { status: 404 });
+        }
 
-    return new Response(renderSharePage(code, preset), {
-        headers: {
-            "Content-Type": "text/html; charset=utf-8",
-            "Cache-Control": "no-store",
-            "X-Content-Type-Options": "nosniff",
-        },
-    });
+        return new Response(renderSharePage(code, preset), {
+            headers: {
+                "Content-Type": "text/html; charset=utf-8",
+                "Cache-Control": "no-store",
+                "X-Content-Type-Options": "nosniff",
+            },
+        });
+    } catch (error) {
+        console.error(error);
+        return new Response("分享存储暂时不可用，请稍后重试。", {
+            status: 503,
+            headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+        });
+    }
 }
 
 export default { fetch: handler };

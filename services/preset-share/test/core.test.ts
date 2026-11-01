@@ -24,6 +24,23 @@ const preset: Preset = {
 };
 
 describe("parsePreset", () => {
+    test("accepts current Hollow Knight gameId and keeps legacy documents valid", () => {
+        expect(parsePreset({ ...preset, gameId: "hollowKnight" })).toEqual({ ...preset, gameId: "hollowKnight" });
+        expect(() => parsePreset({ ...preset, gameId: "other" })).toThrow(PresetValidationError);
+    });
+
+    test("round-trips Silksong package versions, enabled and pinned states", () => {
+        const silksong = { name: "丝之歌练习", gameId: "silksong", buildId: "1.0.30000",
+            packages: [{ fullName: "Author-Practice", version: "1.2.3", enabled: false, pinned: true }] };
+        expect(parsePreset(silksong)).toEqual(silksong);
+        for (const invalid of [
+            { ...silksong, loaderId: "unexpected" },
+            { ...silksong, packages: [{ ...silksong.packages[0], enabled: "false" }] },
+            { ...silksong, packages: [{ ...silksong.packages[0], version: "../file" }] },
+            { ...silksong, packages: [silksong.packages[0], silksong.packages[0]] },
+            { ...silksong, packages: Array(MAX_ENTRIES + 1).fill(silksong.packages[0]) },
+        ]) expect(() => parsePreset(invalid)).toThrow(PresetValidationError);
+    });
     test("accepts a complete preset", () => {
         expect(parsePreset(preset)).toEqual(preset);
     });
@@ -75,6 +92,14 @@ describe("share secrets", () => {
 });
 
 describe("renderSharePage", () => {
+    test("identifies Silksong and exposes the share code without adding executable metadata", () => {
+        const html = renderSharePage("A1B2C3D4E5F6", { name: "Silk pack", gameId: "silksong",
+            buildId: "1.0.30000", packages: [] });
+        expect(html).toContain("Hollow Knight: Silksong");
+        expect(html).toContain("1.0.30000");
+        expect(html).toContain("分享码");
+        expect(html).toContain("A1B2C3D4E5F6");
+    });
     test("escapes preset metadata and links the native client to the share code", () => {
         const html = renderSharePage("A1B2C3D4E5F6", { ...preset, name: "<script>alert(1)</script>" });
 

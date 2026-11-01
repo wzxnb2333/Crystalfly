@@ -25,6 +25,7 @@ public sealed class ThunderstoreCatalogSource(HttpClient client, string cachePat
             return await ReadCacheAsync(cancellationToken);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,
             networkPolicy?.GetOnlineCancellationToken() ?? default);
+        linked.CancelAfter(TimeSpan.FromSeconds(30));
         try
         {
             IReadOnlyList<ThunderstorePackage> packages;
@@ -57,6 +58,13 @@ public sealed class ThunderstoreCatalogSource(HttpClient client, string cachePat
             RefreshError = exception.Message;
             return await ReadCacheAsync(cancellationToken);
         }
+    }
+
+    public async Task<ThunderstoreCatalog?> TryReadCacheAsync(CancellationToken token = default)
+    {
+        try { return await ReadCacheAsync(token); }
+        catch (Exception error) when (error is IOException or JsonException or InvalidDataException or UnauthorizedAccessException)
+        { return null; }
     }
 
     private async Task<ThunderstoreCatalog> ReadCacheAsync(CancellationToken token)

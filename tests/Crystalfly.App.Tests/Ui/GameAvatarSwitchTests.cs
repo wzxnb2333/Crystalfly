@@ -32,24 +32,20 @@ public sealed class GameAvatarSwitchTests
     [InlineData(GameId.HollowKnight, true, false, "Launch")]
     [InlineData(GameId.HollowKnight, false, true, "Launch")]
     [InlineData(GameId.HollowKnight, false, false, "Downloads")]
-    public async Task Switching_keeps_the_current_instance_visible_until_the_scan_finishes(
+    public async Task Switching_shows_the_target_cache_and_keeps_navigation_available_during_scan(
         GameId original, bool empty, bool fail, string page)
     {
         await using var fixture = await Fixture.CreateAsync(UiMotionPreference.Off, withInstances: true);
         var model = fixture.Model;
+        var target = original == GameId.HollowKnight ? GameId.Silksong : GameId.HollowKnight;
+        await model.SelectGameCommand.ExecuteAsync(target.ToString());
+        await model.WaitForGameInstanceRefreshAsync();
+        var cachedId = model.SelectedInstance!.Id;
         await model.SelectGameCommand.ExecuteAsync(original.ToString());
+        await model.WaitForGameInstanceRefreshAsync();
         model.CurrentPage = page;
-        Dispatcher.UIThread.RunJobs();
-        fixture.Window.UpdateLayout();
-        var input = page == "Downloads" ? fixture.Window.FindControl<TextBox>("DownloadBuildSearch") : null;
-        if (input is not null) Assert.True(input.Focus());
-        var oldText = input?.Text;
-        var previous = Assert.IsType<InstanceItemViewModel>(model.SelectedInstance);
-        var card = fixture.Window.FindControl<Control>("LaunchInstanceCard")!;
-        CapturePreview(fixture.Window, $"{original}-{page}-before");
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var target = original == GameId.HollowKnight ? GameId.Silksong : GameId.HollowKnight;
         Func<string, GameCatalog, CancellationToken, Task<IReadOnlyList<InstanceRecord>>> discover = async (path, catalog, token) =>
         {
             started.TrySetResult();
@@ -58,49 +54,37 @@ public sealed class GameAvatarSwitchTests
             return empty ? [] : await InstanceImportService.DiscoverAsync(path, catalog, target, token);
         };
         typeof(MainViewModel).GetField("instanceDiscovery", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(model, discover);
-        var switching = model.ToggleGameCommand.ExecuteAsync(null);
         try
         {
+            await model.ToggleGameCommand.ExecuteAsync(null).WaitAsync(TimeSpan.FromSeconds(3));
             await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
             Dispatcher.UIThread.RunJobs();
             fixture.Window.UpdateLayout();
-            Assert.Same(previous, model.SelectedInstance);
-            Assert.True(card.IsVisible, "The instance card must not flash an empty state while scanning.");
+            Assert.Equal(cachedId, model.SelectedInstance!.Id);
+            Assert.Equal(target, model.SelectedInstance.Record.GameId);
+            Assert.True(model.CanNavigate);
             Assert.False(model.CanAttemptLaunch);
-            Assert.False(model.CanNavigate);
+            Assert.True(model.IsInstanceInspectionPending);
+            Assert.Equal(model.Loc["StatusChecking"], model.LaunchReadinessTitle);
+            Assert.False(fixture.Window.FindControl<StackPanel>("LaunchChecks")!.IsVisible);
             Assert.All(fixture.Window.GetVisualDescendants().OfType<Button>().Where(button => button.Classes.Contains("cfp-nav")),
-                button => Assert.True(button.IsEffectivelyEnabled, "Navigation must not flash its disabled style during a switch."));
-            if (input is not null)
+                button => Assert.True(button.IsEffectivelyEnabled));
+            if (page == "Downloads")
             {
-                fixture.Window.KeyTextInput("unexpected edit");
-                fixture.Window.KeyPress(Key.Back, RawInputModifiers.None, PhysicalKey.Backspace, null);
-                fixture.Window.KeyRelease(Key.Back, RawInputModifiers.None, PhysicalKey.Backspace, null);
-                Assert.Equal(oldText, input.Text);
-                var center = input.TranslatePoint(new Point(input.Bounds.Width / 2, input.Bounds.Height / 2), fixture.Window)!.Value;
-                var hit = fixture.Window.InputHitTest(center) as Control;
-                Assert.False(hit == input || hit?.GetVisualAncestors().Contains(input) == true);
+                var input = fixture.Window.FindControl<TextBox>("DownloadBuildSearch")!;
+                Assert.True(input.Focus());
+                fixture.Window.KeyTextInput("query");
+                Assert.Contains("query", input.Text ?? "");
             }
-            CapturePreview(fixture.Window, $"{original}-{page}-scanning");
-            var cloneName = model.CloneInstanceName;
-            model.CloneInstanceName = "Must not clone while switching";
-            await model.Instances.CloneSelectedInstanceCommand.ExecuteAsync(null);
-            Assert.False(Directory.Exists(Path.Combine(model.VersionRoot, model.CloneInstanceName)));
-            model.CloneInstanceName = cloneName;
+            CapturePreview(fixture.Window, $"{original}-{page}-cached");
         }
-        finally
-        {
-            release.TrySetResult();
-            await switching.WaitAsync(TimeSpan.FromSeconds(10));
-        }
+        finally { release.TrySetResult(); }
+        await model.WaitForGameInstanceRefreshAsync().WaitAsync(TimeSpan.FromSeconds(10));
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(target, model.SelectedGameId);
-        Assert.Equal(!empty && !fail, card.IsVisible);
-        if (empty || fail) Assert.Null(model.SelectedInstance);
+        if (empty) Assert.Null(model.SelectedInstance);
         else Assert.Equal(target, model.SelectedInstance!.Record.GameId);
         Assert.Equal(fail, model.ErrorMessage is not null);
-        await Task.Delay(350);
-        Dispatcher.UIThread.RunJobs();
-        CapturePreview(fixture.Window, $"{original}-{page}-{(empty ? "empty" : fail ? "failed" : "populated")}-after");
     }
 
     [AvaloniaTheory]
@@ -166,6 +150,7 @@ public sealed class GameAvatarSwitchTests
         await using var fixture = await Fixture.CreateAsync(UiMotionPreference.Off, withInstances: true);
         var model = fixture.Model;
         await model.SelectGameCommand.ExecuteAsync(game.ToString());
+        await model.WaitForGameInstanceRefreshAsync();
         model.CurrentPage = "Manage";
         var instance = model.SelectedInstance;
         Assert.NotNull(instance);
@@ -202,9 +187,6 @@ public sealed class GameAvatarSwitchTests
         model.IsBusy = true;
         PressTab(RawInputModifiers.Shift);
         model.IsBusy = false;
-        model.IsGameRunning = true;
-        PressTab(RawInputModifiers.Shift);
-        model.IsGameRunning = false;
         var host = fixture.Window.FindControl<Panel>("MainOverlayDialogHost")!;
         var dialog = new CustomDialogControl();
         host.Children.Add(dialog);
@@ -225,6 +207,7 @@ public sealed class GameAvatarSwitchTests
         var model = fixture.Model;
         var avatar = fixture.Window.FindControl<Button>("GameAvatarButton")!;
         Assert.True(avatar.Focusable);
+        model.IsGameRunning = true;
         Assert.Same(model.ToggleGameCommand, avatar.Command);
         Assert.Null(fixture.Window.FindControl<Control>("GameSelector"));
         AssertPortrait(fixture.Window, silksong: false);
@@ -264,7 +247,7 @@ public sealed class GameAvatarSwitchTests
     }
 
     [AvaloniaFact]
-    public async Task Portrait_respects_busy_running_and_unsaved_save_guards()
+    public async Task Portrait_allows_running_games_but_respects_busy_and_unsaved_save_guards()
     {
         await using var fixture = await Fixture.CreateAsync(UiMotionPreference.Off);
         var model = fixture.Model;
@@ -277,11 +260,9 @@ public sealed class GameAvatarSwitchTests
         Assert.Equal(GameId.HollowKnight, model.SelectedGameId);
         model.IsBusy = false;
         model.IsGameRunning = true;
-        Assert.False(model.IsWorkspaceEnabled);
-        Assert.False(model.ToggleGameCommand.CanExecute(null));
-        Assert.False(avatar.IsEffectivelyEnabled);
-        await model.ToggleGameCommand.ExecuteAsync(null);
-        Assert.Equal(GameId.HollowKnight, model.SelectedGameId);
+        Assert.True(model.IsWorkspaceEnabled);
+        Assert.True(model.ToggleGameCommand.CanExecute(null));
+        Assert.True(avatar.IsEffectivelyEnabled);
         model.IsGameRunning = false;
         model.SaveEditor = new SaveEditorViewModel(new NamedSnapshotService(fixture.Root,
             "Crystalfly.Avatar." + Guid.NewGuid().ToString("N"), new Idle()), "test", null, "test") { IsDirty = true };

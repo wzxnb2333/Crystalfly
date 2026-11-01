@@ -4,11 +4,63 @@ using Crystalfly.App.Downloads;
 using Crystalfly.App.ViewModels;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Networking;
+using Crystalfly.Core.Serialization;
+using Crystalfly.Core.Thunderstore;
 
 namespace Crystalfly.App.Tests.Downloads;
 
 public sealed class PresetShareClientTests
 {
+    [Theory]
+    [InlineData("A1B2C3D4E5F6")]
+    [InlineData("  A1B2C3D4E5F6  ")]
+    [InlineData("https://share.example.test/share/A1B2C3D4E5F6")]
+    [InlineData("crystalfly://modpack?code=A1B2C3D4E5F6")]
+    public void Shared_input_extracts_only_the_mod_pack_code(string input)
+    {
+        using var http = new HttpClient();
+        var client = new PresetShareClient(http, new NetworkPolicy(), new("https://share.example.test/"));
+        Assert.Equal("A1B2C3D4E5F6", client.ParseShareCode(input));
+    }
+
+    [Theory]
+    [InlineData("https://evil.example/share/A1B2C3D4E5F6")]
+    [InlineData("http://share.example.test/share/A1B2C3D4E5F6")]
+    [InlineData("https://user@share.example.test/share/A1B2C3D4E5F6")]
+    [InlineData("https://share.example.test/share/A1B2C3D4E5F6?url=other")]
+    [InlineData("crystalfly://app/reset-settings")]
+    [InlineData("crystalfly://modpack?code=A1B2C3D4E5F6&extra=1")]
+    public async Task Invalid_share_links_never_send_a_request_or_execute_another_command(string input)
+    {
+        var calls = 0;
+        using var http = new HttpClient(new Handler(_ => { calls++; throw new InvalidOperationException(); }));
+        var client = new PresetShareClient(http, new NetworkPolicy(), new("https://share.example.test/"));
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => client.GetAsync(input));
+        Assert.Equal(0, calls);
+    }
+
+    [Fact]
+    public async Task Silksong_sharing_preserves_package_state_and_rejects_the_wrong_game()
+    {
+        var preset = new ThunderstorePreset("Practice", GameId.Silksong, "1.0.30000",
+            [new("Author-Practice", "1.2.3", false, true)]);
+        string? posted = null;
+        using var http = new HttpClient(new Handler(async request =>
+        {
+            if (request.Method == HttpMethod.Post)
+            {
+                posted = await request.Content!.ReadAsStringAsync();
+                return Json(HttpStatusCode.Created, "{\"code\":\"A1B2C3D4E5F6\",\"deleteToken\":\"token\"}");
+            }
+            return Json(HttpStatusCode.OK, CrystalflyJson.Serialize(new { code = "A1B2C3D4E5F6", preset }));
+        }));
+        var client = new PresetShareClient(http, new NetworkPolicy(), new("https://share.example.test/"));
+        await client.CreateAsync(preset);
+        var imported = await client.GetSilksongAsync("crystalfly://modpack?code=A1B2C3D4E5F6");
+        Assert.Contains("\"gameId\": \"silksong\"", posted);
+        Assert.Equal(preset.Packages, imported.Packages);
+        await Assert.ThrowsAsync<InvalidDataException>(() => client.GetAsync("A1B2C3D4E5F6"));
+    }
 
     [Fact]
     public async Task Create_fetch_and_delete_use_the_versioned_portable_preset_contract()

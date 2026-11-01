@@ -16,6 +16,7 @@ export interface PresetEntry {
 }
 
 export interface Preset {
+    gameId?: "hollowKnight";
     schemaVersion: 1;
     id: string;
     name: string;
@@ -24,6 +25,15 @@ export interface Preset {
     applyMode: "append" | "exact";
     entries: PresetEntry[];
 }
+
+export interface SilksongPreset {
+    name: string;
+    gameId: "silksong";
+    buildId: string;
+    packages: { fullName: string; version: string; enabled: boolean; pinned: boolean }[];
+}
+
+export type SharedPreset = Preset | SilksongPreset;
 
 export interface ShareSecrets {
     code: string;
@@ -38,7 +48,7 @@ export class PresetValidationError extends Error {
     }
 }
 
-export function parsePreset(value: unknown): Preset {
+export function parsePreset(value: unknown): SharedPreset {
     try {
         return parsePresetCore(value);
     } catch (error) {
@@ -49,9 +59,11 @@ export function parsePreset(value: unknown): Preset {
     }
 }
 
-function parsePresetCore(value: unknown): Preset {
+function parsePresetCore(value: unknown): SharedPreset {
     const record = requireObject(value, "预设");
-    requireExactKeys(record, presetKeys, "预设");
+    if (record.gameId === "silksong") return parseSilksongPreset(record);
+    requireExactKeys(record, presetKeys, "预设", ["gameId"]);
+    if (record.gameId !== undefined && record.gameId !== "hollowKnight") throw new Error("gameId 无效。");
 
     if (record.schemaVersion !== 1) {
         throw new Error("schemaVersion 必须为 1。");
@@ -65,6 +77,7 @@ function parsePresetCore(value: unknown): Preset {
     }
 
     const parsed: Preset = {
+        ...(record.gameId === undefined ? {} : { gameId: "hollowKnight" as const }),
         schemaVersion: 1,
         id: requireText(record.id, "id", 160),
         name: requireText(record.name, "name", 120),
@@ -77,6 +90,28 @@ function parsePresetCore(value: unknown): Preset {
     return parsed;
 }
 
+function parseSilksongPreset(record: Record<string, unknown>): SilksongPreset {
+    requireExactKeys(record, ["name", "gameId", "buildId", "packages"], "丝之歌整合包");
+    if (!Array.isArray(record.packages) || record.packages.length > MAX_ENTRIES)
+        throw new Error(`packages 必须是数组，最多 ${MAX_ENTRIES} 条目。`);
+    const names = new Set<string>();
+    const packages = record.packages.map((value, index) => {
+        const item = requireObject(value, `packages[${index}]`);
+        requireExactKeys(item, ["fullName", "version", "enabled", "pinned"], `packages[${index}]`);
+        const fullName = requireText(item.fullName, "fullName", 200);
+        const version = requireText(item.version, "version", 128);
+        if (!/^[A-Za-z0-9_-]+$/.test(fullName) || !/^\d+\.\d+\.\d+$/.test(version)
+            || version.split(".").some(part => Number(part) > 2147483647)
+            || typeof item.enabled !== "boolean" || typeof item.pinned !== "boolean")
+            throw new Error(`packages[${index}] 的包名、版本或状态无效。`);
+        if (names.has(fullName.toLowerCase())) throw new Error(`整合包包含重复条目：${fullName}。`);
+        names.add(fullName.toLowerCase());
+        return { fullName, version, enabled: item.enabled, pinned: item.pinned };
+    });
+    return { name: requireText(record.name, "name", 120), gameId: "silksong",
+        buildId: requireText(record.buildId, "buildId", 160), packages };
+}
+
 export async function createDeleteTokenHash(): Promise<ShareSecrets> {
     const code = randomBytes(9).toString("base64url");
     const deleteToken = randomBytes(32).toString("base64url");
@@ -87,15 +122,16 @@ export async function hashDeleteToken(deleteToken: string): Promise<string> {
     return createHash("sha256").update(deleteToken, "utf8").digest("hex");
 }
 
-export function renderSharePage(code: string, preset: Preset): string {
+export function renderSharePage(code: string, preset: SharedPreset): string {
     if (!SHARE_CODE_PATTERN.test(code)) {
         throw new Error("分享码格式无效。");
     }
 
     const name = escapeHtml(preset.name);
-    const build = escapeHtml(preset.gameBuildId);
-    const loader = escapeHtml(preset.loaderId);
-    const count = preset.entries.length;
+    const silksong = preset.gameId === "silksong";
+    const build = escapeHtml(silksong ? preset.buildId : preset.gameBuildId);
+    const loader = silksong ? "BepInEx" : escapeHtml(preset.loaderId);
+    const count = silksong ? preset.packages.length : preset.entries.length;
     const modLabel = `${count} 个 Mod`;
 
     return `<!doctype html>
@@ -104,13 +140,14 @@ export function renderSharePage(code: string, preset: Preset): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
-  <title>${name} · Crystalfly 预设</title>
+  <title>${name} · Crystalfly 整合包</title>
   <style>body{font-family:system-ui,sans-serif;background:#10141d;color:#eef3fb;max-width:42rem;margin:8vh auto;padding:0 1.5rem}main{background:#1b2230;border:1px solid #33415a;border-radius:1rem;padding:2rem}dl{display:grid;grid-template-columns:max-content 1fr;gap:.7rem 1.25rem}dt{color:#aab6ca}dd{margin:0;overflow-wrap:anywhere}a{display:inline-block;margin-top:1.5rem;padding:.7rem 1rem;border-radius:.5rem;background:#6ea8fe;color:#07101f;font-weight:700;text-decoration:none}</style>
 </head>
 <body><main>
   <h1>${name}</h1>
-  <dl><dt>构建</dt><dd>${build}</dd><dt>Loader</dt><dd>${loader}</dd><dt>Mod</dt><dd>${modLabel}</dd></dl>
+  <dl><dt>游戏</dt><dd>${silksong ? "Hollow Knight: Silksong" : "Hollow Knight"}</dd><dt>游戏版本</dt><dd>${build}</dd><dt>Loader</dt><dd>${loader}</dd><dt>Mod</dt><dd>${modLabel}</dd><dt>分享码</dt><dd><code style="user-select:all">${code}</code></dd></dl>
   <a href="crystalfly://modpack?code=${code}">在 Crystalfly 中打开</a>
+  <p>先在 Crystalfly 中选择对应游戏的目标实例，再打开链接；也可在整合包页面粘贴分享码或本页地址。</p>
 </main></body>
 </html>`;
 }
@@ -167,9 +204,9 @@ function requireObject(value: unknown, name: string): Record<string, unknown> {
     return value as Record<string, unknown>;
 }
 
-function requireExactKeys(value: Record<string, unknown>, keys: string[], name: string): void {
+function requireExactKeys(value: Record<string, unknown>, keys: string[], name: string, optionalKeys: string[] = []): void {
     for (const key of Object.keys(value)) {
-        if (!keys.includes(key)) {
+        if (!keys.includes(key) && !optionalKeys.includes(key)) {
             throw new Error(`${name} 包含未知字段：${key}。`);
         }
     }

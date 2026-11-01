@@ -22,9 +22,18 @@ public sealed class DependencyGraphEdges : Control
     public static readonly StyledProperty<IBrush?> ErrorBrushProperty =
         AvaloniaProperty.Register<DependencyGraphEdges, IBrush?>(nameof(ErrorBrush));
 
+    public static readonly StyledProperty<double> RevealProgressProperty =
+        AvaloniaProperty.Register<DependencyGraphEdges, double>(nameof(RevealProgress), 1);
+
+    public double RevealProgress
+    {
+        get => GetValue(RevealProgressProperty);
+        set => SetValue(RevealProgressProperty, value);
+    }
+
     static DependencyGraphEdges()
     {
-        AffectsRender<DependencyGraphEdges>(EdgesProperty, LineBrushProperty, HighlightBrushProperty, ErrorBrushProperty);
+        AffectsRender<DependencyGraphEdges>(EdgesProperty, LineBrushProperty, HighlightBrushProperty, ErrorBrushProperty, RevealProgressProperty);
         EdgesProperty.Changed.AddClassHandler<DependencyGraphEdges>((control, args) =>
             control.Subscribe(control.subscribedEdges, control.Edges));
     }
@@ -75,7 +84,7 @@ public sealed class DependencyGraphEdges : Control
         }
     }
 
-    private static void DrawEdge(
+    private void DrawEdge(
         DrawingContext context,
         DependencyGraphEdgeViewModel edge,
         IBrush brush,
@@ -89,22 +98,33 @@ public sealed class DependencyGraphEdges : Control
             edge.Target.CanvasX,
             edge.Target.CanvasY + DependencyGraphModel.NodeHeight / 2);
         var curve = Math.Max(34, Math.Abs(end.X - start.X) * 0.45);
+        var control1 = new Point(start.X + curve, start.Y);
+        var control2 = new Point(end.X - curve, end.Y);
+        var progress = Math.Clamp(RevealProgress, 0, 1);
+        // Subdivide the actual curve, so the drawn endpoint stays on its final path.
+        var a = Mix(start, control1, progress);
+        var b = Mix(control1, control2, progress);
+        var c = Mix(control2, end, progress);
+        var d = Mix(a, b, progress);
+        var e = Mix(b, c, progress);
         var geometry = new StreamGeometry();
         using (var path = geometry.Open())
         {
             path.BeginFigure(start, false);
-            path.CubicBezierTo(
-                new Point(start.X + curve, start.Y),
-                new Point(end.X - curve, end.Y),
-                end);
+            path.CubicBezierTo(a, d, Mix(d, e, progress));
         }
         using (context.PushOpacity(opacity))
         {
             context.DrawGeometry(null, new Pen(brush, thickness, lineCap: PenLineCap.Round), geometry);
-            context.DrawLine(new Pen(brush, thickness), end + new Vector(-8, -4), end);
-            context.DrawLine(new Pen(brush, thickness), end + new Vector(-8, 4), end);
+            if (progress >= 0.99)
+            {
+                context.DrawLine(new Pen(brush, thickness), end + new Vector(-8, -4), end);
+                context.DrawLine(new Pen(brush, thickness), end + new Vector(-8, 4), end);
+            }
         }
     }
+
+    private static Point Mix(Point from, Point to, double progress) => from + (to - from) * progress;
 
     private void Subscribe(
         IReadOnlyList<DependencyGraphEdgeViewModel>? oldEdges,

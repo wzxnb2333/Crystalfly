@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using Crystalfly.Core.Models;
+using Crystalfly.Core.Instances;
 using Crystalfly.Core.Speedrun;
 
 namespace Crystalfly.Core.Tests.Speedrun;
@@ -40,6 +41,37 @@ public sealed class SpeedrunEnvironmentProvisionerTests : IDisposable
 
         Assert.Equal(TransactionState.Committed, journal.State);
         Assert.Equal("patched-direct", await File.ReadAllTextAsync(target));
+    }
+
+    [Fact]
+    public async Task Shared_environment_patch_install_and_reinstall_preserve_source_and_resource_links()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string original = CreateInstanceFile("vanilla");
+        var request = Request(CreateZip(("Assembly-CSharp.dll", "patched")), ContentSha256("patched"));
+        var source = new InstanceRecord
+        {
+            Id = "source", Name = "Source", RootPath = request.InstanceRoot, BuildId = "1.4.3.2"
+        };
+        await InstanceSidecar.SaveAsync(source);
+        var resource = Path.Combine(source.RootPath, "hollow_knight_Data", "sharedassets0.assets");
+        await File.WriteAllBytesAsync(resource, new byte[1024 * 1024]);
+        var clone = await InstanceCloneService.CloneAsync(source.RootPath, "speedrun", "speedrun");
+        clone = clone with { Purpose = InstancePurpose.OfficialSpeedrun, ProvisioningMode = InstanceProvisioningMode.FullCopy };
+        await InstanceSidecar.SaveAsync(clone);
+        request = request with { InstanceRoot = clone.RootPath };
+        var target = Path.Combine(clone.RootPath, "hollow_knight_Data", "Managed", "Assembly-CSharp.dll");
+        var provisioner = new SpeedrunEnvironmentProvisioner();
+        await provisioner.ProvisionAsync(request);
+        Assert.Equal("patched", await File.ReadAllTextAsync(target));
+        await File.WriteAllTextAsync(target, "broken patch");
+        await provisioner.ProvisionAsync(request);
+        Assert.Equal("patched", await File.ReadAllTextAsync(target));
+        Assert.Equal("vanilla", await File.ReadAllTextAsync(original));
+        Assert.True((await InstanceSidecar.LoadAsync(clone.RootPath))!.UsesSharedContent);
+        Assert.Equal(SharedGameContentStore.Identity(resource), SharedGameContentStore.Identity(
+            Path.Combine(clone.RootPath, "hollow_knight_Data", "sharedassets0.assets")));
+        Assert.NotEqual(SharedGameContentStore.Identity(original), SharedGameContentStore.Identity(target));
     }
 
     [Fact]

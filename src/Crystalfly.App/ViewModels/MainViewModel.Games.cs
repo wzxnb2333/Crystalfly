@@ -97,6 +97,8 @@ public partial class MainViewModel
         IsSwitchingGame = true;
         try
         {
+            RememberInstanceProjection();
+            gameSwitchRefreshCancellation?.Cancel();
             CaptureGameWorkspace();
             gameUiStateReady = false;
             settings = GameWorkspaceMigration.Select(settings, gameId);
@@ -105,18 +107,17 @@ public partial class MainViewModel
             detailsLoadCancellation?.Cancel();
             VersionRoot = settings.VersionRoot ?? string.Empty;
             await Instances.InitializeGameDirectoriesAsync();
-            // Keep the current projection until the scan can replace it without an empty frame.
-            await RefreshInstancesAsync(showBusy: false);
+            RestoreInstanceProjection();
             NotifyGameContextChanged();
             PopulateDownloadBuilds();
             RebuildMarketCatalog();
             PopulateSpeedrunTemplates();
             RestoreGameFilters();
-            if (IsSilksong) CurrentSpeedrunTab = "Activity";
             await QueueSettingsSave();
             if (IsSilksong && IsModMarketDownloadSection) _ = Thunderstore.EnsureLoadedAsync();
         }
         finally { IsSwitchingGame = false; }
+        RefreshGameInstancesInBackground();
         NotifyToast(string.Format(Loc.Culture, Loc["GameSwitched"], SelectedGameName));
     }
 
@@ -141,21 +142,27 @@ public partial class MainViewModel
     }
     private void RestoreGameFilters()
     {
-        var saved = settings.GameWorkspaces.FirstOrDefault(item => item.GameId == SelectedGameId);
-        SearchText = saved?.InstanceSearch ?? "";
-        MarketSearchText = saved?.MarketSearch ?? "";
-        DownloadBuildSearchText = saved?.DownloadSearch ?? "";
-        SelectedMarketBuildOption = MarketBuildOptions.FirstOrDefault(item => item.Value == saved?.MarketBuild) ?? MarketBuildOptions.FirstOrDefault();
-        SelectedMarketLoaderOption = MarketLoaderOptions.FirstOrDefault(item => item.Value == saved?.MarketLoader) ?? MarketLoaderOptions.FirstOrDefault();
-        SelectedMarketSourceOption = MarketSourceOptions.FirstOrDefault(item => item.Value == saved?.MarketSource) ?? MarketSourceOptions.FirstOrDefault();
-        SelectedMarketTagOption = MarketTagOptions.FirstOrDefault(item => item.Value == saved?.MarketTag) ?? MarketTagOptions.FirstOrDefault();
-        SelectedMarketActivityOption = MarketActivityOptions.FirstOrDefault(item => item.Value.ToString() == saved?.MarketActivity) ?? MarketActivityOptions.FirstOrDefault();
-        if (IsSilksong)
+        var wasSuppressed = suppressMarketFilters;
+        suppressMarketFilters = true;
+        try
         {
-            Thunderstore.SearchText = saved?.MarketSearch ?? "";
-            Thunderstore.RestoreFilters(saved?.ThunderstoreCategory, saved?.ThunderstoreSort ?? 0, saved?.ThunderstoreShowDeprecated ?? false);
+            var saved = settings.GameWorkspaces.FirstOrDefault(item => item.GameId == SelectedGameId);
+            SearchText = saved?.InstanceSearch ?? "";
+            MarketSearchText = saved?.MarketSearch ?? "";
+            DownloadBuildSearchText = saved?.DownloadSearch ?? "";
+            SelectedMarketBuildOption = MarketBuildOptions.FirstOrDefault(item => item.Value == saved?.MarketBuild) ?? MarketBuildOptions.FirstOrDefault();
+            SelectedMarketLoaderOption = MarketLoaderOptions.FirstOrDefault(item => item.Value == saved?.MarketLoader) ?? MarketLoaderOptions.FirstOrDefault();
+            SelectedMarketSourceOption = MarketSourceOptions.FirstOrDefault(item => item.Value == saved?.MarketSource) ?? MarketSourceOptions.FirstOrDefault();
+            SelectedMarketTagOption = MarketTagOptions.FirstOrDefault(item => item.Value == saved?.MarketTag) ?? MarketTagOptions.FirstOrDefault();
+            SelectedMarketActivityOption = MarketActivityOptions.FirstOrDefault(item => item.Value.ToString() == saved?.MarketActivity) ?? MarketActivityOptions.FirstOrDefault();
+            if (IsSilksong)
+            {
+                Thunderstore.RestoreFilters(saved?.ThunderstoreCategory, saved?.ThunderstoreSort ?? 0, saved?.ThunderstoreShowDeprecated ?? false, saved?.MarketSearch ?? "");
+            }
+            gameUiStateReady = true;
         }
-        gameUiStateReady = true;
+        finally { suppressMarketFilters = wasSuppressed; }
+        ApplyMarketFilters();
     }
 
     private IReadOnlyDictionary<string, string>? GetGameRepairHashes(GameId gameId, string buildId)
@@ -184,6 +191,6 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(CanSwitchGame));
         OnPropertyChanged(nameof(IsSpeedrunEnvironmentTab));
         OnPropertyChanged(nameof(IsSpeedrunActivityTab));
-        if (IsSilksong) CurrentSpeedrunTab = "Activity";
+        NotifySpeedrunLabels();
     }
 }

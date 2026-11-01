@@ -13,25 +13,45 @@ public sealed class ThunderstorePackageIconLoader(HttpClient client, string cach
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(12);
     private readonly string fullCacheRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(cacheRoot));
     private readonly SemaphoreSlim requests = new(4, 4);
+    private readonly SemaphoreSlim[] iconGates = Enumerable.Range(0, 32).Select(_ => new SemaphoreSlim(1, 1)).ToArray();
+    private readonly Dictionary<string, byte[]> memoryCache = new(StringComparer.Ordinal);
+    private readonly Queue<string> memoryOrder = new();
+    private int memoryBytes;
 
     public async Task<Bitmap?> LoadAsync(string iconUrl, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!Uri.TryCreate(iconUrl, UriKind.Absolute, out var uri)) return null;
         try { uri = ThunderstoreCatalogSource.TrustedUri(uri.AbsoluteUri); }
         catch (InvalidDataException) { return null; }
 
         var cachePath = TryCachePath(uri);
+        // Controls own their Bitmap; cache only bounded encoded bytes so disposal stays independent.
+        if (cachePath is not null)
+        {
+            byte[]? bytes;
+            lock (memoryCache) memoryCache.TryGetValue(cachePath, out bytes);
+            if (bytes is not null) return Decode(bytes);
+        }
+        var gate = iconGates[(int)((uint)StringComparer.Ordinal.GetHashCode(uri.AbsoluteUri) % (uint)iconGates.Length)];
+        await gate.WaitAsync(cancellationToken);
+        try { return await LoadCoreAsync(uri, cachePath, cancellationToken); }
+        finally { gate.Release(); }
+    }
+
+    private async Task<Bitmap?> LoadCoreAsync(Uri uri, string? cachePath, CancellationToken cancellationToken)
+    {
         if (cachePath is not null && await ReadCacheAsync(cachePath, cancellationToken) is { } cached)
             return cached;
         if (isOffline()) return null;
 
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(RequestTimeout);
         try
         {
-            await requests.WaitAsync(timeout.Token);
+            await requests.WaitAsync(cancellationToken);
             try
             {
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeout.CancelAfter(RequestTimeout);
                 if (isOffline()) return null;
                 if (cachePath is not null && await ReadCacheAsync(cachePath, timeout.Token) is { } cachedAfterGate)
                     return cachedAfterGate;
@@ -46,7 +66,11 @@ public sealed class ThunderstorePackageIconLoader(HttpClient client, string cach
                 if (bitmap is null) return null;
                 try
                 {
-                    if (cachePath is not null) await WriteCacheAsync(cachePath, bytes, timeout.Token);
+                    if (cachePath is not null)
+                    {
+                        await WriteCacheAsync(cachePath, bytes, timeout.Token);
+                        Remember(cachePath, bytes);
+                    }
                 }
                 catch
                 {
@@ -78,7 +102,24 @@ public sealed class ThunderstorePackageIconLoader(HttpClient client, string cach
         catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException) { return null; }
     }
 
-    private static async Task<Bitmap?> ReadCacheAsync(string path, CancellationToken token)
+    private void Remember(string path, byte[] bytes)
+    {
+        lock (memoryCache)
+        {
+            if (memoryCache.ContainsKey(path)) return;
+            while (memoryOrder.Count >= 128 || memoryBytes + bytes.Length > 8 * 1024 * 1024)
+            {
+                var oldest = memoryOrder.Dequeue();
+                memoryBytes -= memoryCache[oldest].Length;
+                memoryCache.Remove(oldest);
+            }
+            memoryCache[path] = bytes;
+            memoryOrder.Enqueue(path);
+            memoryBytes += bytes.Length;
+        }
+    }
+
+    private async Task<Bitmap?> ReadCacheAsync(string path, CancellationToken token)
     {
         if (!File.Exists(path)) return null;
         byte[] bytes;
@@ -92,7 +133,11 @@ public sealed class ThunderstorePackageIconLoader(HttpClient client, string cach
         catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException) { return null; }
 
         var bitmap = Decode(bytes);
-        if (bitmap is not null) return bitmap;
+        if (bitmap is not null)
+        {
+            Remember(path, bytes);
+            return bitmap;
+        }
         try
         {
             InstanceDirectory.RejectReparseAncestors(path);

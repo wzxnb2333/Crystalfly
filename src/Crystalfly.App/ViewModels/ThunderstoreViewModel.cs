@@ -26,17 +26,26 @@ public sealed partial class ThunderstoreViewModel(
     private ThunderstoreInstallPlan? pendingPlan;
     private string? pendingTarget;
     private bool repairPlan;
+    private Task operationTask = Task.CompletedTask;
     private int generation;
     private int installedRefreshGeneration;
     private string? requestedCategory;
     private string? contextTargetKey;
+    private bool suppressFilters;
     public int SortIndex => Math.Max(0, SortOptions.ToList().IndexOf(Sort));
-    public void RestoreFilters(string? category, int sort, bool showDeprecated)
+    public void RestoreFilters(string? category, int sort, bool showDeprecated, string? searchText = null)
     {
-        requestedCategory = category;
-        Sort = SortOptions[Math.Clamp(sort, 0, SortOptions.Count - 1)];
-        ShowDeprecated = showDeprecated;
-        RebuildCategories();
+        suppressFilters = true;
+        try
+        {
+            if (searchText is not null) SearchText = searchText;
+            requestedCategory = category;
+            Sort = SortOptions[Math.Clamp(sort, 0, SortOptions.Count - 1)];
+            ShowDeprecated = showDeprecated;
+            RebuildCategories();
+        }
+        finally { suppressFilters = false; }
+        ApplyPackageLocatorSearch(SearchText);
     }
     public LocalizationViewModel Loc => loc;
     public ThunderstorePackageIconLoader? PackageIconLoader => packageIconLoader;
@@ -103,6 +112,7 @@ public sealed partial class ThunderstoreViewModel(
 
     partial void OnSearchTextChanged(string value)
     {
+        if (suppressFilters) return;
         if (Error == loc["TsVersionMissing"]) Error = null;
         ApplyPackageLocatorSearch(value);
     }
@@ -129,13 +139,13 @@ public sealed partial class ThunderstoreViewModel(
         SelectedPackage = catalog?.Packages.FirstOrDefault(item => item.FullName == value.FullName);
         SelectedVersion = Versions.FirstOrDefault(item => item.VersionNumber == value.Version) ?? SelectedVersion;
     }
-    public async Task SetContextAsync()
+    public async Task SetContextAsync(bool refreshInstalled = true)
     {
         var target = getTarget();
         var key = target is null ? "" : $"{target.GameId}:{target.Id}:{target.RootPath}";
         if (contextTargetKey == key)
         {
-            await RefreshInstalledAsync();
+            if (refreshInstalled) await RefreshInstalledAsync();
             return;
         }
         contextTargetKey = key;
@@ -154,12 +164,20 @@ public sealed partial class ThunderstoreViewModel(
         NotifyActions();
         OnPropertyChanged(nameof(TargetName));
         OnPropertyChanged(nameof(TargetBuild));
-        await RefreshInstalledAsync();
+        if (refreshInstalled) await RefreshInstalledAsync();
+        else
+        {
+            installedRefreshGeneration++;
+            Installed.Clear();
+            InstalledMods.Clear();
+            NotifyTranslationProjection();
+            OnPropertyChanged(nameof(InstalledCount));
+        }
     }
     private void ResetPlan() { HasPlan = false; pendingPlan = null; pendingTarget = null; installTarget = null; installRequests = []; PreviewText = ""; NotifyActions(); }
     private void Filter(string? locatedPackage = null)
     {
-        if (catalog is null) return;
+        if (catalog is null || suppressFilters) return;
         locatedPackage ??= ResolvePackageLocator(SearchText)?.Package.FullName;
         var query = catalog.Packages.Where(item => (ShowDeprecated || !item.IsDeprecated)
             && (locatedPackage is not null ? item.FullName.Equals(locatedPackage, StringComparison.OrdinalIgnoreCase)
@@ -187,18 +205,33 @@ public sealed partial class ThunderstoreViewModel(
     private Task RefreshAsync() => RunAsync(RefreshCatalogAsync);
     private async Task RefreshCatalogAsync()
     {
+        if (catalog is null && await source.TryReadCacheAsync() is { } cached)
+        {
+            await translations.RefreshAsync(offline: true);
+            ApplyCatalog(cached);
+            await RefreshInstalledAsync();
+        }
         var result = await source.LoadAsync(isOffline());
         var version = generation;
-        catalog = result;
-        RebuildCategories();
-        ApplyPackageLocatorSearch(SearchText);
+        ApplyCatalog(result);
         await RefreshTranslationsAsync(version);
-        Status = $"Thunderstore · {result.Packages.Count} · {loc[source.UsingCache ? "TsCached" : "TsOnline"]}";
-        if (source.RefreshError is not null) Status += " · " + loc["TsRefreshFailedCache"];
         await RefreshInstalledAsync();
         NotifyActions();
     }
-    private async Task RefreshInstalledAsync()
+
+    private void ApplyCatalog(ThunderstoreCatalog result)
+    {
+        catalog = result;
+        RebuildCategories();
+        ApplyPackageLocatorSearch(SearchText);
+        Status = $"Thunderstore · {result.Packages.Count} · {loc[source.UsingCache ? "TsCached" : "TsOnline"]}";
+        if (source.RefreshError is not null) Status += " · " + loc["TsRefreshFailedCache"];
+    }
+    internal Task SetInstalledStateAsync(InstanceRecord target, ThunderstoreInstallState state, IReadOnlyList<ModHealthReport> reports) =>
+        getTarget() == target ? RefreshInstalledAsync(state, reports) : Task.CompletedTask;
+
+    private async Task RefreshInstalledAsync(ThunderstoreInstallState? inspectedState = null,
+        IReadOnlyList<ModHealthReport>? inspectedHealth = null)
     {
         var refresh = ++installedRefreshGeneration;
         var target = getTarget();
@@ -214,17 +247,25 @@ public sealed partial class ThunderstoreViewModel(
         try
         {
             var service = new ThunderstoreInstallService(target, store);
-            var state = await service.ReadStateAsync();
-            IReadOnlyList<ModHealthReport> reports = recheckHealth ? await service.AssessHealthAsync() : [];
+            var (state, reports) = await Task.Run(async () =>
+            {
+                var state = inspectedState ?? await service.ReadStateAsync();
+                IReadOnlyList<ModHealthReport> reports = inspectedHealth
+                    ?? (recheckHealth ? await service.AssessHealthAsync(state) : []);
+                return (state, reports);
+            });
             if (refresh != installedRefreshGeneration || version != generation || getTarget() != target) return;
             installedHealth = reports.ToDictionary(item => item.ModId, StringComparer.OrdinalIgnoreCase);
             foreach (var package in state.Packages) Installed.Add(package);
             if (catalog is not null)
             {
                 var local = state.Packages.Where(item => item.IsLocal && item.LocalPackage is not null).Select(item => item.LocalPackage!).ToArray();
-                var names = local.Select(item => item.FullName).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                catalog = catalog with { Packages = catalog.Packages.Where(item => item.Owner != "Local" && !names.Contains(item.FullName)).Concat(local).ToArray() };
-                Filter();
+                if (local.Length > 0 || catalog.Packages.Any(item => item.Owner == "Local"))
+                {
+                    var names = local.Select(item => item.FullName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    catalog = catalog with { Packages = catalog.Packages.Where(item => item.Owner != "Local" && !names.Contains(item.FullName)).Concat(local).ToArray() };
+                    Filter();
+                }
             }
             selectedInstalled.RemoveWhere(name => !Installed.Any(item => !item.IsLoader && item.FullName == name));
             FilterInstalled();
@@ -378,14 +419,33 @@ public sealed partial class ThunderstoreViewModel(
     public Task ImportPresetAsync(string path) => RunAsync(async () =>
     {
         var target = RequireTarget();
-        await RequireCatalogAsync();
         if (new FileInfo(path).Length > 1024 * 1024) throw new InvalidDataException(loc["TsInvalidPreset"]);
         var preset = await AtomicJsonStore.ReadAsync<ThunderstorePreset>(path);
+        await PreviewPresetAsync(target, preset);
+    });
+
+    public async Task ImportSharedPresetAsync(InstanceRecord target, ThunderstorePreset preset)
+    {
+        var context = generation;
+        await operationTask;
+        await RunAsync(() =>
+        {
+            if (context != generation || getTarget() != target) throw new InvalidOperationException(loc["TsTargetChanged"]);
+            return PreviewPresetAsync(target, preset);
+        });
+    }
+
+    private async Task PreviewPresetAsync(InstanceRecord target, ThunderstorePreset preset)
+    {
+        var context = generation;
         if (preset.GameId != target.GameId || preset.Packages is null || preset.Packages.Count > 1000
             || preset.Packages.Any(item => item is null)
             || preset.Packages.Select(item => item.FullName).Distinct(StringComparer.OrdinalIgnoreCase).Count() != preset.Packages.Count)
             throw new InvalidDataException(loc["TsInvalidPreset"]);
+        await RequireCatalogAsync();
+        if (context != generation || getTarget() != target) throw new InvalidOperationException(loc["TsTargetChanged"]);
         var state = await new ThunderstoreInstallService(target, store).ReadStateAsync();
+        if (context != generation || getTarget() != target) throw new InvalidOperationException(loc["TsTargetChanged"]);
         var plan = new ThunderstoreDependencyResolver(catalog!).Resolve(target.GameId, target.BuildId,
             preset.Packages.Select(item => (item.FullName, (string?)item.Version)).ToArray(), state.Packages);
         plan = plan with { Packages = plan.Packages.Select(item =>
@@ -394,12 +454,19 @@ public sealed partial class ThunderstoreViewModel(
             return saved is null ? item : item with { DesiredEnabled = saved.Enabled, DesiredPinned = saved.Pinned };
         }).ToArray() };
         PresentPlan(target, plan, false);
-    });
+    }
+
+    [ObservableProperty]
+    public partial string LastSharedPresetUrl { get; set; } = string.Empty;
     private InstanceRecord RequireTarget() => getTarget() is { GameId: GameId.Silksong } target
         ? target : throw new InvalidOperationException(loc["NoInstance"]);
-    private async Task RunAsync(Func<Task> action)
+    private Task RunAsync(Func<Task> action)
     {
-        if (IsLoading) return;
+        if (IsLoading) return Task.CompletedTask;
+        return operationTask = RunOperationAsync(action);
+    }
+    private async Task RunOperationAsync(Func<Task> action)
+    {
         var generationAtStart = generation;
         Error = null;
         IsLoading = true;

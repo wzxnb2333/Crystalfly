@@ -1,7 +1,14 @@
 using System.Reflection;
+using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Media.Imaging;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Crystalfly.App.ViewModels;
+using Crystalfly.App.Views;
 using Crystalfly.Core.Configuration;
+using Crystalfly.Core.Instances;
 using Crystalfly.Core.Models;
 using Crystalfly.Core.Runtime;
 using Crystalfly.Core.Saves;
@@ -12,6 +19,96 @@ namespace Crystalfly.App.Tests.ViewModels;
 public sealed class MultiGameFeatureTests : IDisposable
 {
     private readonly string root = Path.Combine(Path.GetTempPath(), "Crystalfly.MultiGame.UI", Guid.NewGuid().ToString("N"));
+
+    [AvaloniaFact]
+    public async Task Silksong_speedrun_can_be_created_without_template_and_retains_its_LiveSplit_binding()
+    {
+        var library = Directory.CreateDirectory(Path.Combine(root, "silk")).FullName;
+        var sourceRoot = Directory.CreateDirectory(Path.Combine(library, "source")).FullName;
+        var data = Directory.CreateDirectory(Path.Combine(sourceRoot, GameDefinition.Silksong.DataDirectoryName)).FullName;
+        await File.WriteAllTextAsync(Path.Combine(sourceRoot, GameDefinition.Silksong.ExecutableName), "game");
+        await File.WriteAllTextAsync(Path.Combine(data, "globalgamemanagers"), "data");
+        await InstanceSidecar.SaveAsync(new InstanceRecord
+        {
+            Id = "source", Name = "日常游玩", RootPath = sourceRoot, BuildId = "unknown",
+            GameId = GameId.Silksong, DeclaredVersion = "1.0.30000"
+        });
+        var app = Path.Combine(root, "app");
+        await CrystalflySettingsStore.SaveAsync(Path.Combine(app, "settings.json"), new()
+        {
+            OfflineMode = true, CheckForUpdates = false, OnboardingCompleted = true,
+            SelectedGameId = GameId.Silksong, VersionRoot = library,
+            GameDirectories = [new() { GameId = GameId.Silksong, Path = library, DisplayName = "Silk" }],
+            GameWorkspaces = [new() { GameId = GameId.Silksong, VersionRoot = library }]
+        });
+        string createdId;
+        var lss = Path.Combine(root, "丝之歌 Any Percent.lss");
+        await File.WriteAllTextAsync(lss, "<Run />");
+        await using (var vm = new MainViewModel(app))
+        {
+            await InitializeAsync(vm);
+            Assert.Null(vm.SelectedSpeedrunTemplate);
+            vm.SelectPageCommand.Execute("Speedrun");
+            vm.SelectSpeedrunTabCommand.Execute("Activity");
+            vm.SelectSpeedrunTabCommand.Execute("Environment");
+            Assert.True(vm.IsSpeedrunEnvironmentTab);
+            Assert.Single(vm.SpeedrunSourceInstances);
+            vm.SpeedrunEnvironmentName = "速通练习";
+            await vm.CreateSpeedrunEnvironmentCommand.ExecuteAsync(null);
+            Assert.Null(vm.ErrorMessage);
+            var created = Assert.Single(vm.Instances.SpeedrunInstances);
+            createdId = created.Id;
+            Assert.Same(created, vm.SelectedSpeedrunInstance);
+            Assert.Equal(InstancePurpose.CustomSpeedrun, created.Record.Purpose);
+            Assert.Null(created.Record.SpeedrunTemplateId);
+            Assert.False(vm.HasRuntimePatchesEnvironment);
+            Assert.False(vm.HasSpeedrunReminder);
+            Assert.Equal(vm.Loc["SpeedrunCustomReady"], vm.SelectedSpeedrunTechnicalStatus);
+            Assert.Single(vm.SpeedrunSourceInstances);
+            await vm.BindSpeedrunLiveSplitAsync(created.Record, lss);
+            Assert.Null(vm.ErrorMessage);
+            Assert.Equal(lss, vm.SpeedrunLiveSplitPath);
+
+            // A duplicate destination must not replace either instance or its binding.
+            vm.SpeedrunEnvironmentName = "速通练习";
+            await vm.CreateSpeedrunEnvironmentCommand.ExecuteAsync(null);
+            Assert.NotNull(vm.ErrorMessage);
+            Assert.Equal(createdId, Assert.Single(vm.Instances.SpeedrunInstances).Id);
+            Assert.Equal(lss, (await InstanceSidecar.LoadAsync(created.Record.RootPath))!.SpeedrunLiveSplitPath);
+            vm.ErrorMessage = null;
+
+            var window = new MainWindow { Width = 1100, Height = 720 };
+            try
+            {
+                window.Show();
+                window.DataContext = vm;
+                vm.Settings.SelectedMotionPreference = new(UiMotionPreference.Off, vm.Loc["MotionOff"]);
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+                Assert.True(window.FindControl<Grid>("SpeedrunLiveSplitBinding")!.IsEffectivelyVisible);
+                Assert.True(window.FindControl<Border>("SpeedrunEnvironmentRail")!.IsEffectivelyVisible);
+                Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text =>
+                    text.IsEffectivelyVisible && (text.Text == vm.Loc["SpeedrunTitle"] || text.Text == vm.Loc["SpeedrunVerifyAndLaunch"]));
+                if (Environment.GetEnvironmentVariable("CRYSTALFLY_UI_SCAN_DIR") is { Length: > 0 } output)
+                {
+                    Directory.CreateDirectory(output);
+                    AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+                    using var frame = window.GetLastRenderedFrame();
+                    Assert.NotNull(frame);
+                    frame.Save(Path.Combine(output, "silksong-speedrun.png"), new PngBitmapEncoderOptions());
+                }
+            }
+            finally { window.Close(); }
+
+
+        }
+        await using var reopened = new MainViewModel(app);
+        await InitializeAsync(reopened);
+        var restored = Assert.Single(reopened.Instances.SpeedrunInstances);
+        Assert.Equal(createdId, restored.Id);
+        reopened.SelectedSpeedrunInstance = restored;
+        Assert.Equal(lss, reopened.SpeedrunLiveSplitPath);
+    }
 
     [AvaloniaFact]
     public async Task Game_switch_restores_searches_directories_and_filters_after_restart()
@@ -35,7 +132,7 @@ public sealed class MultiGameFeatureTests : IDisposable
             Assert.True(vm.IsSilksong);
             Assert.Equal(silk, vm.VersionRoot);
             Assert.Equal("Silk", Assert.Single(vm.Instances.GameDirectories).DisplayName);
-            Assert.False(vm.IsSpeedrunEnvironmentTab);
+            Assert.True(vm.IsSpeedrunEnvironmentTab);
             Assert.DoesNotContain(vm.DownloadBuilds, item => item.BuildId.StartsWith("1.5.", StringComparison.Ordinal));
             vm.SearchText = "silk-search";
             vm.Thunderstore.SearchText = "SilkMod";

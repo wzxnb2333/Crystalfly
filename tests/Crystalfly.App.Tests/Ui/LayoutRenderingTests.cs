@@ -307,7 +307,7 @@ public sealed class LayoutRenderingTests
     }
 
     [AvaloniaFact]
-    public void Instance_rows_keep_summary_left_and_selected_actions_visible()
+    public void Instance_rows_keep_text_stable_and_only_hovered_actions_visible()
     {
         var viewModel = new MainViewModel(Path.Combine(Path.GetTempPath(), "crystalfly-ui", Guid.NewGuid().ToString("N")))
         {
@@ -363,21 +363,42 @@ public sealed class LayoutRenderingTests
             foreach (var row in rows)
             {
                 var summary = row.Children.OfType<Grid>().Single(grid => grid.Classes.Contains("cfp-instance-summary"));
-                var actions = row.Children.OfType<StackPanel>().Single(panel => panel.Classes.Contains("cfp-instance-actions"));
+                var actions = row.GetVisualDescendants().OfType<StackPanel>().Single(panel => panel.Classes.Contains("cfp-instance-actions"));
                 var main = row.Children.OfType<Button>().Single(button => button.Classes.Contains("cfp-instance-main"));
                 var summaryOrigin = Assert.IsType<Point>(summary.TranslatePoint(default, row));
                 var actionsOrigin = Assert.IsType<Point>(actions.TranslatePoint(default, row));
 
-                Assert.InRange(summaryOrigin.X, 0, 0.5);
-                Assert.InRange(actionsOrigin.X, row.Bounds.Width - 126.5, row.Bounds.Width - 125.5);
+                var metadata = summary.GetVisualDescendants().OfType<Grid>().Single(grid => grid.Classes.Contains("cfp-instance-metadata"));
+                var name = summary.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == ((InstanceItemViewModel)row.DataContext!).Name);
+                Assert.Equal(name.TranslatePoint(default, row)!.Value.X, metadata.TranslatePoint(default, row)!.Value.X);
+                Assert.InRange(summaryOrigin.X, 39.5, 40.5);
+                Assert.InRange(actionsOrigin.X + actions.Bounds.Width, row.Bounds.Width - 12.5, row.Bounds.Width - 11.5);
                 Assert.InRange(Math.Abs(main.Bounds.Width - row.Bounds.Width), 0, 0.5);
             }
 
-            var selectedRow = rows.Single(row => ReferenceEquals(row.DataContext, instances[1]));
-            var selectedActions = selectedRow.Children.OfType<StackPanel>()
-                .Single(panel => panel.Classes.Contains("cfp-instance-actions"));
-            Assert.Equal(1, selectedActions.Opacity);
-            Assert.True(selectedActions.IsHitTestVisible);
+            var target = rows[2];
+            var summaryGrid = target.Children.OfType<Grid>().Single(grid => grid.Classes.Contains("cfp-instance-summary"));
+            var before = summaryGrid.Bounds;
+            var hoverPoint = target.TranslatePoint(new Point(100, 32), window)!.Value;
+            window.MouseMove(hoverPoint);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.Equal(before, summaryGrid.Bounds);
+            foreach (var row in rows)
+            {
+                Assert.Null(ToolTip.GetTip(row));
+                Assert.Equal(64, row.Bounds.Height);
+                var frame = row.Children.OfType<Border>().Single(border => border.Classes.Contains("cfp-instance-action-frame"));
+                Assert.Equal(ReferenceEquals(row, target) ? 1d : 0d, frame.Opacity);
+                Assert.Equal(ReferenceEquals(row, target), frame.IsHitTestVisible);
+                var summary = row.Children.OfType<Grid>().Single(grid => grid.Classes.Contains("cfp-instance-summary"));
+                Assert.True(summary.Bounds.Right < frame.Bounds.Left);
+            }
+            window.MouseMove(new Point(5, 5));
+            var mainButton = rows[0].Children.OfType<Button>().Single(button => button.Classes.Contains("cfp-instance-main"));
+            mainButton.Focus(Avalonia.Input.NavigationMethod.Tab);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(1d, rows[0].Children.OfType<Border>().Single(border => border.Classes.Contains("cfp-instance-action-frame")).Opacity);
         }
         finally
         {

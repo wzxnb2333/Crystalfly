@@ -17,6 +17,25 @@ public sealed record InstanceItemViewModel(
     public string RootPath => Record.RootPath;
 
     public bool IsKnownBuild => BuildIdentity.IsKnown(Record.BuildId);
+
+    public string GroupHeading { get; set; } = string.Empty;
+
+    public bool HasGroupHeading => GroupHeading.Length > 0;
+
+    public Avalonia.Thickness HierarchyMargin { get; set; }
+
+    public string StorageRelationship { get; set; } = string.Empty;
+
+    public bool IsChildInstance { get; set; }
+
+    public string GameName => GameDefinition.Get(Record.GameId).Name;
+    public bool IsSilksong => Record.GameId == GameId.Silksong;
+    public int GroupCount { get; set; }
+    public int HierarchyDepth { get; set; }
+    public bool HasChildren { get; set; }
+    public string StorageSummary { get; set; } = string.Empty;
+    public Avalonia.Thickness HierarchyContentMargin => new(40, 0, 152, 0);
+    public string? TreeGeometry { get; set; }
 }
 
 public sealed record SettingOption<T>(T Value, string Name);

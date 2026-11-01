@@ -372,7 +372,7 @@
                             <ProgressBar Name="InstanceDetailsLoading"
                                          Height="2"
                                          IsIndeterminate="True"
-                                         IsVisible="{Binding IsLoadingInstanceDetails}" />
+                                         IsVisible="{Binding IsInstanceInspectionPending}" />
                             <Border Name="LaunchInstanceCard" Classes="cfp-card" IsVisible="{Binding HasInstance}">
                                 <StackPanel Spacing="12">
                                     <Grid ColumnDefinitions="*,160" ColumnSpacing="12">
@@ -396,7 +396,7 @@
                                         <TextBlock Text="{Binding Loc[ModsUnit]}" />
                                     </WrapPanel>
 
-                                    <StackPanel Name="LaunchChecks">
+                                    <StackPanel Name="LaunchChecks" IsVisible="{Binding IsInstanceInspectionPending, Converter={x:Static converters:BoolConverters.Not}}">
                                         <Border Classes="cfp-divider-row cfp-launch-check-row">
                                             <Grid ColumnDefinitions="20,*,160" ColumnSpacing="8">
                                                 <Grid Grid.Column="0">
@@ -405,7 +405,7 @@
                                                                 IsVisible="{Binding LaunchPreflight.GameFilesReady, Converter={x:Static converters:BoolConverters.Not}}" />
                                                 </Grid>
                                                 <TextBlock Grid.Column="1" Text="{Binding Loc[GameFiles]}" FontWeight="Medium" />
-                                                <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding GameFilesStatus}" />
+                                                <TextBlock Grid.Column="2" Classes="cfp-meta cfp-state-motion" Text="{Binding GameFilesStatus}" />
                                             </Grid>
                                         </Border>
                                         <Border Classes="cfp-divider-row cfp-launch-check-row">
@@ -416,7 +416,7 @@
                                                                 IsVisible="{Binding LaunchPreflight.LoaderReady, Converter={x:Static converters:BoolConverters.Not}}" />
                                                 </Grid>
                                                 <TextBlock Grid.Column="1" Text="{Binding Loc[LoaderStatus]}" FontWeight="Medium" />
-                                                <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding LoaderPreflightStatus}" />
+                                                <TextBlock Grid.Column="2" Classes="cfp-meta cfp-state-motion" Text="{Binding LoaderPreflightStatus}" />
                                             </Grid>
                                         </Border>
                                         <Border Classes="cfp-divider-row cfp-launch-check-row">
@@ -427,7 +427,7 @@
                                                                 IsVisible="{Binding LaunchPreflight.DependenciesReady, Converter={x:Static converters:BoolConverters.Not}}" />
                                                 </Grid>
                                                 <TextBlock Grid.Column="1" Text="{Binding Loc[ModDependencies]}" FontWeight="Medium" />
-                                                <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding ModDependencyStatus}" />
+                                                <TextBlock Grid.Column="2" Classes="cfp-meta cfp-state-motion" Text="{Binding ModDependencyStatus}" />
                                             </Grid>
                                         </Border>
                                         <Border Classes="cfp-launch-check-row">
@@ -438,7 +438,7 @@
                                                                 IsVisible="{Binding LaunchPreflight.SaveIsolationReady, Converter={x:Static converters:BoolConverters.Not}}" />
                                                 </Grid>
                                                 <TextBlock Grid.Column="1" Text="{Binding Loc[SaveIsolation]}" FontWeight="Medium" />
-                                                <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding SaveIsolationStatus}" />
+                                                <TextBlock Grid.Column="2" Classes="cfp-meta cfp-state-motion" Text="{Binding SaveIsolationStatus}" />
                                             </Grid>
                                         </Border>
                                     </StackPanel>
@@ -579,87 +579,127 @@
 
             <!-- Versions -->
             <Grid Classes="cfp-page" IsVisible="{Binding IsVersionsPage}">
-                <Grid Classes="cfp-game-directory-workspace" ColumnDefinitions="280,*">
-                    <Border Grid.Column="0" Classes="cfp-rail" Padding="8,16">
+                <Grid Classes="cfp-game-directory-workspace" ColumnDefinitions="220,*">
+                    <Border Grid.Column="0" Classes="cfp-rail" Padding="12,16">
                         <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
-                            <StackPanel Spacing="4" Margin="8,0">
-                                <TextBlock Classes="cfp-section-title" Text="{Binding Loc[GameDirectories]}" />
-                                <TextBlock Classes="cfp-caption" Text="{Binding Loc[GameDirectoriesHint]}" TextWrapping="Wrap" />
-                            </StackPanel>
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4" Height="36">
+                                <TextBlock Classes="cfp-section-title" FontSize="14" VerticalAlignment="Center" Text="{Binding Loc[GameDirectories]}" />
+                                <Button Grid.Column="1" Classes="cfp-directory-action" Click="AddCustomGameDirectory" Content="{LucideIconContent FolderPlus, 16}" ToolTip.Tip="{Binding Loc[AddGameDirectory]}" AutomationProperties.Name="{Binding Loc[AddGameDirectory]}" />
+                                <Button Grid.Column="2" Classes="cfp-directory-action" Command="{Binding Instances.RefreshGameDirectoriesCommand}" Content="{LucideIconContent RefreshCw, 15}" ToolTip.Tip="{Binding Loc[RefreshGameDirectories]}" AutomationProperties.Name="{Binding Loc[RefreshGameDirectories]}" />
+                            </Grid>
                             <ListBox Grid.Row="1"
                                      Classes="cfp-game-directory-list"
                                      ItemsSource="{Binding Instances.GameDirectories}"
-                                     SelectedItem="{Binding Instances.SelectedGameDirectory, Mode=TwoWay}"
-                                     Background="Transparent">
+                                     SelectedItem="{Binding Instances.SelectedGameDirectory, Mode=TwoWay}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:GameDirectoryItemViewModel">
-                                        <Grid ColumnDefinitions="28,*" ColumnSpacing="8" Margin="4,5">
-                                            <Grid Width="24" Height="24" VerticalAlignment="Center">
-                                                <LucideIcon Kind="Folder" Size="16" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding IsSteam, Converter={x:Static converters:BoolConverters.Not}}" />
-                                                <LucideIcon Kind="Gamepad2" Size="16" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding IsSteam}" />
+                                        <Border Classes="cfp-directory-surface" Padding="10" CornerRadius="8" BorderThickness="1">
+                                            <Grid ColumnDefinitions="20,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4">
+                                                <Grid Width="20" Height="20" ToolTip.Tip="{Binding ScanStatus}">
+                                                    <LucideIcon Kind="Folder" Size="16" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding IsSteam, Converter={x:Static converters:BoolConverters.Not}}" />
+                                                    <LucideIcon Kind="Gamepad2" Size="16" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding IsSteam}" />
+                                                </Grid>
+                                                <Grid Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                    <TextBlock Classes="cfp-row-title" VerticalAlignment="Center" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Column="1" Classes="cfp-caption" VerticalAlignment="Center" Text="{Binding InstanceCount}" ToolTip.Tip="{Binding #Root.DataContext.Loc[Instances]}" />
+                                                </Grid>
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Classes="cfp-caption" Text="{Binding Path}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}" />
                                             </Grid>
-                                            <StackPanel Grid.Column="1" Spacing="2">
-                                                <TextBlock Classes="cfp-row-title" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Classes="cfp-caption" Text="{Binding Path}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}" />
-                                                <WrapPanel Orientation="Horizontal">
-                                                    <TextBlock Classes="cfp-meta" Text="{Binding InstanceCount}" />
-                                                    <TextBlock Classes="cfp-meta" Margin="4,0,10,0" Text="{Binding #Root.DataContext.Loc[Instances]}" />
-                                                    <TextBlock Classes="cfp-meta" Text="{Binding ScanStatus}" />
-                                                </WrapPanel>
-                                            </StackPanel>
-                                        </Grid>
+                                        </Border>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
-                            <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
-                                <Button AutomationProperties.Name="{Binding Loc[AddGameDirectory]}"
-                                        Classes="cfp-secondary" Click="AddCustomGameDirectory" HorizontalAlignment="Stretch">
-                                    <StackPanel Orientation="Horizontal" Spacing="6"><LucideIcon Kind="FolderPlus" Size="15" /><TextBlock Text="{Binding Loc[AddGameDirectory]}" /></StackPanel>
-                                </Button>
-                                <Button Grid.Column="1" Classes="cfp-icon" Command="{Binding Instances.RefreshGameDirectoriesCommand}" ToolTip.Tip="{Binding Loc[RefreshGameDirectories]}" AutomationProperties.Name="{Binding Loc[RefreshGameDirectories]}" Content="{LucideIconContent RefreshCw, 15}" />
-                                <Button Grid.Column="2" Classes="cfp-icon danger" Click="ConfirmRemoveGameDirectory" ToolTip.Tip="{Binding Loc[RemoveGameDirectory]}" AutomationProperties.Name="{Binding Loc[RemoveGameDirectory]}" Content="{LucideIconContent Trash2, 15}" />
-                            </Grid>
+                            <Border Grid.Row="2" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource CfBorderBrush}" Padding="0,10,0,0">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBlock Margin="4,0" Classes="cfp-caption" VerticalAlignment="Center" Text="{Binding Instances.SelectedGameDirectory.ScanStatus}" TextWrapping="Wrap" />
+                                    <Button Grid.Column="1" Classes="cfp-directory-action danger" Click="ConfirmRemoveGameDirectory" ToolTip.Tip="{Binding Loc[RemoveGameDirectory]}" AutomationProperties.Name="{Binding Loc[RemoveGameDirectory]}" Content="{LucideIconContent Trash2, 15}" />
+                                </Grid>
+                            </Border>
                         </Grid>
                     </Border>
 
                     <ScrollViewer Grid.Column="1" HorizontalContentAlignment="Stretch" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Classes="cfp-workspace" Margin="16" Spacing="12" MaxWidth="1600" HorizontalAlignment="Stretch">
-                            <StackPanel Spacing="4">
-                                <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SelectInstance]}" />
-                                <TextBlock Classes="cfp-meta" Text="{Binding Loc[InstancesHint]}" TextWrapping="Wrap" />
-                            </StackPanel>
-                            <TextBox Classes="cfp-input" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="{Binding Loc[SearchInstances]}" AutomationProperties.Name="{Binding Loc[SearchInstances]}" IsVisible="{Binding Instances.GameDirectories.Count, Converter={x:Static converters:ObjectConverters.NotEqual}, ConverterParameter={StaticResource Zero}}" />
-                            <Border Classes="cfp-list-frame" IsVisible="{Binding Instances.GameDirectories.Count, Converter={x:Static converters:ObjectConverters.NotEqual}, ConverterParameter={StaticResource Zero}}">
+                        <StackPanel Classes="cfp-workspace" Margin="20,16" Spacing="12" MaxWidth="1600" HorizontalAlignment="Stretch">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                                <StackPanel Spacing="4" VerticalAlignment="Center">
+                                    <TextBlock Classes="cfp-section-title" FontSize="20" Text="{Binding Loc[Instances]}" />
+                                </StackPanel>
+                                <Grid Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="8" ToolTip.Tip="{Binding Loc[StorageScope]}">
+                                    <StackPanel Spacing="3" VerticalAlignment="Center">
+                                        <TextBlock FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Right" Text="{Binding Instances.StorageUsageText}" />
+                                        <TextBlock Classes="cfp-caption" HorizontalAlignment="Right" Text="{Binding Instances.StorageSavingsText}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Classes="cfp-icon" VerticalAlignment="Center" Command="{Binding Instances.RefreshStorageUsageCommand}" Content="{LucideIconContent RefreshCw, 15}" ToolTip.Tip="{Binding Loc[RefreshStorageUsage]}" AutomationProperties.Name="{Binding Loc[RefreshStorageUsage]}" />
+                                </Grid>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding Instances.GameDirectories.Count, Converter={x:Static converters:ObjectConverters.NotEqual}, ConverterParameter={StaticResource Zero}}">
+                                <TextBox Classes="cfp-input" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="{Binding Loc[SearchInstances]}" AutomationProperties.Name="{Binding Loc[SearchInstances]}" />
+                                <Button Grid.Column="1" Classes="cfp-icon" Classes.active="{Binding Instances.IsSelectingInstances}" Command="{Binding Instances.ToggleInstanceSelectionModeCommand}" Content="{LucideIconContent ListChecks, 16}" ToolTip.Tip="{Binding Loc[SelectMultiple]}" AutomationProperties.Name="{Binding Loc[SelectMultiple]}" />
+                            </Grid>
+                            <Border Classes="cfp-card" Padding="12,6" IsVisible="{Binding Instances.IsSelectingInstances}">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBlock Classes="cfp-meta" VerticalAlignment="Center" Text="{Binding Instances.InstanceSelectionText}" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                        <Button Classes="cfp-icon" Command="{Binding Instances.SelectAllInstancesCommand}" Content="{LucideIconContent ListChecks, 16}" ToolTip.Tip="{Binding Loc[SelectAll]}" AutomationProperties.Name="{Binding Loc[SelectAll]}" />
+                                        <Button Classes="cfp-icon" Command="{Binding Instances.ClearInstanceSelectionCommand}" Content="{LucideIconContent Square, 16}" ToolTip.Tip="{Binding Loc[ClearSelection]}" AutomationProperties.Name="{Binding Loc[ClearSelection]}" />
+                                        <Button Classes="cfp-icon danger" Click="ConfirmDeleteSelectedInstances" IsEnabled="{Binding Instances.HasSelectedInstances}" Content="{LucideIconContent Trash2, 16}" ToolTip.Tip="{Binding Loc[DeleteSelectedInstances]}" AutomationProperties.Name="{Binding Loc[DeleteSelectedInstances]}" />
+                                        <Button Classes="cfp-icon" Command="{Binding Instances.ToggleInstanceSelectionModeCommand}" Content="{LucideIconContent X, 16}" ToolTip.Tip="{Binding Loc[WindowClose]}" AutomationProperties.Name="{Binding Loc[WindowClose]}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                            <Border IsVisible="{Binding Instances.GameDirectories.Count, Converter={x:Static converters:ObjectConverters.NotEqual}, ConverterParameter={StaticResource Zero}}">
                                 <Grid>
-                                    <ListBox Classes="cfp-list cfp-instance-list" ItemsSource="{Binding Instances.VisibleInstances}" SelectedItem="{Binding SelectedInstance, Mode=TwoWay}">
+                                    <ListBox Classes="cfp-instance-list" ItemsSource="{Binding Instances.VisibleInstances}" SelectedItem="{Binding Instances.ListSelectedInstance, Mode=TwoWay}" SelectedItems="{Binding Instances.SelectedInstances}" SelectionMode="{Binding Instances.InstanceListSelectionMode}" KeyDown="OnInstancesKeyDown">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate x:DataType="vm:InstanceItemViewModel">
-                                                <Grid Classes="cfp-instance-row" ColumnDefinitions="*,Auto" ColumnSpacing="8" HorizontalAlignment="Stretch">
-                                                    <Button Grid.ColumnSpan="2" Classes="cfp-instance-main" Command="{Binding #Root.DataContext.Instances.SelectInstanceForLaunchCommand}" CommandParameter="{Binding}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" AutomationProperties.Name="{Binding Name}" />
-                                                    <Grid Grid.Column="0" Classes="cfp-instance-summary" ColumnDefinitions="44,*" ColumnSpacing="12" HorizontalAlignment="Left" IsHitTestVisible="False">
-                                                        <Border Width="40" Height="40" CornerRadius="10" Classes="cfp-icon-tile">
-                                                            <LucideIcon Kind="Box" Size="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                        </Border>
-                                                        <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
-                                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                <TextBlock Classes="cfp-row-title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                                                <LucideIcon Kind="Star" Size="14" Foreground="{DynamicResource CfAccentBrush}" IsVisible="{Binding IsFavorite}" />
+                                                <StackPanel>
+                                                    <Grid Classes="cfp-instance-row" Height="64" HorizontalAlignment="Stretch">
+                                                        <Border Classes="cfp-instance-surface" Margin="{Binding HierarchyMargin}" CornerRadius="10" BorderThickness="1" />
+                                                        <Path Data="{Binding TreeGeometry}" Stroke="{DynamicResource CfEdgeBrush}" StrokeThickness="1" IsHitTestVisible="False" />
+                                                        <Ellipse Width="6" Height="6" Margin="17,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Fill="{DynamicResource CfMutedTextBrush}" IsVisible="{Binding TreeGeometry, Converter={x:Static converters:ObjectConverters.IsNull}}" IsHitTestVisible="False" />
+                                                        <Button Classes="cfp-instance-main" Margin="{Binding HierarchyMargin}" Command="{Binding #Root.DataContext.Instances.SelectInstanceForLaunchCommand}" CommandParameter="{Binding}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" AutomationProperties.Name="{Binding Name}" />
+                                                        <Grid Classes="cfp-instance-summary" Margin="{Binding HierarchyContentMargin}" ColumnDefinitions="30,*" ColumnSpacing="10" IsHitTestVisible="False">
+                                                            <Border Width="30" Height="30" CornerRadius="7" Background="{DynamicResource CfSurfaceHoverBrush}">
+                                                                <Grid>
+                                                                    <Grid IsVisible="{Binding #Root.DataContext.Instances.IsSelectingInstances, Converter={x:Static converters:BoolConverters.Not}}">
+                                                                        <LucideIcon Kind="Box" Size="18" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource CfAccentTextBrush}" IsVisible="{Binding HasChildren, Converter={x:Static converters:BoolConverters.Not}}" />
+                                                                        <LucideIcon Kind="Layers" Size="18" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource CfMutedTextBrush}" IsVisible="{Binding HasChildren}" />
+                                                                    </Grid>
+                                                                    <CheckBox IsChecked="{Binding $parent[ListBoxItem].IsSelected, Mode=OneWay}" IsVisible="{Binding #Root.DataContext.Instances.IsSelectingInstances}" IsHitTestVisible="False" Focusable="False" HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="0" MinHeight="0" Padding="0" AutomationProperties.Name="{Binding Name}" />
+                                                                </Grid>
+                                                            </Border>
+                                                            <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                                                    <TextBlock FontSize="14" FontWeight="Medium" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                                    <LucideIcon Grid.Column="1" Kind="Star" Size="13" Foreground="{DynamicResource CfAccentBrush}" IsVisible="{Binding IsFavorite}" />
+                                                                </Grid>
+                                                                <Grid Classes="cfp-instance-metadata" ColumnDefinitions="Auto,*" ColumnSpacing="10" HorizontalAlignment="Stretch">
+                                                                    <TextBlock Classes="cfp-meta" Text="{Binding StorageSummary}" />
+                                                                    <TextBlock Grid.Column="1" Classes="cfp-meta" Text="{Binding DisplayVersion}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DisplayVersion}" />
+                                                                </Grid>
                                                             </StackPanel>
-                                                            <WrapPanel Orientation="Horizontal">
-                                                                <TextBlock Classes="cfp-meta" Text="{Binding DisplayVersion}" />
-                                                                <TextBlock Classes="cfp-meta" Margin="8,0" Text="{Binding LoaderDisplay}" TextTrimming="CharacterEllipsis" />
-                                                                <TextBlock Classes="cfp-meta" Margin="0,0,4,0" Text="{Binding ModCount}" />
-                                                                <TextBlock Classes="cfp-meta" Text="{Binding #Root.DataContext.Loc[ModsUnit]}" />
-                                                            </WrapPanel>
+                                                        </Grid>
+                                                        <Border Classes="cfp-instance-action-frame" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" Padding="0" Background="Transparent" IsVisible="{Binding #Root.DataContext.Instances.IsSelectingInstances, Converter={x:Static converters:BoolConverters.Not}}">
+                                                        <StackPanel Classes="cfp-instance-actions" Orientation="Horizontal" Spacing="2">
+                                                            <Button Classes="cfp-instance-action" Click="CloneInstanceWithName" ToolTip.Tip="{Binding #Root.DataContext.Loc[CloneSharedInstance]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[CloneSharedInstance]}" Content="{LucideIconContent Layers, 16}" />
+                                                            <Button Classes="cfp-instance-action" Click="CloneIndependentInstanceWithName" ToolTip.Tip="{Binding #Root.DataContext.Loc[CloneIndependentInstance]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[CloneIndependentInstance]}" Content="{LucideIconContent Copy, 16}" />
+                                                            <Button Classes="cfp-instance-action" Command="{Binding #Root.DataContext.OpenInstanceSettingsCommand}" CommandParameter="{Binding}" ToolTip.Tip="{Binding #Root.DataContext.Loc[ManageInstance]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[ManageInstance]}" Content="{LucideIconContent Settings, 16}" />
+                                                            <Button Classes="cfp-instance-action" ToolTip.Tip="{Binding #Root.DataContext.Loc[InstanceStorageActions]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[InstanceStorageActions]}" Content="{LucideIconContent Ellipsis, 16}">
+                                                                <Button.Flyout>
+                                                                    <Flyout>
+                                                                        <StackPanel Spacing="2" MinWidth="200">
+                                                                            <Button Classes="cfp-instance-menu-item" Command="{Binding #Root.DataContext.Instances.ToggleFavoriteInstanceCommand}" CommandParameter="{Binding}" Content="{Binding #Root.DataContext.Loc[FavoriteInstance]}" HorizontalAlignment="Stretch" />
+                                                                            <Button Classes="cfp-instance-menu-item" Click="OptimizeInstanceStorage" Content="{Binding #Root.DataContext.Loc[OptimizeInstanceStorage]}" HorizontalAlignment="Stretch" />
+                                                                            <Button Classes="cfp-instance-menu-item" Click="MaterializeInstanceStorage" Content="{Binding #Root.DataContext.Loc[MaterializeInstanceStorage]}" IsEnabled="{Binding Record.UsesSharedContent}" HorizontalAlignment="Stretch" />
+                                                                            <Button Classes="cfp-instance-menu-item" Foreground="{DynamicResource CfErrorBrush}" Click="ConfirmDeleteInstance" Content="{Binding #Root.DataContext.Loc[DeleteInstance]}" HorizontalAlignment="Stretch" />
+                                                                        </StackPanel>
+                                                                    </Flyout>
+                                                                </Button.Flyout>
+                                                            </Button>
                                                         </StackPanel>
+                                                        </Border>
                                                     </Grid>
-                                                    <StackPanel Grid.Column="1" Classes="cfp-instance-actions" Orientation="Horizontal" Spacing="2" Width="126" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                        <Button Classes="cfp-instance-action" Classes.active="{Binding IsFavorite}" Command="{Binding #Root.DataContext.Instances.ToggleFavoriteInstanceCommand}" CommandParameter="{Binding}" ToolTip.Tip="{Binding #Root.DataContext.Loc[FavoriteInstance]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[FavoriteInstance]}" Content="{LucideIconContent Star, 15}" />
-                                                        <Button Classes="cfp-instance-action" Click="ConfirmDeleteInstance" ToolTip.Tip="{Binding #Root.DataContext.Loc[DeleteInstance]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[DeleteInstance]}" Content="{LucideIconContent Trash2, 15}" />
-                                                        <Button Classes="cfp-instance-action" Click="CloneInstanceWithName" ToolTip.Tip="{Binding #Root.DataContext.Loc[CloneInstance]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[CloneInstance]}" Content="{LucideIconContent Copy, 15}" />
-                                                        <Button Classes="cfp-instance-action" Command="{Binding #Root.DataContext.OpenInstanceSettingsCommand}" CommandParameter="{Binding}" ToolTip.Tip="{Binding #Root.DataContext.Loc[ManageInstance]}" AutomationProperties.Name="{Binding #Root.DataContext.Loc[ManageInstance]}" Content="{LucideIconContent Settings, 15}" />
-                                                    </StackPanel>
-                                                </Grid>
+                                                </StackPanel>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
@@ -1051,7 +1091,7 @@
                                     </Grid>
 
                                     <Grid Grid.Column="1">
-                                        <Border Classes="cfp-card cfp-accent-frame" VerticalAlignment="Top" IsVisible="{Binding HasSelectedPreset}">
+                                        <Border Classes="cfp-card cfp-accent-frame cfp-state-motion" VerticalAlignment="Top" IsVisible="{Binding HasSelectedPreset}">
                                             <StackPanel Spacing="14">
                                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                                     <StackPanel Spacing="3">
@@ -1310,7 +1350,7 @@
                                             </Button>
                                         </StackPanel>
                                     </Grid>
-                                    <TextBlock IsVisible="{Binding IsReadOnly}" Text="{Binding ReadOnlyReason}" TextWrapping="Wrap" Classes="cfp-error" />
+                                    <TextBlock IsVisible="{Binding IsReadOnly}" Text="{Binding ReadOnlyReason}" TextWrapping="Wrap" Classes="cfp-error cfp-state-motion" />
                                     <TextBox Name="SaveFieldSearchBox"
                                              Classes="cfp-input"
                                              Text="{Binding SearchText, Mode=TwoWay}"
@@ -1474,7 +1514,7 @@
                                                Text="{Binding Loc[ConfigHint]}"
                                                TextWrapping="Wrap" />
                                 </StackPanel>
-                                <Border Classes="cfp-error" IsVisible="{Binding IsGameRunning}">
+                                <Border Classes="cfp-error cfp-state-motion" IsVisible="{Binding IsGameRunning}">
                                     <TextBlock Text="{Binding Loc[ConfigLocked]}" TextWrapping="Wrap" />
                                 </Border>
                                 <Border Classes="cfp-card"
@@ -1650,7 +1690,7 @@
                         </Grid>
                         <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Spacing="6" Margin="0,0,0,10"
                                     IsVisible="{Binding HasModDependencyProblems}">
-                            <Border Classes="cfp-error" IsVisible="{Binding HasModDependencyProblems}">
+                            <Border Classes="cfp-error cfp-state-motion" IsVisible="{Binding HasModDependencyProblems}">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <TextBlock Text="{Binding Loc[DependencyProblem]}" VerticalAlignment="Center" />
                                     <Button Grid.Column="1" Classes="cfp-secondary danger" Click="ConfirmRepairDependencies" Content="{Binding Loc[RepairDependencies]}" />
@@ -1659,14 +1699,15 @@
                         </StackPanel>
                         <Border Grid.Row="3"
                                 Grid.ColumnSpan="2"
-                                Classes="cfp-list-frame cfp-dependency-graph-frame"
+                                Classes="cfp-list-frame cfp-dependency-graph-frame cfp-graph-selection-viewport"
+                                Classes.has-selection="{Binding ModManagement.IsInstalledModBulkBarVisible}"
                                 IsVisible="{Binding ModManagement.IsInstalledModGraphVisible}">
                             <Grid>
                                 <controls:DependencyGraphView Margin="8"
                                                               MinHeight="340"
                                                               Localization="{Binding #Root.DataContext.Loc}"
                                                               DataContext="{Binding DependencyGraph.Graph}" />
-                                <Border Classes="cfp-card" Width="276" MaxHeight="280" Margin="16" Padding="10"
+                                <Border Classes="cfp-card cfp-state-motion" Width="276" MaxHeight="280" Margin="16" Padding="10"
                                         HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                         IsVisible="{Binding DependencyGraph.Graph.SelectedNode, Converter={x:Static converters:ObjectConverters.IsNotNull}}">
                                     <Expander Name="InstalledModGraphDetails"
@@ -1796,7 +1837,15 @@
                                 </StackPanel>
                             </ScrollViewer>
                         </Border>
-                        <Border Grid.Row="4" Classes="cfp-mod-bulk-bar" IsVisible="{Binding ModManagement.IsInstalledModBulkBarVisible}">
+                        <Border Classes="cfp-mod-bulk-bar" Classes.graph-overlay="{Binding ModManagement.IsInstalledModGraphVisible}" IsVisible="{Binding ModManagement.IsInstalledModBulkBarVisible}">
+                            <Border.Styles>
+                                <Style Selector="Border"><Setter Property="Grid.Row" Value="4" /></Style>
+                                <Style Selector="Border.graph-overlay">
+                                    <Setter Property="Grid.Row" Value="3" />
+                                    <Setter Property="Grid.ColumnSpan" Value="2" />
+                                    <Setter Property="VerticalAlignment" Value="Bottom" />
+                                </Style>
+                            </Border.Styles>
                             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
                                 <TextBlock Classes="cfp-row-title" Text="{Binding ModManagement.SelectedModCount}" VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="1" Classes="cfp-meta" Text="{Binding Loc[SelectedMods]}" VerticalAlignment="Center" />
@@ -1816,7 +1865,7 @@
             <!-- Speedrun -->
             <Grid Classes="cfp-page" IsVisible="{Binding IsSpeedrunPage}">
                 <Grid RowDefinitions="*">
-                    <Border Grid.Row="0" IsVisible="{Binding IsHollowKnight}" Classes="cfp-speedrun-tab-switch" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,16"
+                    <Border Grid.Row="0" Classes="cfp-speedrun-tab-switch" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,16"
                             ZIndex="10">
                         <Grid Width="240" ColumnDefinitions="*,*">
                             <Border x:Name="SpeedrunTabIndicator"
@@ -1844,7 +1893,7 @@
                     <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
                     <Border Grid.Column="0" x:Name="SpeedrunEnvironmentRail" Classes="cfp-rail cfp-speedrun-rail" Width="216" Padding="16" IsVisible="{Binding IsSpeedrunEnvironmentTab}">
                         <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
-                            <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTitle]}" TextWrapping="Wrap" ToolTip.Tip="{Binding Loc[SpeedrunInstancesHint]}" />
+                            <TextBlock Classes="cfp-section-title" Text="{Binding SpeedrunEnvironmentTitle}" TextWrapping="Wrap" ToolTip.Tip="{Binding SpeedrunEnvironmentHint}" />
                             <ListBox Grid.Row="1"
                                      ItemsSource="{Binding Instances.SpeedrunInstances}"
                                      SelectedItem="{Binding SelectedSpeedrunInstance, Mode=TwoWay}"
@@ -1865,6 +1914,7 @@
                                 <StackPanel Spacing="8">
                                     <TextBlock Classes="cfp-row-title" Text="{Binding Loc[SpeedrunCreate]}" />
                                     <ComboBox Classes="cfp-input" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                              IsVisible="{Binding IsHollowKnight}"
                                               ItemsSource="{Binding SpeedrunTemplates}"
                                               SelectedItem="{Binding SelectedSpeedrunTemplate}"
                                               PlaceholderText="{Binding Loc[SelectSpeedrunTemplate]}"
@@ -1876,8 +1926,8 @@
                                     <ComboBox Classes="cfp-input" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                                               ItemsSource="{Binding SpeedrunSourceInstances}"
                                               SelectedItem="{Binding SelectedSpeedrunSourceInstance}"
-                                              PlaceholderText="{Binding Loc[SpeedrunSelectVanillaSource]}"
-                                              AutomationProperties.Name="{Binding Loc[SpeedrunSelectVanillaSource]}">
+                                              PlaceholderText="{Binding SpeedrunSourcePlaceholder}"
+                                              AutomationProperties.Name="{Binding SpeedrunSourcePlaceholder}">
                                         <ComboBox.ItemTemplate>
                                             <DataTemplate><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}" /></DataTemplate>
                                         </ComboBox.ItemTemplate>
@@ -1910,11 +1960,11 @@
                                                    TextTrimming="CharacterEllipsis" />
                                         <TextBlock Classes="cfp-meta"
                                                    Text="{Binding SelectedSpeedrunInstance.DisplayVersion}" />
-                                        <TextBlock Classes="cfp-status"
+                                        <TextBlock Classes="cfp-status cfp-state-motion"
                                                    Text="{Binding SelectedSpeedrunTechnicalStatus}" TextWrapping="Wrap" />
                                     </StackPanel>
                                     <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="6">
-                                        <Button Classes="cfp-primary" HorizontalAlignment="Stretch" Command="{Binding LaunchGameCommand}" Content="{Binding Loc[SpeedrunVerifyAndLaunch]}" />
+                                        <Button Classes="cfp-primary" HorizontalAlignment="Stretch" Command="{Binding LaunchGameCommand}" Content="{Binding SpeedrunLaunchLabel}" />
                                         <Button Grid.Column="1" Classes="cfp-icon"
                                                 Click="RenameSelectedSpeedrunEnvironment"
                                                 IsEnabled="{Binding IsWorkspaceEnabled}"
@@ -1922,6 +1972,7 @@
                                                 AutomationProperties.Name="{Binding Loc[SpeedrunRename]}"
                                                 Content="{LucideIconContent Pencil, 16}" />
                                         <Button Grid.Column="2" Classes="cfp-icon"
+                                                IsVisible="{Binding IsHollowKnight}"
                                                 Command="{Binding ReinstallSpeedrunEnvironmentCommand}"
                                                 IsEnabled="{Binding IsSelectedSpeedrunCurrent}"
                                                 ToolTip.Tip="{Binding Loc[SpeedrunReinstall]}"
@@ -1930,7 +1981,13 @@
                                         <Button Grid.Column="3" Classes="cfp-icon" Click="OpenSelectedInstanceFolder" ToolTip.Tip="{Binding Loc[OpenFolder]}" AutomationProperties.Name="{Binding Loc[OpenFolder]}" Content="{LucideIconContent FolderOpen, 16}" />
                                         <Button Grid.Column="4" Classes="cfp-icon danger" Click="ConfirmDeleteSelectedInstance" ToolTip.Tip="{Binding Loc[DeleteInstance]}" AutomationProperties.Name="{Binding Loc[DeleteInstance]}" Content="{LucideIconContent Trash2, 16}" />
                                     </Grid>
-                                    <Border Classes="cfp-speedrun-status">
+                                    <Grid x:Name="SpeedrunLiveSplitBinding" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8" IsEnabled="{Binding CanNavigate}">
+                                        <TextBlock Text="LiveSplit" Classes="cfp-meta" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding SpeedrunLiveSplitName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding SpeedrunLiveSplitPath}" />
+                                        <Button Grid.Column="2" Classes="cfp-icon" Click="BindSpeedrunLiveSplit" Content="{LucideIconContent FolderOpen, 16}" ToolTip.Tip="{Binding Loc[SpeedrunLiveSplitBind]}" AutomationProperties.Name="{Binding Loc[SpeedrunLiveSplitBind]}" />
+                                        <Button Grid.Column="3" Classes="cfp-icon" Command="{Binding UnbindSpeedrunLiveSplitCommand}" IsVisible="{Binding HasSpeedrunLiveSplitBinding}" Content="{LucideIconContent X, 16}" ToolTip.Tip="{Binding Loc[SpeedrunLiveSplitUnbind]}" AutomationProperties.Name="{Binding Loc[SpeedrunLiveSplitUnbind]}" />
+                                    </Grid>
+                                    <Border Classes="cfp-speedrun-status cfp-state-motion" IsVisible="{Binding IsHollowKnight}">
                                         <TextBlock Classes="cfp-meta"
                                                    Text="{Binding SpeedrunStatus}"
                                                    TextWrapping="Wrap" />
@@ -1964,14 +2021,14 @@
                                     Padding="14"
                                     IsVisible="{Binding HasSelectedSpeedrunInstance, Converter={x:Static converters:BoolConverters.Not}}">
                                 <StackPanel Spacing="6">
-                                    <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunTitle]}" />
-                                    <TextBlock Classes="cfp-meta" Text="{Binding Loc[SpeedrunHint]}" TextWrapping="Wrap" />
+                                    <TextBlock Classes="cfp-section-title" Text="{Binding SpeedrunEnvironmentTitle}" />
+                                    <TextBlock Classes="cfp-meta" Text="{Binding SpeedrunEnvironmentHint}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
                             <Border
                                     Classes="cfp-card cfp-speedrun-config"
                                     Padding="14"
-                                    IsVisible="{Binding HasSelectedSpeedrunInstance}"
+                                    IsVisible="{Binding HasRuntimePatchesEnvironment}"
                                     IsEnabled="{Binding IsRuntimePatchesConfigurationEditable}">
                                 <StackPanel Spacing="10">
                                     <TextBlock Classes="cfp-section-title" Text="{Binding Loc[SpeedrunConfiguration]}" />
@@ -2071,7 +2128,7 @@
                                               AutomationProperties.Name="{Binding Loc[LiveSplitFavorites]}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6" Margin="0,0,0,8">
+                                            <Grid Classes="cfp-motion-item" ColumnDefinitions="*,Auto" ColumnSpacing="6" Margin="0,0,0,8">
                                                 <Button Tag="{Binding Path}" Click="OpenLiveSplitFavorite"
                                                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalAlignment="Stretch"
                                                         ToolTip.Tip="{Binding Path}" AutomationProperties.Name="{Binding DisplayName}">
@@ -2121,7 +2178,14 @@
                                     <DataTemplate>
                                         <Border Classes="cfp-speedrun-activity-row" Classes.wr="{Binding IsWorldRecord}" Margin="0,0,0,6" Padding="12,9">
                                             <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
-                                                <TextBlock Classes="cfp-status" Text="{Binding KindText}" VerticalAlignment="Center" />
+                                                <Grid Width="50" Height="44" VerticalAlignment="Center" AutomationProperties.Name="{Binding KindText}">
+                                                    <Image Source="/Assets/knight-icon.png" IsVisible="{Binding !IsSilksongGame}" Width="40" Height="40" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Top" />
+                                                    <Image Source="/Assets/hornet-icon.png" IsVisible="{Binding IsSilksongGame}" Width="40" Height="40" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Top" />
+                                                    <Border HorizontalAlignment="Right" VerticalAlignment="Bottom" MinWidth="26" MinHeight="17"
+                                                            Background="{DynamicResource CfSurfaceBrush}" BorderBrush="{DynamicResource CfBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="4,1">
+                                                        <TextBlock Text="{Binding RankBadge}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource CfAccentTextBrush}" HorizontalAlignment="Center" />
+                                                    </Border>
+                                                </Grid>
                                                 <StackPanel Grid.Column="1" Spacing="2">
                                                     <TextBlock Classes="cfp-row-title" Text="{Binding Run.PlayerName}" TextTrimming="CharacterEllipsis" />
                                                     <TextBlock Classes="cfp-meta" Text="{Binding BoardName}" TextTrimming="CharacterEllipsis" />
@@ -2144,10 +2208,10 @@
                         </StackPanel>
                         <Grid x:Name="SpeedrunActivityFooter" Grid.Row="3" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                             <ProgressBar Width="72" MinWidth="0" MaxWidth="72" Height="3" HorizontalAlignment="Left" IsIndeterminate="True" IsVisible="{Binding IsSpeedrunActivityLoading}" VerticalAlignment="Center" />
-                            <TextBlock Grid.Column="1" Classes="cfp-meta" Text="{Binding SpeedrunActivityStatus}" VerticalAlignment="Center" IsVisible="{Binding !ShowSpeedrunActivityEmptyState}" />
+                            <TextBlock Grid.Column="1" Classes="cfp-meta cfp-state-motion" Text="{Binding SpeedrunActivityStatus}" VerticalAlignment="Center" IsVisible="{Binding !ShowSpeedrunActivityEmptyState}" />
                             <TextBlock Grid.Column="2" Classes="cfp-meta" Text="{Binding SpeedrunActivityUpdatedAt}" VerticalAlignment="Center" />
                         </Grid>
-                        <Border Grid.Row="4" Classes="cfp-error" IsVisible="{Binding HasSpeedrunActivityError}">
+                        <Border Grid.Row="4" Classes="cfp-error cfp-state-motion" IsVisible="{Binding HasSpeedrunActivityError}">
                             <TextBlock Classes="cfp-meta" Text="{Binding SpeedrunActivityError}" TextWrapping="Wrap" />
                         </Border>
                     </Grid>
@@ -2203,15 +2267,39 @@
                                     Spacing="12"
                                     MaxWidth="1920"
                                     HorizontalAlignment="Stretch">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                <StackPanel Spacing="4">
-                                    <TextBlock x:Name="DownloadVersionsPageTitle" Classes="cfp-page-title" Text="{Binding Loc[GameVersions]}" />
-                                    <TextBlock Classes="cfp-meta" Text="{Binding Loc[DownloadsHint]}" TextWrapping="Wrap" />
-                                    <Button Classes="cfp-link" Content="{Binding Loc[ChooseDownloadLibrary]}" Click="ChooseDownloadLibrary" HorizontalAlignment="Left" />
-                                    <TextBlock Classes="cfp-caption" Text="{Binding VersionRoot}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding VersionRoot}"
-                                               IsVisible="{Binding VersionRoot, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-                                </StackPanel>
+                            <Grid x:Name="DownloadVersionsHeader" ColumnDefinitions="*,Auto" ColumnSpacing="16" MinHeight="40">
+                                <TextBlock x:Name="DownloadVersionsPageTitle" Classes="cfp-page-title" Text="{Binding Loc[GameVersions]}" VerticalAlignment="Center" />
+                                <ComboBox x:Name="DownloadGameDirectorySelector" Grid.Column="1" Classes="cfp-input cfp-download-directory" Width="280" Height="36"
+                                          HorizontalContentAlignment="Stretch" VerticalAlignment="Center"
+                                          ItemsSource="{Binding Instances.GameDirectories}"
+                                          SelectedItem="{Binding Instances.SelectedGameDirectory, Mode=TwoWay}"
+                                          PlaceholderText="{Binding Loc[ChooseDownloadLibrary]}"
+                                          AutomationProperties.Name="{Binding Loc[ChooseDownloadLibrary]}"
+                                          ToolTip.Tip="{Binding Instances.SelectedGameDirectory.Path}"
+                                          IsEnabled="{Binding Instances.GameDirectories.Count, Converter={x:Static converters:ObjectConverters.NotEqual}, ConverterParameter={StaticResource Zero}}">
+                                    <ComboBox.SelectionBoxItemTemplate>
+                                        <DataTemplate x:DataType="vm:GameDirectoryItemViewModel">
+                                            <Grid ColumnDefinitions="16,*" ColumnSpacing="8">
+                                                <LucideIcon Kind="Folder" Size="16" VerticalAlignment="Center" Foreground="{DynamicResource CfMutedTextBrush}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ComboBox.SelectionBoxItemTemplate>
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:GameDirectoryItemViewModel">
+                                            <Grid ColumnDefinitions="16,*" ColumnSpacing="8" Width="240" Margin="0,4" ToolTip.Tip="{Binding Path}">
+                                                <LucideIcon Kind="Folder" Size="16" VerticalAlignment="Center" Foreground="{DynamicResource CfMutedTextBrush}" />
+                                                <StackPanel Grid.Column="1" Spacing="4">
+                                                    <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Classes="cfp-caption" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
                             </Grid>
+                            <TextBlock Classes="cfp-caption" Text="{Binding Loc[DownloadDirectoryEmpty]}" TextWrapping="Wrap"
+                                       IsVisible="{Binding Instances.GameDirectories.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={StaticResource Zero}}" />
                             <Border x:Name="SteamAccountCard" Classes="cfp-card">
                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                     <LucideIcon Kind="UserRound" Size="18" VerticalAlignment="Center" />

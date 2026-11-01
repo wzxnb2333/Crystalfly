@@ -1,4 +1,4 @@
-<Styles xmlns="https://github.com/avaloniaui"
+﻿<Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Styles.Resources>
         <ResourceDictionary>
@@ -959,6 +959,14 @@
         <Setter Property="CornerRadius" Value="8" />
     </Style>
 
+    <Style Selector="ComboBox.cfp-download-directory">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="10,0" />
+    </Style>
+
     <Style Selector="ProgressBar">
         <Setter Property="Foreground" Value="{DynamicResource CfAccentBrush}" />
     </Style>
@@ -1033,11 +1041,82 @@
 
     <Style Selector="Button.cfp-instance-main"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
     <Style Selector="Button.cfp-instance-main:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.cfp-instance-main:pressed /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/></Style>
-    <Style Selector="ListBox.cfp-game-directory-list > ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="4,2"/></Style>
-    <Style Selector="ListBox.cfp-instance-list > ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
-    <Style Selector="Grid.cfp-instance-row StackPanel.cfp-instance-actions"><Setter Property="Opacity" Value="0"/><Setter Property="IsHitTestVisible" Value="False"/></Style>
-    <Style Selector="ListBox.cfp-instance-list > ListBoxItem:pointerover StackPanel.cfp-instance-actions, ListBox.cfp-instance-list > ListBoxItem:focus-within StackPanel.cfp-instance-actions, ListBox.cfp-instance-list > ListBoxItem:selected StackPanel.cfp-instance-actions"><Setter Property="Opacity" Value="1"/><Setter Property="IsHitTestVisible" Value="True"/></Style>
+    <Style Selector="ListBox.cfp-game-directory-list">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="ListBox.cfp-game-directory-list > ListBoxItem">
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,0,0,6" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="ListBox.cfp-game-directory-list > ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="ListBox.cfp-game-directory-list > ListBoxItem:pointerover Border.cfp-directory-surface">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+    </Style>
+    <Style Selector="ListBox.cfp-game-directory-list > ListBoxItem:selected Border.cfp-directory-surface">
+        <Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfBorderBrush}" />
+    </Style>
+    <Style Selector="Button.cfp-directory-action">
+        <Setter Property="Width" Value="28" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource CfMutedTextBrush}" />
+    </Style>
+    <Style Selector="Button.cfp-directory-action.danger:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource CfErrorBrush}" />
+    </Style>
+    <Style Selector="ListBox.cfp-instance-list">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="ListBox.cfp-instance-list > ListBoxItem, ListBox.cfp-instance-list > ListBoxItem:selected, ListBox.cfp-instance-list > ListBoxItem:pointerover, ListBox.cfp-instance-list > ListBoxItem:selected:pointerover">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="ListBox.cfp-instance-list > ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="ListBox.cfp-instance-list > ListBoxItem:pointerover Border.cfp-instance-surface">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceHoverBrush}" />
+    </Style>
+    <Style Selector="ListBox.cfp-instance-list > ListBoxItem:selected Border.cfp-instance-surface">
+        <Setter Property="Background" Value="{DynamicResource CfSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CfAccentBrush}" />
+    </Style>
+    <Style Selector="Border.cfp-instance-action-frame">
+        <Setter Property="Opacity" Value="0" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+    <Style Selector="ListBox.cfp-instance-list > ListBoxItem:pointerover Border.cfp-instance-action-frame, ListBox.cfp-instance-list:not(:pointerover) > ListBoxItem:focus-within Border.cfp-instance-action-frame">
+        <Setter Property="Opacity" Value="1" />
+        <Setter Property="IsHitTestVisible" Value="True" />
+    </Style>
     <Style Selector="Button.cfp-instance-action, Button.cfp-mod-action, Button.cfp-quick-action"><Setter Property="Width" Value="30"/><Setter Property="Height" Value="30"/><Setter Property="Padding" Value="0"/><Setter Property="Background" Value="Transparent"/></Style>
+    <Style Selector="Button.cfp-instance-action"><Setter Property="CornerRadius" Value="6"/></Style>
+    <Style Selector="Button.cfp-instance-menu-item">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="{DynamicResource CfTextBrush}" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Padding" Value="12,8" />
+    </Style>
     <Style Selector="Button.cfp-instance-action.active"><Setter Property="Foreground" Value="{DynamicResource CfAccentBrush}"/></Style>
     <Style Selector="Button.cfp-quick-action.active">
         <Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}" />
@@ -1055,6 +1134,9 @@
                      Button.cfp-graph-toggle.active:focus-visible">
         <Setter Property="BorderBrush" Value="{DynamicResource CfAccentTextBrush}" />
         <Setter Property="BorderThickness" Value="2" />
+    </Style>
+    <Style Selector="Border.cfp-graph-selection-viewport.has-selection">
+        <Setter Property="Margin" Value="0,0,0,60" />
     </Style>
     <Style Selector="Border.cfp-mod-bulk-bar"><Setter Property="Padding" Value="8,6"/><Setter Property="Background" Value="{DynamicResource CfAccentSoftBrush}"/><Setter Property="CornerRadius" Value="8"/></Style>
     <Style Selector="WrapPanel.cfp-mod-quick-actions"><Setter Property="Height" Value="34"/><Setter Property="VerticalAlignment" Value="Center"/></Style>

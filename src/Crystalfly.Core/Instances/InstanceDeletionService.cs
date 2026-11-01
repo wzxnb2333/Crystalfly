@@ -175,6 +175,7 @@ public sealed class InstanceDeletionService
         }
 
         var cleanupError = TryCleanupCommitted(journal);
+        if (cleanupError is null) await CollectUnusedContentAsync();
         return new InstanceDeletionResult(
             instance.Id,
             instanceRoot,
@@ -186,6 +187,7 @@ public sealed class InstanceDeletionService
     public async Task<IReadOnlyList<InstanceDeletionRecoveryResult>> RecoverPendingAsync(
         CancellationToken cancellationToken = default)
     {
+        await CollectUnusedContentAsync();
         if (!Directory.Exists(pendingRoot))
         {
             return [];
@@ -297,6 +299,12 @@ public sealed class InstanceDeletionService
                 error?.Message));
         }
         return results;
+    }
+
+    private async Task CollectUnusedContentAsync()
+    {
+        try { await new SharedGameContentStore(versionRoot).CollectUnusedAsync(); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
     }
 
     private bool IsRunning(GameId game) => processProbe?.IsRunning()

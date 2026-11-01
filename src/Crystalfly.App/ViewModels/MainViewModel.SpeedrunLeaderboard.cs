@@ -102,7 +102,7 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(HasLiveSplitFavorites));
     }
 
-    public bool IsSpeedrunEnvironmentTab => IsHollowKnight && CurrentSpeedrunTab == "Environment";
+    public bool IsSpeedrunEnvironmentTab => CurrentSpeedrunTab == "Environment";
     public bool IsSpeedrunActivityTab => CurrentSpeedrunTab == "Activity";
     public bool IsSpeedrunActivityFilterAll => SpeedrunActivityFilter == "All";
     public bool IsSpeedrunActivityFilterHollowKnight => SpeedrunActivityFilter == "HollowKnight";
@@ -142,6 +142,7 @@ public partial class MainViewModel
 
     partial void OnCurrentPageChanged(string value)
     {
+        if (value == "Versions") _ = Instances.RefreshStorageUsageAsync();
         if (value == "Speedrun" && IsSpeedrunActivityTab)
         {
             EnsureSpeedrunActivityLoaded();
@@ -173,7 +174,7 @@ public partial class MainViewModel
     [RelayCommand]
     private void SelectSpeedrunTab(string? tab)
     {
-        if (tab is "Environment" or "Activity" && (IsHollowKnight || tab == "Activity"))
+        if (tab is "Environment" or "Activity")
         {
             CurrentSpeedrunTab = tab;
         }
@@ -519,6 +520,14 @@ public sealed record SpeedrunActivityItemViewModel(
     public string RunId => Entry.RunId;
     public SpeedrunPodiumEntry Run => Entry.Run;
     public bool IsWorldRecord => Entry.IsWorldRecord;
+    public bool IsSilksongGame => Entry.Board.Game is SpeedrunGame.Silksong or SpeedrunGame.SilksongExtensions;
+    public string RankBadge => Entry.Kind switch
+    {
+        SpeedrunActivityKind.WorldRecord => "WR",
+        SpeedrunActivityKind.TiedWorldRecord => "1st",
+        SpeedrunActivityKind.SecondPlace => "2nd",
+        _ => "3rd"
+    };
     public string DisplayVerifiedAt => Entry.DisplayVerifiedAt;
 }
 

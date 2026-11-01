@@ -223,6 +223,7 @@ public sealed class GameDirectoryFirstUseTests : IDisposable
         Assert.Equal(library, reopened.VersionRoot);
         Assert.Equal(addedGame, Assert.Single(reopened.Instances.Instances).Record.GameId);
         await reopened.SelectGameCommand.ExecuteAsync(originalGame.ToString());
+        await reopened.WaitForGameInstanceRefreshAsync();
         Assert.Equal(library, reopened.VersionRoot);
         Assert.Equal(originalInstanceId, Assert.Single(reopened.Instances.Instances).Id);
     }

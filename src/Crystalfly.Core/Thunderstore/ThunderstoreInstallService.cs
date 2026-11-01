@@ -27,6 +27,11 @@ public sealed class ThunderstoreInstallService(InstanceRecord instance, Thunders
         var path = Resolve(ReceiptRelativePath);
         if (!File.Exists(path) && !File.Exists(path + ".bak")) return new();
         var state = await AtomicJsonStore.ReadAsync<ThunderstoreInstallState>(path, token);
+        return ValidateState(state);
+    }
+
+    private ThunderstoreInstallState ValidateState(ThunderstoreInstallState state)
+    {
         if (state.Packages is null || state.Packages.Any(item => item is null)
             || state.GameId != instance.GameId || state.SchemaVersion != 1
             || state.Packages.Select(item => item.FullName).Distinct(StringComparer.OrdinalIgnoreCase).Count() != state.Packages.Count)
@@ -311,9 +316,13 @@ public sealed class ThunderstoreInstallService(InstanceRecord instance, Thunders
         finally { CleanupStaging(staging); Gate.Release(); }
     }
 
-    public async Task<IReadOnlyList<ModHealthReport>> AssessHealthAsync(CancellationToken token = default)
+    public async Task<IReadOnlyList<ModHealthReport>> AssessHealthAsync(CancellationToken token = default) =>
+        await AssessHealthAsync(await ReadStateAsync(token), token);
+
+    public async Task<IReadOnlyList<ModHealthReport>> AssessHealthAsync(ThunderstoreInstallState state, CancellationToken token = default)
     {
-        var state = await ReadStateAsync(token);
+        ValidateTarget(checkRunning: false);
+        state = ValidateState(state);
         var reports = new List<ModHealthReport>();
         foreach (var package in state.Packages.Where(item => !item.IsLoader))
         {
