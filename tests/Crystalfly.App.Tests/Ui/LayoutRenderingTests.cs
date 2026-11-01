@@ -364,6 +364,8 @@ public sealed class LayoutRenderingTests
             {
                 var summary = row.Children.OfType<Grid>().Single(grid => grid.Classes.Contains("cfp-instance-summary"));
                 var actions = row.GetVisualDescendants().OfType<StackPanel>().Single(panel => panel.Classes.Contains("cfp-instance-actions"));
+                // Layout assertions inspect the settled hover state, independent of transition timing.
+                row.Children.OfType<Border>().Single(border => border.Classes.Contains("cfp-instance-action-frame")).Transitions = null;
                 var main = row.Children.OfType<Button>().Single(button => button.Classes.Contains("cfp-instance-main"));
                 var summaryOrigin = Assert.IsType<Point>(summary.TranslatePoint(default, row));
                 var actionsOrigin = Assert.IsType<Point>(actions.TranslatePoint(default, row));

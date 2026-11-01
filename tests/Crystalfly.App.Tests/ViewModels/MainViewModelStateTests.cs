@@ -1310,6 +1310,9 @@ public sealed class MainViewModelStateTests : IDisposable
             VersionRoot = versionRoot,
             SelectedInstance = new InstanceItemViewModel(record, record.BuildId, "BepInEx", 0)
         };
+        // Finish the automatic initial load before installing the prompt used by manual loads.
+        await Assert.IsAssignableFrom<Task>(typeof(MainViewModel)
+            .GetField("detailsLoadTask", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(viewModel));
         var promptCount = 0;
         viewModel.ExternalContentConfirmPrompt = (_, _, _) =>
         {

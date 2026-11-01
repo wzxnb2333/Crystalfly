@@ -1967,10 +1967,16 @@
                                         <Button Classes="cfp-primary" HorizontalAlignment="Stretch" Command="{Binding LaunchGameCommand}" Content="{Binding SpeedrunLaunchLabel}" />
                                         <Button Grid.Column="1" Classes="cfp-icon"
                                                 Click="RenameSelectedSpeedrunEnvironment"
-                                                IsEnabled="{Binding IsWorkspaceEnabled}"
                                                 ToolTip.Tip="{Binding Loc[SpeedrunRename]}"
                                                 AutomationProperties.Name="{Binding Loc[SpeedrunRename]}"
-                                                Content="{LucideIconContent Pencil, 16}" />
+                                                Content="{LucideIconContent Pencil, 16}">
+                                            <Button.IsEnabled>
+                                                <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
+                                                    <Binding Path="CanNavigate" />
+                                                    <Binding Path="IsGameRunning" Converter="{x:Static converters:BoolConverters.Not}" />
+                                                </MultiBinding>
+                                            </Button.IsEnabled>
+                                        </Button>
                                         <Button Grid.Column="2" Classes="cfp-icon"
                                                 IsVisible="{Binding IsHollowKnight}"
                                                 Command="{Binding ReinstallSpeedrunEnvironmentCommand}"
