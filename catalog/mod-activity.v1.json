@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-25T07:03:10.0000000+00:00",
-  "sourceRevision": "6bc9a9be9bb2b392c10d47da92c8d49c138c7ac1",
+  "generatedAt": "2026-11-01T10:55:03.0000000+00:00",
+  "sourceRevision": "3c5a159fa3a97ba94d2f712d9475ba16625b6fdd",
   "entries": [
     {
       "id": "hkmod:AbsRad Configurable Attacks",
@@ -136,7 +136,7 @@
     {
       "id": "hkmod:Architect",
       "addedAt": "2025-06-17T15:45:52.0000000+00:00",
-      "updatedAt": "2026-10-24T21:42:14.0000000+00:00"
+      "updatedAt": "2026-10-28T16:14:18.0000000+00:00"
     },
     {
       "id": "hkmod:ArchitectLegacy",
@@ -422,6 +422,11 @@
       "id": "hkmod:Challenge Mode",
       "addedAt": "2022-06-14T18:50:04.0000000+00:00",
       "updatedAt": "2022-08-28T06:29:39.0000000+00:00"
+    },
+    {
+      "id": "hkmod:Champion's Shell",
+      "addedAt": "2026-11-01T10:55:03.0000000+00:00",
+      "updatedAt": "2026-11-01T10:55:03.0000000+00:00"
     },
     {
       "id": "hkmod:ChangeHud",
@@ -1266,7 +1271,7 @@
     {
       "id": "hkmod:GhostPlando",
       "addedAt": "2026-10-25T07:03:10.0000000+00:00",
-      "updatedAt": "2026-10-25T07:03:10.0000000+00:00"
+      "updatedAt": "2026-10-30T11:48:22.0000000+00:00"
     },
     {
       "id": "hkmod:Glass Cannon Mod",
@@ -1759,6 +1764,11 @@
       "updatedAt": "2026-02-23T06:26:21.0000000+00:00"
     },
     {
+      "id": "hkmod:Isma's Embrace",
+      "addedAt": "2026-10-31T22:11:53.0000000+00:00",
+      "updatedAt": "2026-11-01T10:48:29.0000000+00:00"
+    },
+    {
       "id": "hkmod:ItemChanger",
       "addedAt": "2022-01-08T18:11:22.0000000+00:00",
       "updatedAt": "2026-01-11T23:21:03.0000000+00:00"
@@ -2052,6 +2062,11 @@
       "id": "hkmod:MidasTouch",
       "addedAt": "2024-10-21T20:17:16.0000000+00:00",
       "updatedAt": "2026-08-19T15:22:20.0000000+00:00"
+    },
+    {
+      "id": "hkmod:Midautumn's Knightmare",
+      "addedAt": "2026-10-27T16:06:24.0000000+00:00",
+      "updatedAt": "2026-10-27T16:06:24.0000000+00:00"
     },
     {
       "id": "hkmod:MilliGolf",
@@ -2721,7 +2736,7 @@
     {
       "id": "hkmod:ReplayTimerMod",
       "addedAt": "2026-03-16T16:42:30.0000000+00:00",
-      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
+      "updatedAt": "2026-10-26T22:29:23.0000000+00:00"
     },
     {
       "id": "hkmod:ResetCharmNotches",
@@ -3022,6 +3037,11 @@
       "id": "hkmod:Spell Counter",
       "addedAt": "2026-06-01T21:23:03.0000000+00:00",
       "updatedAt": "2026-09-13T15:59:30.0000000+00:00"
+    },
+    {
+      "id": "hkmod:Spell Staller Charms",
+      "addedAt": "2026-10-26T22:31:06.0000000+00:00",
+      "updatedAt": "2026-10-27T16:06:24.0000000+00:00"
     },
     {
       "id": "hkmod:SpellChanger",
