@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-01T10:55:03.0000000+00:00",
-  "sourceRevision": "3c5a159fa3a97ba94d2f712d9475ba16625b6fdd",
+  "generatedAt": "2026-11-07T10:56:45.0000000+00:00",
+  "sourceRevision": "3c12bc76c92186df5fc99bdb6edd5f8aa00cbf85",
   "entries": [
     {
       "id": "hkmod:AbsRad Configurable Attacks",
@@ -136,7 +136,7 @@
     {
       "id": "hkmod:Architect",
       "addedAt": "2025-06-17T15:45:52.0000000+00:00",
-      "updatedAt": "2026-10-28T16:14:18.0000000+00:00"
+      "updatedAt": "2026-11-06T07:43:45.0000000+00:00"
     },
     {
       "id": "hkmod:ArchitectLegacy",
@@ -696,7 +696,7 @@
     {
       "id": "hkmod:CustomizableAbilities",
       "addedAt": "2025-07-16T17:31:54.0000000+00:00",
-      "updatedAt": "2026-10-21T03:20:28.0000000+00:00"
+      "updatedAt": "2026-11-06T21:43:46.0000000+00:00"
     },
     {
       "id": "hkmod:Cyclone Real Combat",
@@ -1256,7 +1256,12 @@
     {
       "id": "hkmod:GeoRando",
       "addedAt": "2026-01-24T08:24:38.0000000+00:00",
-      "updatedAt": "2026-08-06T06:05:09.0000000+00:00"
+      "updatedAt": "2026-11-03T08:42:46.0000000+00:00"
+    },
+    {
+      "id": "hkmod:GeoShare",
+      "addedAt": "2026-11-06T07:44:40.0000000+00:00",
+      "updatedAt": "2026-11-06T07:44:40.0000000+00:00"
     },
     {
       "id": "hkmod:Ghost Macro",
@@ -2156,7 +2161,7 @@
     {
       "id": "hkmod:MoreStags",
       "addedAt": "2026-02-22T00:17:04.0000000+00:00",
-      "updatedAt": "2026-09-26T06:00:42.0000000+00:00"
+      "updatedAt": "2026-11-06T07:41:56.0000000+00:00"
     },
     {
       "id": "hkmod:MossBeast",
@@ -2371,7 +2376,7 @@
     {
       "id": "hkmod:Pale Court Charms",
       "addedAt": "2025-07-26T13:15:42.0000000+00:00",
-      "updatedAt": "2026-07-24T17:34:25.0000000+00:00"
+      "updatedAt": "2026-11-06T07:42:42.0000000+00:00"
     },
     {
       "id": "hkmod:Pale Prince",
@@ -2517,6 +2522,11 @@
       "id": "hkmod:QoL",
       "addedAt": "2021-06-20T02:48:15.0000000+00:00",
       "updatedAt": "2026-03-15T00:23:29.0000000+00:00"
+    },
+    {
+      "id": "hkmod:QoL.Lite",
+      "addedAt": "2026-11-02T06:39:59.0000000+00:00",
+      "updatedAt": "2026-11-06T07:41:01.0000000+00:00"
     },
     {
       "id": "hkmod:QoLTeleportKit",
@@ -2731,7 +2741,7 @@
     {
       "id": "hkmod:ReplayLogger",
       "addedAt": "2025-07-14T17:31:29.0000000+00:00",
-      "updatedAt": "2026-10-12T18:25:55.0000000+00:00"
+      "updatedAt": "2026-11-07T10:56:45.0000000+00:00"
     },
     {
       "id": "hkmod:ReplayTimerMod",
@@ -3186,7 +3196,7 @@
     {
       "id": "hkmod:TheRealTransitionRando",
       "addedAt": "2026-03-03T04:49:51.0000000+00:00",
-      "updatedAt": "2026-08-06T06:05:09.0000000+00:00"
+      "updatedAt": "2026-11-03T04:29:07.0000000+00:00"
     },
     {
       "id": "hkmod:ThecurseofSly",
