@@ -240,8 +240,10 @@ public sealed class DownloadQueueRenderingTests
             static () => false,
             TimeSpan.FromMilliseconds(10));
         var viewModel = new MainViewModel(root, downloadQueueOverride: queue);
-        var window = new MainWindow { Width = 900, Height = 600, DataContext = viewModel };
+        var window = new MainWindow { Width = 900, Height = 600 };
         window.Show();
+        // Startup can open the first-run dialog while this test waits for the download warning.
+        window.DataContext = viewModel;
         await queue.InitializeAsync();
         await queue.EnqueueAsync(Group("update-cancel"));
         await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -298,8 +300,9 @@ public sealed class DownloadQueueRenderingTests
             static () => false,
             TimeSpan.FromMilliseconds(10));
         var viewModel = new MainViewModel(root, downloadQueueOverride: queue);
-        var window = new MainWindow { Width = 900, Height = 600, DataContext = viewModel };
+        var window = new MainWindow { Width = 900, Height = 600 };
         window.Show();
+        window.DataContext = viewModel;
         await queue.InitializeAsync();
         await queue.EnqueueAsync(Group("update-confirm"));
         await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));

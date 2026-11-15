@@ -1,8 +1,23 @@
 [CmdletBinding()]
 param(
     [string[]]$ChangedPaths = @(),
+    [string]$Baseline,
     [switch]$Full
 )
+
+if (-not $Full -and $Baseline -match '^[0-9a-f]{40}$') {
+    git merge-base --is-ancestor $Baseline HEAD 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        # A rename must count in both its old and new modules.
+        $diff = @(git -c core.quotePath=false diff --no-renames --name-only $Baseline HEAD --)
+        if ($LASTEXITCODE -eq 0) {
+            $ChangedPaths = $diff
+        }
+        else {
+            Write-Warning 'Git diff failed. Running all standard tests.'
+        }
+    }
+}
 
 $modules = @('Updater', 'Steam', 'Core', 'App')
 $selected = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)

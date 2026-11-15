@@ -161,6 +161,8 @@ public sealed class InstalledGameManagementTests : IDisposable
             await first.RefreshCommand.ExecuteAsync(null);
             identity = Assert.Single(first.Instances.Instances).Id;
         }
+        // Closing the first session flushes its settings before reopening can queue another save.
+        Assert.True(File.Exists(Path.Combine(appData, "settings.json")));
         await using var reopened = CreateViewModel(appData);
 
         await InitializeAsync(reopened);
@@ -168,7 +170,6 @@ public sealed class InstalledGameManagementTests : IDisposable
         Assert.Equal(versions, reopened.VersionRoot);
         Assert.Equal(identity, Assert.Single(reopened.Instances.Instances).Id);
         Assert.Equal(game, reopened.SelectedInstance!.RootPath);
-        Assert.True(File.Exists(Path.Combine(appData, "settings.json")));
         Assert.True(File.Exists(InstanceSidecar.GetMetadataPath(game, identity)));
     }
 
