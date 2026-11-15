@@ -108,6 +108,7 @@ public sealed partial class DocumentationScreenshotTests
         var selectedMod = viewModel.SelectedMarketMod;
         var settingsPath = viewModel.ResolveSelectedModGlobalSettingsPath();
         Assert.Null(viewModel.ErrorMessage);
+        viewModel.StatusMessage = string.Empty;
         Exception? callbackException = null;
         void CaptureException(object? sender, DispatcherUnhandledExceptionEventArgs args)
         {
@@ -127,15 +128,19 @@ public sealed partial class DocumentationScreenshotTests
                 {
                     fixture.Window.DataContext = null;
                 }
-                Click(Assert.Single(dialog.GetVisualDescendants().OfType<Button>(), button =>
-                    new ButtonAutomationPeer(button).GetName() == viewModel.Loc[action == "cancel" ? "Cancel" : "Confirm"]));
+                var button = Assert.Single(dialog.GetVisualDescendants().OfType<Button>(), button =>
+                    new ButtonAutomationPeer(button).GetName() == viewModel.Loc[action == "cancel" ? "Cancel" : "Confirm"]);
+                Assert.True(button.IsEnabled);
+                Assert.NotNull(button.Command);
+                Assert.True(button.Command.CanExecute(button.CommandParameter));
+                button.Command.Execute(button.CommandParameter);
             }
-            for (var attempt = 0; attempt < 200; attempt++)
+            for (var attempt = 0; attempt < 500; attempt++)
             {
                 await Task.Delay(10);
                 Dispatcher.UIThread.RunJobs();
                 if (attempt >= 20 && (action != "confirm" || callbackException is not null
-                    || viewModel.ErrorMessage is not null || !File.Exists(targetPath)))
+                    || viewModel.ErrorMessage is not null || viewModel.StatusMessage == viewModel.Loc["OperationComplete"]))
                 {
                     break;
                 }
@@ -147,6 +152,10 @@ public sealed partial class DocumentationScreenshotTests
         }
         Assert.Null(callbackException);
         Assert.Null(viewModel.ErrorMessage);
+        if (action == "confirm")
+        {
+            Assert.Equal(viewModel.Loc["OperationComplete"], viewModel.StatusMessage);
+        }
         foreach (var file in files)
         {
             var shouldDelete = action == "confirm" && (file.Key == targetPath || file.Key == targetPath + ".bak");
