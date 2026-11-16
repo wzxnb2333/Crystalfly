@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T10:56:45.0000000+00:00",
-  "sourceRevision": "3c12bc76c92186df5fc99bdb6edd5f8aa00cbf85",
+  "generatedAt": "2026-11-15T21:23:47.0000000+00:00",
+  "sourceRevision": "134c302d47e103ad85d82709fbe93f11115a78ca",
   "entries": [
     {
       "id": "hkmod:AbsRad Configurable Attacks",
@@ -136,7 +136,7 @@
     {
       "id": "hkmod:Architect",
       "addedAt": "2025-06-17T15:45:52.0000000+00:00",
-      "updatedAt": "2026-11-06T07:43:45.0000000+00:00"
+      "updatedAt": "2026-11-15T11:32:50.0000000+00:00"
     },
     {
       "id": "hkmod:ArchitectLegacy",
@@ -1209,6 +1209,11 @@
       "updatedAt": "2025-06-14T22:47:01.0000000+00:00"
     },
     {
+      "id": "hkmod:Gaslight",
+      "addedAt": "2026-11-10T17:29:48.0000000+00:00",
+      "updatedAt": "2026-11-10T17:29:48.0000000+00:00"
+    },
+    {
       "id": "hkmod:GatheringSwarmAlwaysOn",
       "addedAt": "2023-03-23T22:14:49.0000000+00:00",
       "updatedAt": "2023-03-23T22:14:49.0000000+00:00"
@@ -1331,7 +1336,7 @@
     {
       "id": "hkmod:GodhomeQoL",
       "addedAt": "2025-12-19T11:29:37.0000000+00:00",
-      "updatedAt": "2026-09-27T11:50:43.0000000+00:00"
+      "updatedAt": "2026-11-15T11:35:42.0000000+00:00"
     },
     {
       "id": "hkmod:GodhomeRandomizer",
@@ -1426,7 +1431,7 @@
     {
       "id": "hkmod:HKBattle",
       "addedAt": "2026-06-27T18:38:54.0000000+00:00",
-      "updatedAt": "2026-09-06T20:56:24.0000000+00:00"
+      "updatedAt": "2026-11-10T16:44:38.0000000+00:00"
     },
     {
       "id": "hkmod:HKHKHKHKHK",
@@ -1461,12 +1466,17 @@
     {
       "id": "hkmod:HKMP.List",
       "addedAt": "2026-10-17T14:37:05.0000000+00:00",
-      "updatedAt": "2026-10-17T14:37:05.0000000+00:00"
+      "updatedAt": "2026-11-10T16:32:09.0000000+00:00"
     },
     {
       "id": "hkmod:HKMP.ModDiff",
       "addedAt": "2022-04-15T03:07:09.0000000+00:00",
       "updatedAt": "2022-10-07T15:27:40.0000000+00:00"
+    },
+    {
+      "id": "hkmod:HKMP.MoreTeams",
+      "addedAt": "2026-11-10T16:31:03.0000000+00:00",
+      "updatedAt": "2026-11-10T16:31:03.0000000+00:00"
     },
     {
       "id": "hkmod:HKMP.Rounds",
@@ -1639,6 +1649,11 @@
       "updatedAt": "2026-06-19T15:19:40.0000000+00:00"
     },
     {
+      "id": "hkmod:Hollow Knight Native Rumble — macOS",
+      "addedAt": "2026-11-10T16:26:55.0000000+00:00",
+      "updatedAt": "2026-11-10T16:26:55.0000000+00:00"
+    },
+    {
       "id": "hkmod:HollowKnightAchievementManager",
       "addedAt": "2025-05-01T15:21:07.0000000+00:00",
       "updatedAt": "2025-05-01T15:21:07.0000000+00:00"
@@ -1787,6 +1802,11 @@
       "id": "hkmod:ItemCreator",
       "addedAt": "2026-05-26T08:50:52.0000000+00:00",
       "updatedAt": "2026-05-28T15:40:29.0000000+00:00"
+    },
+    {
+      "id": "hkmod:ItemReveal",
+      "addedAt": "2026-11-15T19:39:47.0000000+00:00",
+      "updatedAt": "2026-11-15T19:39:47.0000000+00:00"
     },
     {
       "id": "hkmod:ItemSync",
@@ -2161,7 +2181,7 @@
     {
       "id": "hkmod:MoreStags",
       "addedAt": "2026-02-22T00:17:04.0000000+00:00",
-      "updatedAt": "2026-11-06T07:41:56.0000000+00:00"
+      "updatedAt": "2026-11-15T11:33:38.0000000+00:00"
     },
     {
       "id": "hkmod:MossBeast",
@@ -2262,6 +2282,11 @@
       "id": "hkmod:Nightmare and Void",
       "addedAt": "2024-01-08T18:31:05.0000000+00:00",
       "updatedAt": "2024-04-24T19:43:27.0000000+00:00"
+    },
+    {
+      "id": "hkmod:NightmareAccess",
+      "addedAt": "2026-11-15T21:23:47.0000000+00:00",
+      "updatedAt": "2026-11-15T21:23:47.0000000+00:00"
     },
     {
       "id": "hkmod:No More Shards",
@@ -2611,12 +2636,12 @@
     {
       "id": "hkmod:RandoMapCore",
       "addedAt": "2025-05-24T12:13:43.0000000+00:00",
-      "updatedAt": "2026-02-24T21:26:12.0000000+00:00"
+      "updatedAt": "2026-11-15T11:31:50.0000000+00:00"
     },
     {
       "id": "hkmod:RandoMapMod",
       "addedAt": "2022-08-19T04:02:05.0000000+00:00",
-      "updatedAt": "2025-08-29T22:58:51.0000000+00:00"
+      "updatedAt": "2026-11-15T11:31:50.0000000+00:00"
     },
     {
       "id": "hkmod:RandoPlus",
@@ -2741,7 +2766,7 @@
     {
       "id": "hkmod:ReplayLogger",
       "addedAt": "2025-07-14T17:31:29.0000000+00:00",
-      "updatedAt": "2026-11-07T10:56:45.0000000+00:00"
+      "updatedAt": "2026-11-15T11:37:37.0000000+00:00"
     },
     {
       "id": "hkmod:ReplayTimerMod",
@@ -3119,9 +3144,19 @@
       "updatedAt": "2026-04-11T08:42:11.0000000+00:00"
     },
     {
+      "id": "hkmod:Stumble",
+      "addedAt": "2026-11-10T17:12:09.0000000+00:00",
+      "updatedAt": "2026-11-15T11:41:55.0000000+00:00"
+    },
+    {
       "id": "hkmod:Sunset Rad",
       "addedAt": "2024-11-10T15:52:03.0000000+00:00",
       "updatedAt": "2026-06-16T17:44:18.0000000+00:00"
+    },
+    {
+      "id": "hkmod:SuperUltrawideHUD",
+      "addedAt": "2026-11-15T14:54:12.0000000+00:00",
+      "updatedAt": "2026-11-15T14:54:12.0000000+00:00"
     },
     {
       "id": "hkmod:SvgLib",
