@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-15T21:23:47.0000000+00:00",
-  "sourceRevision": "134c302d47e103ad85d82709fbe93f11115a78ca",
+  "generatedAt": "2026-11-22T17:58:18.0000000+00:00",
+  "sourceRevision": "14f6a9eb71bf283e36fb89c28d60b36e30b1a746",
   "entries": [
     {
       "id": "hkmod:AbsRad Configurable Attacks",
@@ -177,6 +177,11 @@
       "id": "hkmod:AuraRad",
       "addedAt": "2026-03-19T16:28:58.0000000+00:00",
       "updatedAt": "2026-03-19T16:28:58.0000000+00:00"
+    },
+    {
+      "id": "hkmod:Back Dash",
+      "addedAt": "2026-11-21T18:28:02.0000000+00:00",
+      "updatedAt": "2026-11-21T18:28:02.0000000+00:00"
     },
     {
       "id": "hkmod:Backdash",
@@ -587,6 +592,11 @@
       "id": "hkmod:Crafted Town",
       "addedAt": "2022-12-24T04:04:23.0000000+00:00",
       "updatedAt": "2023-12-25T10:11:36.0000000+00:00"
+    },
+    {
+      "id": "hkmod:CreatureSpawner",
+      "addedAt": "2026-11-21T18:22:40.0000000+00:00",
+      "updatedAt": "2026-11-21T18:22:40.0000000+00:00"
     },
     {
       "id": "hkmod:CriticalSlash",
@@ -1996,7 +2006,7 @@
     {
       "id": "hkmod:MapChanger",
       "addedAt": "2022-08-19T04:02:05.0000000+00:00",
-      "updatedAt": "2025-11-21T11:14:37.0000000+00:00"
+      "updatedAt": "2026-11-21T14:44:01.0000000+00:00"
     },
     {
       "id": "hkmod:MapSyncMod",
@@ -2181,7 +2191,7 @@
     {
       "id": "hkmod:MoreStags",
       "addedAt": "2026-02-22T00:17:04.0000000+00:00",
-      "updatedAt": "2026-11-15T11:33:38.0000000+00:00"
+      "updatedAt": "2026-11-22T10:43:17.0000000+00:00"
     },
     {
       "id": "hkmod:MossBeast",
@@ -2444,6 +2454,11 @@
       "updatedAt": "2022-09-15T05:41:06.0000000+00:00"
     },
     {
+      "id": "hkmod:ParryMod",
+      "addedAt": "2026-11-21T18:28:02.0000000+00:00",
+      "updatedAt": "2026-11-21T18:28:02.0000000+00:00"
+    },
+    {
       "id": "hkmod:PathOfPureVessel",
       "addedAt": "2022-05-08T01:24:05.0000000+00:00",
       "updatedAt": "2026-10-13T15:48:29.0000000+00:00"
@@ -2546,7 +2561,7 @@
     {
       "id": "hkmod:QoL",
       "addedAt": "2021-06-20T02:48:15.0000000+00:00",
-      "updatedAt": "2026-03-15T00:23:29.0000000+00:00"
+      "updatedAt": "2026-11-19T04:55:07.0000000+00:00"
     },
     {
       "id": "hkmod:QoL.Lite",
@@ -3487,6 +3502,11 @@
       "id": "hkmod:ZoteCollectorHelper",
       "addedAt": "2023-08-04T18:58:47.0000000+00:00",
       "updatedAt": "2025-08-26T08:25:41.0000000+00:00"
+    },
+    {
+      "id": "hkmod:core.GMIC",
+      "addedAt": "2026-11-22T17:58:18.0000000+00:00",
+      "updatedAt": "2026-11-22T17:58:18.0000000+00:00"
     },
     {
       "id": "hkmod:mahoraga-wheel",
